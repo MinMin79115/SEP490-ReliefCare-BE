@@ -4,13 +4,9 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ReliefManagementSystem.Domain.Enum
+namespace ReliefManagementSystem.Application
 {
-    public enum Role
+    public class ConfigureServices
     {
-        Admin,
-        User,
-        Volunteer,
-        Moderator
     }
 }
