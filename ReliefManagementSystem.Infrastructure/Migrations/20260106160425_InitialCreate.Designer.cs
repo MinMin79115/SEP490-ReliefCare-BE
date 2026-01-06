@@ -12,8 +12,8 @@ using ReliefManagementSystem.Infrastructure.Data;
 namespace ReliefManagementSystem.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20251223052906_InitialIdentity")]
-    partial class InitialIdentity
+    [Migration("20260106160425_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -171,12 +171,18 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Property<DateTime?>("DateOfBirth")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<string>("DisplayName")
+                        .HasColumnType("text");
+
                     b.Property<string>("Email")
                         .HasMaxLength(256)
                         .HasColumnType("character varying(256)");
 
                     b.Property<bool>("EmailConfirmed")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("Gender")
+                        .HasColumnType("text");
 
                     b.Property<bool>("LockoutEnabled")
                         .HasColumnType("boolean");
@@ -207,10 +213,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Property<string>("SecurityStamp")
                         .HasColumnType("text");
 
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
-
                     b.Property<bool>("TwoFactorEnabled")
                         .HasColumnType("boolean");
 
@@ -230,26 +232,128 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
-            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.VolunteerProfile", b =>
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.RefreshToken", b =>
                 {
-                    b.Property<Guid>("UserId")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("AvailabilityStatus")
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("CreatedByIp")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Device")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("Expires")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("Revoked")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Token")
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<string>("Skills")
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("UserId");
+
+                    b.ToTable("RefreshTokens");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Skill", b =>
+                {
+                    b.Property<int>("SkillId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("SkillId"));
+
+                    b.Property<string>("Code")
                         .IsRequired()
                         .HasColumnType("text");
+
+                    b.Property<string>("Description")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("SkillId");
+
+                    b.ToTable("Skills");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Team", b =>
+                {
+                    b.Property<int>("TeamId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("TeamId"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("LeaderId")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("LeaderId1")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.HasKey("TeamId");
+
+                    b.HasIndex("LeaderId1");
+
+                    b.ToTable("Teams");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.TeamMember", b =>
+                {
+                    b.Property<int>("TeamId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("UserId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("JoinedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("RoleTeam")
+                        .HasColumnType("integer");
 
                     b.Property<Guid>("UserId1")
                         .HasColumnType("uuid");
 
-                    b.Property<string>("VerificationStatus")
-                        .IsRequired()
-                        .HasColumnType("text");
+                    b.HasKey("TeamId", "UserId");
+
+                    b.HasIndex("UserId1");
+
+                    b.ToTable("TeamMembers");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.VolunteerProfile", b =>
+                {
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("VerificationStatus")
+                        .HasColumnType("integer");
 
                     b.Property<DateTime?>("VerifiedAt")
                         .HasColumnType("timestamp with time zone");
@@ -259,9 +363,30 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
                     b.HasKey("UserId");
 
-                    b.HasIndex("UserId1");
-
                     b.ToTable("VolunteerProfiles");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.VolunteerSkill", b =>
+                {
+                    b.Property<int>("VolunteerProfileId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SkillId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("VolunteerProfileUserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("VolunteerProfileId", "SkillId");
+
+                    b.HasIndex("SkillId");
+
+                    b.HasIndex("VolunteerProfileUserId");
+
+                    b.ToTable("VolunteerSkills");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
@@ -315,15 +440,88 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.VolunteerProfile", b =>
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.RefreshToken", b =>
                 {
                     b.HasOne("ReliefManagementSystem.Domain.Entities.ApplicationUser", "User")
                         .WithMany()
-                        .HasForeignKey("UserId1")
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Team", b =>
+                {
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.ApplicationUser", "Leader")
+                        .WithMany()
+                        .HasForeignKey("LeaderId1")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Leader");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.TeamMember", b =>
+                {
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.Team", "Team")
+                        .WithMany()
+                        .HasForeignKey("TeamId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.ApplicationUser", "User")
+                        .WithMany("TeamMembers")
+                        .HasForeignKey("UserId1")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Team");
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.VolunteerProfile", b =>
+                {
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.ApplicationUser", "User")
+                        .WithOne("VolunteerProfile")
+                        .HasForeignKey("ReliefManagementSystem.Domain.Entities.VolunteerProfile", "UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("User");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.VolunteerSkill", b =>
+                {
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.Skill", "Skill")
+                        .WithMany()
+                        .HasForeignKey("SkillId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.VolunteerProfile", "VolunteerProfile")
+                        .WithMany("VolunteerSkills")
+                        .HasForeignKey("VolunteerProfileUserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Skill");
+
+                    b.Navigation("VolunteerProfile");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.ApplicationUser", b =>
+                {
+                    b.Navigation("TeamMembers");
+
+                    b.Navigation("VolunteerProfile")
+                        .IsRequired();
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.VolunteerProfile", b =>
+                {
+                    b.Navigation("VolunteerSkills");
                 });
 #pragma warning restore 612, 618
         }

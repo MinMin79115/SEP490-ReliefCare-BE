@@ -19,6 +19,7 @@ namespace ReliefManagementSystem.Domain.Entities
         public string? DisplayName { get; set; }
 
         public VolunteerProfile VolunteerProfile { get; set; }
+        public ICollection<TeamMember> TeamMembers { get; set; }
 
     }
 }
