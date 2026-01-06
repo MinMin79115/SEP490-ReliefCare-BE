@@ -6,10 +6,10 @@
     }
   },
   "ConnectionStrings": {
-    "Default": "Host=localhost;Port=5432;Database=relief_db;Username=postgres;Password=12345"
+    "Default": "Host=localhost;Port=5432;Database=relief_db;Username=postgres;Password=YOUR_PASSWORD_HERE"
   },
   "Jwt": {
-    "Key": "SUPER_SECRET_KEY_12345678912312312312312312321",
+    "Key": "YOUR_SECRET_KEY_HERE_AT_LEAST_32_CHARACTERS",
     "Issuer": "ReliefSystem",
     "Audience": "ReliefClient",
     "AccessTokenMinutes": 15,
