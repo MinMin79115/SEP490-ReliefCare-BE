@@ -10,7 +10,6 @@ namespace ReliefManagementSystem.Domain.Entities
 {
     public class ApplicationUser : IdentityUser<Guid>
     {
-        public UserStatus Status { get; set; } = UserStatus.ACTIVE;
         public string? PictureUrl { get; set; }
 
         public DateTime? DateOfBirth { get; set; }
