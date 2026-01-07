@@ -300,10 +300,7 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("LeaderId")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("LeaderId1")
+                    b.Property<Guid>("LeaderId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("Name")
@@ -315,7 +312,7 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
                     b.HasKey("TeamId");
 
-                    b.HasIndex("LeaderId1");
+                    b.HasIndex("LeaderId");
 
                     b.ToTable("Teams");
                 });
@@ -325,8 +322,8 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Property<int>("TeamId")
                         .HasColumnType("integer");
 
-                    b.Property<int>("UserId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("JoinedAt")
                         .HasColumnType("timestamp with time zone");
@@ -334,12 +331,9 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Property<int>("RoleTeam")
                         .HasColumnType("integer");
 
-                    b.Property<Guid>("UserId1")
-                        .HasColumnType("uuid");
-
                     b.HasKey("TeamId", "UserId");
 
-                    b.HasIndex("UserId1");
+                    b.HasIndex("UserId");
 
                     b.ToTable("TeamMembers");
                 });
@@ -365,8 +359,8 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.VolunteerSkill", b =>
                 {
-                    b.Property<int>("VolunteerProfileId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("VolunteerProfileId")
+                        .HasColumnType("uuid");
 
                     b.Property<int>("SkillId")
                         .HasColumnType("integer");
@@ -374,14 +368,9 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<Guid>("VolunteerProfileUserId")
-                        .HasColumnType("uuid");
-
                     b.HasKey("VolunteerProfileId", "SkillId");
 
                     b.HasIndex("SkillId");
-
-                    b.HasIndex("VolunteerProfileUserId");
 
                     b.ToTable("VolunteerSkills");
                 });
@@ -452,8 +441,8 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 {
                     b.HasOne("ReliefManagementSystem.Domain.Entities.ApplicationUser", "Leader")
                         .WithMany()
-                        .HasForeignKey("LeaderId1")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .HasForeignKey("LeaderId")
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Leader");
@@ -462,14 +451,14 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.TeamMember", b =>
                 {
                     b.HasOne("ReliefManagementSystem.Domain.Entities.Team", "Team")
-                        .WithMany()
+                        .WithMany("TeamMembers")
                         .HasForeignKey("TeamId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("ReliefManagementSystem.Domain.Entities.ApplicationUser", "User")
                         .WithMany("TeamMembers")
-                        .HasForeignKey("UserId1")
+                        .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -492,14 +481,14 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.VolunteerSkill", b =>
                 {
                     b.HasOne("ReliefManagementSystem.Domain.Entities.Skill", "Skill")
-                        .WithMany()
+                        .WithMany("VolunteerSkills")
                         .HasForeignKey("SkillId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("ReliefManagementSystem.Domain.Entities.VolunteerProfile", "VolunteerProfile")
                         .WithMany("VolunteerSkills")
-                        .HasForeignKey("VolunteerProfileUserId")
+                        .HasForeignKey("VolunteerProfileId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
@@ -514,6 +503,16 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
                     b.Navigation("VolunteerProfile")
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Skill", b =>
+                {
+                    b.Navigation("VolunteerSkills");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Team", b =>
+                {
+                    b.Navigation("TeamMembers");
                 });
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.VolunteerProfile", b =>

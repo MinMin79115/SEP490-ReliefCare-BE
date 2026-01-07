@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ReliefManagementSystem.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class FixedTypeMismatches : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -207,8 +207,7 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     TeamId = table.Column<int>(type: "integer", nullable: false)
                         .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
                     Name = table.Column<string>(type: "text", nullable: false),
-                    LeaderId = table.Column<int>(type: "integer", nullable: false),
-                    LeaderId1 = table.Column<Guid>(type: "uuid", nullable: false),
+                    LeaderId = table.Column<Guid>(type: "uuid", nullable: false),
                     Status = table.Column<int>(type: "integer", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
@@ -216,11 +215,11 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 {
                     table.PrimaryKey("PK_Teams", x => x.TeamId);
                     table.ForeignKey(
-                        name: "FK_Teams_AspNetUsers_LeaderId1",
-                        column: x => x.LeaderId1,
+                        name: "FK_Teams_AspNetUsers_LeaderId",
+                        column: x => x.LeaderId,
                         principalTable: "AspNetUsers",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -248,8 +247,7 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 columns: table => new
                 {
                     TeamId = table.Column<int>(type: "integer", nullable: false),
-                    UserId = table.Column<int>(type: "integer", nullable: false),
-                    UserId1 = table.Column<Guid>(type: "uuid", nullable: false),
+                    UserId = table.Column<Guid>(type: "uuid", nullable: false),
                     RoleTeam = table.Column<int>(type: "integer", nullable: false),
                     JoinedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
@@ -257,8 +255,8 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 {
                     table.PrimaryKey("PK_TeamMembers", x => new { x.TeamId, x.UserId });
                     table.ForeignKey(
-                        name: "FK_TeamMembers_AspNetUsers_UserId1",
-                        column: x => x.UserId1,
+                        name: "FK_TeamMembers_AspNetUsers_UserId",
+                        column: x => x.UserId,
                         principalTable: "AspNetUsers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
@@ -274,9 +272,8 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 name: "VolunteerSkills",
                 columns: table => new
                 {
-                    VolunteerProfileId = table.Column<int>(type: "integer", nullable: false),
+                    VolunteerProfileId = table.Column<Guid>(type: "uuid", nullable: false),
                     SkillId = table.Column<int>(type: "integer", nullable: false),
-                    VolunteerProfileUserId = table.Column<Guid>(type: "uuid", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
@@ -289,8 +286,8 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         principalColumn: "SkillId",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_VolunteerSkills_VolunteerProfiles_VolunteerProfileUserId",
-                        column: x => x.VolunteerProfileUserId,
+                        name: "FK_VolunteerSkills_VolunteerProfiles_VolunteerProfileId",
+                        column: x => x.VolunteerProfileId,
                         principalTable: "VolunteerProfiles",
                         principalColumn: "UserId",
                         onDelete: ReferentialAction.Cascade);
@@ -339,24 +336,19 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_TeamMembers_UserId1",
+                name: "IX_TeamMembers_UserId",
                 table: "TeamMembers",
-                column: "UserId1");
+                column: "UserId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Teams_LeaderId1",
+                name: "IX_Teams_LeaderId",
                 table: "Teams",
-                column: "LeaderId1");
+                column: "LeaderId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_VolunteerSkills_SkillId",
                 table: "VolunteerSkills",
                 column: "SkillId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_VolunteerSkills_VolunteerProfileUserId",
-                table: "VolunteerSkills",
-                column: "VolunteerProfileUserId");
         }
 
         /// <inheritdoc />
