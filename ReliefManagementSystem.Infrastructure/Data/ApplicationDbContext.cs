@@ -18,6 +18,7 @@ namespace ReliefManagementSystem.Infrastructure.Data
         public DbSet<VolunteerSkill> VolunteerSkills { get; set; }
         public DbSet<Team> Teams { get; set; }
         public DbSet<TeamMember> TeamMembers { get; set; }
+        public DbSet<TeamJoinRequest> TeamJoinRequests { get; set; }
 
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
           : base(options) { }
