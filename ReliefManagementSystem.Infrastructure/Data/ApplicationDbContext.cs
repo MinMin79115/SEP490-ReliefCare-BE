@@ -27,12 +27,14 @@ namespace ReliefManagementSystem.Infrastructure.Data
         {
             base.OnModelCreating(builder);
 
+            //VolunteerProfile configuration
             builder.Entity<VolunteerProfile>()
                 .HasOne(v => v.User)
                 .WithOne(u => u.VolunteerProfile)
                 .HasForeignKey<VolunteerProfile>(v => v.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            //VolunteerSkill configuration
             builder.Entity<VolunteerSkill>()
                 .HasKey(vs => new { vs.VolunteerProfileId, vs.SkillId });
 
@@ -48,6 +50,7 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .HasForeignKey(vs => vs.SkillId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            //TeamMember configuration
             builder.Entity<TeamMember>()
                 .HasKey(tm => new { tm.TeamId, tm.UserId });
 
@@ -63,13 +66,39 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .HasForeignKey(tm => tm.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-
+            //Team Configuration
             builder.Entity<Team>()
                 .HasOne(t => t.Leader)
                 .WithMany()
                 .HasForeignKey(t => t.LeaderId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<Team>()
+                .HasOne(t => t.Moderator)
+                .WithMany()
+                .HasForeignKey(t => t.ModeratorId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            //TeamJoinRequest Configuration
+            builder.Entity<TeamJoinRequest>()
+                .HasOne(tjr => tjr.Team)
+                .WithMany(t => t.TeamJoinRequests)
+                .HasForeignKey(tjr => tjr.TeamId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<TeamJoinRequest>()
+                .HasOne(tjr => tjr.Volunteer)
+                .WithMany()
+                .HasForeignKey(tjr => tjr.VolunteerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<TeamJoinRequest>()
+                .HasOne(tjr => tjr.Reviewer)
+                .WithMany()
+                .HasForeignKey(tjr => tjr.ReviewedBy)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            //RefreshToken Configuration
             builder.Entity<RefreshToken>()
                 .HasOne(r => r.User)
                 .WithMany()
