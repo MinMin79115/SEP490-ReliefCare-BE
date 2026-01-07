@@ -8,7 +8,7 @@ namespace ReliefManagementSystem.Domain.Entities
 {
     public class VolunteerSkill
     {
-        public int VolunteerProfileId { get; set; }
+        public Guid VolunteerProfileId { get; set; }
         public VolunteerProfile VolunteerProfile { get; set; }
 
         public int SkillId { get; set; }

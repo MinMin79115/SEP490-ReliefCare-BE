@@ -13,11 +13,13 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public string Name { get; set; }
 
-        public int LeaderId { get; set; }
+        public Guid LeaderId { get; set; }
         public ApplicationUser Leader { get; set; }
 
         public TeamStatus Status { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+
+        public ICollection<TeamMember> TeamMembers { get; set; } = new List<TeamMember>();
     }
 }

@@ -35,15 +35,45 @@ namespace ReliefManagementSystem.Infrastructure.Data
             builder.Entity<VolunteerSkill>()
                 .HasKey(vs => new { vs.VolunteerProfileId, vs.SkillId });
 
+            builder.Entity<VolunteerSkill>()
+                .HasOne(vs => vs.VolunteerProfile)
+                .WithMany(vp => vp.VolunteerSkills)
+                .HasForeignKey(vs => vs.VolunteerProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<VolunteerSkill>()
+                .HasOne(vs => vs.Skill)
+                .WithMany(s => s.VolunteerSkills)
+                .HasForeignKey(vs => vs.SkillId)
+                .OnDelete(DeleteBehavior.Cascade);
+
             builder.Entity<TeamMember>()
                 .HasKey(tm => new { tm.TeamId, tm.UserId });
 
+            builder.Entity<TeamMember>()
+                .HasOne(tm => tm.Team)
+                .WithMany(t => t.TeamMembers)
+                .HasForeignKey(tm => tm.TeamId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<TeamMember>()
+                .HasOne(tm => tm.User)
+                .WithMany(u => u.TeamMembers)
+                .HasForeignKey(tm => tm.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+
+            builder.Entity<Team>()
+                .HasOne(t => t.Leader)
+                .WithMany()
+                .HasForeignKey(t => t.LeaderId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             builder.Entity<RefreshToken>()
-            .HasOne(r => r.User)
-            .WithMany()
-            .HasForeignKey(r => r.UserId)
-             .OnDelete(DeleteBehavior.Cascade);
+                .HasOne(r => r.User)
+                .WithMany()
+                .HasForeignKey(r => r.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
 
 
         }
