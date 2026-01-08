@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ReliefManagementSystem.Application.Features.Team
+namespace ReliefManagementSystem.Application.Features.Team.Request
 {
     public class UpdateTeamRequest
     {

@@ -1,12 +1,16 @@
-﻿using System;
+﻿using ReliefManagementSystem.Domain.Enum;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ReliefManagementSystem.Application.Features.TeamJoinRequest
+namespace ReliefManagementSystem.Application.Features.TeamJoinRequest.Request
 {
-    internal class CreateTeamJoinRequest
+    public class CreateTeamJoinRequest
     {
+        public int TeamId { get; set; }
+
+        public TeamRole RequestedRole { get; set; }
     }
 }

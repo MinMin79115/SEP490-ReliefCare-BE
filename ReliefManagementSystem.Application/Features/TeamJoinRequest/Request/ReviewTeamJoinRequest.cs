@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ReliefManagementSystem.Application.Features.TeamJoinRequest
+namespace ReliefManagementSystem.Application.Features.TeamJoinRequest.Request
 {
     public class ReviewTeamJoinRequest
     {
