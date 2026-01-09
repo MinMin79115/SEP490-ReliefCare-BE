@@ -16,11 +16,11 @@ namespace ReliefManagementSystem.Application.Common.Interface
 
         Task<List<TeamJoinRequest>> GetByVolunteerIdWithDetailsAsync(Guid volunteerId);
 
-        Task<List<TeamJoinRequest>> GetByTeamIdWithDetailsAsync(int teamId);
+        Task<List<TeamJoinRequest>> GetByTeamIdWithDetailsAsync(Guid teamId);
 
         Task<List<TeamJoinRequest>> GetPendingRequestsByModeratorWithDetailsAsync(Guid moderatorId);
 
-        Task<TeamJoinRequest?> GetExistingPendingRequestAsync(int teamId, Guid volunteerId);
+        Task<TeamJoinRequest?> GetExistingPendingRequestAsync(Guid teamId, Guid volunteerId);
 
         Task AddAsync(TeamJoinRequest request);
 

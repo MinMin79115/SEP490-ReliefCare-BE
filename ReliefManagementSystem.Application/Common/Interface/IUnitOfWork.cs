@@ -10,7 +10,11 @@ namespace ReliefManagementSystem.Application.Common.Interface
     {
         IUserRepository Users { get; }
         IRefreshTokenRepository RefreshTokens { get; }
-         Task<int> SaveChangesAsync(
+        ITeamRepository Teams { get; }
+        ITeamMemberRepository TeamMembers { get; }
+        ITeamJoinRequestRepository TeamJoinRequests { get; }
+        IVolunteerProfileRepository VolunteerProfiles { get; }
+        Task<int> SaveChangesAsync(
         CancellationToken cancellationToken = default);
 
     }

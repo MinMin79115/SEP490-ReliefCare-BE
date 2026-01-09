@@ -19,7 +19,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             _context = context;
         }
 
-        public async Task<Team?> GetByIdAsync(int id)
+        public async Task<Team?> GetByIdAsync(Guid id)
         {
             return await _context.Teams
                 .Include(t => t.Moderator)
@@ -27,7 +27,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .FirstOrDefaultAsync(t => t.TeamId == id);
         }
 
-        public async Task<Team?> GetByIdWithDetailsAsync(int id)
+        public async Task<Team?> GetByIdWithDetailsAsync(Guid id)
         {
             return await _context.Teams
                 .Include(t => t.Moderator)
@@ -84,13 +84,13 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             return Task.CompletedTask;
         }
 
-        public async Task<bool> IsModeratorOfTeamAsync(int teamId, Guid userId)
+        public async Task<bool> IsModeratorOfTeamAsync(Guid teamId, Guid userId)
         {
             return await _context.Teams
                 .AnyAsync(t => t.TeamId == teamId && t.ModeratorId == userId);
         }
 
-        public async Task<bool> ExistsAsync(int id)
+        public async Task<bool> ExistsAsync(Guid id)
         {
             return await _context.Teams.AnyAsync(t => t.TeamId == id);
         }

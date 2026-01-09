@@ -7,6 +7,7 @@ using ReliefManagementSystem.Infrastructure.Data;
 using ReliefManagementSystem.Infrastructure.Persistence;
 using ReliefManagementSystem.Infrastructure.Repositories;
 using ReliefManagementSystem.Infrastructure.Security;
+using ReliefManagementSystem.Infrastructure.Services;
 
 namespace ReliefManagementSystem.Infrastructure
 {
@@ -20,12 +21,23 @@ namespace ReliefManagementSystem.Infrastructure
              options.UseNpgsql(
          configuration.GetConnectionString("DefaultConnection")));
 
-
+            //auth service
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
+            // Team services
+            services.AddScoped<ITeamService, TeamService>();
+            services.AddScoped<ITeamJoinRequestService, TeamJoinRequestService>();
+
+            // Team repositories
+            services.AddScoped<ITeamRepository, TeamRepository>();
+            services.AddScoped<ITeamMemberRepository, TeamMemberRepository>();
+            services.AddScoped<ITeamJoinRequestRepository, TeamJoinRequestRepository>();
+            services.AddScoped<IVolunteerProfileRepository, VolunteerProfileRepository>();
+
             return services;
+
         }
     }
 }

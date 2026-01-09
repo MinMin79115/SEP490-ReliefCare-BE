@@ -13,18 +13,18 @@ namespace ReliefManagementSystem.Application.Services
     {
         // CRUD Operations
         Task<TeamResponse> CreateTeamAsync(CreateTeamRequest request, Guid moderatorId, CancellationToken cancellationToken);
-        Task<TeamDetailResponse> GetTeamByIdAsync(int teamId, CancellationToken cancellationToken);
-        Task<TeamResponse> UpdateTeamAsync(int teamId, UpdateTeamRequest request, Guid moderatorId, CancellationToken cancellationToken);
-        Task<bool> DeleteTeamAsync(int teamId, Guid moderatorId, CancellationToken cancellationToken);
+        Task<TeamDetailResponse> GetTeamByIdAsync(Guid teamId, CancellationToken cancellationToken);
+        Task<TeamResponse> UpdateTeamAsync(Guid teamId, UpdateTeamRequest request, Guid moderatorId, CancellationToken cancellationToken);
+        Task<bool> DeleteTeamAsync(Guid teamId, Guid moderatorId, CancellationToken cancellationToken);
 
         // List & Search
         Task<List<TeamResponse>> GetAllTeamsAsync(CancellationToken cancellationToken);
-        Task<Pagination<TeamResponse>> SearchTeamAsync(SearchTeamRequest request, CancellationToken cancellationToken);
+        Task<Pagination<TeamResponse>> SearchTeamsAsync(SearchTeamRequest request, CancellationToken cancellationToken);
         Task<List<TeamResponse>> GetMyTeamsAsync(Guid moderatorId, CancellationToken cancellationToken);
 
         // Member Management
-        Task<List<TeamMemberInfo>> GetTeamMembersAsync(int teamId, CancellationToken cancellationToken);
-        Task<bool> RemoveMemberAsync(int teamId, Guid userId, Guid moderatorId, CancellationToken cancellationToken);
+        Task<List<TeamMemberInfo>> GetTeamMembersAsync(Guid teamId, CancellationToken cancellationToken);
+        Task<bool> RemoveMemberAsync(Guid teamId, Guid userId, Guid moderatorId, CancellationToken cancellationToken);
 
 
 

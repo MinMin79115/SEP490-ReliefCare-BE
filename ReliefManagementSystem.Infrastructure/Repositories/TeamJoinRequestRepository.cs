@@ -56,7 +56,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .ToListAsync();
         }
 
-        public async Task<List<TeamJoinRequest>> GetByTeamIdWithDetailsAsync(int teamId)
+        public async Task<List<TeamJoinRequest>> GetByTeamIdWithDetailsAsync(Guid teamId)
         {
             return await _context.TeamJoinRequests
                 .Include(tjr => tjr.Team)
@@ -86,7 +86,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .ToListAsync();
         }
 
-        public async Task<TeamJoinRequest?> GetExistingPendingRequestAsync(int teamId, Guid volunteerId)
+        public async Task<TeamJoinRequest?> GetExistingPendingRequestAsync(Guid teamId, Guid volunteerId)
         {
             return await _context.TeamJoinRequests
                 .FirstOrDefaultAsync(tjr =>

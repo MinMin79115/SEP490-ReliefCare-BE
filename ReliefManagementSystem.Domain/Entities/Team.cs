@@ -9,7 +9,7 @@ namespace ReliefManagementSystem.Domain.Entities
 {
     public class Team
     {
-        public int TeamId { get; set; }
+        public Guid TeamId { get; set; } = Guid.NewGuid();
 
         public string Name { get; set; }
 

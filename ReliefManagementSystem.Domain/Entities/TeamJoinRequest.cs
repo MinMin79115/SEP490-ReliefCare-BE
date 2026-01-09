@@ -11,7 +11,7 @@ namespace ReliefManagementSystem.Domain.Entities
     {
         public Guid Id { get; set; }
 
-        public int TeamId { get; set; }
+        public Guid TeamId { get; set; }
         public Team Team { get; set; } = null!;
 
         public Guid VolunteerId { get; set; }
