@@ -13,7 +13,7 @@ namespace ReliefManagementSystem.Application.Features.TeamJoinRequest.Response
         public Guid Id { get; set; }
 
         // Team info
-        public int TeamId { get; set; }
+        public Guid TeamId { get; set; }
         public string TeamName { get; set; } = null!;
         public Guid ModeratorId { get; set; }
         public string ModeratorName { get; set; } = null!;

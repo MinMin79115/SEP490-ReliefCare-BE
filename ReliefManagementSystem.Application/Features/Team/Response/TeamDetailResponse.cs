@@ -9,7 +9,7 @@ namespace ReliefManagementSystem.Application.Features.Team.Response
 {
     public class TeamDetailResponse
     {
-        public int TeamId { get; set; }
+        public Guid TeamId { get; set; }
 
         public string Name { get; set; } = null!;
 

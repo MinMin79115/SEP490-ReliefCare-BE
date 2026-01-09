@@ -29,17 +29,17 @@ namespace ReliefManagementSystem.API.Controllers
         }
 
         // GET /api/team/5
-        [HttpGet("{id:int}")]
-        public async Task<IActionResult> GetTeamById(int id, CancellationToken cancellationToken)
+        [HttpGet("{id:guid}")]
+        public async Task<IActionResult> GetTeamById(Guid id, CancellationToken cancellationToken)
         {
             var result = await _teamService.GetTeamByIdAsync(id, cancellationToken);
             return Ok(result);
         }
 
         // PUT /api/team/5
-        [HttpPut("{id:int}")]
+        [HttpPut("{id:guid}")]
         [Authorize(Roles = "Moderator")]
-        public async Task<IActionResult> UpdateTeam(int id, [FromBody] UpdateTeamRequest request, CancellationToken cancellationToken)
+        public async Task<IActionResult> UpdateTeam(Guid id, [FromBody] UpdateTeamRequest request, CancellationToken cancellationToken)
         {
             var moderatorId = GetCurrentUserId();
             var result = await _teamService.UpdateTeamAsync(id, request, moderatorId, cancellationToken);
@@ -47,9 +47,9 @@ namespace ReliefManagementSystem.API.Controllers
         }
 
         // DELETE /api/team/5
-        [HttpDelete("{id:int}")]
+        [HttpDelete("{id:guid}")]
         [Authorize(Roles = "Moderator")]
-        public async Task<IActionResult> DeleteTeam(int id, CancellationToken cancellationToken)
+        public async Task<IActionResult> DeleteTeam(Guid id, CancellationToken cancellationToken)
         {
             var moderatorId = GetCurrentUserId();
             await _teamService.DeleteTeamAsync(id, moderatorId, cancellationToken);
@@ -83,8 +83,8 @@ namespace ReliefManagementSystem.API.Controllers
         }
 
         // GET /api/team/5/members
-        [HttpGet("{id:int}/members")]
-        public async Task<IActionResult> GetTeamMembers(int id, CancellationToken cancellationToken)
+        [HttpGet("{id:guid}/members")]
+        public async Task<IActionResult> GetTeamMembers(Guid id, CancellationToken cancellationToken)
         {
             var result = await _teamService.GetTeamMembersAsync(id, cancellationToken);
             return Ok(result);
@@ -93,7 +93,7 @@ namespace ReliefManagementSystem.API.Controllers
         // DELETE /api/team/5/members/{userId}
         [HttpDelete("{id:int}/members/{userId:guid}")]
         [Authorize(Roles = "Moderator")]
-        public async Task<IActionResult> RemoveMember(int id, Guid userId, CancellationToken cancellationToken)
+        public async Task<IActionResult> RemoveMember(Guid id, Guid userId, CancellationToken cancellationToken)
         {
             var moderatorId = GetCurrentUserId();
             await _teamService.RemoveMemberAsync(id, userId, moderatorId, cancellationToken);

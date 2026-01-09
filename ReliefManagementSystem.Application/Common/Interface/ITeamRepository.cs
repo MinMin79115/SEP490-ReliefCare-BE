@@ -9,10 +9,10 @@ namespace ReliefManagementSystem.Application.Common.Interface
 {
     public interface ITeamRepository
     {
-        Task<Team?> GetByIdAsync(int id);
+        Task<Team?> GetByIdAsync(Guid id);
 
         // Include: Moderator, Leader, TeamMembers.User.VolunteerProfile.VolunteerSkills.Skill
-        Task<Team?> GetByIdWithDetailsAsync(int id);
+        Task<Team?> GetByIdWithDetailsAsync(Guid id);
 
         Task<List<Team>> GetAllAsync();
 
@@ -26,8 +26,8 @@ namespace ReliefManagementSystem.Application.Common.Interface
 
         Task DeleteAsync(Team team);
 
-        Task<bool> IsModeratorOfTeamAsync(int teamId, Guid userId);
+        Task<bool> IsModeratorOfTeamAsync(Guid teamId, Guid userId);
 
-        Task<bool> ExistsAsync(int id);
+        Task<bool> ExistsAsync(Guid id);
     }
 }

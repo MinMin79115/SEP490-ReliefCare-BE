@@ -57,14 +57,14 @@ namespace ReliefManagementSystem.Infrastructure.Services
                 .FirstOrDefaultAsync(u => u.Id == volunteerId, cancellationToken);
 
             if (volunteer == null)
-                throw new Exception("Volunteer not found");
+                throw new Exception("Không tìm thấy tình nguyện viên");
 
             var isVolunteer = await _userManager.IsInRoleAsync(volunteer, "Volunteer");
             if (!isVolunteer)
-                throw new Exception("Only Volunteer can create join request");
+                throw new Exception("Chỉ có tình nguyện viên mới được yêu cầu tham gia");
 
-            if (volunteer.VolunteerProfile?.VerificationStatus != VerificationStatus.Verified)
-                throw new Exception("Volunteer profile must be verified");
+            if (volunteer.VolunteerProfile?.VerificationStatus != VerificationStatus.Approved)
+                throw new Exception("Hồ sơ tình nguyên phải được duyệt");
 
             // 2. Validate team exists and active
             var team = await _context.Teams
@@ -72,24 +72,24 @@ namespace ReliefManagementSystem.Infrastructure.Services
                 .FirstOrDefaultAsync(t => t.TeamId == request.TeamId, cancellationToken);
 
             if (team == null)
-                throw new Exception("Team not found");
+                throw new Exception("Không tìm thấy đội");
 
             if (team.Status != TeamStatus.Active)
-                throw new Exception("Team is not active");
+                throw new Exception("Đội chưa hoạt động ");
 
             // 3. Check not already a member
             var isMember = await _teamMemberRepository.IsMemberAsync(request.TeamId, volunteerId);
             if (isMember)
-                throw new Exception("Already a member of this team");
+                throw new Exception("Bạn đã là thành viên đội này rồi");
 
             // 4. Check no existing pending request
             var existingRequest = await _requestRepository.GetExistingPendingRequestAsync(request.TeamId, volunteerId);
             if (existingRequest != null)
-                throw new Exception("Already has a pending request for this team");
+                throw new Exception("Bạn đã gửi yêu cầu gia nhập cho đội này rồi");
 
             // 5. If requesting Leader role, check team has no leader
             if (request.RequestedRole == TeamRole.Leader && team.LeaderId.HasValue)
-                throw new Exception("Team already has a leader");
+                throw new Exception("Đội này đã có trưởng nhóm");
 
             // 6. Create request
             var joinRequest = new TeamJoinRequest
@@ -137,13 +137,13 @@ namespace ReliefManagementSystem.Infrastructure.Services
             var request = await _requestRepository.GetByIdAsync(requestId);
 
             if (request == null)
-                throw new Exception("Request not found");
+                throw new Exception("Không tìm thấy yêu cầu");
 
             if (request.VolunteerId != volunteerId)
-                throw new Exception("Only request owner can cancel");
+                throw new Exception("Chỉ có người tạo yêu cầu mới được huỷ");
 
             if (request.Status != TeamJoinRequestStatus.Pending)
-                throw new Exception("Can only cancel pending requests");
+                throw new Exception("Chỉ có thể huỷ yêu cầu đang được duyệt");
 
             request.Status = TeamJoinRequestStatus.Cancelled;
             await _requestRepository.UpdateAsync(request);
@@ -170,21 +170,21 @@ namespace ReliefManagementSystem.Infrastructure.Services
             var joinRequest = await _requestRepository.GetByIdWithDetailsAsync(requestId);
 
             if (joinRequest == null)
-                throw new Exception("Request not found");
+                throw new Exception("Không tìm thấy yêu cầu");
 
             // 2. Validate moderator
             if (joinRequest.Team.ModeratorId != moderatorId)
-                throw new Exception("Only team's moderator can review this request");
+                throw new Exception("Chỉ có điều phối team mới có thể xem xét");
 
             if (joinRequest.Status != TeamJoinRequestStatus.Pending)
-                throw new Exception("Can only review pending requests");
+                throw new Exception("Chỉ có thể xem xét các yêu cầu đang được duyệt");
 
             // 3. Process approval
             if (request.IsApproved)
             {
                 // Validate leader if requesting Leader role
                 if (joinRequest.RequestedRole == TeamRole.Leader && joinRequest.Team.LeaderId.HasValue)
-                    throw new Exception("Team already has a leader");
+                    throw new Exception("Đội này đã có trưởng nhóm");
 
                 // Create TeamMember
                 var teamMember = new TeamMember
@@ -232,14 +232,14 @@ namespace ReliefManagementSystem.Infrastructure.Services
         }
 
         public async Task<List<TeamJoinRequestResponse>> GetRequestsByTeamAsync(
-            int teamId,
+            Guid teamId,
             Guid moderatorId,
             CancellationToken cancellationToken)
         {
             // Validate moderator owns team
             var isModerator = await _teamRepository.IsModeratorOfTeamAsync(teamId, moderatorId);
             if (!isModerator)
-                throw new Exception("Only team's moderator can view requests");
+                throw new Exception("Chỉ có người điều phối của team mới có thể xem yêu cầu");
 
             var requests = await _requestRepository.GetByTeamIdWithDetailsAsync(teamId);
             return requests.Select(MapToResponse).ToList();
@@ -252,7 +252,7 @@ namespace ReliefManagementSystem.Infrastructure.Services
             var request = await _requestRepository.GetByIdWithDetailsAsync(requestId);
 
             if (request == null)
-                throw new Exception("Request not found");
+                throw new Exception("Không thấy yêu cầu");
 
             return MapToResponse(request);
         }

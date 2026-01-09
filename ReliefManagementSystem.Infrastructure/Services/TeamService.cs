@@ -49,11 +49,11 @@ namespace ReliefManagementSystem.Infrastructure.Services
             // 1. Validate moderator role
             var moderator = await _userManager.FindByIdAsync(moderatorId.ToString());
             if (moderator == null)
-                throw new Exception("Moderator not found");
+                throw new Exception("Không tìm thấy người điều phối");
 
             var isModerator = await _userManager.IsInRoleAsync(moderator, "Moderator");
             if (!isModerator)
-                throw new Exception("Only Moderator can create team");
+                throw new Exception("Chỉ có người điều phối mới có thể tạo đội");
 
             // 2. Validate leader nếu có
             if (request.LeaderId.HasValue)
@@ -63,10 +63,10 @@ namespace ReliefManagementSystem.Infrastructure.Services
                     .FirstOrDefaultAsync(u => u.Id == request.LeaderId.Value, cancellationToken);
 
                 if (leader == null)
-                    throw new Exception("Leader not found");
+                    throw new Exception("Không tìm thấy trưởng nhóm");
 
-                if (leader.VolunteerProfile?.VerificationStatus != VerificationStatus.Verified)
-                    throw new Exception("Leader must be a verified volunteer");
+                if (leader.VolunteerProfile?.VerificationStatus != VerificationStatus.Approved)
+                    throw new Exception("Trưởng nhóm phải là tình nguyện viên đã được xác minh");
             }
 
             // 3. Tạo Team
@@ -103,19 +103,19 @@ namespace ReliefManagementSystem.Infrastructure.Services
         }
 
         public async Task<TeamDetailResponse> GetTeamByIdAsync(
-            int teamId,
+            Guid teamId,
             CancellationToken cancellationToken)
         {
             var team = await _teamRepository.GetByIdWithDetailsAsync(teamId);
 
             if (team == null)
-                throw new Exception("Team not found");
+                throw new Exception("Không tìm thấy đội");
 
             return MapToTeamDetailResponse(team);
         }
 
         public async Task<TeamResponse> UpdateTeamAsync(
-            int teamId,
+            Guid teamId,
             UpdateTeamRequest request,
             Guid moderatorId,
             CancellationToken cancellationToken)
@@ -124,11 +124,11 @@ namespace ReliefManagementSystem.Infrastructure.Services
             var team = await _teamRepository.GetByIdAsync(teamId);
 
             if (team == null)
-                throw new Exception("Team not found");
+                throw new Exception("Không tìm thấy đội");
 
             // 2. Validate moderator
             if (team.ModeratorId != moderatorId)
-                throw new Exception("Only team's moderator can update");
+                throw new Exception("Chỉ có người điều phối team mới có thể chỉnh sửa");
 
             // 3. Handle leader change
             if (request.LeaderId != team.LeaderId)
@@ -141,10 +141,10 @@ namespace ReliefManagementSystem.Infrastructure.Services
                         .FirstOrDefaultAsync(u => u.Id == request.LeaderId.Value, cancellationToken);
 
                     if (newLeader == null)
-                        throw new Exception("New leader not found");
+                        throw new Exception("Không tìm thấy trưởng nhóm mới");
 
-                    if (newLeader.VolunteerProfile?.VerificationStatus != VerificationStatus.Verified)
-                        throw new Exception("New leader must be a verified volunteer");
+                    if (newLeader.VolunteerProfile?.VerificationStatus != VerificationStatus.Approved)
+                        throw new Exception("Trưởng nhóm mới phải là tình nguyện viên đã được xác minh");
 
                     // Check if new leader is already a member
                     var isNewLeaderMember = await _teamMemberRepository.IsMemberAsync(teamId, request.LeaderId.Value);
@@ -200,17 +200,17 @@ namespace ReliefManagementSystem.Infrastructure.Services
         }
 
         public async Task<bool> DeleteTeamAsync(
-            int teamId,
+            Guid teamId,
             Guid moderatorId,
             CancellationToken cancellationToken)
         {
             var team = await _teamRepository.GetByIdAsync(teamId);
 
             if (team == null)
-                throw new Exception("Team not found");
+                throw new Exception("Không tìm thấy đội");
 
             if (team.ModeratorId != moderatorId)
-                throw new Exception("Only team's moderator can delete");
+                throw new Exception("Chỉ người điều phối đội mới được xoá");
 
             await _teamRepository.DeleteAsync(team);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -289,7 +289,7 @@ namespace ReliefManagementSystem.Infrastructure.Services
         }
 
         public async Task<List<TeamMemberInfo>> GetTeamMembersAsync(
-            int teamId,
+            Guid teamId,
             CancellationToken cancellationToken)
         {
             var members = await _teamMemberRepository.GetByTeamIdWithSkillsAsync(teamId);
@@ -312,7 +312,7 @@ namespace ReliefManagementSystem.Infrastructure.Services
         }
 
         public async Task<bool> RemoveMemberAsync(
-            int teamId,
+            Guid teamId,
             Guid userId,
             Guid moderatorId,
             CancellationToken cancellationToken)
@@ -320,19 +320,19 @@ namespace ReliefManagementSystem.Infrastructure.Services
             // Validate team and moderator
             var team = await _teamRepository.GetByIdAsync(teamId);
             if (team == null)
-                throw new Exception("Team not found");
+                throw new Exception("Không tìm thấy đội");
 
             if (team.ModeratorId != moderatorId)
-                throw new Exception("Only team's moderator can remove members");
+                throw new Exception("Chỉ điều phối đội mới có thể xoá thành viên");
 
             // Cannot remove leader
             if (team.LeaderId == userId)
-                throw new Exception("Cannot remove team leader. Change leader first.");
+                throw new Exception("Không thể xoá trưởng nhóm hiện tại. Phải đổi trưởng nhóm trước.");
 
             // Get and remove member
             var member = await _teamMemberRepository.GetByTeamAndUserAsync(teamId, userId);
             if (member == null)
-                throw new Exception("Member not found in team");
+                throw new Exception("Thành viên không tồn tại trong đội");
 
             await _teamMemberRepository.DeleteAsync(member);
             await _unitOfWork.SaveChangesAsync(cancellationToken);

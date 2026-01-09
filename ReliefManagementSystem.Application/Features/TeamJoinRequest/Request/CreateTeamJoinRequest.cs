@@ -9,7 +9,7 @@ namespace ReliefManagementSystem.Application.Features.TeamJoinRequest.Request
 {
     public class CreateTeamJoinRequest
     {
-        public int TeamId { get; set; }
+        public Guid TeamId { get; set; }
 
         public TeamRole RequestedRole { get; set; }
     }

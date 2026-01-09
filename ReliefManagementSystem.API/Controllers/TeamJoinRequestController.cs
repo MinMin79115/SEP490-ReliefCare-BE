@@ -77,9 +77,9 @@ namespace ReliefManagementSystem.API.Controllers
         }
 
         // GET /api/team-join-request/team/5
-        [HttpGet("team/{teamId:int}")]
+        [HttpGet("team/{teamId:guid}")]
         [Authorize(Roles = "Moderator")]
-        public async Task<IActionResult> GetRequestsByTeam(int teamId, CancellationToken cancellationToken)
+        public async Task<IActionResult> GetRequestsByTeam(Guid teamId, CancellationToken cancellationToken)
         {
             var moderatorId = GetCurrentUserId();
             var result = await _service.GetRequestsByTeamAsync(teamId, moderatorId, cancellationToken);
