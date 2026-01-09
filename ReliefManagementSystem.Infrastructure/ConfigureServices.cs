@@ -17,6 +17,7 @@ namespace ReliefManagementSystem.Infrastructure
             this IServiceCollection services,
             IConfiguration configuration)
         {
+            //db context
             services.AddDbContext<ApplicationDbContext>(options =>
              options.UseNpgsql(
          configuration.GetConnectionString("DefaultConnection")));
