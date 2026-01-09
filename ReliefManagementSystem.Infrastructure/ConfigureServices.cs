@@ -21,13 +21,23 @@ namespace ReliefManagementSystem.Infrastructure
              options.UseNpgsql(
          configuration.GetConnectionString("DefaultConnection")));
 
-
+            //auth service
             services.AddScoped<IUserRepository, UserRepository>();
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
-            services.AddScoped<IInventoryService, InventoryService>();
+            // Team services
+            services.AddScoped<ITeamService, TeamService>();
+            services.AddScoped<ITeamJoinRequestService, TeamJoinRequestService>();
+
+            // Team repositories
+            services.AddScoped<ITeamRepository, TeamRepository>();
+            services.AddScoped<ITeamMemberRepository, TeamMemberRepository>();
+            services.AddScoped<ITeamJoinRequestRepository, TeamJoinRequestRepository>();
+            services.AddScoped<IVolunteerProfileRepository, VolunteerProfileRepository>();
+
             return services;
+
         }
     }
 }
