@@ -16,6 +16,11 @@ namespace ReliefManagementSystem.Application.Common.Interface
         IInventoryTransactionRepository InventoryTransactions { get; }
 
          Task<int> SaveChangesAsync(
+        ITeamRepository Teams { get; }
+        ITeamMemberRepository TeamMembers { get; }
+        ITeamJoinRequestRepository TeamJoinRequests { get; }
+        IVolunteerProfileRepository VolunteerProfiles { get; }
+        Task<int> SaveChangesAsync(
         CancellationToken cancellationToken = default);
 
     }

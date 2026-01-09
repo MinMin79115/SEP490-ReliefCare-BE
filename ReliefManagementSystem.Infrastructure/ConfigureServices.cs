@@ -26,8 +26,19 @@ namespace ReliefManagementSystem.Infrastructure
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
+            // Team services
+            services.AddScoped<ITeamService, TeamService>();
+            services.AddScoped<ITeamJoinRequestService, TeamJoinRequestService>();
+
+            // Team repositories
+            services.AddScoped<ITeamRepository, TeamRepository>();
+            services.AddScoped<ITeamMemberRepository, TeamMemberRepository>();
+            services.AddScoped<ITeamJoinRequestRepository, TeamJoinRequestRepository>();
+            services.AddScoped<IVolunteerProfileRepository, VolunteerProfileRepository>();
+
             services.AddScoped<IInventoryService, InventoryService>();
             return services;
+
         }
     }
 }

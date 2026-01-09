@@ -20,6 +20,11 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
         public ISupplyItemRepository SupplyItems { get; }
         public IInventoryTransactionRepository InventoryTransactions { get; }
 
+        public ITeamRepository Teams { get; }
+        public ITeamMemberRepository TeamMembers { get; }
+        public ITeamJoinRequestRepository TeamJoinRequests { get; }
+        public IVolunteerProfileRepository VolunteerProfiles { get; }
+
         public UnitOfWork(ApplicationDbContext context)
         {
             _context = context;
@@ -27,6 +32,11 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             RefreshTokens = new RefreshTokenRepository(_context);
             SupplyItems = new SupplyItemRepository(_context);
             InventoryTransactions = new InventoryTransactionRepository(_context);
+
+            Teams = new TeamRepository(_context);
+            TeamMembers = new TeamMemberRepository(_context);
+            TeamJoinRequests = new TeamJoinRequestRepository(_context);
+            VolunteerProfiles = new VolunteerProfileRepository(_context);
         }
 
         public async Task<int> SaveChangesAsync(
