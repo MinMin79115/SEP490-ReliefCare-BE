@@ -13,7 +13,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
     public class RefreshTokenRepository
         : GenericRepository<RefreshToken>, IRefreshTokenRepository
     {
-        private readonly ApplicationDbContext _context;
+        private new readonly ApplicationDbContext _context;
 
         public RefreshTokenRepository(ApplicationDbContext context)
             : base(context)

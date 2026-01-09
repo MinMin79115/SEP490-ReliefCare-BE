@@ -1,6 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using ReliefManagementSystem.Application.Common.Interface;
-using ReliefManagementSystem.Infrastructure.Context;
+using ReliefManagementSystem.Infrastructure.Data;
 
 namespace ReliefManagementSystem.Infrastructure.Repositories
 {
@@ -31,14 +31,16 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             await _dbSet.AddAsync(entity);
         }
 
-        public async Task UpdateAsync(T entity)
+        public Task UpdateAsync(T entity)
         {
             _dbSet.Update(entity);
+            return Task.CompletedTask;
         }
 
-        public async Task DeleteAsync(T entity)
+        public Task DeleteAsync(T entity)
         {
             _dbSet.Remove(entity);
+            return Task.CompletedTask;
         }
 
         public async Task<bool> ExistsAsync(Guid id)
