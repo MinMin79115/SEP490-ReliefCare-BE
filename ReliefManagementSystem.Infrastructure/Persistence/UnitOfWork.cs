@@ -19,7 +19,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
         // Inventory Management
         public ISupplyItemRepository SupplyItems { get; }
         public IInventoryTransactionRepository InventoryTransactions { get; }
-
+        
         public ITeamRepository Teams { get; }
         public ITeamMemberRepository TeamMembers { get; }
         public ITeamJoinRequestRepository TeamJoinRequests { get; }

@@ -14,8 +14,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
         // Inventory Management
         ISupplyItemRepository SupplyItems { get; }
         IInventoryTransactionRepository InventoryTransactions { get; }
-
-         Task<int> SaveChangesAsync(
+        
         ITeamRepository Teams { get; }
         ITeamMemberRepository TeamMembers { get; }
         ITeamJoinRequestRepository TeamJoinRequests { get; }
