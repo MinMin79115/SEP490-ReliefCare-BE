@@ -19,12 +19,6 @@ namespace ReliefManagementSystem.Infrastructure.Data
         public DbSet<Team> Teams { get; set; }
         public DbSet<TeamMember> TeamMembers { get; set; }
 
-        // Inventory Management
-        public DbSet<Category> Categories { get; set; }
-        public DbSet<InventoryItem> InventoryItems { get; set; }
-        public DbSet<ImportExportBatch> ImportExportBatches { get; set; }
-        public DbSet<WarehouseTransaction> WarehouseTransactions { get; set; }
-
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
           : base(options) { }
 
@@ -81,60 +75,8 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .HasForeignKey(r => r.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Inventory Management Configurations
-            builder.Entity<Category>()
-                .HasIndex(c => c.Code)
-                .IsUnique();
-
-            builder.Entity<InventoryItem>()
-                .HasOne(i => i.Category)
-                .WithMany(c => c.InventoryItems)
-                .HasForeignKey(i => i.CategoryId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            builder.Entity<InventoryItem>()
-                .HasIndex(i => i.Code)
-                .IsUnique();
-
-            builder.Entity<InventoryItem>()
-                .Property(i => i.CurrentQuantity)
-                .HasPrecision(18, 2);
-
-            builder.Entity<InventoryItem>()
-                .Property(i => i.MaxCapacity)
-                .HasPrecision(18, 2);
-
-            builder.Entity<InventoryItem>()
-                .Property(i => i.MinThreshold)
-                .HasPrecision(18, 2);
-
-            builder.Entity<ImportExportBatch>()
-                .HasOne(b => b.Creator)
-                .WithMany()
-                .HasForeignKey(b => b.CreatedBy)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            builder.Entity<ImportExportBatch>()
-                .HasIndex(b => b.BatchNumber)
-                .IsUnique();
-
-            builder.Entity<WarehouseTransaction>()
-                .HasOne(t => t.Batch)
-                .WithMany(b => b.Transactions)
-                .HasForeignKey(t => t.BatchId)
-                .OnDelete(DeleteBehavior.Cascade);
-
-            builder.Entity<WarehouseTransaction>()
-                .HasOne(t => t.InventoryItem)
-                .WithMany(i => i.Transactions)
-                .HasForeignKey(t => t.InventoryItemId)
-                .OnDelete(DeleteBehavior.Restrict);
-
-            builder.Entity<WarehouseTransaction>()
-                .Property(t => t.Quantity)
-                .HasPrecision(18, 2);
-
 
         }
+
     }
 }

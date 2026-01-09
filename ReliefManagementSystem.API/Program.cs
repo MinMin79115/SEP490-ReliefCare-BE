@@ -35,10 +35,6 @@ using (var scope = app.Services.CreateScope())
         .GetRequiredService<RoleManager<IdentityRole<Guid>>>();
 
     await RoleSeeder.SeedAsync(roleManager);
-
-    // Seed inventory categories
-    var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
-    await CategorySeeder.SeedAsync(dbContext);
 }
 
 // Configure the HTTP request pipeline.
