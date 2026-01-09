@@ -10,6 +10,11 @@ namespace ReliefManagementSystem.Application.Common.Interface
     {
         IUserRepository Users { get; }
         IRefreshTokenRepository RefreshTokens { get; }
+
+        // Inventory Management
+        ISupplyItemRepository SupplyItems { get; }
+        IInventoryTransactionRepository InventoryTransactions { get; }
+
          Task<int> SaveChangesAsync(
         CancellationToken cancellationToken = default);
 
