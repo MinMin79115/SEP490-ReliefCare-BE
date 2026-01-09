@@ -82,10 +82,16 @@ namespace ReliefManagementSystem.Infrastructure.Data
 
             // Inventory Management Configurations
             builder.Entity<InventoryTransaction>()
+                .HasKey(t => t.TransactionId);
+
+            builder.Entity<InventoryTransaction>()
                 .HasOne(t => t.CreatedByUser)
                 .WithMany()
                 .HasForeignKey(t => t.CreatedBy)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<InventoryTransactionItem>()
+                .HasKey(ti => ti.TransactionItemId);
 
             builder.Entity<InventoryTransactionItem>()
                 .HasOne(ti => ti.Transaction)

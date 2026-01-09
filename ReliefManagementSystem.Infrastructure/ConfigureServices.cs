@@ -7,6 +7,7 @@ using ReliefManagementSystem.Infrastructure.Data;
 using ReliefManagementSystem.Infrastructure.Persistence;
 using ReliefManagementSystem.Infrastructure.Repositories;
 using ReliefManagementSystem.Infrastructure.Security;
+using ReliefManagementSystem.Infrastructure.Services;
 
 namespace ReliefManagementSystem.Infrastructure
 {
@@ -25,6 +26,7 @@ namespace ReliefManagementSystem.Infrastructure
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
+            services.AddScoped<IInventoryService, InventoryService>();
             return services;
         }
     }
