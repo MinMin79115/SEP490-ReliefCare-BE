@@ -52,3 +52,48 @@ CodeCoverage/
 *.VisualState.xml
 TestResult.xml
 nunit-*.xml
+
+*.vs
+
+# IDE and Editor folders
+.vs/
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Rider
+.idea/
+*.sln.iml
+
+# Visual Studio Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+*.userprefs
+
+# Configuration files with sensitive data
+**/appsettings.json
+**/appsettings.*.json
+!**/appsettings.Development.json.example
+!**/appsettings.Production.json.example
+
+# User secrets
+secrets.json
+*.secrets.json
+
+# Environment files
+.env
+.env.local
+.env.*.local
