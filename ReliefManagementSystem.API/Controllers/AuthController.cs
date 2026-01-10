@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using ReliefManagementSystem.Application.Features.Auth;
-using ReliefManagementSystem.Application.Services;
+using ReliefManagementSystem.Application.Features.Auth.DTOs;
+using ReliefManagementSystem.Application.Features.Auth.Interface;
 
 namespace ReliefManagementSystem.API.Controllers
 {

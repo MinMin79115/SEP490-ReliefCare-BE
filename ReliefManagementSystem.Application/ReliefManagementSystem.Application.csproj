@@ -10,8 +10,4 @@
     <ProjectReference Include="..\ReliefManagementSystem.Domain\ReliefManagementSystem.Domain.csproj" />
   </ItemGroup>
 
-  <ItemGroup>
-    <Folder Include="Features\Auth\DTOS\" />
-  </ItemGroup>
-
 </Project>

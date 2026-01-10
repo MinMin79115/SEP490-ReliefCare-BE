@@ -2,6 +2,10 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ReliefManagementSystem.Application.Common.Interface;
+using ReliefManagementSystem.Application.Features.Auth.Interface;
+using ReliefManagementSystem.Application.Features.Inventory.Interface;
+using ReliefManagementSystem.Application.Features.Team.Interface;
+using ReliefManagementSystem.Application.Features.TeamJoinRequest.Interface;
 using ReliefManagementSystem.Application.Services;
 using ReliefManagementSystem.Infrastructure.Data;
 using ReliefManagementSystem.Infrastructure.Persistence;
@@ -23,7 +27,7 @@ namespace ReliefManagementSystem.Infrastructure
 
 
             services.AddScoped<IUserRepository, UserRepository>();
-            services.AddScoped<IAuthService, AuthService>();
+            services.AddScoped<IIdentityAuthService, IdentityAuthService>();
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             // Team services
