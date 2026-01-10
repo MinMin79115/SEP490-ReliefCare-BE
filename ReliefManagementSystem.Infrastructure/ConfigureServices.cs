@@ -37,6 +37,7 @@ namespace ReliefManagementSystem.Infrastructure
             services.AddScoped<ITeamJoinRequestRepository, TeamJoinRequestRepository>();
             services.AddScoped<IVolunteerProfileRepository, VolunteerProfileRepository>();
 
+            services.AddScoped<IInventoryService, InventoryService>();
             return services;
 
         }
