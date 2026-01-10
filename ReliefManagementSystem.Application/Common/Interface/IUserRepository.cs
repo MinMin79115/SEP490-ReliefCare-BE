@@ -10,5 +10,12 @@ namespace ReliefManagementSystem.Application.Common.Interface
     public interface IUserRepository
          : IGenericRepository<ApplicationUser>
     {
+        Task<ApplicationUser?> GetByIdWithVolunteerProfileAsync(
+            Guid userId, 
+            CancellationToken cancellationToken = default);
+
+        Task<ApplicationUser?> GetByIdWithVolunteerProfileAndSkillsAsync(
+            Guid userId, 
+            CancellationToken cancellationToken = default);
     }
 }

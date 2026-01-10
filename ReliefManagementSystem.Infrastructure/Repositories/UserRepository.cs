@@ -1,4 +1,5 @@
-﻿using ReliefManagementSystem.Application.Common.Interface;
+﻿using Microsoft.EntityFrameworkCore;
+using ReliefManagementSystem.Application.Common.Interface;
 using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Infrastructure.Data;
 using System;
@@ -15,6 +16,26 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
         public UserRepository(ApplicationDbContext context)
             : base(context)
         {
+        }
+
+        public async Task<ApplicationUser?> GetByIdWithVolunteerProfileAsync(
+            Guid userId,
+            CancellationToken cancellationToken = default)
+        {
+            return await _context.Users
+                .Include(u => u.VolunteerProfile)
+                .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+        }
+
+        public async Task<ApplicationUser?> GetByIdWithVolunteerProfileAndSkillsAsync(
+            Guid userId,
+            CancellationToken cancellationToken = default)
+        {
+            return await _context.Users
+                .Include(u => u.VolunteerProfile)
+                    .ThenInclude(vp => vp.VolunteerSkills)
+                        .ThenInclude(vs => vs.Skill)
+                .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
         }
     }
 }

@@ -94,5 +94,11 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
         {
             return await _context.Teams.AnyAsync(t => t.TeamId == id);
         }
+
+        public async Task<int> GetTeamMemberCountAsync(Guid teamId, CancellationToken cancellationToken = default)
+        {
+            return await _context.TeamMembers
+                .CountAsync(tm => tm.TeamId == teamId, cancellationToken);
+        }
     }
 }

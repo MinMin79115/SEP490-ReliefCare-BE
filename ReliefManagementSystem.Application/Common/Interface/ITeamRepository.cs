@@ -29,5 +29,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
         Task<bool> IsModeratorOfTeamAsync(Guid teamId, Guid userId);
 
         Task<bool> ExistsAsync(Guid id);
+
+        Task<int> GetTeamMemberCountAsync(Guid teamId, CancellationToken cancellationToken = default);
     }
 }

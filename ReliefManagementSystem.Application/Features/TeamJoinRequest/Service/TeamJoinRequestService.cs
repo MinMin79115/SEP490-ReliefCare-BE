@@ -7,7 +7,7 @@ using ReliefManagementSystem.Application.Features.TeamJoinRequest.DTOs.Response;
 using ReliefManagementSystem.Application.Features.TeamJoinRequest.Interface;
 using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Domain.Enum;
-using ReliefManagementSystem.Infrastructure.Data;
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,28 +18,13 @@ namespace ReliefManagementSystem.Infrastructure.Services
 {
     public class TeamJoinRequestService : ITeamJoinRequestService
     {
-        private readonly ApplicationDbContext _context;
-        private readonly ITeamJoinRequestRepository _requestRepository;
-        private readonly ITeamRepository _teamRepository;
-        private readonly ITeamMemberRepository _teamMemberRepository;
-        private readonly IVolunteerProfileRepository _volunteerProfileRepository;
         private readonly IUnitOfWork _unitOfWork;
         private readonly UserManager<ApplicationUser> _userManager;
 
         public TeamJoinRequestService(
-            ApplicationDbContext context,
-            ITeamJoinRequestRepository requestRepository,
-            ITeamRepository teamRepository,
-            ITeamMemberRepository teamMemberRepository,
-            IVolunteerProfileRepository volunteerProfileRepository,
             IUnitOfWork unitOfWork,
             UserManager<ApplicationUser> userManager)
         {
-            _context = context;
-            _requestRepository = requestRepository;
-            _teamRepository = teamRepository;
-            _teamMemberRepository = teamMemberRepository;
-            _volunteerProfileRepository = volunteerProfileRepository;
             _unitOfWork = unitOfWork;
             _userManager = userManager;
         }
@@ -50,11 +35,8 @@ namespace ReliefManagementSystem.Infrastructure.Services
             CancellationToken cancellationToken)
         {
             // 1. Validate volunteer and get profile with skills
-            var volunteer = await _context.Users
-                .Include(u => u.VolunteerProfile)
-                    .ThenInclude(vp => vp.VolunteerSkills)
-                        .ThenInclude(vs => vs.Skill)
-                .FirstOrDefaultAsync(u => u.Id == volunteerId, cancellationToken);
+            var volunteer = await _unitOfWork.Users.GetByIdWithVolunteerProfileAndSkillsAsync(
+                volunteerId, cancellationToken);
 
             if (volunteer == null)
                 throw new Exception("Không tìm thấy tình nguyện viên");
@@ -67,9 +49,7 @@ namespace ReliefManagementSystem.Infrastructure.Services
                 throw new Exception("Hồ sơ tình nguyên phải được duyệt");
 
             // 2. Validate team exists and active
-            var team = await _context.Teams
-                .Include(t => t.Moderator)
-                .FirstOrDefaultAsync(t => t.TeamId == request.TeamId, cancellationToken);
+            var team = await _unitOfWork.Teams.GetByIdAsync(request.TeamId);
 
             if (team == null)
                 throw new Exception("Không tìm thấy đội");
@@ -78,12 +58,12 @@ namespace ReliefManagementSystem.Infrastructure.Services
                 throw new Exception("Đội chưa hoạt động ");
 
             // 3. Check not already a member
-            var isMember = await _teamMemberRepository.IsMemberAsync(request.TeamId, volunteerId);
+            var isMember = await _unitOfWork.TeamMembers.IsMemberAsync(request.TeamId, volunteerId);
             if (isMember)
                 throw new Exception("Bạn đã là thành viên đội này rồi");
 
             // 4. Check no existing pending request
-            var existingRequest = await _requestRepository.GetExistingPendingRequestAsync(request.TeamId, volunteerId);
+            var existingRequest = await _unitOfWork.TeamJoinRequests.GetExistingPendingRequestAsync(request.TeamId, volunteerId);
             if (existingRequest != null)
                 throw new Exception("Bạn đã gửi yêu cầu gia nhập cho đội này rồi");
 
@@ -102,7 +82,7 @@ namespace ReliefManagementSystem.Infrastructure.Services
                 CreatedAt = DateTime.UtcNow
             };
 
-            await _requestRepository.AddAsync(joinRequest);
+            await _unitOfWork.TeamJoinRequests.AddAsync(joinRequest);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // 7. Return response with volunteer skills
@@ -134,7 +114,7 @@ namespace ReliefManagementSystem.Infrastructure.Services
             Guid volunteerId,
             CancellationToken cancellationToken)
         {
-            var request = await _requestRepository.GetByIdAsync(requestId);
+            var request = await _unitOfWork.TeamJoinRequests.GetByIdAsync(requestId);
 
             if (request == null)
                 throw new Exception("Không tìm thấy yêu cầu");
@@ -146,7 +126,7 @@ namespace ReliefManagementSystem.Infrastructure.Services
                 throw new Exception("Chỉ có thể huỷ yêu cầu đang được duyệt");
 
             request.Status = TeamJoinRequestStatus.Cancelled;
-            await _requestRepository.UpdateAsync(request);
+            await _unitOfWork.TeamJoinRequests.UpdateAsync(request);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return true;
@@ -156,7 +136,7 @@ namespace ReliefManagementSystem.Infrastructure.Services
             Guid volunteerId,
             CancellationToken cancellationToken)
         {
-            var requests = await _requestRepository.GetByVolunteerIdWithDetailsAsync(volunteerId);
+            var requests = await _unitOfWork.TeamJoinRequests.GetByVolunteerIdWithDetailsAsync(volunteerId);
             return requests.Select(MapToResponse).ToList();
         }
 
@@ -167,7 +147,7 @@ namespace ReliefManagementSystem.Infrastructure.Services
             CancellationToken cancellationToken)
         {
             // 1. Load request with all details
-            var joinRequest = await _requestRepository.GetByIdWithDetailsAsync(requestId);
+            var joinRequest = await _unitOfWork.TeamJoinRequests.GetByIdWithDetailsAsync(requestId);
 
             if (joinRequest == null)
                 throw new Exception("Không tìm thấy yêu cầu");
@@ -195,14 +175,14 @@ namespace ReliefManagementSystem.Infrastructure.Services
                     JoinedAt = DateTime.UtcNow
                 };
 
-                await _teamMemberRepository.AddAsync(teamMember);
+                await _unitOfWork.TeamMembers.AddAsync(teamMember);
 
                 // If Leader role, update Team.LeaderId
                 if (joinRequest.RequestedRole == TeamRole.Leader)
                 {
                     joinRequest.Team.LeaderId = joinRequest.VolunteerId;
                     joinRequest.Team.UpdatedAt = DateTime.UtcNow;
-                    await _teamRepository.UpdateAsync(joinRequest.Team);
+                    await _unitOfWork.Teams.UpdateAsync(joinRequest.Team);
                 }
 
                 joinRequest.Status = TeamJoinRequestStatus.Approved;
@@ -217,7 +197,7 @@ namespace ReliefManagementSystem.Infrastructure.Services
             joinRequest.ReviewedAt = DateTime.UtcNow;
             joinRequest.ReviewNote = request.ReviewNote;
 
-            await _requestRepository.UpdateAsync(joinRequest);
+            await _unitOfWork.TeamJoinRequests.UpdateAsync(joinRequest);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return MapToResponse(joinRequest);
@@ -227,7 +207,7 @@ namespace ReliefManagementSystem.Infrastructure.Services
             Guid moderatorId,
             CancellationToken cancellationToken)
         {
-            var requests = await _requestRepository.GetPendingRequestsByModeratorWithDetailsAsync(moderatorId);
+            var requests = await _unitOfWork.TeamJoinRequests.GetPendingRequestsByModeratorWithDetailsAsync(moderatorId);
             return requests.Select(MapToResponse).ToList();
         }
 
@@ -237,11 +217,11 @@ namespace ReliefManagementSystem.Infrastructure.Services
             CancellationToken cancellationToken)
         {
             // Validate moderator owns team
-            var isModerator = await _teamRepository.IsModeratorOfTeamAsync(teamId, moderatorId);
+            var isModerator = await _unitOfWork.Teams.IsModeratorOfTeamAsync(teamId, moderatorId);
             if (!isModerator)
                 throw new Exception("Chỉ có người điều phối của team mới có thể xem yêu cầu");
 
-            var requests = await _requestRepository.GetByTeamIdWithDetailsAsync(teamId);
+            var requests = await _unitOfWork.TeamJoinRequests.GetByTeamIdWithDetailsAsync(teamId);
             return requests.Select(MapToResponse).ToList();
         }
 
@@ -249,7 +229,7 @@ namespace ReliefManagementSystem.Infrastructure.Services
             Guid requestId,
             CancellationToken cancellationToken)
         {
-            var request = await _requestRepository.GetByIdWithDetailsAsync(requestId);
+            var request = await _unitOfWork.TeamJoinRequests.GetByIdWithDetailsAsync(requestId);
 
             if (request == null)
                 throw new Exception("Không thấy yêu cầu");
