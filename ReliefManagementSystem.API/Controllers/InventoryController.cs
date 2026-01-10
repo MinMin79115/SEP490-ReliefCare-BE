@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using ReliefManagementSystem.Application.Features.Inventory;
-using ReliefManagementSystem.Application.Services;
+using ReliefManagementSystem.Application.Features.Inventory.DTOs;
+using ReliefManagementSystem.Application.Features.Inventory.Interface;
 using ReliefManagementSystem.Domain.Enum;
 
 namespace ReliefManagementSystem.API.Controllers

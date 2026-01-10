@@ -5,6 +5,7 @@ using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Infrastructure;
 using ReliefManagementSystem.Infrastructure.Data;
 using ReliefManagementSystem.Infrastructure.Seed;
+using ReliefManagementSystem.Application;
 using System;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -26,6 +27,7 @@ builder.Services
     .AddDefaultTokenProviders();
 builder.Services.Configure<JwtSettings>(
     builder.Configuration.GetSection("Jwt"));
+builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
