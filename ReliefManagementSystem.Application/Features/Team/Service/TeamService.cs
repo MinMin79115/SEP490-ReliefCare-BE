@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿
 using Microsoft.EntityFrameworkCore;
 using ReliefManagementSystem.Application.Common.Interface;
 using ReliefManagementSystem.Application.Common.Models;
@@ -19,14 +19,10 @@ namespace ReliefManagementSystem.Infrastructure.Services
     public class TeamService : ITeamService
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly UserManager<ApplicationUser> _userManager;
 
-        public TeamService(
-            IUnitOfWork unitOfWork,
-            UserManager<ApplicationUser> userManager)
+        public TeamService(IUnitOfWork unitOfWork)
         {
             _unitOfWork = unitOfWork;
-            _userManager = userManager;
         }
 
         public async Task<TeamResponse> CreateTeamAsync(
@@ -34,35 +30,13 @@ namespace ReliefManagementSystem.Infrastructure.Services
             Guid moderatorId,
             CancellationToken cancellationToken)
         {
-            // 1. Validate moderator role
-            var moderator = await _userManager.FindByIdAsync(moderatorId.ToString());
-            if (moderator == null)
-                throw new Exception("Không tìm thấy người điều phối");
-
-            var isModerator = await _userManager.IsInRoleAsync(moderator, "Moderator");
-            if (!isModerator)
-                throw new Exception("Chỉ có người điều phối mới có thể tạo đội");
-
-            // 2. Validate leader nếu có
-            if (request.LeaderId.HasValue)
-            {
-                var leader = await _unitOfWork.Users.GetByIdWithVolunteerProfileAsync(
-                    request.LeaderId.Value, cancellationToken);
-
-                if (leader == null)
-                    throw new Exception("Không tìm thấy trưởng nhóm");
-
-                if (leader.VolunteerProfile?.VerificationStatus != VerificationStatus.Approved)
-                    throw new Exception("Trưởng nhóm phải là tình nguyện viên đã được xác minh");
-            }
-
-            // 3. Tạo Team
+            // Tạo Team (không cần leader lúc tạo)
             var team = new Team
             {
                 Name = request.Name,
                 Description = request.Description,
                 ModeratorId = moderatorId,
-                LeaderId = request.LeaderId,
+                LeaderId = null, // Leader sẽ được set qua UpdateTeamAsync
                 Status = TeamStatus.Active,
                 CreatedAt = DateTime.UtcNow
             };
@@ -70,22 +44,6 @@ namespace ReliefManagementSystem.Infrastructure.Services
             await _unitOfWork.Teams.AddAsync(team);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // 4. Nếu có leader, tạo TeamMember
-            if (request.LeaderId.HasValue)
-            {
-                var teamMember = new TeamMember
-                {
-                    TeamId = team.TeamId,
-                    UserId = request.LeaderId.Value,
-                    RoleTeam = TeamRole.Leader,
-                    JoinedAt = DateTime.UtcNow
-                };
-
-                await _unitOfWork.TeamMembers.AddAsync(teamMember);
-                await _unitOfWork.SaveChangesAsync(cancellationToken);
-            }
-
-            // 5. Return response
             return await MapToTeamResponse(team, cancellationToken);
         }
 

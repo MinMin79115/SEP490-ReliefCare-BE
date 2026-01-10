@@ -67,17 +67,13 @@ namespace ReliefManagementSystem.Infrastructure.Services
             if (existingRequest != null)
                 throw new Exception("Bạn đã gửi yêu cầu gia nhập cho đội này rồi");
 
-            // 5. If requesting Leader role, check team has no leader
-            if (request.RequestedRole == TeamRole.Leader && team.LeaderId.HasValue)
-                throw new Exception("Đội này đã có trưởng nhóm");
-
-            // 6. Create request
+            // 5. Create request (always as Member role)
             var joinRequest = new TeamJoinRequest
             {
                 Id = Guid.NewGuid(),
                 TeamId = request.TeamId,
                 VolunteerId = volunteerId,
-                RequestedRole = request.RequestedRole,
+                RequestedRole = TeamRole.Member, // Always Member - Leader assigned by Moderator
                 Status = TeamJoinRequestStatus.Pending,
                 CreatedAt = DateTime.UtcNow
             };
@@ -85,7 +81,7 @@ namespace ReliefManagementSystem.Infrastructure.Services
             await _unitOfWork.TeamJoinRequests.AddAsync(joinRequest);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // 7. Return response with volunteer skills
+            // 6. Return response with volunteer skills
             return new TeamJoinRequestResponse
             {
                 Id = joinRequest.Id,

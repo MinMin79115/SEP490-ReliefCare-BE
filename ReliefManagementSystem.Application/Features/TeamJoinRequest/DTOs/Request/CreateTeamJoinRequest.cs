@@ -1,5 +1,4 @@
-﻿using ReliefManagementSystem.Domain.Enum;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -10,7 +9,7 @@ namespace ReliefManagementSystem.Application.Features.TeamJoinRequest.DTOs.Reque
     public class CreateTeamJoinRequest
     {
         public Guid TeamId { get; set; }
-
-        public TeamRole RequestedRole { get; set; }
+        // RequestedRole removed - volunteers can only join as Member
+        // Leader role is assigned by Moderator via UpdateTeam
     }
 }
