@@ -20,6 +20,9 @@ namespace ReliefManagementSystem.Application.Features.Auth.Interface
             Task<AuthResponse> LoginPhoneAsync(
                 LoginPhoneRequest request,
                 CancellationToken cancellationToken);
+
+             Task<AuthResponse> LoginGoogleAsync(
+                CancellationToken cancellationToken);
     }
 
 }

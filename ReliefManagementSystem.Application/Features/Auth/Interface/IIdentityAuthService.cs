@@ -23,5 +23,8 @@ namespace ReliefManagementSystem.Application.Features.Auth.Interface
             string phone,
             string password,
             CancellationToken cancellationToken);
+
+        Task<ApplicationUser?> ValidateByGoogleAsync(
+    CancellationToken cancellationToken);
     }
 }

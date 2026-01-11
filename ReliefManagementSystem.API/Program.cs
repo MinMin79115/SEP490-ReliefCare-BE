@@ -65,12 +65,16 @@ builder.Services
 builder.Services.Configure<JwtSettings>(
     builder.Configuration.GetSection("Jwt"));
 
-var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>();
+builder.Services.Configure<GoogleSetting>(
+    builder.Configuration.GetSection("AuthenticationGoogle"));
 
+var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>();
+var googleSettings = builder.Configuration.GetSection("AuthenticationGoogle").Get<GoogleSetting>();
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
     options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
 })
 .AddJwtBearer(options =>
 {
@@ -88,6 +92,11 @@ builder.Services.AddAuthentication(options =>
             Encoding.UTF8.GetBytes(jwtSettings.Key)
         )
     };
+})
+.AddGoogle(options =>
+{
+    options.ClientId = googleSettings.ClientId;
+    options.ClientSecret = googleSettings.ClientSecret;
 });
 
 

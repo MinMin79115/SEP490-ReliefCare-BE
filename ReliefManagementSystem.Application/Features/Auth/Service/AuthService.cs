@@ -90,5 +90,21 @@ namespace ReliefManagementSystem.Application.Features.Auth.Service
                 AccessTokenExpires = token.AccessTokenExpires
             };
         }
+
+        public async Task<AuthResponse> LoginGoogleAsync(CancellationToken cancellationToken)
+        {
+           var user = await _identityAuthService.ValidateByGoogleAsync(cancellationToken);
+            var token = await _tokenService.GenerateTokenAsync(
+                user,
+                new[] { "api" },
+                CancellationToken.None);
+            return new AuthResponse
+            {
+                UserId = user.Id,
+                AccessToken = token.AccessToken,
+                RefreshToken = token.RefreshToken,
+                AccessTokenExpires = token.AccessTokenExpires
+            };
+        }
     }
 }

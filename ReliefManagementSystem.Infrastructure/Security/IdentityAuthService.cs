@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Authentication.Google;
+using Microsoft.AspNetCore.Identity;
 using ReliefManagementSystem.Application.Common.Interface;
 using ReliefManagementSystem.Application.Features.Auth.DTOs;
 using ReliefManagementSystem.Application.Features.Auth.Interface;
@@ -8,6 +9,7 @@ using ReliefManagementSystem.Domain.Enum;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -89,5 +91,65 @@ namespace ReliefManagementSystem.Infrastructure.Security
 
             return user;
         }
+
+        public async Task<ApplicationUser?> ValidateByGoogleAsync(
+    CancellationToken cancellationToken)
+        {
+            var info = await _signInManager.GetExternalLoginInfoAsync();
+
+            if (info == null)
+                return null;
+
+            var signInResult = await _signInManager.ExternalLoginSignInAsync(
+                info.LoginProvider,
+                info.ProviderKey,
+                isPersistent: false
+            );
+
+            ApplicationUser user;
+
+            if (signInResult.Succeeded)
+            {
+                user = await _userManager.FindByLoginAsync(
+                    info.LoginProvider,
+                    info.ProviderKey
+                );
+            }
+            else
+            {
+                var email = info.Principal.FindFirstValue(ClaimTypes.Email)
+                    ?? throw new Exception("Google email not found");
+
+                var name = info.Principal.FindFirstValue(ClaimTypes.Name);
+
+                user = await _userManager.FindByEmailAsync(email);
+
+                if (user == null)
+                {
+                    user = new ApplicationUser
+                    {
+                        UserName = email,
+                        Email = email,
+                        DisplayName = name
+                    };
+
+                    var createResult = await _userManager.CreateAsync(user);
+                    if (!createResult.Succeeded)
+                        throw new Exception(string.Join("; ",
+                            createResult.Errors.Select(e => e.Description)));
+
+                    await _userManager.AddToRoleAsync(
+                        user, Role.User.ToString());
+                }
+
+                var loginResult = await _userManager.AddLoginAsync(user, info);
+                if (!loginResult.Succeeded)
+                    throw new Exception("Failed to link Google login");
+            }
+
+            return user;
+        }
+
+       
     }
 }
