@@ -1,4 +1,5 @@
-﻿using ReliefManagementSystem.Application.Features.Auth.DTOs;
+﻿using Microsoft.AspNetCore.Identity;
+using ReliefManagementSystem.Application.Features.Auth.DTOs;
 using ReliefManagementSystem.Application.Features.Auth.Interface;
 using ReliefManagementSystem.Application.Services;
 using System;
@@ -48,13 +49,11 @@ namespace ReliefManagementSystem.Application.Features.Auth.Service
             LoginRequest request,
             CancellationToken cancellationToken)
         {
-            // 1. Xác thực user bằng email
             var user = await _identityAuthService.ValidateByEmailAsync(
                 request.Email,
                 request.Password,
                 cancellationToken);
 
-            // 2. Sinh token
             var token = await _tokenService.GenerateTokenAsync(
                 user,
                 new[] { "api" },

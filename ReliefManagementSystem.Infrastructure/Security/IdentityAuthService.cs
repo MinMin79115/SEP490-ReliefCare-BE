@@ -60,6 +60,8 @@ namespace ReliefManagementSystem.Infrastructure.Security
             if (user == null)
                 throw new UnauthorizedAccessException("Invalid credentials");
 
+            var roles = await _userManager.GetRolesAsync(user);
+
             var check = await _signInManager
                 .CheckPasswordSignInAsync(user, password, false);
 
