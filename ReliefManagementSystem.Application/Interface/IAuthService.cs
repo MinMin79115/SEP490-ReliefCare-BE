@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ReliefManagementSystem.Application.Features.Auth.Interface
+namespace ReliefManagementSystem.Application.Interface
 {
     public interface IAuthService
     {

@@ -95,8 +95,11 @@ builder.Services.AddAuthentication(options =>
 })
 .AddGoogle(options =>
 {
-    options.ClientId = googleSettings.ClientId;
-    options.ClientSecret = googleSettings.ClientSecret;
+    options.ClientId =
+         builder.Configuration["AuthenticationGoogle:Google:ClientId"];
+
+    options.ClientSecret =
+        builder.Configuration["AuthenticationGoogle:Google:ClientSecret"];
 });
 
 

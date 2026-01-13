@@ -3,7 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using ReliefManagementSystem.Application.Features.Auth.DTOs;
-using ReliefManagementSystem.Application.Features.Auth.Interface;
+using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Domain.Entities;
 
 namespace ReliefManagementSystem.API.Controllers

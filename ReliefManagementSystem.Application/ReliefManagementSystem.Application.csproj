@@ -10,4 +10,15 @@
     <ProjectReference Include="..\ReliefManagementSystem.Domain\ReliefManagementSystem.Domain.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Features\Auth\Interface\" />
+    <Folder Include="Features\Auth\Service\" />
+    <Folder Include="Features\Inventory\Interface\" />
+    <Folder Include="Features\Inventory\Service\" />
+    <Folder Include="Features\TeamJoinRequest\Interface\" />
+    <Folder Include="Features\TeamJoinRequest\Service\" />
+    <Folder Include="Features\Team\Interface\" />
+    <Folder Include="Features\Team\Service\" />
+  </ItemGroup>
+
 </Project>

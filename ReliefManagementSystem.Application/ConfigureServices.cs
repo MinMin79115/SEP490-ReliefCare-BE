@@ -1,6 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
-using ReliefManagementSystem.Application.Features.Auth.Interface;
-using ReliefManagementSystem.Application.Features.Auth.Service;
+using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Application.Services;
 using System;
 using System.Collections.Generic;
@@ -16,8 +15,11 @@ namespace ReliefManagementSystem.Application
            this IServiceCollection services)
         {
             services.AddScoped<IAuthService, AuthService>();
+            services.AddScoped<ITeamService, TeamService>();
+            services.AddScoped<ITeamJoinRequestService, TeamJoinRequestService>();
+            services.AddScoped<IInventoryService, InventoryService>();
 
-        
+
             return services;
         }
     }

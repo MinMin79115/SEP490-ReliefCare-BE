@@ -1,14 +1,13 @@
 ﻿using Microsoft.AspNetCore.Identity;
 using ReliefManagementSystem.Application.Features.Auth.DTOs;
-using ReliefManagementSystem.Application.Features.Auth.Interface;
-using ReliefManagementSystem.Application.Services;
+using ReliefManagementSystem.Application.Interface;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ReliefManagementSystem.Application.Features.Auth.Service
+namespace ReliefManagementSystem.Application.Services
 {
     public class AuthService : IAuthService
     {

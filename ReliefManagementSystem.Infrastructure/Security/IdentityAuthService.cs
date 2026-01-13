@@ -2,7 +2,7 @@
 using Microsoft.AspNetCore.Identity;
 using ReliefManagementSystem.Application.Common.Interface;
 using ReliefManagementSystem.Application.Features.Auth.DTOs;
-using ReliefManagementSystem.Application.Features.Auth.Interface;
+using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Application.Services;
 using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Domain.Enum;
