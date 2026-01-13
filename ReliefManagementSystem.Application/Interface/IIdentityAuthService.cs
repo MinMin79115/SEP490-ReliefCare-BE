@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ReliefManagementSystem.Application.Features.Auth.Interface
+namespace ReliefManagementSystem.Application.Interface
 {
     public interface IIdentityAuthService
     {
@@ -23,5 +23,8 @@ namespace ReliefManagementSystem.Application.Features.Auth.Interface
             string phone,
             string password,
             CancellationToken cancellationToken);
+
+        Task<ApplicationUser?> ValidateByGoogleAsync(
+    CancellationToken cancellationToken);
     }
 }

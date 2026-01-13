@@ -4,7 +4,7 @@ using ReliefManagementSystem.Application.Common.Interface;
 using ReliefManagementSystem.Application.Features.Team.DTOs.Response;
 using ReliefManagementSystem.Application.Features.TeamJoinRequest.DTOs.Request;
 using ReliefManagementSystem.Application.Features.TeamJoinRequest.DTOs.Response;
-using ReliefManagementSystem.Application.Features.TeamJoinRequest.Interface;
+using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Domain.Enum;
 
@@ -14,7 +14,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ReliefManagementSystem.Infrastructure.Services
+namespace ReliefManagementSystem.Application.Services
 {
     public class TeamJoinRequestService : ITeamJoinRequestService
     {

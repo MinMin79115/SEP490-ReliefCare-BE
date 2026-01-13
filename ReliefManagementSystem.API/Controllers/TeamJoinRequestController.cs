@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ReliefManagementSystem.Application.Features.TeamJoinRequest.DTOs.Request;
-using ReliefManagementSystem.Application.Features.TeamJoinRequest.Interface;
+using ReliefManagementSystem.Application.Interface;
 using System.Security.Claims;
 
 namespace ReliefManagementSystem.API.Controllers

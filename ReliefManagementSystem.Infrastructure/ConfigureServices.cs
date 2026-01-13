@@ -2,16 +2,12 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ReliefManagementSystem.Application.Common.Interface;
-using ReliefManagementSystem.Application.Features.Auth.Interface;
-using ReliefManagementSystem.Application.Features.Inventory.Interface;
-using ReliefManagementSystem.Application.Features.Team.Interface;
-using ReliefManagementSystem.Application.Features.TeamJoinRequest.Interface;
-using ReliefManagementSystem.Application.Services;
+using ReliefManagementSystem.Application.Features;
+using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Infrastructure.Data;
 using ReliefManagementSystem.Infrastructure.Persistence;
 using ReliefManagementSystem.Infrastructure.Repositories;
 using ReliefManagementSystem.Infrastructure.Security;
-using ReliefManagementSystem.Infrastructure.Services;
 
 namespace ReliefManagementSystem.Infrastructure
 {
@@ -31,17 +27,13 @@ namespace ReliefManagementSystem.Infrastructure
             services.AddScoped<IIdentityAuthService, IdentityAuthService>();
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
-            // Team services
-            services.AddScoped<ITeamService, TeamService>();
-            services.AddScoped<ITeamJoinRequestService, TeamJoinRequestService>();
-
+            
             // Team repositories
             services.AddScoped<ITeamRepository, TeamRepository>();
             services.AddScoped<ITeamMemberRepository, TeamMemberRepository>();
             services.AddScoped<ITeamJoinRequestRepository, TeamJoinRequestRepository>();
             services.AddScoped<IVolunteerProfileRepository, VolunteerProfileRepository>();
 
-            services.AddScoped<IInventoryService, InventoryService>();
             return services;
 
         }

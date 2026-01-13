@@ -6,7 +6,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ReliefManagementSystem.Application.Services
+namespace ReliefManagementSystem.Application.Interface
 {
     public interface ITokenService
     {

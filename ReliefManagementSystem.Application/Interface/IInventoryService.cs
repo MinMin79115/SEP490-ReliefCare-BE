@@ -2,7 +2,7 @@ using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Application.Features.Inventory.DTOs;
 using ReliefManagementSystem.Domain.Enum;
 
-namespace ReliefManagementSystem.Application.Features.Inventory.Interface
+namespace ReliefManagementSystem.Application.Interface
 {
     public interface IInventoryService
     {

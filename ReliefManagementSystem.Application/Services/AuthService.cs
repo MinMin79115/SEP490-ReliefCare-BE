@@ -1,13 +1,13 @@
-﻿using ReliefManagementSystem.Application.Features.Auth.DTOs;
-using ReliefManagementSystem.Application.Features.Auth.Interface;
-using ReliefManagementSystem.Application.Services;
+﻿using Microsoft.AspNetCore.Identity;
+using ReliefManagementSystem.Application.Features.Auth.DTOs;
+using ReliefManagementSystem.Application.Interface;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ReliefManagementSystem.Application.Features.Auth.Service
+namespace ReliefManagementSystem.Application.Services
 {
     public class AuthService : IAuthService
     {
@@ -48,13 +48,11 @@ namespace ReliefManagementSystem.Application.Features.Auth.Service
             LoginRequest request,
             CancellationToken cancellationToken)
         {
-            // 1. Xác thực user bằng email
             var user = await _identityAuthService.ValidateByEmailAsync(
                 request.Email,
                 request.Password,
                 cancellationToken);
 
-            // 2. Sinh token
             var token = await _tokenService.GenerateTokenAsync(
                 user,
                 new[] { "api" },
@@ -83,6 +81,22 @@ namespace ReliefManagementSystem.Application.Features.Auth.Service
                 new[] { "api" },
                 cancellationToken);
 
+            return new AuthResponse
+            {
+                UserId = user.Id,
+                AccessToken = token.AccessToken,
+                RefreshToken = token.RefreshToken,
+                AccessTokenExpires = token.AccessTokenExpires
+            };
+        }
+
+        public async Task<AuthResponse> LoginGoogleAsync(CancellationToken cancellationToken)
+        {
+           var user = await _identityAuthService.ValidateByGoogleAsync(cancellationToken);
+            var token = await _tokenService.GenerateTokenAsync(
+                user,
+                new[] { "api" },
+                CancellationToken.None);
             return new AuthResponse
             {
                 UserId = user.Id,

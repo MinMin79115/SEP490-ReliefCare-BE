@@ -4,17 +4,16 @@ using ReliefManagementSystem.Application.Common.Interface;
 using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Application.Features.Team.DTOs.Request;
 using ReliefManagementSystem.Application.Features.Team.DTOs.Response;
-using ReliefManagementSystem.Application.Features.Team.Interface;
+using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Domain.Enum;
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ReliefManagementSystem.Infrastructure.Services
+namespace ReliefManagementSystem.Application.Services
 {
     public class TeamService : ITeamService
     {

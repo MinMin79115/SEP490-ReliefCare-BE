@@ -2,11 +2,11 @@ using Microsoft.EntityFrameworkCore;
 using ReliefManagementSystem.Application.Common.Interface;
 using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Application.Features.Inventory.DTOs;
-using ReliefManagementSystem.Application.Features.Inventory.Interface;
+using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Domain.Enum;
 
-namespace ReliefManagementSystem.Infrastructure.Services
+namespace ReliefManagementSystem.Application.Services
 {
     public class InventoryService : IInventoryService
     {
@@ -110,7 +110,7 @@ namespace ReliefManagementSystem.Infrastructure.Services
                 var searchLower = search.ToLower();
                 query = query.Where(s =>
                     s.Name.ToLower().Contains(searchLower) ||
-                    (s.Description != null && s.Description.ToLower().Contains(searchLower))
+                    s.Description != null && s.Description.ToLower().Contains(searchLower)
                 );
             }
 
