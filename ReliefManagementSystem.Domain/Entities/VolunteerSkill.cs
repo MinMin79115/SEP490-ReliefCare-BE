@@ -11,7 +11,7 @@ namespace ReliefManagementSystem.Domain.Entities
         public Guid VolunteerProfileId { get; set; }
         public VolunteerProfile VolunteerProfile { get; set; }
 
-        public int SkillId { get; set; }
+        public Guid SkillId { get; set; }
         public Skill Skill { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ReliefManagementSystem.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class FixedTypeMismatches : Migration
+    public partial class newGuidSkill : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -59,8 +59,7 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 name: "Skills",
                 columns: table => new
                 {
-                    SkillId = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    SkillId = table.Column<Guid>(type: "uuid", nullable: false),
                     Code = table.Column<string>(type: "text", nullable: false),
                     Name = table.Column<string>(type: "text", nullable: false),
                     Description = table.Column<string>(type: "text", nullable: false)
@@ -68,6 +67,26 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 constraints: table =>
                 {
                     table.PrimaryKey("PK_Skills", x => x.SkillId);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "SupplyItems",
+                columns: table => new
+                {
+                    SupplyItemId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Name = table.Column<string>(type: "text", nullable: false),
+                    Description = table.Column<string>(type: "text", nullable: true),
+                    Category = table.Column<int>(type: "integer", nullable: false),
+                    Unit = table.Column<string>(type: "text", nullable: false),
+                    CurrentQuantity = table.Column<int>(type: "integer", nullable: false),
+                    MinimumStockLevel = table.Column<int>(type: "integer", nullable: false),
+                    MaximumStockLevel = table.Column<int>(type: "integer", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SupplyItems", x => x.SupplyItemId);
                 });
 
             migrationBuilder.CreateTable(
@@ -177,6 +196,28 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "InventoryTransactions",
+                columns: table => new
+                {
+                    TransactionId = table.Column<Guid>(type: "uuid", nullable: false),
+                    TransactionCode = table.Column<string>(type: "text", nullable: false),
+                    Type = table.Column<int>(type: "integer", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedBy = table.Column<Guid>(type: "uuid", nullable: false),
+                    Notes = table.Column<string>(type: "text", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_InventoryTransactions", x => x.TransactionId);
+                    table.ForeignKey(
+                        name: "FK_InventoryTransactions_AspNetUsers_CreatedBy",
+                        column: x => x.CreatedBy,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "RefreshTokens",
                 columns: table => new
                 {
@@ -204,12 +245,14 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 name: "Teams",
                 columns: table => new
                 {
-                    TeamId = table.Column<int>(type: "integer", nullable: false)
-                        .Annotation("Npgsql:ValueGenerationStrategy", NpgsqlValueGenerationStrategy.IdentityByDefaultColumn),
+                    TeamId = table.Column<Guid>(type: "uuid", nullable: false),
                     Name = table.Column<string>(type: "text", nullable: false),
-                    LeaderId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Description = table.Column<string>(type: "text", nullable: true),
+                    ModeratorId = table.Column<Guid>(type: "uuid", nullable: false),
+                    LeaderId = table.Column<Guid>(type: "uuid", nullable: true),
                     Status = table.Column<int>(type: "integer", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -217,6 +260,12 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     table.ForeignKey(
                         name: "FK_Teams_AspNetUsers_LeaderId",
                         column: x => x.LeaderId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Teams_AspNetUsers_ModeratorId",
+                        column: x => x.ModeratorId,
                         principalTable: "AspNetUsers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
@@ -229,7 +278,9 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     UserId = table.Column<Guid>(type: "uuid", nullable: false),
                     VerificationStatus = table.Column<int>(type: "integer", nullable: false),
                     VerifiedBy = table.Column<Guid>(type: "uuid", nullable: true),
-                    VerifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                    VerifiedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    Descriptions = table.Column<string>(type: "text", nullable: true),
+                    Reason = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {
@@ -243,10 +294,74 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "InventoryTransactionItems",
+                columns: table => new
+                {
+                    TransactionItemId = table.Column<Guid>(type: "uuid", nullable: false),
+                    TransactionId = table.Column<Guid>(type: "uuid", nullable: false),
+                    SupplyItemId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Quantity = table.Column<int>(type: "integer", nullable: false),
+                    Notes = table.Column<string>(type: "text", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_InventoryTransactionItems", x => x.TransactionItemId);
+                    table.ForeignKey(
+                        name: "FK_InventoryTransactionItems_InventoryTransactions_Transaction~",
+                        column: x => x.TransactionId,
+                        principalTable: "InventoryTransactions",
+                        principalColumn: "TransactionId",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_InventoryTransactionItems_SupplyItems_SupplyItemId",
+                        column: x => x.SupplyItemId,
+                        principalTable: "SupplyItems",
+                        principalColumn: "SupplyItemId",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "TeamJoinRequests",
+                columns: table => new
+                {
+                    Id = table.Column<Guid>(type: "uuid", nullable: false),
+                    TeamId = table.Column<Guid>(type: "uuid", nullable: false),
+                    VolunteerId = table.Column<Guid>(type: "uuid", nullable: false),
+                    RequestedRole = table.Column<int>(type: "integer", nullable: false),
+                    Status = table.Column<int>(type: "integer", nullable: false),
+                    ReviewedBy = table.Column<Guid>(type: "uuid", nullable: true),
+                    ReviewNote = table.Column<string>(type: "text", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ReviewedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TeamJoinRequests", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_TeamJoinRequests_AspNetUsers_ReviewedBy",
+                        column: x => x.ReviewedBy,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_TeamJoinRequests_AspNetUsers_VolunteerId",
+                        column: x => x.VolunteerId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_TeamJoinRequests_Teams_TeamId",
+                        column: x => x.TeamId,
+                        principalTable: "Teams",
+                        principalColumn: "TeamId",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "TeamMembers",
                 columns: table => new
                 {
-                    TeamId = table.Column<int>(type: "integer", nullable: false),
+                    TeamId = table.Column<Guid>(type: "uuid", nullable: false),
                     UserId = table.Column<Guid>(type: "uuid", nullable: false),
                     RoleTeam = table.Column<int>(type: "integer", nullable: false),
                     JoinedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
@@ -273,7 +388,7 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 columns: table => new
                 {
                     VolunteerProfileId = table.Column<Guid>(type: "uuid", nullable: false),
-                    SkillId = table.Column<int>(type: "integer", nullable: false),
+                    SkillId = table.Column<Guid>(type: "uuid", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
@@ -331,9 +446,39 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_InventoryTransactionItems_SupplyItemId",
+                table: "InventoryTransactionItems",
+                column: "SupplyItemId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_InventoryTransactionItems_TransactionId",
+                table: "InventoryTransactionItems",
+                column: "TransactionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_InventoryTransactions_CreatedBy",
+                table: "InventoryTransactions",
+                column: "CreatedBy");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_RefreshTokens_UserId",
                 table: "RefreshTokens",
                 column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TeamJoinRequests_ReviewedBy",
+                table: "TeamJoinRequests",
+                column: "ReviewedBy");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TeamJoinRequests_TeamId",
+                table: "TeamJoinRequests",
+                column: "TeamId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TeamJoinRequests_VolunteerId",
+                table: "TeamJoinRequests",
+                column: "VolunteerId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_TeamMembers_UserId",
@@ -344,6 +489,11 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 name: "IX_Teams_LeaderId",
                 table: "Teams",
                 column: "LeaderId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Teams_ModeratorId",
+                table: "Teams",
+                column: "ModeratorId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_VolunteerSkills_SkillId",
@@ -370,7 +520,13 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 name: "AspNetUserTokens");
 
             migrationBuilder.DropTable(
+                name: "InventoryTransactionItems");
+
+            migrationBuilder.DropTable(
                 name: "RefreshTokens");
+
+            migrationBuilder.DropTable(
+                name: "TeamJoinRequests");
 
             migrationBuilder.DropTable(
                 name: "TeamMembers");
@@ -380,6 +536,12 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "AspNetRoles");
+
+            migrationBuilder.DropTable(
+                name: "InventoryTransactions");
+
+            migrationBuilder.DropTable(
+                name: "SupplyItems");
 
             migrationBuilder.DropTable(
                 name: "Teams");
