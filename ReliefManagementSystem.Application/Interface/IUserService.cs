@@ -14,5 +14,20 @@ namespace ReliefManagementSystem.Application.Interface
         public Task<VolunteerProfileResponse> CreateVolunteerProfileAsync(
             CreateVolunteerRequest request,
             CancellationToken cancellationToken = default);
+        Task<VolunteerProfileResponse> ApproveVolunteerProfileAsync(
+           Guid volunteerProfileId,
+           CancellationToken cancellationToken = default);
+
+        Task<VolunteerProfileResponse> RejectVolunteerProfileAsync(
+            Guid volunteerProfileId,
+            string reason,
+            CancellationToken cancellationToken = default);
+
+        Task<VolunteerProfileResponse?> GetVolunteerProfileByUserIdAsync(
+            Guid userId,
+            CancellationToken cancellationToken = default);
+
+        Task<List<VolunteerProfileResponse>> GetAllVolunteerProfilesAsync(
+            CancellationToken cancellationToken = default);
     }
 }

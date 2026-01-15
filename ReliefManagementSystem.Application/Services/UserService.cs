@@ -3,6 +3,7 @@ using ReliefManagementSystem.Application.Features.VolunteerRequest.Request;
 using ReliefManagementSystem.Application.Features.VolunteerRequest.Response;
 using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Domain.Entities;
+using ReliefManagementSystem.Domain.Enum;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -53,6 +54,89 @@ namespace ReliefManagementSystem.Application.Services
                 Descriptions = volunteerProfile.Descriptions,
                 VerificationStatus = volunteerProfile.VerificationStatus,
                 Skills = volunteerProfile.VolunteerSkills.Select(vs => vs.SkillId).ToList()
+            };
+        }
+
+        public async Task<VolunteerProfileResponse> ApproveVolunteerProfileAsync(
+           Guid volunteerProfileId,
+           CancellationToken cancellationToken = default)
+        {
+            var profile = await _unitOfWork.VolunteerProfiles
+                .GetByIdWithSkillsAndUserAsync(volunteerProfileId);
+
+            if (profile == null)
+                throw new InvalidOperationException("Volunteer profile not found.");
+
+            profile.VerificationStatus = VerificationStatus.Approved;
+            profile.VerifiedAt = DateTime.UtcNow;
+            profile.VerifiedBy = _currentUserService.UserId;
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return MapToResponse(profile, profile.User);
+        }
+
+
+        public async Task<VolunteerProfileResponse> RejectVolunteerProfileAsync(
+            Guid volunteerProfileId,
+            string reason,
+            CancellationToken cancellationToken = default)
+        {
+            var profile = await _unitOfWork.VolunteerProfiles
+                .GetByIdWithSkillsAndUserAsync(volunteerProfileId);
+
+            if (profile == null)
+                throw new InvalidOperationException("Volunteer profile not found.");
+
+            profile.VerificationStatus = VerificationStatus.Rejected;
+            profile.VerifiedAt = DateTime.UtcNow;
+            profile.VerifiedBy = _currentUserService.UserId;
+            profile.Reason = reason;
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return MapToResponse(profile, profile.User);
+        }
+
+        public async Task<VolunteerProfileResponse?> GetVolunteerProfileByUserIdAsync(
+            Guid userId,
+            CancellationToken cancellationToken = default)
+        {
+            var profile = await _unitOfWork.VolunteerProfiles
+                .GetByUserIdWithSkillsAsync(userId);
+
+            if (profile == null)
+                return null;
+
+            return MapToResponse(profile, profile.User);
+        }
+
+        public async Task<List<VolunteerProfileResponse>> GetAllVolunteerProfilesAsync(
+            CancellationToken cancellationToken = default)
+        {
+            var profiles = await _unitOfWork.VolunteerProfiles
+                .GetAllWithSkillsAsync();
+
+            return profiles
+                .Select(profile => MapToResponse(profile, profile.User))
+                .ToList();
+        }
+
+        private static VolunteerProfileResponse MapToResponse(
+           VolunteerProfile profile,
+           ApplicationUser? user)
+        {
+            return new VolunteerProfileResponse
+            {
+                VolunteerProfileId = profile.VolunteerProfileId,
+                FullName = user?.DisplayName,
+                Email = user?.Email,
+                PhoneNumber = user?.PhoneNumber,
+                Descriptions = profile.Descriptions,
+                VerificationStatus = profile.VerificationStatus,
+                Skills = profile.VolunteerSkills
+                    .Select(vs => vs.SkillId)
+                    .ToList()
             };
         }
     }
