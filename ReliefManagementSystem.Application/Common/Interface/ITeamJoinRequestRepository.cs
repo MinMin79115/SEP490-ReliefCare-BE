@@ -7,9 +7,8 @@ using System.Threading.Tasks;
 
 namespace ReliefManagementSystem.Application.Common.Interface
 {
-    public interface ITeamJoinRequestRepository
+    public interface ITeamJoinRequestRepository : IGenericRepository<TeamJoinRequest>
     {
-        Task<TeamJoinRequest?> GetByIdAsync(Guid id);
 
         // Include: Team.Moderator, Volunteer.VolunteerProfile.VolunteerSkills.Skill, Reviewer
         Task<TeamJoinRequest?> GetByIdWithDetailsAsync(Guid id);
@@ -22,8 +21,5 @@ namespace ReliefManagementSystem.Application.Common.Interface
 
         Task<TeamJoinRequest?> GetExistingPendingRequestAsync(Guid teamId, Guid volunteerId);
 
-        Task AddAsync(TeamJoinRequest request);
-
-        Task UpdateAsync(TeamJoinRequest request);
     }
 }
