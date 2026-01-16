@@ -19,6 +19,8 @@ namespace ReliefManagementSystem.Application.Common.Interface
         ITeamMemberRepository TeamMembers { get; }
         ITeamJoinRequestRepository TeamJoinRequests { get; }
         IVolunteerProfileRepository VolunteerProfiles { get; }
+
+        ISkillRepository Skills { get; }
         Task<int> SaveChangesAsync(
         CancellationToken cancellationToken = default);
 
