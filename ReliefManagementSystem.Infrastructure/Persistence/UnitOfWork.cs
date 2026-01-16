@@ -25,6 +25,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
         public ITeamJoinRequestRepository TeamJoinRequests { get; }
         public IVolunteerProfileRepository VolunteerProfiles { get; }
 
+        public ISkillRepository Skills { get; }
         public UnitOfWork(ApplicationDbContext context)
         {
             _context = context;
@@ -37,6 +38,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             TeamMembers = new TeamMemberRepository(_context);
             TeamJoinRequests = new TeamJoinRequestRepository(_context);
             VolunteerProfiles = new VolunteerProfileRepository(_context);
+            Skills = new SkillRepository(_context);
         }
 
         public async Task<int> SaveChangesAsync(

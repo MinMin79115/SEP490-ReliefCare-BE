@@ -110,6 +110,9 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .OnDelete(DeleteBehavior.Cascade);
 
             builder.Entity<VolunteerProfile>()
+                .HasKey(v => v.VolunteerProfileId);
+
+            builder.Entity<VolunteerProfile>()
                 .HasOne(v => v.User)
                 .WithOne(u => u.VolunteerProfile)
                 .HasForeignKey<VolunteerProfile>(v => v.UserId)

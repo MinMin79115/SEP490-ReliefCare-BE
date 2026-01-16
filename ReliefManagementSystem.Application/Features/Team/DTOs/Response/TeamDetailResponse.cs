@@ -57,7 +57,7 @@ namespace ReliefManagementSystem.Application.Features.Team.DTOs.Response
 
     public class SkillInfo
     {
-        public int SkillId { get; set; }
+        public Guid SkillId { get; set; }
         public string Code { get; set; } = null!;
         public string Name { get; set; } = null!;
         public string? Description { get; set; }

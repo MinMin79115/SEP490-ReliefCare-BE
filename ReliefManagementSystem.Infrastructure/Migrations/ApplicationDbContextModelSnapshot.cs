@@ -322,11 +322,9 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Skill", b =>
                 {
-                    b.Property<int>("SkillId")
+                    b.Property<Guid>("SkillId")
                         .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("SkillId"));
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Code")
                         .IsRequired()
@@ -388,6 +386,7 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Team", b =>
                 {
                     b.Property<Guid>("TeamId")
+                        .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
@@ -485,6 +484,16 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.VolunteerProfile", b =>
                 {
+                    b.Property<Guid>("VolunteerProfileId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Descriptions")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Reason")
+                        .HasColumnType("text");
+
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
@@ -497,7 +506,10 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Property<Guid?>("VerifiedBy")
                         .HasColumnType("uuid");
 
-                    b.HasKey("UserId");
+                    b.HasKey("VolunteerProfileId");
+
+                    b.HasIndex("UserId")
+                        .IsUnique();
 
                     b.ToTable("VolunteerProfiles");
                 });
@@ -507,8 +519,8 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Property<Guid>("VolunteerProfileId")
                         .HasColumnType("uuid");
 
-                    b.Property<int>("SkillId")
-                        .HasColumnType("integer");
+                    b.Property<Guid>("SkillId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -617,7 +629,7 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.HasOne("ReliefManagementSystem.Domain.Entities.ApplicationUser", "Leader")
                         .WithMany()
                         .HasForeignKey("LeaderId")
-                        .OnDelete(DeleteBehavior.SetNull);
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("ReliefManagementSystem.Domain.Entities.ApplicationUser", "Moderator")
                         .WithMany()

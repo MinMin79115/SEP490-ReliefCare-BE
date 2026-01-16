@@ -114,10 +114,14 @@ using (var scope = app.Services.CreateScope())
 
     var userManager = scope.ServiceProvider
       .GetRequiredService<UserManager<ApplicationUser>>();
-
+        
+    var context = scope.ServiceProvider
+        .GetRequiredService<ApplicationDbContext>();
     await RoleSeeder.SeedAsync(roleManager);
-    await UserSeeder.SeedAsync(userManager);
 
+    await UserSeeder.SeedAsync(userManager,context);
+
+    await SkillSeeder.SeedAsync(context);
 }
 
 // Configure the HTTP request pipeline.

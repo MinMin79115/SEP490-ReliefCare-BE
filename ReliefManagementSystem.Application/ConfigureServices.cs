@@ -18,8 +18,8 @@ namespace ReliefManagementSystem.Application
             services.AddScoped<ITeamService, TeamService>();
             services.AddScoped<ITeamJoinRequestService, TeamJoinRequestService>();
             services.AddScoped<IInventoryService, InventoryService>();
-
-
+            services.AddScoped<IUserService, UserService>();
+            services.AddScoped<ISkillService, SkillService>();
             return services;
         }
     }

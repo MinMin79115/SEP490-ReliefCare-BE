@@ -35,6 +35,26 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .FirstOrDefaultAsync(vp => vp.UserId == userId);
         }
 
+        public async Task<List<VolunteerProfile>> GetAllWithSkillsAsync()
+        {
+            return await _context.VolunteerProfiles
+                .Include(vp => vp.User)
+                .Include(vp => vp.VolunteerSkills)
+                    .ThenInclude(vs => vs.Skill)
+                .ToListAsync();
+        }
+
+        public async Task<VolunteerProfile?> GetByIdWithSkillsAndUserAsync(Guid volunteerProfileId)
+        {
+            return await _context.VolunteerProfiles
+                .Include(vp => vp.User)
+                .Include(vp => vp.VolunteerSkills)
+                    .ThenInclude(vs => vs.Skill)
+                .FirstOrDefaultAsync(vp => vp.VolunteerProfileId == volunteerProfileId);
+        }
+
+
+
         public async Task AddAsync(VolunteerProfile profile)
         {
             await _context.VolunteerProfiles.AddAsync(profile);
