@@ -57,12 +57,32 @@ namespace ReliefManagementSystem.API.Controllers
         }
 
         // POST /api/team-join-request/{id}/review
-        [HttpPost("{id:guid}/review")]
+        //[HttpPost("{id:guid}/review")]
+        //[Authorize(Roles = "Moderator")]
+        //public async Task<IActionResult> ReviewRequest(Guid id, [FromBody] ReviewTeamJoinRequest request, CancellationToken cancellationToken)
+        //{
+        //    var moderatorId = GetCurrentUserId();
+        //    var result = await _service.ReviewRequestAsync(id, request, moderatorId, cancellationToken);
+        //    return Ok(result);
+        //}
+
+        // PUT /api/team-join-request/{id}/approve
+        [HttpPut("{id:guid}/approve")]
         [Authorize(Roles = "Moderator")]
-        public async Task<IActionResult> ReviewRequest(Guid id, [FromBody] ReviewTeamJoinRequest request, CancellationToken cancellationToken)
+        public async Task<IActionResult> ApproveRequest(Guid id, CancellationToken cancellationToken)
         {
             var moderatorId = GetCurrentUserId();
-            var result = await _service.ReviewRequestAsync(id, request, moderatorId, cancellationToken);
+            var result = await _service.ApproveRequestAsync(id, moderatorId, cancellationToken);
+            return Ok(result);
+        }
+
+        // PUT /api/team-join-request/{id}/reject
+        [HttpPut("{id:guid}/reject")]
+        [Authorize(Roles = "Moderator")]
+        public async Task<IActionResult> RejectRequest(Guid id, CancellationToken cancellationToken)
+        {
+            var moderatorId = GetCurrentUserId();
+            var result = await _service.RejectRequestAsync(id, moderatorId, cancellationToken);
             return Ok(result);
         }
 

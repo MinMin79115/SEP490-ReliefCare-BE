@@ -136,9 +136,71 @@ namespace ReliefManagementSystem.Application.Services
             return requests.Select(MapToResponse).ToList();
         }
 
-        public async Task<TeamJoinRequestResponse> ReviewRequestAsync(
+        //public async Task<TeamJoinRequestResponse> ReviewRequestAsync(
+        //    Guid requestId,
+        //    ReviewTeamJoinRequest request,
+        //    Guid moderatorId,
+        //    CancellationToken cancellationToken)
+        //{
+        //    // 1. Load request with all details
+        //    var joinRequest = await _unitOfWork.TeamJoinRequests.GetByIdWithDetailsAsync(requestId);
+
+        //    if (joinRequest == null)
+        //        throw new Exception("Không tìm thấy yêu cầu");
+
+        //    // 2. Validate moderator
+        //    if (joinRequest.Team.ModeratorId != moderatorId)
+        //        throw new Exception("Chỉ có điều phối team mới có thể xem xét");
+
+        //    if (joinRequest.Status != TeamJoinRequestStatus.Pending)
+        //        throw new Exception("Chỉ có thể xem xét các yêu cầu đang được duyệt");
+
+        //    // 3. Process approval
+        //    if (request.IsApproved)
+        //    {
+        //        // Validate leader if requesting Leader role
+        //        if (joinRequest.RequestedRole == TeamRole.Leader && joinRequest.Team.LeaderId.HasValue)
+        //            throw new Exception("Đội này đã có trưởng nhóm");
+
+        //        // Create TeamMember
+        //        var teamMember = new TeamMember
+        //        {
+        //            TeamId = joinRequest.TeamId,
+        //            UserId = joinRequest.VolunteerId,
+        //            RoleTeam = joinRequest.RequestedRole,
+        //            JoinedAt = DateTime.UtcNow
+        //        };
+
+        //        await _unitOfWork.TeamMembers.AddAsync(teamMember);
+
+        //        // If Leader role, update Team.LeaderId
+        //        if (joinRequest.RequestedRole == TeamRole.Leader)
+        //        {
+        //            joinRequest.Team.LeaderId = joinRequest.VolunteerId;
+        //            joinRequest.Team.UpdatedAt = DateTime.UtcNow;
+        //            await _unitOfWork.Teams.UpdateAsync(joinRequest.Team);
+        //        }
+
+        //        joinRequest.Status = TeamJoinRequestStatus.Approved;
+        //    }
+        //    else
+        //    {
+        //        joinRequest.Status = TeamJoinRequestStatus.Rejected;
+        //    }
+
+        //    // 4. Update review info
+        //    joinRequest.ReviewedBy = moderatorId;
+        //    joinRequest.ReviewedAt = DateTime.UtcNow;
+        //    joinRequest.ReviewNote = request.ReviewNote;
+
+        //    await _unitOfWork.TeamJoinRequests.UpdateAsync(joinRequest);
+        //    await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        //    return MapToResponse(joinRequest);
+        //}
+
+        public async Task<TeamJoinRequestResponse> ApproveRequestAsync(
             Guid requestId,
-            ReviewTeamJoinRequest request,
             Guid moderatorId,
             CancellationToken cancellationToken)
         {
@@ -150,48 +212,69 @@ namespace ReliefManagementSystem.Application.Services
 
             // 2. Validate moderator
             if (joinRequest.Team.ModeratorId != moderatorId)
-                throw new Exception("Chỉ có điều phối team mới có thể xem xét");
+                throw new Exception("Chỉ có điều phối team mới có thể duyệt yêu cầu");
 
             if (joinRequest.Status != TeamJoinRequestStatus.Pending)
-                throw new Exception("Chỉ có thể xem xét các yêu cầu đang được duyệt");
+                throw new Exception("Chỉ có thể duyệt các yêu cầu đang chờ xử lý");
 
-            // 3. Process approval
-            if (request.IsApproved)
+            // 3. Validate leader if requesting Leader role
+            if (joinRequest.RequestedRole == TeamRole.Leader && joinRequest.Team.LeaderId.HasValue)
+                throw new Exception("Đội này đã có trưởng nhóm");
+
+            // 4. Create TeamMember
+            var teamMember = new TeamMember
             {
-                // Validate leader if requesting Leader role
-                if (joinRequest.RequestedRole == TeamRole.Leader && joinRequest.Team.LeaderId.HasValue)
-                    throw new Exception("Đội này đã có trưởng nhóm");
+                TeamId = joinRequest.TeamId,
+                UserId = joinRequest.VolunteerId,
+                RoleTeam = joinRequest.RequestedRole,
+                JoinedAt = DateTime.UtcNow
+            };
 
-                // Create TeamMember
-                var teamMember = new TeamMember
-                {
-                    TeamId = joinRequest.TeamId,
-                    UserId = joinRequest.VolunteerId,
-                    RoleTeam = joinRequest.RequestedRole,
-                    JoinedAt = DateTime.UtcNow
-                };
+            await _unitOfWork.TeamMembers.AddAsync(teamMember);
 
-                await _unitOfWork.TeamMembers.AddAsync(teamMember);
-
-                // If Leader role, update Team.LeaderId
-                if (joinRequest.RequestedRole == TeamRole.Leader)
-                {
-                    joinRequest.Team.LeaderId = joinRequest.VolunteerId;
-                    joinRequest.Team.UpdatedAt = DateTime.UtcNow;
-                    await _unitOfWork.Teams.UpdateAsync(joinRequest.Team);
-                }
-
-                joinRequest.Status = TeamJoinRequestStatus.Approved;
-            }
-            else
+            // 5. If Leader role, update Team.LeaderId
+            if (joinRequest.RequestedRole == TeamRole.Leader)
             {
-                joinRequest.Status = TeamJoinRequestStatus.Rejected;
+                joinRequest.Team.LeaderId = joinRequest.VolunteerId;
+                joinRequest.Team.UpdatedAt = DateTime.UtcNow;
+                await _unitOfWork.Teams.UpdateAsync(joinRequest.Team);
             }
 
-            // 4. Update review info
+            // 6. Update request status
+            joinRequest.Status = TeamJoinRequestStatus.Approved;
             joinRequest.ReviewedBy = moderatorId;
             joinRequest.ReviewedAt = DateTime.UtcNow;
-            joinRequest.ReviewNote = request.ReviewNote;
+            joinRequest.ReviewNote = "Đã duyệt";
+
+            await _unitOfWork.TeamJoinRequests.UpdateAsync(joinRequest);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return MapToResponse(joinRequest);
+        }
+
+        public async Task<TeamJoinRequestResponse> RejectRequestAsync(
+            Guid requestId,
+            Guid moderatorId,
+            CancellationToken cancellationToken)
+        {
+            // 1. Load request with all details
+            var joinRequest = await _unitOfWork.TeamJoinRequests.GetByIdWithDetailsAsync(requestId);
+
+            if (joinRequest == null)
+                throw new Exception("Không tìm thấy yêu cầu");
+
+            // 2. Validate moderator
+            if (joinRequest.Team.ModeratorId != moderatorId)
+                throw new Exception("Chỉ có điều phối team mới có thể từ chối yêu cầu");
+
+            if (joinRequest.Status != TeamJoinRequestStatus.Pending)
+                throw new Exception("Chỉ có thể từ chối các yêu cầu đang chờ xử lý");
+
+            // 3. Update request status
+            joinRequest.Status = TeamJoinRequestStatus.Rejected;
+            joinRequest.ReviewedBy = moderatorId;
+            joinRequest.ReviewedAt = DateTime.UtcNow;
+            joinRequest.ReviewNote = "Bạn bị từ chối";
 
             await _unitOfWork.TeamJoinRequests.UpdateAsync(joinRequest);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
