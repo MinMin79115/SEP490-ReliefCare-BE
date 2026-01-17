@@ -1,4 +1,5 @@
-﻿using ReliefManagementSystem.Application.Common.Interface;
+﻿using Microsoft.AspNetCore.Identity;
+using ReliefManagementSystem.Application.Common.Interface;
 using ReliefManagementSystem.Application.Features.VolunteerRequest.Request;
 using ReliefManagementSystem.Application.Features.VolunteerRequest.Response;
 using ReliefManagementSystem.Application.Interface;
@@ -16,10 +17,16 @@ namespace ReliefManagementSystem.Application.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserService _currentUserService;
-        public UserService(IUnitOfWork unitOfWork, ICurrentUserService currentUserService   )
+        private readonly UserManager<ApplicationUser> _userManager;
+        private readonly RoleManager<IdentityRole<Guid>> _roleManager;
+
+
+        public UserService(IUnitOfWork unitOfWork, ICurrentUserService currentUserService, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole<Guid>> roleManager)
         {
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
+            _userManager = userManager;
+            _roleManager = roleManager;
         }
         public async Task<VolunteerProfileResponse> CreateVolunteerProfileAsync(CreateVolunteerRequest request, CancellationToken cancellationToken = default)
         {
@@ -63,13 +70,28 @@ namespace ReliefManagementSystem.Application.Services
         {
             var profile = await _unitOfWork.VolunteerProfiles
                 .GetByIdWithSkillsAndUserAsync(volunteerProfileId);
-
+            var user = await _unitOfWork.Users.GetByIdAsync(profile.UserId);
             if (profile == null)
                 throw new InvalidOperationException("Volunteer profile not found.");
+            if( user == null)
+                throw new InvalidOperationException("User not found.");
 
             profile.VerificationStatus = VerificationStatus.Approved;
             profile.VerifiedAt = DateTime.UtcNow;
             profile.VerifiedBy = _currentUserService.UserId;
+
+            var currentRoles = await _userManager.GetRolesAsync(user);
+
+            if (currentRoles.Contains(Role.User.ToString()))
+            {
+                await _userManager.RemoveFromRoleAsync(user, Role.User.ToString());
+            }
+
+            if (!currentRoles.Contains(Role.Volunteer.ToString()))
+            {
+                await _userManager.AddToRoleAsync(user, Role.Volunteer.ToString());
+            }
+
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 

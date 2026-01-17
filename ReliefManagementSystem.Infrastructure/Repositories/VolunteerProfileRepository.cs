@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using ReliefManagementSystem.Application.Common.Interface;
 using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Infrastructure.Data;
@@ -13,7 +14,6 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
     public class VolunteerProfileRepository : IVolunteerProfileRepository
     {
         private readonly ApplicationDbContext _context;
-
         public VolunteerProfileRepository(ApplicationDbContext context)
         {
             _context = context;
@@ -52,8 +52,6 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                     .ThenInclude(vs => vs.Skill)
                 .FirstOrDefaultAsync(vp => vp.VolunteerProfileId == volunteerProfileId);
         }
-
-
 
         public async Task AddAsync(VolunteerProfile profile)
         {
