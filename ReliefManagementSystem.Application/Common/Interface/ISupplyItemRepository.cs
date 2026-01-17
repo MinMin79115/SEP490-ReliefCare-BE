@@ -13,5 +13,10 @@ namespace ReliefManagementSystem.Application.Common.Interface
         Task<List<Domain.Entities.SupplyItem>> GetByCategoryAsync(
             Domain.Enum.SupplyCategory category,
             CancellationToken cancellationToken = default);
+
+        Task<List<Domain.Entities.SupplyItem>> GetFilteredAsync(
+            Domain.Enum.SupplyCategory? category,
+            string? search,
+            CancellationToken cancellationToken = default);
     }
 }

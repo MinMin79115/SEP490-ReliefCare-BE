@@ -7,6 +7,7 @@ namespace ReliefManagementSystem.Application.Features.Inventory.DTOs
         public Guid SupplyItemId { get; set; }
         public string Name { get; set; } = null!;
         public string? Description { get; set; }
+        public string? IconUrl { get; set; }
         public SupplyCategory Category { get; set; }
         public string CategoryName { get; set; } = null!;
         public string Unit { get; set; } = null!;

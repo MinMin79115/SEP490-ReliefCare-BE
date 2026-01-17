@@ -11,20 +11,30 @@ namespace ReliefManagementSystem.Application.Services
     public class InventoryService : IInventoryService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ICurrentUserService _currentUserService;
 
-        public InventoryService(IUnitOfWork unitOfWork)
+        public InventoryService(IUnitOfWork unitOfWork, ICurrentUserService currentUserService)
         {
             _unitOfWork = unitOfWork;
+            _currentUserService = currentUserService;
         }
 
         public async Task<SupplyItemDto> CreateSupplyItemAsync(
             CreateSupplyItemRequest request,
             CancellationToken cancellationToken = default)
         {
+            // Validate MinimumStockLevel <= MaximumStockLevel
+            if (request.MinimumStockLevel > request.MaximumStockLevel)
+            {
+                throw new InvalidOperationException(
+                    $"MinimumStockLevel ({request.MinimumStockLevel}) cannot be greater than MaximumStockLevel ({request.MaximumStockLevel})");
+            }
+
             var supplyItem = new SupplyItem
             {
                 Name = request.Name,
                 Description = request.Description,
+                IconUrl = request.IconUrl,
                 Category = request.Category,
                 Unit = request.Unit,
                 CurrentQuantity = request.CurrentQuantity,
@@ -44,6 +54,13 @@ namespace ReliefManagementSystem.Application.Services
             UpdateSupplyItemRequest request,
             CancellationToken cancellationToken = default)
         {
+            // Validate MinimumStockLevel <= MaximumStockLevel
+            if (request.MinimumStockLevel > request.MaximumStockLevel)
+            {
+                throw new InvalidOperationException(
+                    $"MinimumStockLevel ({request.MinimumStockLevel}) cannot be greater than MaximumStockLevel ({request.MaximumStockLevel})");
+            }
+
             var supplyItem = await _unitOfWork.SupplyItems.GetByIdAsync(id);
 
             if (supplyItem == null)
@@ -51,6 +68,7 @@ namespace ReliefManagementSystem.Application.Services
 
             supplyItem.Name = request.Name;
             supplyItem.Description = request.Description;
+            supplyItem.IconUrl = request.IconUrl;
             supplyItem.Category = request.Category;
             supplyItem.Unit = request.Unit;
             supplyItem.MinimumStockLevel = request.MinimumStockLevel;
@@ -95,40 +113,26 @@ namespace ReliefManagementSystem.Application.Services
             int pageSize,
             CancellationToken cancellationToken = default)
         {
-            var allItems = await _unitOfWork.SupplyItems.GetAllAsync();
-            var query = allItems.AsEnumerable();
+            // Use optimized repository method for database-level filtering
+            var items = await _unitOfWork.SupplyItems.GetFilteredAsync(
+                category,
+                search,
+                cancellationToken);
 
-            // Filter by category
-            if (category.HasValue)
-            {
-                query = query.Where(s => s.Category == category.Value);
-            }
-
-            // Filter by search
-            if (!string.IsNullOrWhiteSpace(search))
-            {
-                var searchLower = search.ToLower();
-                query = query.Where(s =>
-                    s.Name.ToLower().Contains(searchLower) ||
-                    s.Description != null && s.Description.ToLower().Contains(searchLower)
-                );
-            }
-
-            // Filter by status (computed property)
+            // Filter by status (computed property) - must be done in-memory
             if (status.HasValue)
             {
-                query = query.Where(s => s.Status == status.Value);
+                items = items.Where(s => s.Status == status.Value).ToList();
             }
 
-            var totalItems = query.Count();
-            var items = query
-                .OrderBy(s => s.Name)
+            var totalItems = items.Count;
+            var paginatedItems = items
                 .Skip((page - 1) * pageSize)
                 .Take(pageSize)
                 .Select(MapToDto)
                 .ToList();
 
-            return new Pagination<SupplyItemDto>(items, totalItems, page, pageSize);
+            return new Pagination<SupplyItemDto>(paginatedItems, totalItems, page, pageSize);
         }
 
         public async Task<BulkTransactionResult> BulkImportAsync(
@@ -148,7 +152,7 @@ namespace ReliefManagementSystem.Application.Services
                 TransactionCode = GenerateTransactionCode("IN"),
                 Type = TransactionType.Import,
                 CreatedAt = DateTime.UtcNow,
-                CreatedBy = Guid.Empty, // TODO: Get from current user service
+                CreatedBy = _currentUserService.UserId,
                 Notes = request.Notes,
                 Items = new List<InventoryTransactionItem>()
             };
@@ -223,7 +227,7 @@ namespace ReliefManagementSystem.Application.Services
                 TransactionCode = GenerateTransactionCode("OUT"),
                 Type = TransactionType.Export,
                 CreatedAt = DateTime.UtcNow,
-                CreatedBy = Guid.Empty, // TODO: Get from current user service
+                CreatedBy = _currentUserService.UserId,
                 Notes = string.IsNullOrWhiteSpace(request.RecipientInfo)
                     ? request.Notes
                     : $"{request.Notes} | Recipient: {request.RecipientInfo}",
@@ -280,6 +284,7 @@ namespace ReliefManagementSystem.Application.Services
                 SupplyItemId = item.SupplyItemId,
                 Name = item.Name,
                 Description = item.Description,
+                IconUrl = item.IconUrl,
                 Category = item.Category,
                 CategoryName = item.Category.ToString(),
                 Unit = item.Unit,
@@ -291,6 +296,90 @@ namespace ReliefManagementSystem.Application.Services
                 PercentageFull = Math.Round(percentageFull, 2),
                 CreatedAt = item.CreatedAt,
                 UpdatedAt = item.UpdatedAt
+            };
+        }
+
+        public async Task<Pagination<InventoryTransactionDto>> GetTransactionsAsync(
+            TransactionType? type,
+            DateTime? startDate,
+            DateTime? endDate,
+            int page,
+            int pageSize,
+            CancellationToken cancellationToken = default)
+        {
+            var transactions = await _unitOfWork.InventoryTransactions.GetAllAsync();
+            var query = transactions.AsEnumerable();
+
+            // Filter by type
+            if (type.HasValue)
+            {
+                query = query.Where(t => t.Type == type.Value);
+            }
+
+            // Filter by date range
+            if (startDate.HasValue)
+            {
+                query = query.Where(t => t.CreatedAt >= startDate.Value);
+            }
+
+            if (endDate.HasValue)
+            {
+                query = query.Where(t => t.CreatedAt <= endDate.Value);
+            }
+
+            var totalItems = query.Count();
+            var paginatedTransactions = query
+                .OrderByDescending(t => t.CreatedAt)
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .Select(t => new InventoryTransactionDto
+                {
+                    TransactionId = t.TransactionId,
+                    TransactionCode = t.TransactionCode,
+                    Type = t.Type,
+                    TypeName = t.Type.ToString(),
+                    CreatedAt = t.CreatedAt,
+                    CreatedBy = t.CreatedBy,
+                    CreatedByName = t.CreatedByUser?.DisplayName,
+                    CreatedByEmail = t.CreatedByUser?.Email,
+                    Notes = t.Notes,
+                    ItemCount = t.Items.Count,
+                    TotalQuantity = t.Items.Sum(i => i.Quantity)
+                })
+                .ToList();
+
+            return new Pagination<InventoryTransactionDto>(paginatedTransactions, totalItems, page, pageSize);
+        }
+
+        public async Task<InventoryTransactionDetailDto?> GetTransactionByIdAsync(
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            var transaction = await _unitOfWork.InventoryTransactions.GetByIdWithItemsAsync(id, cancellationToken);
+
+            if (transaction == null)
+                return null;
+
+            return new InventoryTransactionDetailDto
+            {
+                TransactionId = transaction.TransactionId,
+                TransactionCode = transaction.TransactionCode,
+                Type = transaction.Type,
+                TypeName = transaction.Type.ToString(),
+                CreatedAt = transaction.CreatedAt,
+                CreatedBy = transaction.CreatedBy,
+                CreatedByName = transaction.CreatedByUser?.DisplayName,
+                CreatedByEmail = transaction.CreatedByUser?.Email,
+                Notes = transaction.Notes,
+                Items = transaction.Items.Select(i => new TransactionItemDetailDto
+                {
+                    TransactionItemId = i.TransactionItemId,
+                    SupplyItemId = i.SupplyItemId,
+                    SupplyItemName = i.SupplyItem.Name,
+                    Unit = i.SupplyItem.Unit,
+                    Quantity = i.Quantity,
+                    Notes = i.Notes
+                }).ToList()
             };
         }
     }

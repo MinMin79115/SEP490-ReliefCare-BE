@@ -11,6 +11,9 @@ namespace ReliefManagementSystem.Application.Features.Inventory.DTOs
         [MaxLength(1000)]
         public string? Description { get; set; }
 
+        [MaxLength(500)]
+        public string? IconUrl { get; set; }
+
         [Required]
         public Domain.Enum.SupplyCategory Category { get; set; }
 

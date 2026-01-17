@@ -40,5 +40,18 @@ namespace ReliefManagementSystem.Application.Interface
         Task<BulkTransactionResult> BulkExportAsync(
             BulkExportRequest request,
             CancellationToken cancellationToken = default);
+
+        // Transaction History
+        Task<Pagination<InventoryTransactionDto>> GetTransactionsAsync(
+            TransactionType? type,
+            DateTime? startDate,
+            DateTime? endDate,
+            int page,
+            int pageSize,
+            CancellationToken cancellationToken = default);
+
+        Task<InventoryTransactionDetailDto?> GetTransactionByIdAsync(
+            Guid id,
+            CancellationToken cancellationToken = default);
     }
 }

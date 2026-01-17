@@ -38,5 +38,33 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .Where(s => s.Category == category)
                 .ToListAsync(cancellationToken);
         }
+
+        public async Task<List<SupplyItem>> GetFilteredAsync(
+            Domain.Enum.SupplyCategory? category,
+            string? search,
+            CancellationToken cancellationToken = default)
+        {
+            var query = _context.SupplyItems.AsNoTracking();
+
+            // Filter by category at database level
+            if (category.HasValue)
+            {
+                query = query.Where(s => s.Category == category.Value);
+            }
+
+            // Filter by search at database level
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                var searchLower = search.ToLower();
+                query = query.Where(s =>
+                    s.Name.ToLower().Contains(searchLower) ||
+                    (s.Description != null && s.Description.ToLower().Contains(searchLower))
+                );
+            }
+
+            return await query
+                .OrderBy(s => s.Name)
+                .ToListAsync(cancellationToken);
+        }
     }
 }
