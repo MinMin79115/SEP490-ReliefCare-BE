@@ -7,28 +7,19 @@ using System.Threading.Tasks;
 
 namespace ReliefManagementSystem.Application.Common.Interface
 {
-    public interface ITeamRepository
+    public interface ITeamRepository : IGenericRepository<Team>
     {
-        Task<Team?> GetByIdAsync(Guid id);
-
         // Include: Moderator, Leader, TeamMembers.User.VolunteerProfile.VolunteerSkills.Skill
         Task<Team?> GetByIdWithDetailsAsync(Guid id);
 
+        //hold to override
         Task<List<Team>> GetAllAsync();
 
         Task<List<Team>> GetByModeratorIdAsync(Guid moderatorId);
 
         IQueryable<Team> GetQueryable();
 
-        Task AddAsync(Team team);
-
-        Task UpdateAsync(Team team);
-
-        Task DeleteAsync(Team team);
-
         Task<bool> IsModeratorOfTeamAsync(Guid teamId, Guid userId);
-
-        Task<bool> ExistsAsync(Guid id);
 
         Task<int> GetTeamMemberCountAsync(Guid teamId, CancellationToken cancellationToken = default);
     }
