@@ -75,7 +75,46 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(result);
         }
 
+        /// <summary>
+        /// Add new skills to current volunteer
+        /// </summary>
+        [HttpPost("skills")]
+        public async Task<ActionResult<VolunteerProfileResponse>> AddSkills(
+            [FromBody] AddVolunteerRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _userService
+                .AddNewSkillVolunteer(request, cancellationToken);
 
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Remove skills from current volunteer
+        /// </summary>
+        [HttpDelete("skills")]
+        public async Task<ActionResult<VolunteerProfileResponse>> RemoveSkills(
+            [FromBody] RemoveVolunteerSkillRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _userService
+                .RemoveSkillVolunteer(request, cancellationToken);
+
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Get all skills of current volunteer
+        /// </summary>
+        [HttpGet("skills")]
+        public async Task<ActionResult<List<VolunteerSkillResponse>>> GetAllSkills(
+            CancellationToken cancellationToken)
+        {
+            var result = await _userService
+                .GetAllSkillsOfVolunteerAsync(cancellationToken);
+
+            return Ok(result);
+        }
 
     }
 }

@@ -53,6 +53,14 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .FirstOrDefaultAsync(vp => vp.VolunteerProfileId == volunteerProfileId);
         }
 
+        public async Task<ApplicationUser?> GetByIdWithVolunteerProfileAsync(Guid userId)
+        {
+            return await _context.Users
+                .Include(u => u.VolunteerProfile)
+                    .ThenInclude(vp => vp.VolunteerSkills)
+                        .ThenInclude(vs => vs.Skill)
+                .FirstOrDefaultAsync(u => u.Id == userId);
+        }
 
 
         public async Task AddAsync(VolunteerProfile profile)

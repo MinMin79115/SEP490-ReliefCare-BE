@@ -29,5 +29,11 @@ namespace ReliefManagementSystem.Application.Interface
 
         Task<List<VolunteerProfileResponse>> GetAllVolunteerProfilesAsync(
             CancellationToken cancellationToken = default);
+
+        Task<VolunteerProfileResponse> AddNewSkillVolunteer(AddVolunteerRequest request, CancellationToken cancellationToken);
+
+        Task<VolunteerProfileResponse> RemoveSkillVolunteer(RemoveVolunteerSkillRequest request, CancellationToken cancellationToken);
+
+        Task<List<VolunteerSkillResponse>> GetAllSkillsOfVolunteerAsync(CancellationToken cancellationToken);
     }
 }

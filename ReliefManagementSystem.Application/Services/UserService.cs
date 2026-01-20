@@ -8,6 +8,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace ReliefManagementSystem.Application.Services
@@ -121,6 +122,122 @@ namespace ReliefManagementSystem.Application.Services
                 .Select(profile => MapToResponse(profile, profile.User))
                 .ToList();
         }
+
+        public async Task<VolunteerProfileResponse> AddNewSkillVolunteer(AddVolunteerRequest request,    CancellationToken cancellationToken)
+        {
+            var userId = _currentUserService.UserId;
+
+            var user = await _unitOfWork.VolunteerProfiles
+                .GetByIdWithVolunteerProfileAsync(userId);
+
+            if (user == null || user.VolunteerProfile == null)
+                throw new InvalidOperationException(
+                    "User not found or does not have a volunteer profile.");
+
+            var profile = user.VolunteerProfile;
+
+            var existingSkillIds = profile.VolunteerSkills
+                .Select(vs => vs.SkillId)
+                .ToHashSet();
+
+            var newSkills = request.SkillIds
+                .Where(skillId => !existingSkillIds.Contains(skillId))
+                .Select(skillId => new VolunteerSkill
+                {
+                    VolunteerProfileId = profile.VolunteerProfileId,
+                    SkillId = skillId
+                })
+                .ToList();
+
+            if (!newSkills.Any())
+                throw new InvalidOperationException("All skills already exist.");
+
+            foreach (var skill in newSkills)
+            {
+                profile.VolunteerSkills.Add(skill);
+            }
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return new VolunteerProfileResponse
+            {
+                VolunteerProfileId = profile.VolunteerProfileId,
+                FullName = user.DisplayName,
+                Email = user.Email,
+                PhoneNumber = user.PhoneNumber,
+                Descriptions = profile.Descriptions,
+                VerificationStatus = profile.VerificationStatus,
+                Skills = profile.VolunteerSkills
+                    .Select(vs => vs.SkillId)
+                    .ToList()
+            };
+        }
+
+        public async Task<VolunteerProfileResponse> RemoveSkillVolunteer(RemoveVolunteerSkillRequest request, CancellationToken cancellationToken)
+        {
+            var userId = _currentUserService.UserId;
+
+            var user = await _unitOfWork.VolunteerProfiles
+                .GetByIdWithVolunteerProfileAsync(userId);
+
+            if (user == null || user.VolunteerProfile == null)
+                throw new InvalidOperationException(
+                    "User not found or does not have a volunteer profile.");
+
+            var profile = user.VolunteerProfile;
+
+            var skillsToRemove = profile.VolunteerSkills
+                .Where(vs => request.SkillIds.Contains(vs.SkillId))
+                .ToList();
+
+            if (!skillsToRemove.Any())
+                throw new InvalidOperationException("No matching skills found to remove.");
+
+            foreach (var skill in skillsToRemove)
+            {
+                profile.VolunteerSkills.Remove(skill);
+            }
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return new VolunteerProfileResponse
+            {
+                VolunteerProfileId = profile.VolunteerProfileId,
+                FullName = user.DisplayName,
+                Email = user.Email,
+                PhoneNumber = user.PhoneNumber,
+                Descriptions = profile.Descriptions,
+                VerificationStatus = profile.VerificationStatus,
+                Skills = profile.VolunteerSkills
+                    .Select(vs => vs.SkillId)
+                    .ToList()
+            };
+        }
+
+        public async Task<List<VolunteerSkillResponse>> GetAllSkillsOfVolunteerAsync(CancellationToken cancellationToken)
+        {
+            var userId = _currentUserService.UserId;
+
+            var user = await _unitOfWork.VolunteerProfiles
+                .GetByIdWithVolunteerProfileAsync(userId);
+
+            if (user == null || user.VolunteerProfile == null)
+                throw new InvalidOperationException(
+                    "User not found or does not have a volunteer profile.");
+
+            var skills = user.VolunteerProfile.VolunteerSkills
+                .Select(vs => new VolunteerSkillResponse
+                {
+                    SkillId = vs.Skill.SkillId,
+                    Code = vs.Skill.Code,
+                    Name = vs.Skill.Name,
+                    Description = vs.Skill.Description
+                })
+                .ToList();
+
+            return skills;
+        }
+
 
         private static VolunteerProfileResponse MapToResponse(
            VolunteerProfile profile,
