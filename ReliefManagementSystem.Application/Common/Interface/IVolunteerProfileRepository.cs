@@ -21,5 +21,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
         Task AddAsync(VolunteerProfile profile);
 
         Task UpdateAsync(VolunteerProfile profile);
+
+        Task<ApplicationUser?> GetByIdWithVolunteerProfileAsync(Guid userId);
     }
 }
