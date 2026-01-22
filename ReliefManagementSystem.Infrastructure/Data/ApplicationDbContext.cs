@@ -25,6 +25,10 @@ namespace ReliefManagementSystem.Infrastructure.Data
         public DbSet<InventoryTransaction> InventoryTransactions { get; set; }
         public DbSet<InventoryTransactionItem> InventoryTransactionItems { get; set; }
 
+        // Vehicle Management
+        public DbSet<VehicleType> VehicleTypes { get; set; }
+        public DbSet<Vehicle> Vehicles { get; set; }
+
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
           : base(options) { }
 
@@ -185,6 +189,38 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .WithMany(s => s.TransactionItems)
                 .HasForeignKey(ti => ti.SupplyItemId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // Vehicle Management Configurations
+            builder.Entity<Vehicle>()
+    .HasOne(v => v.Creator)
+    .WithMany()
+    .HasForeignKey(v => v.CreatedBy)
+    .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<Vehicle>()
+                .HasOne(v => v.VehicleType)
+                .WithMany(vt => vt.Vehicles)
+                .HasForeignKey(v => v.VehicleTypeId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<Vehicle>()
+                .HasIndex(v => v.LicensePlate)
+                .IsUnique();
+
+            builder.Entity<Vehicle>()
+                .Property(v => v.LicensePlate)
+                .HasMaxLength(20)
+                .IsRequired();
+
+            // VehicleType Configuration
+            builder.Entity<VehicleType>()
+                .Property(vt => vt.TypeName)
+                .HasMaxLength(100)
+                .IsRequired();
+
+            builder.Entity<VehicleType>()
+                .HasIndex(vt => vt.TypeName)
+                .IsUnique();
         }
 
     }
