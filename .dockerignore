@@ -1,0 +1,31 @@
+# ===== Build output =====
+bin/
+obj/
+
+# ===== IDE =====
+.vs/
+.vscode/
+*.user
+
+# ===== Git =====
+.git/
+.gitignore
+
+# ===== Node / frontend =====
+node_modules/
+npm-debug.log
+
+# ===== Docker dev =====
+docker-compose*
+charts/
+
+# ===== Env / secrets =====
+.env
+*.yaml
+
+# ===== Logs =====
+*.log
+
+# ===== Docs =====
+README.md
+LICENSE
