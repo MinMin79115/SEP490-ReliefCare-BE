@@ -107,21 +107,37 @@ builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
 
 var app = builder.Build();
+
+// Apply migrations and seed data
 using (var scope = app.Services.CreateScope())
 {
-    var roleManager = scope.ServiceProvider
-        .GetRequiredService<RoleManager<IdentityRole<Guid>>>();
-
-    var userManager = scope.ServiceProvider
-      .GetRequiredService<UserManager<ApplicationUser>>();
-        
-    var context = scope.ServiceProvider
-        .GetRequiredService<ApplicationDbContext>();
+    var services = scope.ServiceProvider;
+    var logger = services.GetRequiredService<ILogger<Program>>();
+    
+    var context = services.GetRequiredService<ApplicationDbContext>();
+    
+    // Auto-migrate database on startup (useful for Docker/Development)
+    try
+    {
+        logger.LogInformation("Applying database migrations...");
+        await context.Database.MigrateAsync();
+        logger.LogInformation("Database migrations applied successfully.");
+    }
+    catch (Exception ex)
+    {
+        logger.LogError(ex, "An error occurred while migrating the database.");
+        throw; // Fail fast if migration fails
+    }
+    
+    // Seed data
+    var roleManager = services.GetRequiredService<RoleManager<IdentityRole<Guid>>>();
+    var userManager = services.GetRequiredService<UserManager<ApplicationUser>>();
+    
     await RoleSeeder.SeedAsync(roleManager);
-
-    await UserSeeder.SeedAsync(userManager,context);
-
+    await UserSeeder.SeedAsync(userManager, context);
     await SkillSeeder.SeedAsync(context);
+    
+    logger.LogInformation("Database seeding completed.");
 }
 
 // Configure the HTTP request pipeline.

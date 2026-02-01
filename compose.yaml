@@ -1,0 +1,115 @@
+﻿version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: reliefcare-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: relief_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - reliefcare-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d relief_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ===========================================
+  # ReliefCare API - Main Web API
+  # ===========================================
+  reliefcare-api:
+    image: reliefcare-api:latest
+    container_name: reliefcare-api
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: ReliefManagementSystem.API/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      # Database
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=relief_db;Username=postgres;Password=postgres123"
+      
+      # JWT Configuration - CHANGE IN PRODUCTION!
+      Jwt__Key: "docker-dev-reliefcare-secret-key-change-this-in-production-min-32-chars"
+      Jwt__Issuer: "ReliefSystem"
+      Jwt__Audience: "ReliefClient"
+      Jwt__AccessTokenMinutes: "15"
+      Jwt__RefreshTokenDays: "7"
+      
+      # Google OAuth - CHANGE IN PRODUCTION!
+      AuthenticationGoogle__Google__ClientId: "your-google-client-id"
+      AuthenticationGoogle__Google__ClientSecret: "your-google-client-secret"
+      
+      # CORS - Add your frontend URLs
+      CorsSettings__AllowedOrigins__0: "http://localhost:3000"
+      CorsSettings__AllowedOrigins__1: "http://localhost:5173"
+      CorsSettings__AllowedOrigins__2: "http://localhost:4200"
+      
+      # ASP.NET Core
+      ASPNETCORE_ENVIRONMENT: "Development"
+      ASPNETCORE_URLS: "http://+:8080"
+      
+      # Logging
+      Logging__LogLevel__Default: "Information"
+      Logging__LogLevel__Microsoft__AspNetCore: "Warning"
+      Logging__LogLevel__Microsoft__EntityFrameworkCore: "Information"
+    ports:
+      - "8080:8080"
+    networks:
+      - reliefcare-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  # ReliefCare Crawler - Web Scraping Service
+  # Note: This is a ONE-TIME job, not a long-running service
+  reliefcare-crawler:
+    image: reliefcare-crawler:latest
+    container_name: reliefcare-crawler
+    build:
+      context: ./RelieftManagement.Crawler
+      dockerfile: Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=relief_db;Username=postgres;Password=postgres123"
+      PUPPETEER_EXECUTABLE_PATH: "/usr/bin/chromium"
+    volumes:
+      - ./crawler-output:/app/output  # Mount for Excel output files
+    networks:
+      - reliefcare-network
+    # One-time job - doesn't restart after completion
+    restart: "no"
+    # Don't start automatically with docker compose up
+    profiles:
+      - crawler
+
+
+# ===========================================
+# Volumes
+# ===========================================
+volumes:
+  postgres_data:
+    name: reliefcare-postgres-data
+
+# ===========================================
+# Networks
+# ===========================================
+networks:
+  reliefcare-network:
+    name: reliefcare-network
+    driver: bridge
