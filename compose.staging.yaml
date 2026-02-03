@@ -78,7 +78,6 @@ services:
     depends_on:
       reliefcare-api:
         condition: service_started  # Changed: Don't wait for healthy, just started
-    # Cloudflared will retry connecting to API automatically
 
 volumes:
   postgres_data:
