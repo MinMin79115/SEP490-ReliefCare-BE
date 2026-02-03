@@ -1,0 +1,83 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: reliefcare-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: relief_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - reliefcare-staging
+
+  reliefcare-api:
+    image: ${REGISTRY:-ghcr.io/minmin79115/sep490-reliefcare-be}/reliefcare-api:latest
+    container_name: reliefcare-api
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: ReliefManagementSystem.API/Dockerfile
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=relief_db;Username=postgres;Password=postgres123"
+      Jwt__Key: "staging-reliefcare-secret-key-change-this-in-production-min-32-chars"
+      Jwt__Issuer: "ReliefSystem"
+      Jwt__Audience: "ReliefClient"
+      Jwt__AccessTokenMinutes: "15"
+      Jwt__RefreshTokenDays: "7"
+      AuthenticationGoogle__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
+      AuthenticationGoogle__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
+      CorsSettings__AllowedOrigins__0: "http://localhost:3000"
+      CorsSettings__AllowedOrigins__1: "http://localhost:5173"
+      CorsSettings__AllowedOrigins__2: "http://localhost:4200"
+      CorsSettings__AllowedOrigins__3: "https://staging.reliefhub.info.vn"
+      CorsSettings__AllowedOrigins__4: "https://reliefhub.info.vn"
+      ASPNETCORE_ENVIRONMENT: "Staging"
+      ASPNETCORE_URLS: "http://+:8080"
+      Logging__LogLevel__Default: "Information"
+      Logging__LogLevel__Microsoft__AspNetCore: "Information"
+      Logging__LogLevel__Microsoft__EntityFrameworkCore: "Information"
+    ports:
+      - "8080:8080"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+    networks:
+      - reliefcare-staging
+
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: reliefcare-cloudflared
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      reliefcare-api:
+        condition: service_started
+    networks:
+      - reliefcare-staging
+
+volumes:
+  postgres_data:
+    name: reliefcare-staging-postgres-data
+
+networks:
+  reliefcare-staging:
+    name: reliefcare-staging-network
+    driver: bridge
+
