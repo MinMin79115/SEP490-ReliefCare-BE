@@ -42,7 +42,6 @@
       Jwt__AccessTokenMinutes: "15"
       Jwt__RefreshTokenDays: "7"
       
-      # Google OAuth
       AuthenticationGoogle__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
       AuthenticationGoogle__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
       
