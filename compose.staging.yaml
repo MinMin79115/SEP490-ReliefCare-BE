@@ -4,15 +4,15 @@ services:
     container_name: reliefcare-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: relief_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres123
+      POSTGRES_DB: ${POSTGRES_DB:-relief_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -30,8 +30,8 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=relief_db;Username=postgres;Password=postgres123"
-      Jwt__Key: "staging-reliefcare-secret-key-change-this-in-production-min-32-chars"
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-relief_db};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD}"
+      Jwt__Key: ${JWT_KEY}
       Jwt__Issuer: "ReliefSystem"
       Jwt__Audience: "ReliefClient"
       Jwt__AccessTokenMinutes: "15"
@@ -80,4 +80,3 @@ networks:
   reliefcare-staging:
     name: reliefcare-staging-network
     driver: bridge
-
