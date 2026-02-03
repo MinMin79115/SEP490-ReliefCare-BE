@@ -1,9 +1,6 @@
 ﻿version: '3.8'
 
 services:
-  # ===========================================
-  # PostgreSQL Database
-  # ===========================================
   postgres:
     image: postgres:16-alpine
     container_name: reliefcare-postgres
@@ -27,10 +24,6 @@ services:
       - production
       - development
       - reliefcare-api
-
-  # ===========================================
-  # ReliefCare API - Main Web API
-  # ===========================================
   reliefcare-api:
     image: ${REGISTRY:-reliefcare-api}:latest
     container_name: reliefcare-api
