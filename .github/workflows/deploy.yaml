@@ -1,23 +1,12 @@
-name: Build and Deploy ReliefCare
-
+name: Build and Deploy
 on:
   push:
     branches: ["dev"]
   pull_request:
     branches: ["dev", "main"]
-  workflow_dispatch: # Allow manual trigger
-
-# Prevent concurrent deployments
-# Concurrency: Only one workflow per branch at a time
-# Set cancel-in-progress to false to let builds complete
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: false
+  workflow_dispatch:
 
 jobs:
-  # ===========================================
-  # Job 1: Detect which services have changes
-  # ===========================================
   detect-changes:
     name: Detect Changes
     runs-on: ubuntu-22.04
@@ -27,7 +16,7 @@ jobs:
       reliefcare-crawler: ${{ steps.changes.outputs.reliefcare-crawler }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
         with:
           fetch-depth: 2
 
@@ -54,7 +43,6 @@ jobs:
           FIRST=true
 
           # Check reliefcare-api changes
-          # API depends on: API project, Application, Domain, Infrastructure, compose.yaml, Dockerfile
           if echo "$CHANGED_FILES" | grep -E "^ReliefManagementSystem\.(API|Application|Domain|Infrastructure)/|^compose\.yaml$" > /dev/null; then
             echo "reliefcare-api=true" >> $GITHUB_OUTPUT
             if [ "$FIRST" = true ]; then
@@ -84,11 +72,8 @@ jobs:
           echo "services=$SERVICES" >> $GITHUB_OUTPUT
           echo "Services to build: $SERVICES"
 
-  # ===========================================
-  # Job 2: Build Docker images and push to GHCR
-  # ===========================================
-  build-images:
-    name: Build / ${{ matrix.service }}
+  api-image-build:
+    name: Build / API
     runs-on: ubuntu-22.04
     needs: detect-changes
     if: needs.detect-changes.outputs.services != '[]'
@@ -100,81 +85,55 @@ jobs:
         service: ${{ fromJson(needs.detect-changes.outputs.services) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+      - name: DockerHub Login
+        uses: docker/login-action@v3.1.0
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{github.actor}}
+          password: ${{secrets.GITHUB_TOKEN}}
 
       - name: Lowercase repository name
         run: |
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
           echo "REGISTRY=ghcr.io/$REPO_LOWER" >> $GITHUB_ENV
-          echo "Registry: ghcr.io/$REPO_LOWER"
 
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Build and Push Image
+      - name: Build Image And Push
         run: |
           echo "Building service: ${{ matrix.service }}"
-
-          # Build with the correct profile
           docker compose -f compose.yaml --profile ${{ matrix.service }} build
+          docker compose -f compose.yaml --profile ${{ matrix.service }} push
 
-          # Tag with registry
-          docker tag ${{ matrix.service }}:latest ${{ env.REGISTRY }}/${{ matrix.service }}:latest
-          docker tag ${{ matrix.service }}:latest ${{ env.REGISTRY }}/${{ matrix.service }}:${{ github.sha }}
-
-          # Push to GHCR
-          docker push ${{ env.REGISTRY }}/${{ matrix.service }}:latest
-          docker push ${{ env.REGISTRY }}/${{ matrix.service }}:${{ github.sha }}
-
-  # ===========================================
-  # Job 3: Deploy to self-hosted runner (Windows PC)
-  # ===========================================
-  deploy:
-    name: Deploy to Production
+  api-image-deploy:
+    name: Deploy / API
     runs-on: self-hosted
-    needs: [build-images, detect-changes]
+    needs: [api-image-build, detect-changes]
     if: needs.detect-changes.outputs.services != '[]'
     permissions:
       contents: read
       packages: write
     env:
-      # Database Configuration
+      CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
       POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
-      POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
       POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-
-      # JWT Configuration
+      POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
       JWT_KEY: ${{ secrets.JWT_KEY }}
       JWT_ISSUER: ${{ secrets.JWT_ISSUER }}
       JWT_AUDIENCE: ${{ secrets.JWT_AUDIENCE }}
-
-      # Google OAuth (optional)
       GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
       GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-
-      # Cloudflare Tunnel
-      CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
-
-      # CORS Origins
       CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
-
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v3
 
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v3
+      - name: DockerHub Login
+        uses: docker/login-action@v3.1.0
         with:
           registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
+          username: ${{github.actor}}
+          password: ${{secrets.GITHUB_TOKEN}}
 
       - name: Lowercase repository name
         shell: powershell
@@ -185,56 +144,25 @@ jobs:
       - name: Pull and Deploy Changed Services
         shell: powershell
         run: |
-          # Convert services JSON to PowerShell array
+          # Pull only the images that were built
           $services = '${{ needs.detect-changes.outputs.services }}' | ConvertFrom-Json
 
           foreach ($service in $services) {
-            Write-Host "Pulling image for service: $service" -ForegroundColor Cyan
-            docker pull "${{ env.REGISTRY }}/${service}:latest"
+            Write-Host "Pulling image for service: $service"
+            docker compose -f "compose.yaml" -p "reliefcare-application" --profile $service pull
           }
 
-          # Deploy application with production profile
-          Write-Host "Deploying ReliefCare application..." -ForegroundColor Green
-          docker compose -f "compose.yaml" -p "reliefcare" --profile production up -d
+          # Deploy all production services (this will use new images for changed services)
+          Write-Host "Deploying application with updated services"
+          docker compose -f "compose.yaml" -p "reliefcare-application" --profile production up -d
 
       - name: Wait for Application to be Ready
         shell: powershell
         run: |
-          Write-Host "Waiting for services to start..." -ForegroundColor Yellow
-          Start-Sleep -Seconds 15
+          timeout /t 10 /nobreak
+          docker compose -f "compose.yaml" -p "reliefcare-application" --profile production ps
 
-          Write-Host "Container status:" -ForegroundColor Cyan
-          docker compose -f "compose.yaml" -p "reliefcare" --profile production ps
-
-      - name: Health Check
+      - name: Cleanup Images
         shell: powershell
         run: |
-          Write-Host "Performing health check..." -ForegroundColor Yellow
-          $maxRetries = 5
-          $retryCount = 0
-          $success = $false
-
-          while (-not $success -and $retryCount -lt $maxRetries) {
-            try {
-              $response = Invoke-WebRequest -Uri "http://localhost:8080/health" -TimeoutSec 10 -UseBasicParsing
-              if ($response.StatusCode -eq 200) {
-                Write-Host "API is healthy!" -ForegroundColor Green
-                $success = $true
-              }
-            }
-            catch {
-              $retryCount++
-              Write-Host "Retry $retryCount of $maxRetries - API not ready yet..." -ForegroundColor Yellow
-              Start-Sleep -Seconds 5
-            }
-          }
-
-          if (-not $success) {
-            Write-Host "Warning: Health check did not pass, but deployment completed." -ForegroundColor Yellow
-          }
-
-      - name: Cleanup Old Images
-        shell: powershell
-        run: |
-          Write-Host "Cleaning up old Docker images..." -ForegroundColor Yellow
-          docker image prune -a -f --filter "until=24h"
+          docker image prune -a -f
