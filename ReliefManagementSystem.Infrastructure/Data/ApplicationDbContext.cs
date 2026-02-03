@@ -176,11 +176,6 @@ namespace ReliefManagementSystem.Infrastructure.Data
             //    .HasIndex(l => l.ParentId);
 
 
-            builder.Entity<InventoryTransactionItem>()
-                .HasOne(ti => ti.SupplyItem)
-                .WithMany(s => s.TransactionItems)
-                .HasForeignKey(ti => ti.SupplyItemId)
-                .OnDelete(DeleteBehavior.Restrict);
 
             // Vehicle Management Configurations
             builder.Entity<Vehicle>()
