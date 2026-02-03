@@ -68,8 +68,6 @@ services:
       retries: 5
       start_period: 120s  # Give more time for migrations to complete
 
-  # Cloudflare Tunnel (for staging)
-  # This exposes your API to the internet via your domain
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: reliefcare-cloudflared
