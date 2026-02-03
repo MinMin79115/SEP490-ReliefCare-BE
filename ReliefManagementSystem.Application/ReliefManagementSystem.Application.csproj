@@ -13,6 +13,7 @@
   <ItemGroup>
     <Folder Include="Features\Auth\Interface\" />
     <Folder Include="Features\Auth\Service\" />
+    <Folder Include="Features\Inventory\DTOs\" />
     <Folder Include="Features\Inventory\Interface\" />
     <Folder Include="Features\Inventory\Service\" />
     <Folder Include="Features\TeamJoinRequest\Interface\" />
