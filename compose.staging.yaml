@@ -1,5 +1,4 @@
 services:
-  # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
     container_name: reliefcare-postgres
@@ -17,8 +16,9 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    networks:
+      - reliefcare-staging
 
-  # ReliefCare API
   reliefcare-api:
     image: ${REGISTRY:-ghcr.io/minmin79115/sep490-reliefcare-be}/reliefcare-api:latest
     container_name: reliefcare-api
@@ -30,32 +30,21 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      # Database
       ConnectionStrings__Default: "Host=postgres;Port=5432;Database=relief_db;Username=postgres;Password=postgres123"
-      
-      # JWT - CHANGE THIS IN PRODUCTION!
       Jwt__Key: "staging-reliefcare-secret-key-change-this-in-production-min-32-chars"
       Jwt__Issuer: "ReliefSystem"
       Jwt__Audience: "ReliefClient"
       Jwt__AccessTokenMinutes: "15"
       Jwt__RefreshTokenDays: "7"
-      
-      # Google OAuth (optional)
       AuthenticationGoogle__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
       AuthenticationGoogle__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
-      
-      # CORS
       CorsSettings__AllowedOrigins__0: "http://localhost:3000"
       CorsSettings__AllowedOrigins__1: "http://localhost:5173"
       CorsSettings__AllowedOrigins__2: "http://localhost:4200"
       CorsSettings__AllowedOrigins__3: "https://staging.reliefhub.info.vn"
       CorsSettings__AllowedOrigins__4: "https://reliefhub.info.vn"
-      
-      # ASP.NET
       ASPNETCORE_ENVIRONMENT: "Staging"
       ASPNETCORE_URLS: "http://+:8080"
-      
-      # Logging
       Logging__LogLevel__Default: "Information"
       Logging__LogLevel__Microsoft__AspNetCore: "Information"
       Logging__LogLevel__Microsoft__EntityFrameworkCore: "Information"
@@ -66,7 +55,9 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
-      start_period: 120s  # Give more time for migrations to complete
+      start_period: 120s
+    networks:
+      - reliefcare-staging
 
   cloudflared:
     image: cloudflare/cloudflared:latest
@@ -77,8 +68,16 @@ services:
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
       reliefcare-api:
-        condition: service_started  # Changed: Don't wait for healthy, just started
+        condition: service_started
+    networks:
+      - reliefcare-staging
 
 volumes:
   postgres_data:
     name: reliefcare-staging-postgres-data
+
+networks:
+  reliefcare-staging:
+    name: reliefcare-staging-network
+    driver: bridge
+
