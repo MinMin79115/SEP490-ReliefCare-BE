@@ -8,9 +8,11 @@ on:
   workflow_dispatch: # Allow manual trigger
 
 # Prevent concurrent deployments
+# Concurrency: Only one workflow per branch at a time
+# Set cancel-in-progress to false to let builds complete
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   # ===========================================
