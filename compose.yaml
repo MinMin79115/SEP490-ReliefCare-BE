@@ -1,15 +1,17 @@
 ﻿version: '3.8'
 
 services:
+  # ===========================================
   # PostgreSQL Database
+  # ===========================================
   postgres:
     image: postgres:16-alpine
     container_name: reliefcare-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: relief_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres123
+      POSTGRES_DB: ${POSTGRES_DB:-relief_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres123}
     ports:
       - "5432:5432"
     volumes:
@@ -17,16 +19,20 @@ services:
     networks:
       - reliefcare-network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d relief_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-relief_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
+    profiles:
+      - production
+      - development
+      - reliefcare-api
 
   # ===========================================
   # ReliefCare API - Main Web API
   # ===========================================
   reliefcare-api:
-    image: reliefcare-api:latest
+    image: ${REGISTRY:-reliefcare-api}:latest
     container_name: reliefcare-api
     restart: unless-stopped
     build:
@@ -37,26 +43,29 @@ services:
         condition: service_healthy
     environment:
       # Database
-      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=relief_db;Username=postgres;Password=postgres123"
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-relief_db};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres123}"
       
-      # JWT Configuration - CHANGE IN PRODUCTION!
-      Jwt__Key: "docker-dev-reliefcare-secret-key-change-this-in-production-min-32-chars"
-      Jwt__Issuer: "ReliefSystem"
-      Jwt__Audience: "ReliefClient"
+      # JWT Configuration
+      Jwt__Key: ${JWT_KEY:-docker-dev-reliefcare-secret-key-change-this-in-production-min-32-chars}
+      Jwt__Issuer: ${JWT_ISSUER:-ReliefSystem}
+      Jwt__Audience: ${JWT_AUDIENCE:-ReliefClient}
       Jwt__AccessTokenMinutes: "15"
       Jwt__RefreshTokenDays: "7"
       
-      # Google OAuth - CHANGE IN PRODUCTION!
-      AuthenticationGoogle__Google__ClientId: "your-google-client-id"
-      AuthenticationGoogle__Google__ClientSecret: "your-google-client-secret"
+      # Google OAuth
+      AuthenticationGoogle__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
+      AuthenticationGoogle__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
       
       # CORS - Add your frontend URLs
       CorsSettings__AllowedOrigins__0: "http://localhost:3000"
       CorsSettings__AllowedOrigins__1: "http://localhost:5173"
       CorsSettings__AllowedOrigins__2: "http://localhost:4200"
+      CorsSettings__AllowedOrigins__3: "https://reliefhub.info.vn"
+      CorsSettings__AllowedOrigins__4: "https://api.reliefhub.info.vn"
+      CorsSettings__AllowedOrigins__5: ${CORS_ORIGINS:-}
       
       # ASP.NET Core
-      ASPNETCORE_ENVIRONMENT: "Development"
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
       ASPNETCORE_URLS: "http://+:8080"
       
       # Logging
@@ -73,11 +82,16 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+    profiles:
+      - production
+      - development
+      - reliefcare-api
 
+  # ===========================================
   # ReliefCare Crawler - Web Scraping Service
-  # Note: This is a ONE-TIME job, not a long-running service
+  # ===========================================
   reliefcare-crawler:
-    image: reliefcare-crawler:latest
+    image: ${REGISTRY:-reliefcare-crawler}:latest
     container_name: reliefcare-crawler
     build:
       context: ./RelieftManagement.Crawler
@@ -86,18 +100,34 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=relief_db;Username=postgres;Password=postgres123"
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-relief_db};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres123}"
       PUPPETEER_EXECUTABLE_PATH: "/usr/bin/chromium"
     volumes:
-      - ./crawler-output:/app/output  # Mount for Excel output files
+      - ./crawler-output:/app/output
     networks:
       - reliefcare-network
-    # One-time job - doesn't restart after completion
     restart: "no"
-    # Don't start automatically with docker compose up
     profiles:
       - crawler
+      - reliefcare-crawler
 
+  # ===========================================
+  # Cloudflare Tunnel - Expose to Internet
+  # ===========================================
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: reliefcare-cloudflared
+    restart: unless-stopped
+    command: tunnel run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      reliefcare-api:
+        condition: service_healthy
+    networks:
+      - reliefcare-network
+    profiles:
+      - production
 
 # ===========================================
 # Volumes

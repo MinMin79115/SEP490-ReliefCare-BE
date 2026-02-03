@@ -1,0 +1,231 @@
+name: Build and Deploy ReliefCare
+
+on:
+  push:
+    branches: ["main"]
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  # ===========================================
+  # Job 1: Detect which services have changes
+  # ===========================================
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-22.04
+    outputs:
+      services: ${{ steps.changes.outputs.services }}
+      reliefcare-api: ${{ steps.changes.outputs.reliefcare-api }}
+      reliefcare-crawler: ${{ steps.changes.outputs.reliefcare-crawler }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+
+      - name: Check for changes
+        id: changes
+        run: |
+          # Get list of changed files
+          CHANGED_FILES=$(git diff --name-only HEAD^ HEAD 2>/dev/null || echo "")
+
+          # If no previous commit (first push), build all
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "First push detected - building all services"
+            echo "reliefcare-api=true" >> $GITHUB_OUTPUT
+            echo "reliefcare-crawler=true" >> $GITHUB_OUTPUT
+            echo 'services=["reliefcare-api","reliefcare-crawler"]' >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+
+          # Initialize services array
+          SERVICES="["
+          FIRST=true
+
+          # Check reliefcare-api changes
+          # API depends on: API project, Application, Domain, Infrastructure, compose.yaml, Dockerfile
+          if echo "$CHANGED_FILES" | grep -E "^ReliefManagementSystem\.(API|Application|Domain|Infrastructure)/|^compose\.yaml$" > /dev/null; then
+            echo "reliefcare-api=true" >> $GITHUB_OUTPUT
+            if [ "$FIRST" = true ]; then
+              SERVICES="${SERVICES}\"reliefcare-api\""
+              FIRST=false
+            else
+              SERVICES="${SERVICES},\"reliefcare-api\""
+            fi
+          else
+            echo "reliefcare-api=false" >> $GITHUB_OUTPUT
+          fi
+
+          # Check reliefcare-crawler changes
+          if echo "$CHANGED_FILES" | grep -E "^RelieftManagement\.Crawler/|^compose\.yaml$" > /dev/null; then
+            echo "reliefcare-crawler=true" >> $GITHUB_OUTPUT
+            if [ "$FIRST" = true ]; then
+              SERVICES="${SERVICES}\"reliefcare-crawler\""
+              FIRST=false
+            else
+              SERVICES="${SERVICES},\"reliefcare-crawler\""
+            fi
+          else
+            echo "reliefcare-crawler=false" >> $GITHUB_OUTPUT
+          fi
+
+          SERVICES="${SERVICES}]"
+          echo "services=$SERVICES" >> $GITHUB_OUTPUT
+          echo "Services to build: $SERVICES"
+
+  # ===========================================
+  # Job 2: Build Docker images and push to GHCR
+  # ===========================================
+  build-images:
+    name: Build / ${{ matrix.service }}
+    runs-on: ubuntu-22.04
+    needs: detect-changes
+    if: needs.detect-changes.outputs.services != '[]'
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Lowercase repository name
+        run: |
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "REGISTRY=ghcr.io/$REPO_LOWER" >> $GITHUB_ENV
+          echo "Registry: ghcr.io/$REPO_LOWER"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build and Push Image
+        run: |
+          echo "Building service: ${{ matrix.service }}"
+
+          # Build with the correct profile
+          docker compose -f compose.yaml --profile ${{ matrix.service }} build
+
+          # Tag with registry
+          docker tag ${{ matrix.service }}:latest ${{ env.REGISTRY }}/${{ matrix.service }}:latest
+          docker tag ${{ matrix.service }}:latest ${{ env.REGISTRY }}/${{ matrix.service }}:${{ github.sha }}
+
+          # Push to GHCR
+          docker push ${{ env.REGISTRY }}/${{ matrix.service }}:latest
+          docker push ${{ env.REGISTRY }}/${{ matrix.service }}:${{ github.sha }}
+
+  # ===========================================
+  # Job 3: Deploy to self-hosted runner (Windows PC)
+  # ===========================================
+  deploy:
+    name: Deploy to Production
+    runs-on: self-hosted
+    needs: [build-images, detect-changes]
+    if: needs.detect-changes.outputs.services != '[]'
+    permissions:
+      contents: read
+      packages: write
+    env:
+      # Database Configuration
+      POSTGRES_DB: ${{ secrets.POSTGRES_DB }}
+      POSTGRES_USER: ${{ secrets.POSTGRES_USER }}
+      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+
+      # JWT Configuration
+      JWT_KEY: ${{ secrets.JWT_KEY }}
+      JWT_ISSUER: ${{ secrets.JWT_ISSUER }}
+      JWT_AUDIENCE: ${{ secrets.JWT_AUDIENCE }}
+
+      # Google OAuth (optional)
+      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+
+      # Cloudflare Tunnel
+      CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
+
+      # CORS Origins
+      CORS_ORIGINS: ${{ secrets.CORS_ORIGINS }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Lowercase repository name
+        shell: powershell
+        run: |
+          $repoLower = "${{ github.repository }}".ToLower()
+          echo "REGISTRY=ghcr.io/$repoLower" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Pull and Deploy Changed Services
+        shell: powershell
+        run: |
+          # Convert services JSON to PowerShell array
+          $services = '${{ needs.detect-changes.outputs.services }}' | ConvertFrom-Json
+
+          foreach ($service in $services) {
+            Write-Host "Pulling image for service: $service" -ForegroundColor Cyan
+            docker pull "${{ env.REGISTRY }}/${service}:latest"
+          }
+
+          # Deploy application with production profile
+          Write-Host "Deploying ReliefCare application..." -ForegroundColor Green
+          docker compose -f "compose.yaml" -p "reliefcare" --profile production up -d
+
+      - name: Wait for Application to be Ready
+        shell: powershell
+        run: |
+          Write-Host "Waiting for services to start..." -ForegroundColor Yellow
+          Start-Sleep -Seconds 15
+
+          Write-Host "Container status:" -ForegroundColor Cyan
+          docker compose -f "compose.yaml" -p "reliefcare" --profile production ps
+
+      - name: Health Check
+        shell: powershell
+        run: |
+          Write-Host "Performing health check..." -ForegroundColor Yellow
+          $maxRetries = 5
+          $retryCount = 0
+          $success = $false
+
+          while (-not $success -and $retryCount -lt $maxRetries) {
+            try {
+              $response = Invoke-WebRequest -Uri "http://localhost:8080/health" -TimeoutSec 10 -UseBasicParsing
+              if ($response.StatusCode -eq 200) {
+                Write-Host "API is healthy!" -ForegroundColor Green
+                $success = $true
+              }
+            }
+            catch {
+              $retryCount++
+              Write-Host "Retry $retryCount of $maxRetries - API not ready yet..." -ForegroundColor Yellow
+              Start-Sleep -Seconds 5
+            }
+          }
+
+          if (-not $success) {
+            Write-Host "Warning: Health check did not pass, but deployment completed." -ForegroundColor Yellow
+          }
+
+      - name: Cleanup Old Images
+        shell: powershell
+        run: |
+          Write-Host "Cleaning up old Docker images..." -ForegroundColor Yellow
+          docker image prune -a -f --filter "until=24h"
