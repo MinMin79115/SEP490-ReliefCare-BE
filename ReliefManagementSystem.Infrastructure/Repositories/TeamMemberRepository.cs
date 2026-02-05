@@ -10,18 +10,15 @@ using System.Threading.Tasks;
 
 namespace ReliefManagementSystem.Infrastructure.Repositories
 {
-    public class TeamMemberRepository : ITeamMemberRepository
+    public class TeamMemberRepository : GenericRepository<TeamMember>, ITeamMemberRepository
     {
-        private readonly ApplicationDbContext _context;
-
-        public TeamMemberRepository(ApplicationDbContext context)
+        public TeamMemberRepository(ApplicationDbContext context) : base(context)
         {
-            _context = context;
         }
 
         public async Task<TeamMember?> GetByTeamAndUserAsync(Guid teamId, Guid userId)
         {
-            return await _context.TeamMembers
+            return await _dbSet
                 .Include(tm => tm.Team)
                 .Include(tm => tm.User)
                 .FirstOrDefaultAsync(tm => tm.TeamId == teamId && tm.UserId == userId);
@@ -29,7 +26,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
 
         public async Task<List<TeamMember>> GetByTeamIdWithSkillsAsync(Guid teamId)
         {
-            return await _context.TeamMembers
+            return await _dbSet
                 .Include(tm => tm.User)
                     .ThenInclude(u => u.VolunteerProfile)
                         .ThenInclude(vp => vp.VolunteerSkills)
@@ -40,34 +37,63 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .ToListAsync();
         }
 
+        public async Task<TeamMember?> GetTeamByUserIdAsync(Guid userId)
+        {
+            return await _dbSet
+                .Include(tm => tm.Team)
+                    .ThenInclude(t => t.Moderator)
+                .Include(tm => tm.Team)
+                    .ThenInclude(t => t.Leader)
+                .Include(tm => tm.User)
+                .FirstOrDefaultAsync(tm => tm.UserId == userId);
+        }
+
         public async Task<List<TeamMember>> GetByUserIdAsync(Guid userId)
         {
-            return await _context.TeamMembers
+            return await _dbSet
                 .Include(tm => tm.Team)
                 .Where(tm => tm.UserId == userId)
                 .ToListAsync();
         }
-
+        public async Task<TeamMember?> GetByTeamAndUserWithSkillsAsync(Guid teamId, Guid userId)
+        {
+            return await _dbSet
+                .Include(tm => tm.User)
+                    .ThenInclude(u => u.VolunteerProfile)
+                        .ThenInclude(vp => vp.VolunteerSkills)
+                            .ThenInclude(vs => vs.Skill)
+                .FirstOrDefaultAsync(tm => tm.TeamId == teamId && tm.UserId == userId);
+        }
         public async Task<bool> IsMemberAsync(Guid teamId, Guid userId)
         {
-            return await _context.TeamMembers
+            return await _dbSet
                 .AnyAsync(tm => tm.TeamId == teamId && tm.UserId == userId);
+        }
+
+        public async Task<TeamMember?> GetMemberAsync(Guid teamId, Guid userId)
+        {
+            return await GetByTeamAndUserAsync(teamId, userId);
+        }
+
+        public IQueryable<TeamMember> GetQueryable()
+        {
+            return _dbSet.AsQueryable();
         }
 
         public async Task AddAsync(TeamMember teamMember)
         {
-            await _context.TeamMembers.AddAsync(teamMember);
+            await _dbSet.AddAsync(teamMember);
         }
 
         public Task UpdateAsync(TeamMember teamMember)
         {
-            _context.TeamMembers.Update(teamMember);
+            _dbSet.Update(teamMember);
             return Task.CompletedTask;
         }
 
         public Task DeleteAsync(TeamMember teamMember)
         {
-            _context.TeamMembers.Remove(teamMember);
+            _dbSet.Remove(teamMember);
             return Task.CompletedTask;
         }
     }

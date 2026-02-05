@@ -34,7 +34,6 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                     .ThenInclude(v => v.VolunteerProfile)
                         .ThenInclude(vp => vp.VolunteerSkills)
                             .ThenInclude(vs => vs.Skill)
-                .Include(tjr => tjr.Reviewer)
                 .FirstOrDefaultAsync(tjr => tjr.Id == id);
         }
 
@@ -47,7 +46,6 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                     .ThenInclude(v => v.VolunteerProfile)
                         .ThenInclude(vp => vp.VolunteerSkills)
                             .ThenInclude(vs => vs.Skill)
-                .Include(tjr => tjr.Reviewer)
                 .Where(tjr => tjr.VolunteerId == volunteerId)
                 .OrderByDescending(tjr => tjr.CreatedAt)
                 .ToListAsync();
@@ -62,7 +60,6 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                     .ThenInclude(v => v.VolunteerProfile)
                         .ThenInclude(vp => vp.VolunteerSkills)
                             .ThenInclude(vs => vs.Skill)
-                .Include(tjr => tjr.Reviewer)
                 .Where(tjr => tjr.TeamId == teamId)
                 .OrderByDescending(tjr => tjr.CreatedAt)
                 .ToListAsync();

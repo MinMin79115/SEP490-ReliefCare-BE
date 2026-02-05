@@ -102,7 +102,5 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                 }
             }
         }
-
-
     }
 }
