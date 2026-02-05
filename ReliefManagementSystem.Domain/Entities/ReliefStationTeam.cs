@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace ReliefManagementSystem.Domain.Entities
 {
-    public class RelifeStationTeam
+    public class ReliefStationTeam
     {
        public Guid RelifeStationTeamId { get; set; }
 

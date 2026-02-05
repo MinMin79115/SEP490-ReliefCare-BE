@@ -25,5 +25,7 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public ICollection<InventoryStock> InventoryItems { get; set; } = new List<InventoryStock>();
         public ICollection<InventoryTransactionItem> InventoryTransactionItems { get; set; } = new List<InventoryTransactionItem>();
+        public ICollection<SupplyAllocationItem> SupplyAllocationItems { get; set; } = new List<SupplyAllocationItem>();
+
     }
 }
