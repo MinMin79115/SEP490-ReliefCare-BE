@@ -37,5 +37,13 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public ApplicationUser Manager { get; set; } = null!;
         public Location Location { get; set; } = null!;
+
+        public ICollection<Inventory> Inventories { get; set; } = new List<Inventory>();
+
+        public ICollection<ReliefStationTeam>  ReliefStations { get; set; } = new List<ReliefStationTeam>();
+
+        public ICollection<Vehicle> Vehicles { get; set; } = new List<Vehicle>();
+
+
     }
 }

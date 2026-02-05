@@ -30,5 +30,7 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public ICollection<TeamMember> TeamMembers { get; set; } = new List<TeamMember>();
         public ICollection<TeamJoinRequest> TeamJoinRequests { get; set; } = new List<TeamJoinRequest>();
+        public ICollection<CampaignTeam> CampaignTeams { get; set; } = new List<CampaignTeam>();
+
     }
 }
