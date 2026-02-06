@@ -12,8 +12,8 @@ using ReliefManagementSystem.Infrastructure.Data;
 namespace ReliefManagementSystem.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260122031530_AddVehicleAndVehicleType")]
-    partial class AddVehicleAndVehicleType
+    [Migration("20260206085639_InitialCreate")]
+    partial class InitialCreate
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -232,6 +232,215 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.ToTable("AspNetUsers", (string)null);
                 });
 
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Campaign", b =>
+                {
+                    b.Property<Guid>("CampaignId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CreatedByStationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("EndDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("LocationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.HasKey("CampaignId");
+
+                    b.HasIndex("CreatedByStationId");
+
+                    b.HasIndex("LocationId");
+
+                    b.ToTable("Campaigns");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.CampaignTask", b =>
+                {
+                    b.Property<Guid>("CampaignTaskId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("CampaignId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CampaignTeamId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Description")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("DueDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Priority")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Title")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("CampaignTaskId");
+
+                    b.HasIndex("CampaignId");
+
+                    b.HasIndex("CampaignTeamId");
+
+                    b.ToTable("CampaignTasks");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.CampaignTeam", b =>
+                {
+                    b.Property<Guid>("CampaignTeamId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("AssignedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CampaignId")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsDelete")
+                        .HasColumnType("boolean");
+
+                    b.Property<int>("Role")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("TeamId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("CampaignTeamId");
+
+                    b.HasIndex("TeamId");
+
+                    b.HasIndex("CampaignId", "TeamId")
+                        .IsUnique();
+
+                    b.ToTable("CampaignTeams");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.CampaignVehicle", b =>
+                {
+                    b.Property<Guid>("CampaignVehicleId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AssignedDriverId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CampaignId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("EndDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("StartDate")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("VehicleId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("CampaignVehicleId");
+
+                    b.HasIndex("AssignedDriverId");
+
+                    b.HasIndex("CampaignId");
+
+                    b.HasIndex("VehicleId");
+
+                    b.ToTable("CampaignVehicles");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Inventory", b =>
+                {
+                    b.Property<Guid>("InventoryId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Level")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("ReliefStationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("ReliefStationId1")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.HasKey("InventoryId");
+
+                    b.HasIndex("ReliefStationId");
+
+                    b.HasIndex("ReliefStationId1");
+
+                    b.ToTable("Inventories");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.InventoryStock", b =>
+                {
+                    b.Property<Guid>("InventoryStockId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("CurrentQuantity")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("InventoryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("MaximumStockLevel")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("MinimumStockLevel")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SupplyItemId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("InventoryStockId");
+
+                    b.HasIndex("SupplyItemId");
+
+                    b.HasIndex("InventoryId", "SupplyItemId")
+                        .IsUnique();
+
+                    b.ToTable("InventoryStocks");
+                });
+
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.InventoryTransaction", b =>
                 {
                     b.Property<Guid>("TransactionId")
@@ -242,6 +451,9 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("InventoryId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("Notes")
@@ -257,6 +469,8 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.HasKey("TransactionId");
 
                     b.HasIndex("CreatedBy");
+
+                    b.HasIndex("InventoryId");
 
                     b.ToTable("InventoryTransactions");
                 });
@@ -286,6 +500,75 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.HasIndex("TransactionId");
 
                     b.ToTable("InventoryTransactionItems");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Location", b =>
+                {
+                    b.Property<Guid>("LocationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<decimal>("Area")
+                        .HasColumnType("numeric");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("ParentId")
+                        .HasColumnType("uuid");
+
+                    b.Property<long>("Population")
+                        .HasColumnType("bigint");
+
+                    b.Property<decimal>("PopulationDensity")
+                        .HasColumnType("numeric");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.HasKey("LocationId");
+
+                    b.HasIndex("ParentId");
+
+                    b.ToTable("Locations");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.MemberTask", b =>
+                {
+                    b.Property<Guid>("MemberTaskId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("AssignedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CampaignTaskId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SubTaskTitle")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("TaskNote")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("VolunteerProfileId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("MemberTaskId");
+
+                    b.HasIndex("CampaignTaskId");
+
+                    b.HasIndex("VolunteerProfileId");
+
+                    b.ToTable("MemberTasks");
                 });
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.RefreshToken", b =>
@@ -323,6 +606,87 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.ToTable("RefreshTokens");
                 });
 
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.ReliefStation", b =>
+                {
+                    b.Property<Guid>("ReliefStationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Address")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ContactNumber")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<Guid>("LocationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<Guid>("ManagerId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("ReliefStationId");
+
+                    b.HasIndex("LocationId");
+
+                    b.HasIndex("ManagerId");
+
+                    b.ToTable("ReliefStations");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.ReliefStationTeam", b =>
+                {
+                    b.Property<Guid>("RelifeStationTeamId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("ReliefStationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("TeamId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("RelifeStationTeamId");
+
+                    b.HasIndex("TeamId");
+
+                    b.HasIndex("ReliefStationId", "TeamId")
+                        .IsUnique();
+
+                    b.ToTable("ReliefStationTeams");
+                });
+
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Skill", b =>
                 {
                     b.Property<Guid>("SkillId")
@@ -346,6 +710,57 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.ToTable("Skills");
                 });
 
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.SupplyAllocation", b =>
+                {
+                    b.Property<Guid>("AllocationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("AllocatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid>("CampaignId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("SourceInventoryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.HasKey("AllocationId");
+
+                    b.HasIndex("CampaignId");
+
+                    b.HasIndex("SourceInventoryId");
+
+                    b.ToTable("SupplyAllocations");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.SupplyAllocationItem", b =>
+                {
+                    b.Property<Guid>("AllocationItemId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("AllocationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Quantity")
+                        .HasColumnType("integer");
+
+                    b.Property<Guid>("SupplyItemId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("AllocationItemId");
+
+                    b.HasIndex("AllocationId");
+
+                    b.HasIndex("SupplyItemId");
+
+                    b.ToTable("SupplyAllocationItems");
+                });
+
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.SupplyItem", b =>
                 {
                     b.Property<Guid>("SupplyItemId")
@@ -358,17 +773,8 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("CurrentQuantity")
-                        .HasColumnType("integer");
-
                     b.Property<string>("Description")
                         .HasColumnType("text");
-
-                    b.Property<int>("MaximumStockLevel")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("MinimumStockLevel")
-                        .HasColumnType("integer");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -505,6 +911,9 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
+                    b.Property<Guid>("ReliefStationId")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
@@ -523,6 +932,8 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
                     b.HasIndex("LicensePlate")
                         .IsUnique();
+
+                    b.HasIndex("ReliefStationId");
 
                     b.HasIndex("VehicleTypeId");
 
@@ -664,6 +1075,119 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Campaign", b =>
+                {
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.ReliefStation", "CreatedByStation")
+                        .WithMany()
+                        .HasForeignKey("CreatedByStationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.Location", "Location")
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("CreatedByStation");
+
+                    b.Navigation("Location");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.CampaignTask", b =>
+                {
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.Campaign", null)
+                        .WithMany("CampaignTasks")
+                        .HasForeignKey("CampaignId");
+
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.CampaignTeam", "CampaignTeam")
+                        .WithMany()
+                        .HasForeignKey("CampaignTeamId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CampaignTeam");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.CampaignTeam", b =>
+                {
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.Campaign", "Campaign")
+                        .WithMany("CampaignTeams")
+                        .HasForeignKey("CampaignId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.Team", "Team")
+                        .WithMany("CampaignTeams")
+                        .HasForeignKey("TeamId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Campaign");
+
+                    b.Navigation("Team");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.CampaignVehicle", b =>
+                {
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.VolunteerProfile", "Driver")
+                        .WithMany()
+                        .HasForeignKey("AssignedDriverId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.Campaign", "Campaign")
+                        .WithMany()
+                        .HasForeignKey("CampaignId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.Vehicle", "Vehicle")
+                        .WithMany()
+                        .HasForeignKey("VehicleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Campaign");
+
+                    b.Navigation("Driver");
+
+                    b.Navigation("Vehicle");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Inventory", b =>
+                {
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.ReliefStation", "ReliefStation")
+                        .WithMany()
+                        .HasForeignKey("ReliefStationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.ReliefStation", null)
+                        .WithMany("Inventories")
+                        .HasForeignKey("ReliefStationId1");
+
+                    b.Navigation("ReliefStation");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.InventoryStock", b =>
+                {
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.Inventory", "Inventory")
+                        .WithMany("InventoryItems")
+                        .HasForeignKey("InventoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.SupplyItem", "SupplyItem")
+                        .WithMany("InventoryItems")
+                        .HasForeignKey("SupplyItemId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Inventory");
+
+                    b.Navigation("SupplyItem");
+                });
+
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.InventoryTransaction", b =>
                 {
                     b.HasOne("ReliefManagementSystem.Domain.Entities.ApplicationUser", "CreatedByUser")
@@ -672,13 +1196,21 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.Inventory", "Inventory")
+                        .WithMany("InventoryTransactions")
+                        .HasForeignKey("InventoryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.Navigation("CreatedByUser");
+
+                    b.Navigation("Inventory");
                 });
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.InventoryTransactionItem", b =>
                 {
                     b.HasOne("ReliefManagementSystem.Domain.Entities.SupplyItem", "SupplyItem")
-                        .WithMany("TransactionItems")
+                        .WithMany("InventoryTransactionItems")
                         .HasForeignKey("SupplyItemId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
@@ -694,6 +1226,35 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Navigation("Transaction");
                 });
 
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Location", b =>
+                {
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.Location", "Parent")
+                        .WithMany("Children")
+                        .HasForeignKey("ParentId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.Navigation("Parent");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.MemberTask", b =>
+                {
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.CampaignTask", "CampaignTask")
+                        .WithMany("MemberTasks")
+                        .HasForeignKey("CampaignTaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.VolunteerProfile", "VolunteerProfile")
+                        .WithMany()
+                        .HasForeignKey("VolunteerProfileId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CampaignTask");
+
+                    b.Navigation("VolunteerProfile");
+                });
+
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.RefreshToken", b =>
                 {
                     b.HasOne("ReliefManagementSystem.Domain.Entities.ApplicationUser", "User")
@@ -703,6 +1264,82 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.ReliefStation", b =>
+                {
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.Location", "Location")
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.ApplicationUser", "Manager")
+                        .WithMany()
+                        .HasForeignKey("ManagerId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Location");
+
+                    b.Navigation("Manager");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.ReliefStationTeam", b =>
+                {
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.ReliefStation", "ReliefStation")
+                        .WithMany("ReliefStations")
+                        .HasForeignKey("ReliefStationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.Team", "Team")
+                        .WithMany()
+                        .HasForeignKey("TeamId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("ReliefStation");
+
+                    b.Navigation("Team");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.SupplyAllocation", b =>
+                {
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.Campaign", "Campaign")
+                        .WithMany()
+                        .HasForeignKey("CampaignId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.Inventory", "SourceInventory")
+                        .WithMany()
+                        .HasForeignKey("SourceInventoryId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("Campaign");
+
+                    b.Navigation("SourceInventory");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.SupplyAllocationItem", b =>
+                {
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.SupplyAllocation", "SupplyAllocation")
+                        .WithMany("Items")
+                        .HasForeignKey("AllocationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.SupplyItem", "SupplyItem")
+                        .WithMany("SupplyAllocationItems")
+                        .HasForeignKey("SupplyItemId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("SupplyAllocation");
+
+                    b.Navigation("SupplyItem");
                 });
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Team", b =>
@@ -776,6 +1413,12 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.ReliefStation", "ReliefStation")
+                        .WithMany("Vehicles")
+                        .HasForeignKey("ReliefStationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
                     b.HasOne("ReliefManagementSystem.Domain.Entities.VehicleType", "VehicleType")
                         .WithMany("Vehicles")
                         .HasForeignKey("VehicleTypeId")
@@ -783,6 +1426,8 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Creator");
+
+                    b.Navigation("ReliefStation");
 
                     b.Navigation("VehicleType");
                 });
@@ -825,9 +1470,42 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         .IsRequired();
                 });
 
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Campaign", b =>
+                {
+                    b.Navigation("CampaignTasks");
+
+                    b.Navigation("CampaignTeams");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.CampaignTask", b =>
+                {
+                    b.Navigation("MemberTasks");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Inventory", b =>
+                {
+                    b.Navigation("InventoryItems");
+
+                    b.Navigation("InventoryTransactions");
+                });
+
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.InventoryTransaction", b =>
                 {
                     b.Navigation("Items");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Location", b =>
+                {
+                    b.Navigation("Children");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.ReliefStation", b =>
+                {
+                    b.Navigation("Inventories");
+
+                    b.Navigation("ReliefStations");
+
+                    b.Navigation("Vehicles");
                 });
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Skill", b =>
@@ -835,13 +1513,24 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Navigation("VolunteerSkills");
                 });
 
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.SupplyAllocation", b =>
+                {
+                    b.Navigation("Items");
+                });
+
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.SupplyItem", b =>
                 {
-                    b.Navigation("TransactionItems");
+                    b.Navigation("InventoryItems");
+
+                    b.Navigation("InventoryTransactionItems");
+
+                    b.Navigation("SupplyAllocationItems");
                 });
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Team", b =>
                 {
+                    b.Navigation("CampaignTeams");
+
                     b.Navigation("TeamJoinRequests");
 
                     b.Navigation("TeamMembers");

@@ -10,6 +10,7 @@ namespace ReliefManagementSystem.Domain.Entities
 {
     public class InventoryStock
     {
+        public Guid InventoryStockId { get; set; }
 
         public Guid InventoryId { get; set; }
         public Guid SupplyItemId { get; set; }
