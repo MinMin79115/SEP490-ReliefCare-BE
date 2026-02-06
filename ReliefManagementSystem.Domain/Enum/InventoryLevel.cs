@@ -6,9 +6,9 @@ using System.Threading.Tasks;
 
 namespace ReliefManagementSystem.Domain.Enum
 {
-    public enum TransactionType
+    public enum InventoryLevel
     {
-        Import = 1,     // Nhập kho
-        Export = 2      // Xuất kho
+        Regional = 1,   // Trạm vùng
+        Provincial = 2  // Trạm tỉnh
     }
 }

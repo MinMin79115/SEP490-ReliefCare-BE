@@ -20,10 +20,6 @@ namespace ReliefManagementSystem.Infrastructure.Data
         public DbSet<TeamMember> TeamMembers { get; set; }
         public DbSet<TeamJoinRequest> TeamJoinRequests { get; set; }
 
-        // Inventory Management
-        public DbSet<SupplyItem> SupplyItems { get; set; }
-        public DbSet<InventoryTransaction> InventoryTransactions { get; set; }
-        public DbSet<InventoryTransactionItem> InventoryTransactionItems { get; set; }
 
         // Vehicle Management
         public DbSet<VehicleType> VehicleTypes { get; set; }
@@ -165,30 +161,21 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .HasForeignKey(r => r.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Inventory Management Configurations
-            builder.Entity<InventoryTransaction>()
-                .HasKey(t => t.TransactionId);
+            //Location Configuration
 
-            builder.Entity<InventoryTransaction>()
-                .HasOne(t => t.CreatedByUser)
-                .WithMany()
-                .HasForeignKey(t => t.CreatedBy)
-                .OnDelete(DeleteBehavior.Restrict);
+            //builder.Entity<Location>()
+            //    .HasKey(l => l.LocationId);
 
-            builder.Entity<InventoryTransactionItem>()
-                .HasKey(ti => ti.TransactionItemId);
+            //builder.Entity<Location>()
+            //    .HasOne(l => l.Parent)
+            //    .WithMany(l => l.Children)
+            //    .HasForeignKey(l => l.ParentId)
+            //    .OnDelete(DeleteBehavior.SetNull);
 
-            builder.Entity<InventoryTransactionItem>()
-                .HasOne(ti => ti.Transaction)
-                .WithMany(t => t.Items)
-                .HasForeignKey(ti => ti.TransactionId)
-                .OnDelete(DeleteBehavior.Cascade);
+            //builder.Entity<Location>()
+            //    .HasIndex(l => l.ParentId);
 
-            builder.Entity<InventoryTransactionItem>()
-                .HasOne(ti => ti.SupplyItem)
-                .WithMany(s => s.TransactionItems)
-                .HasForeignKey(ti => ti.SupplyItemId)
-                .OnDelete(DeleteBehavior.Restrict);
+
 
             // Vehicle Management Configurations
             builder.Entity<Vehicle>()

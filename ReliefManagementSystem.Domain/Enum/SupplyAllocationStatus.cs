@@ -6,9 +6,11 @@ using System.Threading.Tasks;
 
 namespace ReliefManagementSystem.Domain.Enum
 {
-    public enum TransactionType
+    public enum SupplyAllocationStatus
     {
-        Import = 1,     // Nhập kho
-        Export = 2      // Xuất kho
+        Pending = 0 ,
+        Approved = 1,
+        Delivered = 2,
+        Cancelled = 3
     }
 }

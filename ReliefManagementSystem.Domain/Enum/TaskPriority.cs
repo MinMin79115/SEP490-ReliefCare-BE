@@ -6,9 +6,11 @@ using System.Threading.Tasks;
 
 namespace ReliefManagementSystem.Domain.Enum
 {
-    public enum TransactionType
+    public enum TaskPriority
     {
-        Import = 1,     // Nhập kho
-        Export = 2      // Xuất kho
+        Low = 0,
+        Medium = 1,
+        High = 2,
+        Critical = 3
     }
 }

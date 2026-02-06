@@ -1,4 +1,9 @@
-using ReliefManagementSystem.Domain.Enum;
+﻿using ReliefManagementSystem.Domain.Enum;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
 namespace ReliefManagementSystem.Domain.Entities
 {
@@ -14,33 +19,13 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public string Unit { get; set; } = null!; // "Thùng", "Cái", "Hộp", "Bộ"
 
-        public int CurrentQuantity { get; set; }
-
-        public int MinimumStockLevel { get; set; }
-
-        public int MaximumStockLevel { get; set; }
-
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public DateTime? UpdatedAt { get; set; }
 
-        // Computed property for status
-        public InventoryStatus Status
-        {
-            get
-            {
-                if (MaximumStockLevel == 0) return InventoryStatus.Critical;
+        public ICollection<InventoryStock> InventoryItems { get; set; } = new List<InventoryStock>();
+        public ICollection<InventoryTransactionItem> InventoryTransactionItems { get; set; } = new List<InventoryTransactionItem>();
+        public ICollection<SupplyAllocationItem> SupplyAllocationItems { get; set; } = new List<SupplyAllocationItem>();
 
-                var percentage = (decimal)CurrentQuantity / MaximumStockLevel * 100;
-
-                if (percentage >= 100) return InventoryStatus.Full;
-                if (percentage >= 50) return InventoryStatus.Safe;
-                if (percentage >= 15) return InventoryStatus.NeedRestock;
-                return InventoryStatus.Critical;
-            }
-        }
-
-        // Navigation properties
-        public ICollection<InventoryTransactionItem> TransactionItems { get; set; } = new List<InventoryTransactionItem>();
     }
 }

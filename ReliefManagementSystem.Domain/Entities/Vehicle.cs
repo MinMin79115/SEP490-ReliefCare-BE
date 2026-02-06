@@ -14,6 +14,9 @@ namespace ReliefManagementSystem.Domain.Entities
         public Guid VehicleTypeId { get; set; }
         public VehicleType VehicleType { get; set; } = null!;
 
+        public Guid ReliefStationId { get; set; }
+        public ReliefStation ReliefStation { get; set; } = null!;
+
         public string LicensePlate { get; set; } = string.Empty;
 
         public Guid CreatedBy { get; set; }

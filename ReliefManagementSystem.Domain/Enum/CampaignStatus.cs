@@ -6,9 +6,13 @@ using System.Threading.Tasks;
 
 namespace ReliefManagementSystem.Domain.Enum
 {
-    public enum TransactionType
+    public enum CampaignStatus
     {
-        Import = 1,     // Nhập kho
-        Export = 2      // Xuất kho
+        Inactive = 0,
+        Active = 1,
+        Suspended = 2,
+        Completed = 3,
+        Cancelled = 4
     }
+
 }

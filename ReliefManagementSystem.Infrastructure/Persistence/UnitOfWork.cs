@@ -16,11 +16,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
         public IUserRepository Users { get; }
         public IRefreshTokenRepository RefreshTokens { get; }
 
-        // Inventory Management
-        public ISupplyItemRepository SupplyItems { get; }
-        public IInventoryTransactionRepository InventoryTransactions { get; }
-
-        // Team Management
+        
         public ITeamRepository Teams { get; }
         public ITeamMemberRepository TeamMembers { get; }
         public ITeamJoinRequestRepository TeamJoinRequests { get; }
@@ -40,8 +36,8 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             _context = context;
             Users = new UserRepository(_context);
             RefreshTokens = new RefreshTokenRepository(_context);
-            SupplyItems = new SupplyItemRepository(_context);
-            InventoryTransactions = new InventoryTransactionRepository(_context);
+
+
             Teams = new TeamRepository(_context);
             TeamMembers = new TeamMemberRepository(_context);
             TeamJoinRequests = new TeamJoinRequestRepository(_context);
