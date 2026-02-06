@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi;
 using Microsoft.OpenApi.Models;
 using ReliefManagementSystem.Application;
 using ReliefManagementSystem.Application.Common.Models;
@@ -9,6 +10,7 @@ using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Infrastructure;
 using ReliefManagementSystem.Infrastructure.Data;
 using ReliefManagementSystem.Infrastructure.Seed;
+using Swashbuckle.AspNetCore.Annotations;
 using System;
 using System.Text;
 
@@ -33,7 +35,7 @@ builder.Services.AddSwaggerGen(c =>
         Scheme = "bearer",
         BearerFormat = "JWT",
         In = ParameterLocation.Header,
-        Description = "Nh?p: Bearer {JWT token}"
+        Description = "Nhập: Bearer {JWT token}"
     });
 
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
@@ -50,6 +52,7 @@ builder.Services.AddSwaggerGen(c =>
             Array.Empty<string>()
         }
     });
+    c.EnableAnnotations();
 });
 
 
@@ -136,6 +139,7 @@ using (var scope = app.Services.CreateScope())
     await RoleSeeder.SeedAsync(roleManager);
     await UserSeeder.SeedAsync(userManager, context);
     await SkillSeeder.SeedAsync(context);
+    await TeamSeeder.SeedAsync(context);
     
     logger.LogInformation("Database seeding completed.");
 }

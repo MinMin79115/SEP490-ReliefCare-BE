@@ -24,6 +24,38 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                 userName: "admin",
                 password: "Admin@123",
                 role: Role.Admin);
+            
+            await CreateUserAsync(
+                userManager,
+                 context,
+                email: "moderator@system.com",
+                userName: "moderator",
+                password: "Moderator@123",
+                role: Role.Moderator);
+            
+            await CreateUserAsync(
+                userManager,
+                context,
+                email: "moderator1@system.com",
+                userName: "moderator",
+                password: "Moderator@123",
+                role: Role.Moderator);
+            
+            await CreateUserAsync(
+                userManager,
+                context,
+                email: "moderator2@system.com",
+                userName: "moderator",
+                password: "Moderator@123",
+                role: Role.Moderator);
+            
+            await CreateUserAsync(
+                userManager,
+                context,
+                email: "moderator3@system.com",
+                userName: "moderator",
+                password: "Moderator@123",
+                role: Role.Moderator);
 
             await CreateUserAsync(
                 userManager,
@@ -32,15 +64,7 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                 userName: "user",
                 password: "User@123",
                 role: Role.User);
-
-            await CreateUserAsync(
-                userManager,
-                 context,
-                email: "moderator@system.com",
-                userName: "moderator",
-                password: "Moderator@123",
-                role: Role.Moderator);
-
+            
             await CreateUserAsync(
                userManager,
                context,
@@ -56,20 +80,88 @@ namespace ReliefManagementSystem.Infrastructure.Seed
               userName: "user2",
               password: "User@123",
               role: Role.User);
+            
+            await CreateUserAsync(
+                userManager,
+                context,
+                email: "user3@system.com",
+                userName: "user3",
+                password: "User@123",
+                role: Role.User);
+            
+            await CreateUserAsync(
+                userManager,
+                context,
+                email: "user4@system.com",
+                userName: "user4",
+                password: "User@123",
+                role: Role.User);
+            
+            await CreateUserAsync(
+                userManager,
+                context,
+                email: "user5@system.com",
+                userName: "user5",
+                password: "User@123",
+                role: Role.User);
+            
+            await CreateUserAsync(
+                userManager,
+                context,
+                email: "user6@system.com",
+                userName: "user6",
+                password: "User@123",
+                role: Role.User);
+            
+            await CreateUserAsync(
+                userManager,
+                context,
+                email: "user7@system.com",
+                userName: "user7",
+                password: "User@123",
+                role: Role.User);
+            
+            await CreateUserAsync(
+                userManager,
+                context,
+                email: "user8@system.com",
+                userName: "user8",
+                password: "User@123",
+                role: Role.User);
+            
+            await CreateUserAsync(
+                userManager,
+                context,
+                email: "user9@system.com",
+                userName: "user9",
+                password: "User@123",
+                role: Role.User);
+            
+            await CreateUserAsync(
+                userManager,
+                context,
+                email: "user10@system.com",
+                userName: "user10",
+                password: "User@123",
+                role: Role.User);
         }
 
         private static async Task CreateUserAsync(
-    UserManager<ApplicationUser> userManager,
-    ApplicationDbContext context,
-    string email,
-    string userName,
-    string password,
-    Role role)
+            UserManager<ApplicationUser> userManager,
+            ApplicationDbContext context,
+            string email,
+            string userName,
+            string password,
+            Role role)
         {
-            var user = await userManager.FindByEmailAsync(email);
-            if (user != null) return;
+            // ⭐ KIỂM TRA CẢ EMAIL VÀ USERNAME
+            var existingUserByEmail = await userManager.FindByEmailAsync(email);
+            if (existingUserByEmail != null) return;
+    
+            var existingUserByName = await userManager.FindByNameAsync(userName);
+            if (existingUserByName != null) return;
 
-            user = new ApplicationUser
+            var user = new ApplicationUser
             {
                 Id = Guid.NewGuid(),
                 Email = email,
@@ -102,7 +194,5 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                 }
             }
         }
-
-
     }
 }

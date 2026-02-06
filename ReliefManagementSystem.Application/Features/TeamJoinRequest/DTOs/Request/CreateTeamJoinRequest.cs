@@ -9,7 +9,6 @@ namespace ReliefManagementSystem.Application.Features.TeamJoinRequest.DTOs.Reque
     public class CreateTeamJoinRequest
     {
         public Guid TeamId { get; set; }
-        // RequestedRole removed - volunteers can only join as Member
-        // Leader role is assigned by Moderator via UpdateTeam
+        public string? Reason { get; set; } = null!;
     }
 }

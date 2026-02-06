@@ -75,5 +75,24 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             return await _context.TeamMembers
                 .CountAsync(tm => tm.TeamId == teamId, cancellationToken);
         }
+
+        public async Task<List<Team>> GetTeamsByModeratorWithMembersAsync(Guid moderatorId)
+        {
+            return await _dbSet
+                .Include(t => t.Moderator)
+                .Include(t => t.Leader)
+                    .ThenInclude(l => l.VolunteerProfile)
+                        .ThenInclude(vp => vp.VolunteerSkills)
+                            .ThenInclude(vs => vs.Skill)
+                .Include(t => t.TeamMembers)
+                    .ThenInclude(tm => tm.User)
+                        .ThenInclude(u => u.VolunteerProfile)
+                            .ThenInclude(vp => vp.VolunteerSkills)
+                                .ThenInclude(vs => vs.Skill)
+                .Where(t => t.ModeratorId == moderatorId)
+                .OrderByDescending(t => t.CreatedAt)
+                .ToListAsync();
+        }
+
     }
 }
