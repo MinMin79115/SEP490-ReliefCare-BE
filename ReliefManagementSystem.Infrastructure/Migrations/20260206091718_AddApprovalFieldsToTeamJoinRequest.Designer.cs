@@ -12,8 +12,8 @@ using ReliefManagementSystem.Infrastructure.Data;
 namespace ReliefManagementSystem.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260203060316_UpdateTeamJoinRequestEntity")]
-    partial class UpdateTeamJoinRequestEntity
+    [Migration("20260206091718_AddApprovalFieldsToTeamJoinRequest")]
+    partial class AddApprovalFieldsToTeamJoinRequest
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -429,11 +429,23 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ApprovedBy")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("RequestedRole")
-                        .HasColumnType("integer");
+                    b.Property<string>("Reason")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("RejectedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("RejectedBy")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("ReviewNote")
                         .HasColumnType("text");
