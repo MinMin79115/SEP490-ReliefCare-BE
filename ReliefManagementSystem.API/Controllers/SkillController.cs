@@ -26,7 +26,6 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(skills);
         }
 
-        // GET: api/skills/{id}
         [HttpGet("{id:guid}")]
         public async Task<ActionResult<SkillResponse>> GetSkillById(
             Guid id,
@@ -40,7 +39,6 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(skill);
         }
 
-        // POST: api/skills
         [HttpPost]
         public async Task<ActionResult<SkillResponse>> CreateSkill(
             [FromBody] CreateSkillRequest request,
@@ -54,7 +52,6 @@ namespace ReliefManagementSystem.API.Controllers
                 skill);
         }
 
-        // PUT: api/skills/{id}
         [HttpPut("{id:guid}")]
         public async Task<IActionResult> UpdateSkill(Guid id,[FromBody] UpdateSkillRequest request,CancellationToken cancellationToken)
         {
@@ -63,7 +60,6 @@ namespace ReliefManagementSystem.API.Controllers
         }
 
 
-        // DELETE: api/skills/{id}
         [HttpDelete("{id:guid}")]
         public async Task<IActionResult> DeleteSkill(
             Guid id,

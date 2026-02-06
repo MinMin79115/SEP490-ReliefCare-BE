@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using ReliefManagementSystem.Application.Common.Interface;
 using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Infrastructure.Data;
