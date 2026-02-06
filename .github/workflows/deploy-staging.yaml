@@ -95,13 +95,14 @@ jobs:
 
   api-image-deploy:
     name: Deploy / API
-    runs-on: self-hosted
+    runs-on: self-hosted # Chạy trên EC2 của bạn
     needs: [api-image-build, detect-changes]
     if: needs.detect-changes.outputs.services != '[]'
     permissions:
       contents: read
       packages: write
     env:
+      # Các biến môi trường lấy từ Secrets
       POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
       JWT_KEY: ${{ secrets.JWT_KEY }}
       CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
@@ -118,34 +119,85 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Lowercase repository name
-        shell: powershell
+      - name: Set Environment Variables
         run: |
-          $repoLower = "${{ github.repository }}".ToLower()
-          echo "REGISTRY=ghcr.io/$repoLower" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          # Chuyển tên repo về chữ thường cho đúng chuẩn Docker
+          echo "REGISTRY=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
-      - name: Pull and Deploy Changed Services
-        shell: powershell
+      - name: Pull and Deploy
         run: |
-          # Pull only the images that were built
-          $services = '${{ needs.detect-changes.outputs.services }}' | ConvertFrom-Json
+          echo "Pulling latest images..."
+          # Pull tất cả service được định nghĩa trong file compose
+          # Không cần loop phức tạp, docker compose sẽ tự biết image nào cần pull
+          docker compose -f compose.staging.yaml pull
 
-          foreach ($service in $services) {
-            Write-Host "Pulling image for service: $service"
-            docker compose -f "compose.staging.yaml" -p "reliefcare-staging" pull $service
-          }
+          echo "Deploying application..."
+          # Up -d sẽ recreate container nếu có image mới
+          docker compose -f compose.staging.yaml up -d --remove-orphans
 
-          # Deploy all services
-          Write-Host "Deploying application with updated services"
-          docker compose -f "compose.staging.yaml" -p "reliefcare-staging" up -d
-
-      - name: Wait for Application to be Ready
-        shell: powershell
+      - name: Wait for Healthcheck
         run: |
-          Start-Sleep -Seconds 10
-          docker compose -f "compose.staging.yaml" -p "reliefcare-staging" ps
+          echo "Waiting for services to be ready..."
+          sleep 10
+          docker compose -f compose.staging.yaml ps
 
-      - name: Cleanup Images
-        shell: powershell
+      - name: Cleanup Unused Images
         run: |
           docker image prune -a -f
+
+  # api-image-deploy:
+  #   name: Deploy / API
+  #   runs-on: self-hosted
+  #   needs: [api-image-build, detect-changes]
+  #   if: needs.detect-changes.outputs.services != '[]'
+  #   permissions:
+  #     contents: read
+  #     packages: write
+  #   env:
+  #     POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+  #     JWT_KEY: ${{ secrets.JWT_KEY }}
+  #     CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
+  #     GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+  #     GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+  #   steps:
+  #     - name: Checkout
+  #       uses: actions/checkout@v3
+
+  #     - name: DockerHub Login
+  #       uses: docker/login-action@v3.1.0
+  #       with:
+  #         registry: ghcr.io
+  #         username: ${{ github.actor }}
+  #         password: ${{ secrets.GITHUB_TOKEN }}
+
+  #     - name: Lowercase repository name
+  #       shell: powershell
+  #       run: |
+  #         $repoLower = "${{ github.repository }}".ToLower()
+  #         echo "REGISTRY=ghcr.io/$repoLower" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+  #     - name: Pull and Deploy Changed Services
+  #       shell: powershell
+  #       run: |
+  #         # Pull only the images that were built
+  #         $services = '${{ needs.detect-changes.outputs.services }}' | ConvertFrom-Json
+
+  #         foreach ($service in $services) {
+  #           Write-Host "Pulling image for service: $service"
+  #           docker compose -f "compose.staging.yaml" -p "reliefcare-staging" pull $service
+  #         }
+
+  #         # Deploy all services
+  #         Write-Host "Deploying application with updated services"
+  #         docker compose -f "compose.staging.yaml" -p "reliefcare-staging" up -d
+
+  #     - name: Wait for Application to be Ready
+  #       shell: powershell
+  #       run: |
+  #         Start-Sleep -Seconds 10
+  #         docker compose -f "compose.staging.yaml" -p "reliefcare-staging" ps
+
+  #     - name: Cleanup Images
+  #       shell: powershell
+  #       run: |
+  #         docker image prune -a -f
