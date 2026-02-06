@@ -29,13 +29,12 @@ namespace ReliefManagementSystem.Application.Services
             Guid moderatorId,
             CancellationToken cancellationToken)
         {
-            // Tạo Team (không cần leader lúc tạo)
             var team = new Team
             {
                 Name = request.Name,
                 Description = request.Description,
                 ModeratorId = moderatorId,
-                LeaderId = null, // Leader sẽ được set qua UpdateTeamAsync
+                LeaderId = null, 
                 Status = TeamStatus.Active,
                 CreatedAt = DateTime.UtcNow
             };
@@ -64,20 +63,16 @@ namespace ReliefManagementSystem.Application.Services
             Guid moderatorId,
             CancellationToken cancellationToken)
         {
-            // 1. Load team
             var team = await _unitOfWork.Teams.GetByIdAsync(teamId);
 
             if (team == null)
                 throw new Exception("Không tìm thấy đội");
 
-            // 2. Validate moderator
             if (team.ModeratorId != moderatorId)
                 throw new Exception("Chỉ có người điều phối team mới có thể chỉnh sửa");
 
-            // 3. Handle leader change
             if (request.LeaderId != team.LeaderId)
             {
-                // Validate new leader if set
                 if (request.LeaderId.HasValue)
                 {
                     var newLeader = await _unitOfWork.Users.GetByIdWithVolunteerProfileAsync(
@@ -89,12 +84,10 @@ namespace ReliefManagementSystem.Application.Services
                     if (newLeader.VolunteerProfile?.VerificationStatus != VerificationStatus.Approved)
                         throw new Exception("Trưởng nhóm mới phải là tình nguyện viên đã được xác minh");
 
-                    // Check if new leader is already a member
                     var isNewLeaderMember = await _unitOfWork.TeamMembers.IsMemberAsync(teamId, request.LeaderId.Value);
 
                     if (!isNewLeaderMember)
                     {
-                        // Add as new member with Leader role
                         var newTeamMember = new TeamMember
                         {
                             TeamId = teamId,
@@ -106,7 +99,6 @@ namespace ReliefManagementSystem.Application.Services
                     }
                     else
                     {
-                        // Update existing member to Leader role
                         var existingMember = await _unitOfWork.TeamMembers.GetByTeamAndUserAsync(teamId, request.LeaderId.Value);
                         if (existingMember != null)
                         {
@@ -116,7 +108,6 @@ namespace ReliefManagementSystem.Application.Services
                     }
                 }
 
-                // Demote old leader to Member if exists
                 if (team.LeaderId.HasValue)
                 {
                     var oldLeader = await _unitOfWork.TeamMembers.GetByTeamAndUserAsync(teamId, team.LeaderId.Value);
@@ -130,7 +121,6 @@ namespace ReliefManagementSystem.Application.Services
                 team.LeaderId = request.LeaderId;
             }
 
-            // 4. Update basic info
             team.Name = request.Name;
             team.Description = request.Description;
             team.Status = request.Status;
@@ -179,7 +169,6 @@ namespace ReliefManagementSystem.Application.Services
         {
             var query = _unitOfWork.Teams.GetQueryable();
 
-            // Apply filters
             if (!string.IsNullOrWhiteSpace(request.Name))
             {
                 query = query.Where(t => t.Name.Contains(request.Name));
@@ -195,13 +184,10 @@ namespace ReliefManagementSystem.Application.Services
                 query = query.Where(t => t.ModeratorId == request.ModeratorId.Value);
             }
 
-            // Order by
             query = query.OrderByDescending(t => t.CreatedAt);
 
-            // Apply pagination
             var pagedTeams = await Pagination<Team>.ToPagedList(query, request.PageIndex, request.PageSize);
 
-            // Map to response
             var responseItems = new List<TeamResponse>();
             foreach (var team in pagedTeams.Items)
             {
@@ -260,7 +246,6 @@ namespace ReliefManagementSystem.Application.Services
             Guid moderatorId,
             CancellationToken cancellationToken)
         {
-            // Validate team and moderator
             var team = await _unitOfWork.Teams.GetByIdAsync(teamId);
             if (team == null)
                 throw new Exception("Không tìm thấy đội");
@@ -268,11 +253,9 @@ namespace ReliefManagementSystem.Application.Services
             if (team.ModeratorId != moderatorId)
                 throw new Exception("Chỉ điều phối đội mới có thể xoá thành viên");
 
-            // Cannot remove leader
             if (team.LeaderId == userId)
                 throw new Exception("Không thể xoá trưởng nhóm hiện tại. Phải đổi trưởng nhóm trước.");
 
-            // Get and remove member
             var member = await _unitOfWork.TeamMembers.GetByTeamAndUserAsync(teamId, userId);
             if (member == null)
                 throw new Exception("Thành viên không tồn tại trong đội");
@@ -281,6 +264,140 @@ namespace ReliefManagementSystem.Application.Services
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return true;
+        }
+
+        public async Task<TeamDetailResponse> GetVolunteerTeamAsync(
+            Guid userId,
+            CancellationToken cancellationToken)
+        {
+            // SỬA: GetTeamByUserIdAsync trả về TeamMember? (không phải List)
+            var teamMember = await _unitOfWork.TeamMembers.GetTeamByUserIdAsync(userId);
+            
+            if (teamMember == null)
+                throw new Exception("Bạn chưa tham gia team nào");
+
+            var team = await _unitOfWork.Teams.GetByIdWithDetailsAsync(teamMember.TeamId);
+            
+            if (team == null)
+                throw new Exception("Không tìm thấy team");
+
+            return MapToTeamDetailResponse(team);
+        }
+
+        public async Task<TeamMemberResponse> AddMemberDirectlyAsync(
+            Guid teamId,
+            AddMemberRequest request,
+            Guid moderatorId,
+            CancellationToken cancellationToken)
+        {
+            var team = await _unitOfWork.Teams.GetByIdAsync(teamId);
+            
+            if (team == null)
+                throw new Exception("Không tìm thấy team");
+
+            if (team.ModeratorId != moderatorId)
+                throw new Exception("Chỉ có điều phối viên của team mới có thể thêm thành viên");
+
+            var volunteer = await _unitOfWork.Users.GetByIdWithVolunteerProfileAndSkillsAsync(
+                request.VolunteerId, cancellationToken);
+            
+            if (volunteer == null)
+                throw new Exception("Không tìm thấy tình nguyện viên");
+
+            if (volunteer.VolunteerProfile?.VerificationStatus != VerificationStatus.Approved)
+                throw new Exception("Tình nguyện viên phải được xác minh");
+
+            var isMember = await _unitOfWork.TeamMembers.IsMemberAsync(teamId, request.VolunteerId);
+            if (isMember)
+                throw new Exception("Tình nguyện viên đã là thành viên của team");
+
+            var teamMember = new TeamMember
+            {
+                TeamId = teamId,
+                UserId = request.VolunteerId,
+                RoleTeam = TeamRole.Member,
+                JoinedAt = DateTime.UtcNow
+            };
+
+            await _unitOfWork.TeamMembers.AddAsync(teamMember);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return new TeamMemberResponse
+            {
+                UserId = volunteer.Id,
+                DisplayName = volunteer.DisplayName ?? volunteer.UserName ?? "Unknown",
+                Email = volunteer.Email ?? "",
+                RoleTeam = teamMember.RoleTeam,
+                JoinedAt = teamMember.JoinedAt,
+                Skills = volunteer.VolunteerProfile?.VolunteerSkills?.Select(vs => new SkillInfo
+                {
+                    SkillId = vs.SkillId,
+                    Code = vs.Skill.Code,
+                    Name = vs.Skill.Name,
+                    Description = vs.Skill.Description
+                }).ToList()
+            };
+        }
+
+        public async Task<TeamMemberResponse> PromoteMemberToLeaderAsync(
+            Guid teamId,
+            Guid userId,
+            Guid moderatorId,
+            CancellationToken cancellationToken)
+        {
+            var team = await _unitOfWork.Teams.GetByIdWithDetailsAsync(teamId);
+            
+            if (team == null)
+                throw new Exception("Không tìm thấy team");
+
+            if (team.ModeratorId != moderatorId)
+                throw new Exception("Chỉ có điều phối viên của team mới có thể cập nhật role");
+
+            var teamMember = await _unitOfWork.TeamMembers.GetByTeamAndUserWithSkillsAsync(
+                teamId, userId);
+            
+            if (teamMember == null)
+                throw new Exception("Người dùng không phải là thành viên của team");
+
+            if (teamMember.RoleTeam == TeamRole.Leader)
+                throw new Exception("Thành viên đã là Leader rồi");
+
+            if (team.LeaderId.HasValue && team.LeaderId.Value != userId)
+            {
+                var currentLeader = await _unitOfWork.TeamMembers.GetByTeamAndUserAsync(
+                    teamId, team.LeaderId.Value);
+                
+                if (currentLeader != null)
+                {
+                    currentLeader.RoleTeam = TeamRole.Member;
+                    await _unitOfWork.TeamMembers.UpdateAsync(currentLeader);
+                }
+            }
+
+            teamMember.RoleTeam = TeamRole.Leader;
+            await _unitOfWork.TeamMembers.UpdateAsync(teamMember);
+
+            team.LeaderId = userId;
+            team.UpdatedAt = DateTime.UtcNow;
+            await _unitOfWork.Teams.UpdateAsync(team);
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return new TeamMemberResponse
+            {
+                UserId = teamMember.UserId,
+                DisplayName = teamMember.User.DisplayName ?? teamMember.User.UserName ?? "Unknown",
+                Email = teamMember.User.Email ?? "",
+                RoleTeam = teamMember.RoleTeam,
+                JoinedAt = teamMember.JoinedAt,
+                Skills = teamMember.User.VolunteerProfile?.VolunteerSkills?.Select(vs => new SkillInfo
+                {
+                    SkillId = vs.SkillId,
+                    Code = vs.Skill.Code,
+                    Name = vs.Skill.Name,
+                    Description = vs.Skill.Description
+                }).ToList()
+            };
         }
 
         // Helper Methods
@@ -349,6 +466,13 @@ namespace ReliefManagementSystem.Application.Services
                 CreatedAt = team.CreatedAt,
                 UpdatedAt = team.UpdatedAt
             };
+        }
+
+        public async Task<List<TeamDetailResponse>> GetMyTeamsWithMembersAsync(Guid moderatorId, CancellationToken cancellationToken)
+        {
+            var teams = await _unitOfWork.Teams.GetTeamsByModeratorWithMembersAsync(moderatorId);
+    
+            return teams.Select(team => MapToTeamDetailResponse(team)).ToList();
         }
     }
 }

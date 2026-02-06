@@ -11,17 +11,20 @@ namespace ReliefManagementSystem.Application.Common.Interface
     {
         Task<TeamMember?> GetByTeamAndUserAsync(Guid teamId, Guid userId);
 
-        // Include: User.VolunteerProfile.VolunteerSkills.Skill
         Task<List<TeamMember>> GetByTeamIdWithSkillsAsync(Guid teamId);
+        Task<TeamMember?> GetByTeamAndUserWithSkillsAsync(Guid teamId, Guid userId);
+        Task<TeamMember?> GetTeamByUserIdAsync(Guid userId);
 
         Task<List<TeamMember>> GetByUserIdAsync(Guid userId);
 
         Task<bool> IsMemberAsync(Guid teamId, Guid userId);
+        
+        Task<TeamMember?> GetMemberAsync(Guid teamId, Guid userId);
+
+        IQueryable<TeamMember> GetQueryable();
 
         Task AddAsync(TeamMember teamMember);
-
         Task UpdateAsync(TeamMember teamMember);
-
         Task DeleteAsync(TeamMember teamMember);
     }
 }

@@ -21,7 +21,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             return await _dbSet.FindAsync(id);
         }
 
-        public async Task<IReadOnlyList<T>> GetAllAsync()
+        public async Task<List<T>> GetAllAsync()
         {
             return await _dbSet.AsNoTracking().ToListAsync();
         }

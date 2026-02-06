@@ -17,7 +17,6 @@ namespace ReliefManagementSystem.Application.Common.Interface
         Task<List<VolunteerProfile?>> GetAllWithSkillsAsync();
 
         Task<VolunteerProfile?> GetByIdWithSkillsAndUserAsync(Guid volunteerProfileId);
-
         Task AddAsync(VolunteerProfile profile);
 
         Task UpdateAsync(VolunteerProfile profile);

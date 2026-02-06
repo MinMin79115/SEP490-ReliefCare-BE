@@ -10,13 +10,12 @@ namespace ReliefManagementSystem.Application.Common.Interface
     public interface ITeamRepository : IGenericRepository<Team>
     {
         // Include: Moderator, Leader, TeamMembers.User.VolunteerProfile.VolunteerSkills.Skill
-        Task<Team?> GetByIdWithDetailsAsync(Guid id);
+        Task<Team?> GetByIdWithDetailsAsync(Guid teamId);
 
         //hold to override
-        Task<List<Team>> GetAllAsync();
-
         Task<List<Team>> GetByModeratorIdAsync(Guid moderatorId);
 
+        Task<List<Team>>GetTeamsByModeratorWithMembersAsync(Guid moderatorId);
         IQueryable<Team> GetQueryable();
 
         Task<bool> IsModeratorOfTeamAsync(Guid teamId, Guid userId);

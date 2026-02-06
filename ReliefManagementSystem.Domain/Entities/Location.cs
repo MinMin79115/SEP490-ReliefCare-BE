@@ -12,7 +12,9 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public Guid? ParentId { get; set; }    
 
-        public string Name { get; set; }
+        public string Province { get; set; }
+
+        public string? Ward { get; set; }
 
         public decimal PopulationDensity { get; set; } 
         public decimal Area { get; set; }              

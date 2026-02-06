@@ -73,7 +73,7 @@ namespace ReliefManagementSystem.Application.Services
                 Id = Guid.NewGuid(),
                 TeamId = request.TeamId,
                 VolunteerId = volunteerId,
-                RequestedRole = TeamRole.Member, // Always Member - Leader assigned by Moderator
+                Reason = request.Reason,
                 Status = TeamJoinRequestStatus.Pending,
                 CreatedAt = DateTime.UtcNow
             };
@@ -85,23 +85,23 @@ namespace ReliefManagementSystem.Application.Services
             return new TeamJoinRequestResponse
             {
                 Id = joinRequest.Id,
-                TeamId = team.TeamId,
-                TeamName = team.Name,
-                ModeratorId = team.ModeratorId,
-                ModeratorName = team.Moderator.DisplayName ?? team.Moderator.UserName ?? "Unknown",
-                VolunteerId = volunteerId,
-                VolunteerName = volunteer.DisplayName ?? volunteer.UserName ?? "Unknown",
-                VolunteerEmail = volunteer.Email ?? "",
-                VolunteerSkills = volunteer.VolunteerProfile.VolunteerSkills.Select(vs => new SkillInfo
-                {
-                    SkillId = vs.SkillId,
-                    Code = vs.Skill.Code,
-                    Name = vs.Skill.Name,
-                    Description = vs.Skill.Description
-                }).ToList(),
-                RequestedRole = joinRequest.RequestedRole,
-                Status = joinRequest.Status,
-                CreatedAt = joinRequest.CreatedAt
+                    TeamId = team.TeamId,
+                    TeamName = team.Name,
+                    ModeratorId = team.ModeratorId,
+                    ModeratorName = team.Moderator.DisplayName ?? team.Moderator.UserName ?? "Unknown",
+                    VolunteerId = volunteerId,
+                    VolunteerName = volunteer.DisplayName ?? volunteer.UserName ?? "Unknown",
+                    VolunteerEmail = volunteer.Email ?? "",
+                    VolunteerSkills = volunteer.VolunteerProfile.VolunteerSkills.Select(vs => new SkillInfo
+                    {
+                        SkillId = vs.SkillId,
+                        Code = vs.Skill.Code,
+                        Name = vs.Skill.Name,
+                        Description = vs.Skill.Description
+                    }).ToList(),
+                    Status = joinRequest.Status,
+                    Reason = joinRequest.Reason,
+                    CreatedAt = joinRequest.CreatedAt
             };
         }
 
@@ -202,6 +202,7 @@ namespace ReliefManagementSystem.Application.Services
         public async Task<TeamJoinRequestResponse> ApproveRequestAsync(
             Guid requestId,
             Guid moderatorId,
+            ReviewTeamJoinRequest request,
             CancellationToken cancellationToken)
         {
             // 1. Load request with all details
@@ -217,34 +218,26 @@ namespace ReliefManagementSystem.Application.Services
             if (joinRequest.Status != TeamJoinRequestStatus.Pending)
                 throw new Exception("Chỉ có thể duyệt các yêu cầu đang chờ xử lý");
 
-            // 3. Validate leader if requesting Leader role
-            if (joinRequest.RequestedRole == TeamRole.Leader && joinRequest.Team.LeaderId.HasValue)
-                throw new Exception("Đội này đã có trưởng nhóm");
+            // 3. Check if already a member
+            var isMember = await _unitOfWork.TeamMembers.IsMemberAsync(joinRequest.TeamId, joinRequest.VolunteerId);
+            if (isMember)
+                throw new Exception("Tình nguyện viên đã là thành viên của đội");
 
-            // 4. Create TeamMember
+            // 4. Create TeamMember 
             var teamMember = new TeamMember
             {
                 TeamId = joinRequest.TeamId,
                 UserId = joinRequest.VolunteerId,
-                RoleTeam = joinRequest.RequestedRole,
+                RoleTeam = TeamRole.Member,  
                 JoinedAt = DateTime.UtcNow
             };
 
             await _unitOfWork.TeamMembers.AddAsync(teamMember);
 
-            // 5. If Leader role, update Team.LeaderId
-            if (joinRequest.RequestedRole == TeamRole.Leader)
-            {
-                joinRequest.Team.LeaderId = joinRequest.VolunteerId;
-                joinRequest.Team.UpdatedAt = DateTime.UtcNow;
-                await _unitOfWork.Teams.UpdateAsync(joinRequest.Team);
-            }
-
-            // 6. Update request status
             joinRequest.Status = TeamJoinRequestStatus.Approved;
-            joinRequest.ReviewedBy = moderatorId;
-            joinRequest.ReviewedAt = DateTime.UtcNow;
-            joinRequest.ReviewNote = "Đã duyệt";
+            joinRequest.ApprovedBy = moderatorId;
+            joinRequest.ApprovedAt = DateTime.UtcNow;
+            joinRequest.ReviewNote = request.ReviewNote;
 
             await _unitOfWork.TeamJoinRequests.UpdateAsync(joinRequest);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -255,6 +248,7 @@ namespace ReliefManagementSystem.Application.Services
         public async Task<TeamJoinRequestResponse> RejectRequestAsync(
             Guid requestId,
             Guid moderatorId,
+            ReviewTeamJoinRequest request,
             CancellationToken cancellationToken)
         {
             // 1. Load request with all details
@@ -270,11 +264,10 @@ namespace ReliefManagementSystem.Application.Services
             if (joinRequest.Status != TeamJoinRequestStatus.Pending)
                 throw new Exception("Chỉ có thể từ chối các yêu cầu đang chờ xử lý");
 
-            // 3. Update request status
             joinRequest.Status = TeamJoinRequestStatus.Rejected;
-            joinRequest.ReviewedBy = moderatorId;
-            joinRequest.ReviewedAt = DateTime.UtcNow;
-            joinRequest.ReviewNote = "Bạn bị từ chối";
+            joinRequest.RejectedBy = moderatorId;
+            joinRequest.RejectedAt = DateTime.UtcNow;
+            joinRequest.ReviewNote = request.ReviewNote;
 
             await _unitOfWork.TeamJoinRequests.UpdateAsync(joinRequest);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -336,14 +329,16 @@ namespace ReliefManagementSystem.Application.Services
                     Name = vs.Skill.Name,
                     Description = vs.Skill.Description
                 }).ToList() ?? new List<SkillInfo>(),
-                RequestedRole = request.RequestedRole,
                 Status = request.Status,
-                ReviewedBy = request.ReviewedBy,
-                ReviewerName = request.Reviewer?.DisplayName ?? request.Reviewer?.UserName,
+                Reason = request.Reason,
+                ApprovedBy = request.ApprovedBy,        // NEW
+                ApprovedAt = request.ApprovedAt,        // NEW
+                RejectedBy = request.RejectedBy,        // NEW
+                RejectedAt = request.RejectedAt,        // NEW
                 ReviewNote = request.ReviewNote,
-                CreatedAt = request.CreatedAt,
-                ReviewedAt = request.ReviewedAt
+                CreatedAt = request.CreatedAt
             };
+
         }
     }
 }

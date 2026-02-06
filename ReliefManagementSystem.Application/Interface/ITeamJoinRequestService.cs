@@ -16,10 +16,8 @@ namespace ReliefManagementSystem.Application.Interface
         Task<List<TeamJoinRequestResponse>> GetMyRequestsAsync(Guid volunteerId, CancellationToken cancellationToken);
 
         // Moderator actions
-        //Task<TeamJoinRequestResponse> ReviewRequestAsync(Guid requestId, ReviewTeamJoinRequest review, Guid moderatorId, CancellationToken cancellationToken);
-        Task<TeamJoinRequestResponse> ApproveRequestAsync(Guid requestId, Guid moderatorId, CancellationToken cancellationToken);
-        Task<TeamJoinRequestResponse> RejectRequestAsync(Guid requestId,Guid moderatorId, CancellationToken cancellationToken);
-        Task<List<TeamJoinRequestResponse>> GetPendingRequestsForMyTeamsAsync(Guid moderatorId, CancellationToken cancellationToken); 
+        Task<TeamJoinRequestResponse> ApproveRequestAsync(Guid requestId, Guid moderatorId, ReviewTeamJoinRequest request, CancellationToken cancellationToken);
+        Task<TeamJoinRequestResponse> RejectRequestAsync(Guid requestId, Guid moderatorId, ReviewTeamJoinRequest request, CancellationToken cancellationToken);
         Task<List<TeamJoinRequestResponse>> GetRequestsByTeamAsync(Guid teamId, Guid moderatorId, CancellationToken cancellationToken); 
 
         // Common actions
