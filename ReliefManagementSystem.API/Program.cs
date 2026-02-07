@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
+using ReliefManagementSystem.API.Middleware;
 using ReliefManagementSystem.Application;
 using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Domain.Entities;
@@ -58,7 +59,10 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
 
 builder.Services
-    .AddIdentity<ApplicationUser, IdentityRole<Guid>>()
+    .AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
+    {
+        options.User.RequireUniqueEmail = true;
+    })
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
 
@@ -152,7 +156,7 @@ if (app.Environment.IsDevelopment() || app.Environment.IsStaging())
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
-
+app.UseMiddleware<ExceptionMiddleware>();
 app.MapControllers();
 
 app.Run();

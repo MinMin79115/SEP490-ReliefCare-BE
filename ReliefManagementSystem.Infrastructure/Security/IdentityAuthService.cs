@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Identity;
+using ReliefManagementSystem.Application.Common.Exceptions.Auth;
 using ReliefManagementSystem.Application.Common.Interface;
 using ReliefManagementSystem.Application.Features.Auth.DTOs;
 using ReliefManagementSystem.Application.Interface;
@@ -12,6 +13,7 @@ using System.Linq;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
+using ReliefManagementSystem.Application.Common.Exceptions;
 
 namespace ReliefManagementSystem.Infrastructure.Security
 {
@@ -44,8 +46,10 @@ namespace ReliefManagementSystem.Infrastructure.Security
             var result = await _userManager.CreateAsync(user, request.Password);
 
             if (!result.Succeeded)
-                throw new Exception(string.Join("; ",
-                    result.Errors.Select(e => e.Description)));
+            {
+                var errors = ConvertErrors(result.Errors);
+                throw new ValidationException(errors);
+            }
 
             await _userManager.AddToRoleAsync(user, Role.User.ToString());
 
@@ -60,7 +64,10 @@ namespace ReliefManagementSystem.Infrastructure.Security
             var user = await _userManager.FindByEmailAsync(email);
 
             if (user == null)
-                throw new UnauthorizedAccessException("Invalid credentials");
+                throw new InvalidCredentialsException();
+
+            if (await _userManager.IsLockedOutAsync(user))
+                throw new UserLockedException();
 
             var roles = await _userManager.GetRolesAsync(user);
 
@@ -68,7 +75,7 @@ namespace ReliefManagementSystem.Infrastructure.Security
                 .CheckPasswordSignInAsync(user, password, false);
 
             if (!check.Succeeded)
-                throw new UnauthorizedAccessException("Invalid credentials");
+                throw new InvalidCredentialsException();
 
             return user;
         }
@@ -149,7 +156,16 @@ namespace ReliefManagementSystem.Infrastructure.Security
 
             return user;
         }
+        private static IDictionary<string, string[]> ConvertErrors(IEnumerable<IdentityError> errors)
+        {
+            return errors
+                .GroupBy(e => e.Code)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.Select(e => e.Description).ToArray()
+                );
+        }
 
-       
+
     }
 }
