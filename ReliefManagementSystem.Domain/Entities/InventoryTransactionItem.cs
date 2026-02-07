@@ -1,3 +1,9 @@
+﻿using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+
 namespace ReliefManagementSystem.Domain.Entities
 {
     public class InventoryTransactionItem
@@ -5,13 +11,15 @@ namespace ReliefManagementSystem.Domain.Entities
         public Guid TransactionItemId { get; set; }
 
         public Guid TransactionId { get; set; }
-        public InventoryTransaction Transaction { get; set; } = null!;
 
         public Guid SupplyItemId { get; set; }
-        public SupplyItem SupplyItem { get; set; } = null!;
 
         public int Quantity { get; set; }
 
-        public string? Notes { get; set; } // Notes riêng cho từng item
+        public string? Notes { get; set; }
+
+        // Navigation
+        public InventoryTransaction Transaction { get; set; } = null!;
+        public SupplyItem SupplyItem { get; set; } = null!;
     }
 }

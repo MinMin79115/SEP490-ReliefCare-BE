@@ -1,4 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
 using ReliefManagementSystem.Application.Common.Interface;
 using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Infrastructure.Data;
@@ -13,7 +14,6 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
     public class VolunteerProfileRepository : IVolunteerProfileRepository
     {
         private readonly ApplicationDbContext _context;
-
         public VolunteerProfileRepository(ApplicationDbContext context)
         {
             _context = context;
@@ -34,6 +34,34 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                     .ThenInclude(vs => vs.Skill)
                 .FirstOrDefaultAsync(vp => vp.UserId == userId);
         }
+
+        public async Task<List<VolunteerProfile>> GetAllWithSkillsAsync()
+        {
+            return await _context.VolunteerProfiles
+                .Include(vp => vp.User)
+                .Include(vp => vp.VolunteerSkills)
+                    .ThenInclude(vs => vs.Skill)
+                .ToListAsync();
+        }
+
+        public async Task<VolunteerProfile?> GetByIdWithSkillsAndUserAsync(Guid volunteerProfileId)
+        {
+            return await _context.VolunteerProfiles
+                .Include(vp => vp.User)
+                .Include(vp => vp.VolunteerSkills)
+                    .ThenInclude(vs => vs.Skill)
+                .FirstOrDefaultAsync(vp => vp.VolunteerProfileId == volunteerProfileId);
+        }
+
+        public async Task<ApplicationUser?> GetByIdWithVolunteerProfileAsync(Guid userId)
+        {
+            return await _context.Users
+                .Include(u => u.VolunteerProfile)
+                    .ThenInclude(vp => vp.VolunteerSkills)
+                        .ThenInclude(vs => vs.Skill)
+                .FirstOrDefaultAsync(u => u.Id == userId);
+        }
+
 
         public async Task AddAsync(VolunteerProfile profile)
         {

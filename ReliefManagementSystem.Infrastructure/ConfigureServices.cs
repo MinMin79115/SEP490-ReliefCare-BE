@@ -2,12 +2,12 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using ReliefManagementSystem.Application.Common.Interface;
-using ReliefManagementSystem.Application.Services;
+using ReliefManagementSystem.Application.Features;
+using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Infrastructure.Data;
 using ReliefManagementSystem.Infrastructure.Persistence;
 using ReliefManagementSystem.Infrastructure.Repositories;
 using ReliefManagementSystem.Infrastructure.Security;
-using ReliefManagementSystem.Infrastructure.Services;
 
 namespace ReliefManagementSystem.Infrastructure
 {
@@ -17,26 +17,32 @@ namespace ReliefManagementSystem.Infrastructure
             this IServiceCollection services,
             IConfiguration configuration)
         {
+            //db context
             services.AddDbContext<ApplicationDbContext>(options =>
              options.UseNpgsql(
          configuration.GetConnectionString("DefaultConnection")));
 
+            services.AddHttpContextAccessor();
 
+            //auth service
             services.AddScoped<IUserRepository, UserRepository>();
-            services.AddScoped<IAuthService, AuthService>();
+            services.AddScoped<IIdentityAuthService, IdentityAuthService>();
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
-            // Team services
-            services.AddScoped<ITeamService, TeamService>();
-            services.AddScoped<ITeamJoinRequestService, TeamJoinRequestService>();
+            services.AddScoped<ICurrentUserService, CurrentUserService>();
 
             // Team repositories
             services.AddScoped<ITeamRepository, TeamRepository>();
             services.AddScoped<ITeamMemberRepository, TeamMemberRepository>();
             services.AddScoped<ITeamJoinRequestRepository, TeamJoinRequestRepository>();
+
+            // Volunteer Profile repositories
             services.AddScoped<IVolunteerProfileRepository, VolunteerProfileRepository>();
 
-            services.AddScoped<IInventoryService, InventoryService>();
+            //Vehicle Management repositories
+            services.AddScoped<IVehicleRepository, VehicleRepository>();
+            services.AddScoped<IVehicleTypeRepository, VehicleTypeRepository>();
+
             return services;
 
         }

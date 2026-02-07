@@ -12,31 +12,39 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
     public class UnitOfWork : IUnitOfWork
     {
         private readonly ApplicationDbContext _context;
-
+        // User Management
         public IUserRepository Users { get; }
         public IRefreshTokenRepository RefreshTokens { get; }
 
-        // Inventory Management
-        public ISupplyItemRepository SupplyItems { get; }
-        public IInventoryTransactionRepository InventoryTransactions { get; }
         
         public ITeamRepository Teams { get; }
         public ITeamMemberRepository TeamMembers { get; }
         public ITeamJoinRequestRepository TeamJoinRequests { get; }
+
+        // Volunteer Profiles
         public IVolunteerProfileRepository VolunteerProfiles { get; }
 
+        public ISkillRepository Skills { get; }
+
+        // Vehicle Management
+        public IVehicleRepository Vehicles { get; }
+        public IVehicleTypeRepository VehicleTypes { get; }
+
+        // Constructor
         public UnitOfWork(ApplicationDbContext context)
         {
             _context = context;
             Users = new UserRepository(_context);
             RefreshTokens = new RefreshTokenRepository(_context);
-            SupplyItems = new SupplyItemRepository(_context);
-            InventoryTransactions = new InventoryTransactionRepository(_context);
+
 
             Teams = new TeamRepository(_context);
             TeamMembers = new TeamMemberRepository(_context);
             TeamJoinRequests = new TeamJoinRequestRepository(_context);
             VolunteerProfiles = new VolunteerProfileRepository(_context);
+            Skills = new SkillRepository(_context);
+            Vehicles = new VehicleRepository(_context);
+            VehicleTypes = new VehicleTypeRepository(_context);
         }
 
         public async Task<int> SaveChangesAsync(

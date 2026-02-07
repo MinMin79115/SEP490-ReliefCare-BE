@@ -10,18 +10,15 @@ using System.Threading.Tasks;
 
 namespace ReliefManagementSystem.Infrastructure.Repositories
 {
-    public class TeamRepository : ITeamRepository
+    public class TeamRepository : GenericRepository<Team>, ITeamRepository
     {
-        private readonly ApplicationDbContext _context;
-
-        public TeamRepository(ApplicationDbContext context)
+        public TeamRepository(ApplicationDbContext context) : base(context)
         {
-            _context = context;
         }
 
         public async Task<Team?> GetByIdAsync(Guid id)
         {
-            return await _context.Teams
+            return await _dbSet
                 .Include(t => t.Moderator)
                 .Include(t => t.Leader)
                 .FirstOrDefaultAsync(t => t.TeamId == id);
@@ -29,7 +26,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
 
         public async Task<Team?> GetByIdWithDetailsAsync(Guid id)
         {
-            return await _context.Teams
+            return await _dbSet
                 .Include(t => t.Moderator)
                 .Include(t => t.Leader)
                 .Include(t => t.TeamMembers)
@@ -42,7 +39,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
 
         public async Task<List<Team>> GetAllAsync()
         {
-            return await _context.Teams
+            return await _dbSet
                 .Include(t => t.Moderator)
                 .Include(t => t.Leader)
                 .OrderByDescending(t => t.CreatedAt)
@@ -51,7 +48,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
 
         public async Task<List<Team>> GetByModeratorIdAsync(Guid moderatorId)
         {
-            return await _context.Teams
+            return await _dbSet
                 .Include(t => t.Moderator)
                 .Include(t => t.Leader)
                 .Where(t => t.ModeratorId == moderatorId)
@@ -61,38 +58,41 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
 
         public IQueryable<Team> GetQueryable()
         {
-            return _context.Teams
+            return _dbSet
                 .Include(t => t.Moderator)
                 .Include(t => t.Leader)
                 .AsQueryable();
         }
 
-        public async Task AddAsync(Team team)
-        {
-            await _context.Teams.AddAsync(team);
-        }
-
-        public Task UpdateAsync(Team team)
-        {
-            _context.Teams.Update(team);
-            return Task.CompletedTask;
-        }
-
-        public Task DeleteAsync(Team team)
-        {
-            _context.Teams.Remove(team);
-            return Task.CompletedTask;
-        }
-
         public async Task<bool> IsModeratorOfTeamAsync(Guid teamId, Guid userId)
         {
-            return await _context.Teams
+            return await _dbSet
                 .AnyAsync(t => t.TeamId == teamId && t.ModeratorId == userId);
         }
 
-        public async Task<bool> ExistsAsync(Guid id)
+        public async Task<int> GetTeamMemberCountAsync(Guid teamId, CancellationToken cancellationToken = default)
         {
-            return await _context.Teams.AnyAsync(t => t.TeamId == id);
+            return await _context.TeamMembers
+                .CountAsync(tm => tm.TeamId == teamId, cancellationToken);
         }
+
+        public async Task<List<Team>> GetTeamsByModeratorWithMembersAsync(Guid moderatorId)
+        {
+            return await _dbSet
+                .Include(t => t.Moderator)
+                .Include(t => t.Leader)
+                    .ThenInclude(l => l.VolunteerProfile)
+                        .ThenInclude(vp => vp.VolunteerSkills)
+                            .ThenInclude(vs => vs.Skill)
+                .Include(t => t.TeamMembers)
+                    .ThenInclude(tm => tm.User)
+                        .ThenInclude(u => u.VolunteerProfile)
+                            .ThenInclude(vp => vp.VolunteerSkills)
+                                .ThenInclude(vs => vs.Skill)
+                .Where(t => t.ModeratorId == moderatorId)
+                .OrderByDescending(t => t.CreatedAt)
+                .ToListAsync();
+        }
+
     }
 }

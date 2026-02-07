@@ -1,4 +1,7 @@
-﻿using System;
+﻿using Microsoft.Extensions.DependencyInjection;
+using ReliefManagementSystem.Application.Interface;
+using ReliefManagementSystem.Application.Services;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -6,7 +9,19 @@ using System.Threading.Tasks;
 
 namespace ReliefManagementSystem.Application
 {
-    public class ConfigureServices
+    public static class ConfigureServices
     {
+        public static IServiceCollection AddApplication(
+           this IServiceCollection services)
+        {
+            services.AddScoped<IAuthService, AuthService>();
+            services.AddScoped<ITeamService, TeamService>();
+            services.AddScoped<ITeamJoinRequestService, TeamJoinRequestService>();
+            services.AddScoped<IUserService, UserService>();
+            services.AddScoped<ISkillService, SkillService>();
+            services.AddScoped<IVehicleService, VehicleService>();
+            services.AddScoped<IVehicleTypeService, VehicleTypeService>();
+            return services;
+        }
     }
 }

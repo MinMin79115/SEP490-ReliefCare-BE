@@ -3,7 +3,7 @@ using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using ReliefManagementSystem.Application.Common.Interface;
 using ReliefManagementSystem.Application.Common.Models;
-using ReliefManagementSystem.Application.Services;
+using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Domain.Entities;
 using System;
 using System.Collections.Generic;

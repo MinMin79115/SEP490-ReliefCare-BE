@@ -11,18 +11,15 @@ using System.Threading.Tasks;
 
 namespace ReliefManagementSystem.Infrastructure.Repositories
 {
-    public class TeamJoinRequestRepository : ITeamJoinRequestRepository
+    public class TeamJoinRequestRepository : GenericRepository<TeamJoinRequest>, ITeamJoinRequestRepository
     {
-        private readonly ApplicationDbContext _context;
-
-        public TeamJoinRequestRepository(ApplicationDbContext context)
+        public TeamJoinRequestRepository(ApplicationDbContext context) : base(context)
         {
-            _context = context;
         }
 
         public async Task<TeamJoinRequest?> GetByIdAsync(Guid id)
         {
-            return await _context.TeamJoinRequests
+            return await _dbSet
                 .Include(tjr => tjr.Team)
                 .Include(tjr => tjr.Volunteer)
                 .FirstOrDefaultAsync(tjr => tjr.Id == id);
@@ -30,27 +27,25 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
 
         public async Task<TeamJoinRequest?> GetByIdWithDetailsAsync(Guid id)
         {
-            return await _context.TeamJoinRequests
+            return await _dbSet
                 .Include(tjr => tjr.Team)
                     .ThenInclude(t => t.Moderator)
                 .Include(tjr => tjr.Volunteer)
                     .ThenInclude(v => v.VolunteerProfile)
                         .ThenInclude(vp => vp.VolunteerSkills)
                             .ThenInclude(vs => vs.Skill)
-                .Include(tjr => tjr.Reviewer)
                 .FirstOrDefaultAsync(tjr => tjr.Id == id);
         }
 
         public async Task<List<TeamJoinRequest>> GetByVolunteerIdWithDetailsAsync(Guid volunteerId)
         {
-            return await _context.TeamJoinRequests
+            return await _dbSet
                 .Include(tjr => tjr.Team)
                     .ThenInclude(t => t.Moderator)
                 .Include(tjr => tjr.Volunteer)
                     .ThenInclude(v => v.VolunteerProfile)
                         .ThenInclude(vp => vp.VolunteerSkills)
                             .ThenInclude(vs => vs.Skill)
-                .Include(tjr => tjr.Reviewer)
                 .Where(tjr => tjr.VolunteerId == volunteerId)
                 .OrderByDescending(tjr => tjr.CreatedAt)
                 .ToListAsync();
@@ -58,14 +53,13 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
 
         public async Task<List<TeamJoinRequest>> GetByTeamIdWithDetailsAsync(Guid teamId)
         {
-            return await _context.TeamJoinRequests
+            return await _dbSet
                 .Include(tjr => tjr.Team)
                     .ThenInclude(t => t.Moderator)
                 .Include(tjr => tjr.Volunteer)
                     .ThenInclude(v => v.VolunteerProfile)
                         .ThenInclude(vp => vp.VolunteerSkills)
                             .ThenInclude(vs => vs.Skill)
-                .Include(tjr => tjr.Reviewer)
                 .Where(tjr => tjr.TeamId == teamId)
                 .OrderByDescending(tjr => tjr.CreatedAt)
                 .ToListAsync();
@@ -73,7 +67,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
 
         public async Task<List<TeamJoinRequest>> GetPendingRequestsByModeratorWithDetailsAsync(Guid moderatorId)
         {
-            return await _context.TeamJoinRequests
+            return await _dbSet
                 .Include(tjr => tjr.Team)
                     .ThenInclude(t => t.Moderator)
                 .Include(tjr => tjr.Volunteer)
@@ -88,22 +82,11 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
 
         public async Task<TeamJoinRequest?> GetExistingPendingRequestAsync(Guid teamId, Guid volunteerId)
         {
-            return await _context.TeamJoinRequests
+            return await _dbSet
                 .FirstOrDefaultAsync(tjr =>
                     tjr.TeamId == teamId &&
                     tjr.VolunteerId == volunteerId &&
                     tjr.Status == TeamJoinRequestStatus.Pending);
-        }
-
-        public async Task AddAsync(TeamJoinRequest request)
-        {
-            await _context.TeamJoinRequests.AddAsync(request);
-        }
-
-        public Task UpdateAsync(TeamJoinRequest request)
-        {
-            _context.TeamJoinRequests.Update(request);
-            return Task.CompletedTask;
         }
     }
 }

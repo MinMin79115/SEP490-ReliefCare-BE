@@ -16,19 +16,18 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public Guid VolunteerId { get; set; }
         public ApplicationUser Volunteer { get; set; } = null!;
-
-        public TeamRole RequestedRole { get; set; }
-
         public TeamJoinRequestStatus Status { get; set; } = TeamJoinRequestStatus.Pending;
 
         // Moderator review
+        public string? Reason { get; set; }
+        public DateTime? RejectedAt { get; set; }
+        public Guid? RejectedBy { get; set; } 
+        public DateTime? ApprovedAt { get; set; }
+        public Guid? ApprovedBy { get; set; }
+        public string? ReviewNote { get; set; }
+        public DateTime? ReviewedAt { get; set; }
         public Guid? ReviewedBy { get; set; }
         public ApplicationUser? Reviewer { get; set; }
-
-        public string? ReviewNote { get; set; }
-
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
-        public DateTime? ReviewedAt { get; set; }
     }
 }

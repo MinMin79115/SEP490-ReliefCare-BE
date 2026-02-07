@@ -1,7 +1,8 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using ReliefManagementSystem.Application.Features.Team.Request;
-using ReliefManagementSystem.Application.Services;
+using ReliefManagementSystem.Application.Features.Team.DTOs.Request;
+using ReliefManagementSystem.Application.Interface;
+using Swashbuckle.AspNetCore.Annotations;
 using System.Security.Claims;
 
 namespace ReliefManagementSystem.API.Controllers
@@ -21,6 +22,7 @@ namespace ReliefManagementSystem.API.Controllers
         // POST /api/team
         [HttpPost]
         [Authorize(Roles = "Moderator")]
+        [SwaggerOperation(OperationId = "CreateTeam", Description = "Moderator tạo team mới")]
         public async Task<IActionResult> CreateTeam([FromBody] CreateTeamRequest request, CancellationToken cancellationToken)
         {
             var moderatorId = GetCurrentUserId();
@@ -28,17 +30,19 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(result);
         }
 
-        // GET /api/team/5
+        // GET /api/team/{id}
         [HttpGet("{id:guid}")]
+        [SwaggerOperation(OperationId = "GetTeamById", Description = "Lấy thông tin chi tiết team")]
         public async Task<IActionResult> GetTeamById(Guid id, CancellationToken cancellationToken)
         {
             var result = await _teamService.GetTeamByIdAsync(id, cancellationToken);
             return Ok(result);
         }
 
-        // PUT /api/team/5
+        // PUT /api/team/{id}
         [HttpPut("{id:guid}")]
         [Authorize(Roles = "Moderator")]
+        [SwaggerOperation(OperationId = "UpdateTeam", Description = "Moderator cập nhật thông tin team")]
         public async Task<IActionResult> UpdateTeam(Guid id, [FromBody] UpdateTeamRequest request, CancellationToken cancellationToken)
         {
             var moderatorId = GetCurrentUserId();
@@ -46,9 +50,10 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(result);
         }
 
-        // DELETE /api/team/5
+        // DELETE /api/team/{id}
         [HttpDelete("{id:guid}")]
         [Authorize(Roles = "Moderator")]
+        [SwaggerOperation(OperationId = "DeleteTeam", Description = "Moderator xóa team")]
         public async Task<IActionResult> DeleteTeam(Guid id, CancellationToken cancellationToken)
         {
             var moderatorId = GetCurrentUserId();
@@ -58,41 +63,86 @@ namespace ReliefManagementSystem.API.Controllers
 
         // GET /api/team
         [HttpGet]
+        [SwaggerOperation(OperationId = "GetAllTeams", Description = "Lấy danh sách tất cả teams")]
         public async Task<IActionResult> GetAllTeams(CancellationToken cancellationToken)
         {
             var result = await _teamService.GetAllTeamsAsync(cancellationToken);
             return Ok(result);
         }
 
-        // GET /api/team/search?name=abc&status=1&pageIndex=1&pageSize=10
+
+        // GET /api/team/search
         [HttpGet("search")]
+        [SwaggerOperation(OperationId = "SearchTeams", Description = "Tìm kiếm teams theo tên, status với phân trang")]
         public async Task<IActionResult> SearchTeams([FromQuery] SearchTeamRequest request, CancellationToken cancellationToken)
         {
             var result = await _teamService.SearchTeamsAsync(request, cancellationToken);
             return Ok(result);
         }
 
-        // GET /api/team/my-teams
+       // GET /api/team/my-teams
         [HttpGet("my-teams")]
         [Authorize(Roles = "Moderator")]
+        [SwaggerOperation(OperationId = "GetMyTeams", Description = "Moderator lấy tất cả teams mình quản lý bao gồm thông tin members")]
         public async Task<IActionResult> GetMyTeams(CancellationToken cancellationToken)
         {
             var moderatorId = GetCurrentUserId();
-            var result = await _teamService.GetMyTeamsAsync(moderatorId, cancellationToken);
+            var result = await _teamService.GetMyTeamsWithMembersAsync(moderatorId, cancellationToken);
             return Ok(result);
         }
 
-        // GET /api/team/5/members
+        // GET /api/team/my-team (cho Volunteer)
+        [HttpGet("my-team")]
+        [Authorize(Roles = "Volunteer")]
+        [SwaggerOperation(OperationId = "GetMyTeam", Description = "Volunteer lấy team mà mình đang tham gia")]
+        public async Task<IActionResult> GetMyTeam(CancellationToken cancellationToken)
+        {
+            var userId = GetCurrentUserId();
+            var result = await _teamService.GetVolunteerTeamAsync(userId, cancellationToken);
+            return Ok(result);
+        }
+
+        // GET /api/team/{id}/members
         [HttpGet("{id:guid}/members")]
+        [SwaggerOperation(OperationId = "GetTeamMembers", Description = "Lấy danh sách members của team")]
         public async Task<IActionResult> GetTeamMembers(Guid id, CancellationToken cancellationToken)
         {
             var result = await _teamService.GetTeamMembersAsync(id, cancellationToken);
             return Ok(result);
         }
 
-        // DELETE /api/team/5/members/{userId}
-        [HttpDelete("{id:int}/members/{userId:guid}")]
+        // POST /api/team/{id}/members (Moderator add volunteer trực tiếp)
+        [HttpPost("{id:guid}/members")]
         [Authorize(Roles = "Moderator")]
+        [SwaggerOperation(OperationId = "AddMemberDirectly", Description = "Moderator thêm volunteer vào team trực tiếp")]
+        public async Task<IActionResult> AddMemberDirectly(
+            Guid id, 
+            [FromBody] AddMemberRequest request, 
+            CancellationToken cancellationToken)
+        {
+            var moderatorId = GetCurrentUserId();
+            var result = await _teamService.AddMemberDirectlyAsync(id, request, moderatorId, cancellationToken);
+            return Ok(result);
+        }
+
+        // PATCH /api/team/{id}/members/{userId}/promote-to-leader
+        [HttpPatch("{id:guid}/members/{userId:guid}/promote-to-leader")]
+        [Authorize(Roles = "Moderator")]
+        [SwaggerOperation(OperationId = "PromoteMemberToLeader", Description = "Moderator cập nhật role của member lên Leader")]
+        public async Task<IActionResult> PromoteMemberToLeader(
+            Guid id, 
+            Guid userId, 
+            CancellationToken cancellationToken)
+        {
+            var moderatorId = GetCurrentUserId();
+            var result = await _teamService.PromoteMemberToLeaderAsync(id, userId, moderatorId, cancellationToken);
+            return Ok(result);
+        }
+
+        // DELETE /api/team/{id}/members/{userId}
+        [HttpDelete("{id:guid}/members/{userId:guid}")]
+        [Authorize(Roles = "Moderator")]
+        [SwaggerOperation(OperationId = "RemoveMember", Description = "Moderator xóa member khỏi team")]
         public async Task<IActionResult> RemoveMember(Guid id, Guid userId, CancellationToken cancellationToken)
         {
             var moderatorId = GetCurrentUserId();
@@ -104,6 +154,5 @@ namespace ReliefManagementSystem.API.Controllers
         {
             return Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
         }
-
     }
 }
