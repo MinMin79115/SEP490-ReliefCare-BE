@@ -1,0 +1,196 @@
+name: Build and Deploy Production
+on:
+  # Trigger when PR is merged to main/master
+  pull_request:
+    types: [closed]
+    branches: [main, master]
+  # Manual trigger for emergency deploys
+  workflow_dispatch:
+
+jobs:
+  detect-changes:
+    name: Detect Changes
+    runs-on: ubuntu-22.04
+    # Only run if PR was merged OR manual trigger
+    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
+    outputs:
+      services: ${{ steps.changes.outputs.services }}
+      reliefcare-api: ${{ steps.changes.outputs.reliefcare-api }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 2
+
+      - name: Check for changes
+        id: changes
+        run: |
+          # Get list of changed files
+          CHANGED_FILES=$(git diff --name-only HEAD^ HEAD 2>/dev/null || echo "")
+
+          # If no previous commit (first push), build all
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "First push detected - building all services"
+            echo "reliefcare-api=true" >> $GITHUB_OUTPUT
+            echo 'services=["reliefcare-api"]' >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+
+          # Initialize services array
+          SERVICES="["
+          FIRST=true
+
+          # Check reliefcare-api changes (API, Application, Domain, Infrastructure, compose files)
+          if echo "$CHANGED_FILES" | grep -E "^ReliefManagementSystem\.(API|Application|Domain|Infrastructure)/|^compose" > /dev/null; then
+            echo "reliefcare-api=true" >> $GITHUB_OUTPUT
+            if [ "$FIRST" = true ]; then
+              SERVICES="${SERVICES}\"reliefcare-api\""
+              FIRST=false
+            else
+              SERVICES="${SERVICES},\"reliefcare-api\""
+            fi
+          else
+            echo "reliefcare-api=false" >> $GITHUB_OUTPUT
+          fi
+
+          SERVICES="${SERVICES}]"
+          echo "services=$SERVICES" >> $GITHUB_OUTPUT
+          echo "Services to build: $SERVICES"
+
+  api-image-build:
+    name: Build / API
+    runs-on: ubuntu-22.04
+    needs: detect-changes
+    if: needs.detect-changes.outputs.services != '[]'
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: DockerHub Login
+        uses: docker/login-action@v3.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Lowercase repository name
+        run: |
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "REGISTRY=ghcr.io/$REPO_LOWER" >> $GITHUB_ENV
+
+      - name: Build Image And Push
+        run: |
+          echo "Building service: ${{ matrix.service }}"
+          docker compose -f compose.production.yaml build ${{ matrix.service }}
+          docker compose -f compose.production.yaml push ${{ matrix.service }}
+
+  api-image-deploy:
+    name: Deploy / API
+    runs-on: self-hosted # Chạy trên production server
+    needs: [api-image-build, detect-changes]
+    if: needs.detect-changes.outputs.services != '[]'
+    permissions:
+      contents: read
+      packages: write
+    env:
+      # Các biến môi trường lấy từ Secrets (Production)
+      POSTGRES_PASSWORD: ${{ secrets.PROD_POSTGRES_PASSWORD }}
+      JWT_KEY: ${{ secrets.PROD_JWT_KEY }}
+      CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.PROD_CLOUDFLARE_TUNNEL_TOKEN }}
+      GOOGLE_CLIENT_ID: ${{ secrets.PROD_GOOGLE_CLIENT_ID }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.PROD_GOOGLE_CLIENT_SECRET }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: DockerHub Login
+        uses: docker/login-action@v3.1.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set Environment Variables
+        run: |
+          # Chuyển tên repo về chữ thường cho đúng chuẩn Docker
+          echo "REGISTRY=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+
+      - name: Backup Database (Optional)
+        run: |
+          echo "Creating database backup before deployment..."
+          # Tạo backup folder nếu chưa có
+          mkdir -p ./backups
+
+          # Backup database (nếu container đang chạy)
+          if docker ps | grep -q reliefcare-postgres-prod; then
+            BACKUP_FILE="./backups/backup_$(date +%Y%m%d_%H%M%S).sql"
+            docker exec reliefcare-postgres-prod pg_dump -U postgres relief_db > "$BACKUP_FILE"
+            echo "Backup created: $BACKUP_FILE"
+            
+            # Giữ lại 5 bản backup gần nhất
+            ls -t ./backups/backup_*.sql | tail -n +6 | xargs -r rm
+          else
+            echo "Database container not running, skipping backup"
+          fi
+
+      - name: Pull and Deploy
+        run: |
+          echo "Pulling latest images..."
+          # Pull tất cả service được định nghĩa trong file compose
+          docker compose -f compose.production.yaml pull
+
+          echo "Deploying application..."
+          # Up -d sẽ recreate container nếu có image mới
+          docker compose -f compose.production.yaml up -d --remove-orphans
+
+      - name: Wait for Healthcheck
+        run: |
+          echo "Waiting for services to be ready..."
+          sleep 15
+
+          # Kiểm tra health status
+          docker compose -f compose.production.yaml ps
+
+          # Kiểm tra API health endpoint
+          MAX_RETRIES=10
+          RETRY_COUNT=0
+
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            if curl -f http://localhost:8080/health > /dev/null 2>&1; then
+              echo "✅ API is healthy!"
+              break
+            else
+              echo "⏳ Waiting for API to be ready... ($((RETRY_COUNT + 1))/$MAX_RETRIES)"
+              sleep 10
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+            fi
+          done
+
+          if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+            echo "❌ API health check failed after $MAX_RETRIES attempts"
+            docker compose -f compose.production.yaml logs reliefcare-api
+            exit 1
+          fi
+
+      - name: Cleanup Unused Images
+        run: |
+          docker image prune -a -f
+
+      - name: Send Deployment Notification
+        if: always()
+        run: |
+          if [ "${{ job.status }}" == "success" ]; then
+            echo "✅ Production deployment successful!"
+          else
+            echo "❌ Production deployment failed!"
+          fi
+          # Có thể thêm notification đến Slack, Discord, Email, etc.

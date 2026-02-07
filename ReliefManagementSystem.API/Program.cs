@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
 using Microsoft.OpenApi.Models;
+using ReliefManagementSystem.API.Middleware;
 using ReliefManagementSystem.Application;
 using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Domain.Entities;
@@ -61,7 +62,10 @@ builder.Services.AddDbContext<ApplicationDbContext>(options =>
     options.UseNpgsql(builder.Configuration.GetConnectionString("Default")));
 
 builder.Services
-    .AddIdentity<ApplicationUser, IdentityRole<Guid>>()
+    .AddIdentity<ApplicationUser, IdentityRole<Guid>>(options =>
+    {
+        options.User.RequireUniqueEmail = true;
+    })
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddDefaultTokenProviders();
 
@@ -139,6 +143,7 @@ using (var scope = app.Services.CreateScope())
     await RoleSeeder.SeedAsync(roleManager);
     await UserSeeder.SeedAsync(userManager, context);
     await SkillSeeder.SeedAsync(context);
+    await LocationExcelSeeder.SeedAsync(context);
     await TeamSeeder.SeedAsync(context);
     
     logger.LogInformation("Database seeding completed.");
@@ -155,7 +160,7 @@ if (app.Environment.IsDevelopment() || app.Environment.IsStaging())
 app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
-
+app.UseMiddleware<ExceptionMiddleware>();
 app.MapControllers();
 
 app.Run();
