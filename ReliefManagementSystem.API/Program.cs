@@ -84,23 +84,64 @@ builder.Services.AddAuthentication(options =>
     options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
 })
 .AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
 
-        ValidIssuer = jwtSettings!.Issuer,
-        ValidAudience = jwtSettings.Audience,
+            ValidIssuer = jwtSettings!.Issuer,
+            ValidAudience = jwtSettings.Audience,
 
-        IssuerSigningKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(jwtSettings.Key)
-        )
-    };
-})
-.AddGoogle(options =>
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(jwtSettings.Key)
+            )
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = async context =>
+            {
+                context.HandleResponse();
+                context.Response.StatusCode = 401;
+                context.Response.ContentType = "application/json";
+
+                var traceId = context.HttpContext.TraceIdentifier;
+
+                var result = new
+                {
+                    message = "You are not authenticated.",
+                    code = "AUTH_UNAUTHORIZED",
+                    traceId = traceId,
+                    statusCode = 401
+                };
+
+                await context.Response.WriteAsJsonAsync(result);
+            },
+            OnForbidden = async context =>
+            {
+                context.Response.StatusCode = 403;
+                context.Response.ContentType = "application/json";
+
+                var traceId = context.HttpContext.TraceIdentifier;
+
+                var result = new
+                {
+                    message = "You do not have permission to perform this action.",
+                    code = "AUTH_FORBIDDEN",
+                    traceId = traceId,
+                    statusCode = 403
+                };
+
+                await context.Response.WriteAsJsonAsync(result);
+            }
+        };
+
+
+    })
+    .AddGoogle(options =>
 {
     options.ClientId =
          builder.Configuration["AuthenticationGoogle:Google:ClientId"];
