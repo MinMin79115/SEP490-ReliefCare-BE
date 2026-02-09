@@ -156,6 +156,22 @@ namespace ReliefManagementSystem.Infrastructure.Security
 
             return user;
         }
+
+        //public async Task ForgotPasswordAsync(string email, CancellationToken cancellationToken)
+        //{
+        //    var user = await _userManager.FindByEmailAsync(email);
+
+        //    if (user == null)
+        //        return; // ❗ Không leak thông tin user tồn tại hay không
+
+        //    var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+
+        //    var resetLink = $"https://your-frontend/reset-password?email={email}&token={Uri.EscapeDataString(token)}";
+
+        //    // TODO: Send email
+        //    await _emailService.SendAsync(email, "Reset Password", resetLink);
+        //}
+
         private static IDictionary<string, string[]> ConvertErrors(IEnumerable<IdentityError> errors)
         {
             return errors
