@@ -12,12 +12,17 @@ namespace ReliefManagementSystem.Infrastructure.Seed
 {
     public class LocationExcelSeeder
     {
+
         public static async Task SeedAsync(ApplicationDbContext context)
         {
             if (context.Locations.Any())
                 return;
 
-            var filePath = "D://DataLocation//MB-TuyenQuang.xlsx";
+            var filePath = Path.Combine(
+                Directory.GetCurrentDirectory(),
+                "DataFiles",
+                "FinalData.xlsx"
+            );
 
             using var workbook = new XLWorkbook(filePath);
             var sheet = workbook.Worksheet(1);

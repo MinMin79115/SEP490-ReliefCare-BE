@@ -184,7 +184,7 @@ using (var scope = app.Services.CreateScope())
     await RoleSeeder.SeedAsync(roleManager);
     await UserSeeder.SeedAsync(userManager, context);
     await SkillSeeder.SeedAsync(context);
-    //await LocationExcelSeeder.SeedAsync(context);
+    await LocationExcelSeeder.SeedAsync(context);
     await TeamSeeder.SeedAsync(context);
     
     logger.LogInformation("Database seeding completed.");
