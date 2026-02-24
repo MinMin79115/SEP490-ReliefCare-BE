@@ -6,9 +6,11 @@ using System.Threading.Tasks;
 
 namespace ReliefManagementSystem.Domain.Enum
 {
-    public enum RelifeStationLevel
+    public enum ReliefStationStatus
     {
-        Regional = 1, // Trạm cấp vùng
-        Local = 2     // Trạm cấp địa phương
+        Draft = 0,        
+        Active = 1,       
+        Inactive = 2,     
+        Closed = 3        
     }
 }
