@@ -43,6 +43,9 @@ namespace ReliefManagementSystem.Infrastructure
             services.AddScoped<IVehicleRepository, VehicleRepository>();
             services.AddScoped<IVehicleTypeRepository, VehicleTypeRepository>();
 
+            // Inventory Management repositories
+            services.AddScoped<ISupplyItemRepository, SupplyItemRepository>();
+
             return services;
 
         }
