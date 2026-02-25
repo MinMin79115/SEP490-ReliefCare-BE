@@ -23,6 +23,7 @@ namespace ReliefManagementSystem.Application
             services.AddScoped<IVehicleTypeService, VehicleTypeService>();
             // Inventory Management
             services.AddScoped<ISupplyItemService, SupplyItemService>();
+            services.AddScoped<IInventoryService, InventoryService>();
             return services;
         }
     }

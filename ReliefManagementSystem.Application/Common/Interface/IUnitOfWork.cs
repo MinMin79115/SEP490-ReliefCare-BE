@@ -28,6 +28,8 @@ namespace ReliefManagementSystem.Application.Common.Interface
 
         // Inventory Management
         ISupplyItemRepository SupplyItems { get; }
+        IInventoryRepository Inventories { get; }
+        IInventoryStockRepository InventoryStocks { get; }
         Task<int> SaveChangesAsync(
         CancellationToken cancellationToken = default);
 

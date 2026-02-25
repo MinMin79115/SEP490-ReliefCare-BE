@@ -45,6 +45,8 @@ namespace ReliefManagementSystem.Infrastructure
 
             // Inventory Management repositories
             services.AddScoped<ISupplyItemRepository, SupplyItemRepository>();
+            services.AddScoped<IInventoryRepository, InventoryRepository>();
+            services.AddScoped<IInventoryStockRepository, InventoryStockRepository>();
 
             return services;
 
