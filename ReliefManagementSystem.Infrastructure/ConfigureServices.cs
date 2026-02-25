@@ -43,6 +43,8 @@ namespace ReliefManagementSystem.Infrastructure
             services.AddScoped<IVehicleRepository, VehicleRepository>();
             services.AddScoped<IVehicleTypeRepository, VehicleTypeRepository>();
 
+            // Relief Station repositories
+            services.AddScoped<IReliefStationRepository, ReliefStationRepository>();
             return services;
 
         }

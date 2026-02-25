@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace ReliefManagementSystem.Application.Interface
 {
-    internal class IReliefStationService
+    public interface IReliefStationService
     {
     }
 }

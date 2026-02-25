@@ -25,6 +25,10 @@ namespace ReliefManagementSystem.Application.Common.Interface
         // Vehicle Management
         IVehicleRepository Vehicles { get; }
         IVehicleTypeRepository VehicleTypes { get; }
+
+        // Relief Station Management
+        IReliefStationRepository ReliefStations { get; }
+
         Task<int> SaveChangesAsync(
         CancellationToken cancellationToken = default);
 

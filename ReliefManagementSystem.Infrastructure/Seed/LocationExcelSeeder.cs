@@ -41,10 +41,9 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                 var area = row.Cell(4).GetValue<decimal>();
                 var population = row.Cell(5).GetValue<long>();
 
-                // Normalize
-                var regionNorm = StringHelper.NormalizeVietnamese(regionName);
-                var provinceNorm = StringHelper.NormalizeVietnamese(provinceName);
-                var districtNorm = StringHelper.NormalizeVietnamese(districtName);
+                var regionNorm = StringHelper.NormalizeVietnamesePath(regionName);
+                var provinceNorm = StringHelper.NormalizeVietnamesePath(provinceName);
+                var districtNorm = StringHelper.NormalizeVietnamesePath(districtName);
 
                 // 1️⃣ REGION
                 if (!regionCache.TryGetValue(regionName, out var region))
@@ -56,8 +55,10 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                         NormalizedName = regionNorm,
                         FullName = regionName,
                         Level = LocationLevel.Region,
-                        Status = 1
+                        Status = 1,
+                        Path = $"/{regionNorm}/"
                     };
+
                     regionCache[regionName] = region;
                     context.Locations.Add(region);
                 }
@@ -74,8 +75,10 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                         FullName = $"{provinceName}, {regionName}",
                         ParentId = region.LocationId,
                         Level = LocationLevel.Province,
-                        Status = 1
+                        Status = 1,
+                        Path = $"{region.Path}{provinceNorm}/"
                     };
+
                     provinceCache[provinceKey] = province;
                     context.Locations.Add(province);
                 }
@@ -100,7 +103,8 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                         Population = population,
                         PopulationDensity = area == 0 ? 0 : population / area,
                         Level = LocationLevel.District,
-                        Status = 1
+                        Status = 1,
+                        Path = $"{province.Path}{districtNorm}/"
                     };
 
                     context.Locations.Add(district);

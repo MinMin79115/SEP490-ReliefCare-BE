@@ -28,13 +28,12 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public Guid CreatedBy { get; set; }
 
+        public ReliefStationLevel Level { get; set; }
         public double Longitude { get; set; }
         public double Latitude { get; set; }
         public Guid? ParentReliefStationId { get; set; }
         public ReliefStation? ParentStation { get; set; }
         public ICollection<ReliefStation> ChildStations { get; set; }
-
-        public bool IsActive { get; set; }
 
         public ReliefStationStatus Status { get; set; }
 

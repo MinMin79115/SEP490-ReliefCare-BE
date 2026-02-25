@@ -8,7 +8,8 @@ namespace ReliefManagementSystem.Domain.Enum
 {
     public enum ReliefStationLevel
     {
-        Regional = 1, // Trạm cấp vùng
-        Local = 2     // Trạm cấp địa phương
+        Regional = 1, 
+        Province = 2,
+        Local = 3
     }
 }
