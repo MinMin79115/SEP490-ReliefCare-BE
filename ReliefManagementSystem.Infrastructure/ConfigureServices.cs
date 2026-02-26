@@ -45,6 +45,9 @@ namespace ReliefManagementSystem.Infrastructure
 
             // Relief Station repositories
             services.AddScoped<IReliefStationRepository, ReliefStationRepository>();
+
+            //Location repositories
+            services.AddScoped<ILocationRepository, LocationRepository>();
             return services;
 
         }

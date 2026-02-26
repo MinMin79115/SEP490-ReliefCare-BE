@@ -29,6 +29,9 @@ namespace ReliefManagementSystem.Application.Common.Interface
         // Relief Station Management
         IReliefStationRepository ReliefStations { get; }
 
+        // Location Management
+        ILocationRepository Locations { get; }
+
         Task<int> SaveChangesAsync(
         CancellationToken cancellationToken = default);
 

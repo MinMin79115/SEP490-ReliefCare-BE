@@ -33,6 +33,9 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
         // Relief Station Management
         public IReliefStationRepository ReliefStations { get; }
 
+        //Location Management
+        public ILocationRepository Locations { get; }
+
         // Constructor
         public UnitOfWork(ApplicationDbContext context)
         {
@@ -49,6 +52,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             Vehicles = new VehicleRepository(_context);
             VehicleTypes = new VehicleTypeRepository(_context);
             ReliefStations = new ReliefStationRepository(_context);
+            Locations = new LocationRepository(_context);
         }
 
         public async Task<int> SaveChangesAsync(

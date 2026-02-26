@@ -102,7 +102,7 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                         Area = area,
                         Population = population,
                         PopulationDensity = area == 0 ? 0 : population / area,
-                        Level = LocationLevel.District,
+                        Level = LocationLevel.Commune,
                         Status = 1,
                         Path = $"{province.Path}{districtNorm}/"
                     };
