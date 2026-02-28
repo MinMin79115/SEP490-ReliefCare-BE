@@ -24,6 +24,11 @@ namespace ReliefManagementSystem.Application
             // Inventory Management
             services.AddScoped<ISupplyItemService, SupplyItemService>();
             services.AddScoped<IInventoryService, InventoryService>();
+            services.AddScoped<IInventoryTransactionService, InventoryTransactionService>();
+            // Relief Station Management
+            services.AddScoped<IReliefStationService, ReliefStationService>();
+            // Supply Allocation
+            services.AddScoped<ISupplyAllocationService, SupplyAllocationService>();
             return services;
         }
     }

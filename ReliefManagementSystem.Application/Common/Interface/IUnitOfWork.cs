@@ -30,6 +30,17 @@ namespace ReliefManagementSystem.Application.Common.Interface
         ISupplyItemRepository SupplyItems { get; }
         IInventoryRepository Inventories { get; }
         IInventoryStockRepository InventoryStocks { get; }
+        IInventoryTransactionRepository InventoryTransactions { get; }
+
+        // Relief Station Management
+        IReliefStationRepository ReliefStations { get; }
+        IReliefStationTeamRepository ReliefStationTeams { get; }
+
+        // Supply Allocation
+        ISupplyAllocationRepository SupplyAllocations { get; }
+
+        // Campaign (stub for validation — full module TBD)
+        ICampaignRepository Campaigns { get; }
         Task<int> SaveChangesAsync(
         CancellationToken cancellationToken = default);
 
