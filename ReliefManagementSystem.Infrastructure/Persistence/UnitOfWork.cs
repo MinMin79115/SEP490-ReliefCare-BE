@@ -34,6 +34,17 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
         public ISupplyItemRepository SupplyItems { get; }
         public IInventoryRepository Inventories { get; }
         public IInventoryStockRepository InventoryStocks { get; }
+        public IInventoryTransactionRepository InventoryTransactions { get; }
+
+        // Relief Station Management
+        public IReliefStationRepository ReliefStations { get; }
+        public IReliefStationTeamRepository ReliefStationTeams { get; }
+
+        // Supply Allocation
+        public ISupplyAllocationRepository SupplyAllocations { get; }
+
+        // Campaign (stub for validation — full module TBD)
+        public ICampaignRepository Campaigns { get; }
 
         // Constructor
         public UnitOfWork(ApplicationDbContext context)
@@ -53,6 +64,11 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             SupplyItems = new SupplyItemRepository(_context);
             Inventories = new InventoryRepository(_context);
             InventoryStocks = new InventoryStockRepository(_context);
+            InventoryTransactions = new InventoryTransactionRepository(_context);
+            ReliefStations = new ReliefStationRepository(_context);
+            ReliefStationTeams = new ReliefStationTeamRepository(_context);
+            SupplyAllocations = new SupplyAllocationRepository(_context);
+            Campaigns = new CampaignRepository(_context);
         }
 
         public async Task<int> SaveChangesAsync(
