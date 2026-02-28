@@ -27,4 +27,11 @@
     </Content>
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- Copy DataFiles to output so LocationExcelSeeder can find FinalData.xlsx at runtime -->
+    <Content Include="DataFiles\**\*">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>
