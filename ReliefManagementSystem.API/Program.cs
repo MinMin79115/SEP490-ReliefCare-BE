@@ -144,15 +144,32 @@ builder.Services.AddAuthentication(options =>
     .AddGoogle(options =>
 {
     options.ClientId =
-         builder.Configuration["AuthenticationGoogle:Google:ClientId"];
+         builder.Configuration["AuthenticationGoogle:Google:ClientId"]!;
 
     options.ClientSecret =
-        builder.Configuration["AuthenticationGoogle:Google:ClientSecret"];
+        builder.Configuration["AuthenticationGoogle:Google:ClientSecret"]!;
 });
 
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+
+// CORS
+var allowedOrigins = builder.Configuration
+    .GetSection("CorsSettings:AllowedOrigins")
+    .Get<string[]>() ?? [];
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("CorsPolicy", policy =>
+    {
+        policy
+            .WithOrigins(allowedOrigins)
+            .AllowAnyHeader()
+            .AllowAnyMethod()
+            .AllowCredentials();
+    });
+});
 
 var app = builder.Build();
 
@@ -198,6 +215,7 @@ if (app.Environment.IsDevelopment() || app.Environment.IsStaging())
 }
 
 app.UseHttpsRedirection();
+app.UseCors("CorsPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<ExceptionMiddleware>();
