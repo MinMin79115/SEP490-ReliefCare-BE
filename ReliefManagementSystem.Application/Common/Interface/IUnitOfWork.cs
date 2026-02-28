@@ -25,6 +25,11 @@ namespace ReliefManagementSystem.Application.Common.Interface
         // Vehicle Management
         IVehicleRepository Vehicles { get; }
         IVehicleTypeRepository VehicleTypes { get; }
+
+        // Inventory Management
+        ISupplyItemRepository SupplyItems { get; }
+        IInventoryRepository Inventories { get; }
+        IInventoryStockRepository InventoryStocks { get; }
         Task<int> SaveChangesAsync(
         CancellationToken cancellationToken = default);
 

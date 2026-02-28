@@ -30,6 +30,11 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
         public IVehicleRepository Vehicles { get; }
         public IVehicleTypeRepository VehicleTypes { get; }
 
+        // Inventory Management
+        public ISupplyItemRepository SupplyItems { get; }
+        public IInventoryRepository Inventories { get; }
+        public IInventoryStockRepository InventoryStocks { get; }
+
         // Constructor
         public UnitOfWork(ApplicationDbContext context)
         {
@@ -45,6 +50,9 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             Skills = new SkillRepository(_context);
             Vehicles = new VehicleRepository(_context);
             VehicleTypes = new VehicleTypeRepository(_context);
+            SupplyItems = new SupplyItemRepository(_context);
+            Inventories = new InventoryRepository(_context);
+            InventoryStocks = new InventoryStockRepository(_context);
         }
 
         public async Task<int> SaveChangesAsync(
