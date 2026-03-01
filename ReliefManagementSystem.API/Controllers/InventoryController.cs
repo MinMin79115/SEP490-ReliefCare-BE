@@ -19,7 +19,7 @@ namespace ReliefManagementSystem.API.Controllers
         {
             _inventoryService = inventoryService;
         }
-
+        
         // ─── Inventory Endpoints ──────────────────────────────────────────────
 
         /// <summary>Creates a new inventory for a relief station.</summary>

@@ -26,7 +26,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
         /// <summary>
         /// Gets stations filtered by status.
         /// </summary>
-        Task<IReadOnlyList<ReliefStation>> GetByStatusAsync(RelifeStationStatus status, CancellationToken cancellationToken = default);
+        Task<IReadOnlyList<ReliefStation>> GetByStatusAsync(ReliefStationStatus status, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Gets stations managed by a specific user.

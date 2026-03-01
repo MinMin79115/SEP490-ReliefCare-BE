@@ -48,7 +48,7 @@ namespace ReliefManagementSystem.Application.Services
                 Longitude = request.Longitude,
                 Latitude = request.Latitude,
                 Status = request.Status,
-                IsActive = request.Status == RelifeStationStatus.Active,
+                IsActive = request.Status == ReliefStationStatus.Active,
                 CreatedBy = _currentUser.UserId,
                 CreatedAt = DateTime.UtcNow,
                 UpdatedAt = DateTime.UtcNow
@@ -84,7 +84,7 @@ namespace ReliefManagementSystem.Application.Services
 
         /// <inheritdoc/>
         public async Task<IReadOnlyList<ReliefStationResponse>> GetByStatusAsync(
-            RelifeStationStatus status,
+            ReliefStationStatus status,
             CancellationToken cancellationToken = default)
         {
             var stations = await _unitOfWork.ReliefStations.GetByStatusAsync(status, cancellationToken);
@@ -113,7 +113,7 @@ namespace ReliefManagementSystem.Application.Services
             station.Longitude = request.Longitude;
             station.Latitude = request.Latitude;
             station.Status = request.Status;
-            station.IsActive = request.Status == RelifeStationStatus.Active;
+            station.IsActive = request.Status == ReliefStationStatus.Active;
             station.UpdatedAt = DateTime.UtcNow;
 
             await _unitOfWork.ReliefStations.UpdateAsync(station);
@@ -131,7 +131,7 @@ namespace ReliefManagementSystem.Application.Services
                 throw new KeyNotFoundException($"Relief station '{stationId}' was not found.");
 
             // Soft-close instead of hard delete
-            station.Status = RelifeStationStatus.Closed;
+            station.Status = ReliefStationStatus.Closed;
             station.IsActive = false;
             station.UpdatedAt = DateTime.UtcNow;
 
@@ -165,7 +165,7 @@ namespace ReliefManagementSystem.Application.Services
 
             var assignment = new Domain.Entities.ReliefStationTeam
             {
-                RelifeStationTeamId = Guid.NewGuid(),
+                ReliefStationTeamId = Guid.NewGuid(),
                 ReliefStationId = stationId,
                 TeamId = request.TeamId,
                 Status = ReliefTeamAssignmentStatus.Active,
@@ -175,7 +175,7 @@ namespace ReliefManagementSystem.Application.Services
             await _unitOfWork.ReliefStationTeams.AddAsync(assignment);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            var saved = await _unitOfWork.ReliefStationTeams.GetByIdWithDetailsAsync(assignment.RelifeStationTeamId, cancellationToken);
+            var saved = await _unitOfWork.ReliefStationTeams.GetByIdWithDetailsAsync(assignment.ReliefStationTeamId, cancellationToken);
             return MapToTeamResponse(saved!);
         }
 
@@ -265,7 +265,7 @@ namespace ReliefManagementSystem.Application.Services
 
         private static StationTeamResponse MapToTeamResponse(Domain.Entities.ReliefStationTeam rst) => new()
         {
-            AssignmentId = rst.RelifeStationTeamId,
+            AssignmentId = rst.ReliefStationTeamId,
             TeamId = rst.TeamId,
             TeamName = rst.Team?.Name ?? string.Empty,
             Status = rst.Status,
