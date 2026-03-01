@@ -30,6 +30,7 @@ namespace ReliefManagementSystem.Infrastructure
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<ICurrentUserService, CurrentUserService>();
+            services.AddScoped<IImageService, CloudinaryImageService>();
 
             // Team repositories
             services.AddScoped<ITeamRepository, TeamRepository>();

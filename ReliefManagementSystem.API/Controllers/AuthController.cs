@@ -1,10 +1,12 @@
 ﻿using Microsoft.AspNetCore.Authentication.Google;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using ReliefManagementSystem.Application.Features.Auth.DTOs;
 using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Domain.Entities;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace ReliefManagementSystem.API.Controllers
 {
@@ -190,6 +192,26 @@ namespace ReliefManagementSystem.API.Controllers
                 return Unauthorized("Google login failed");
 
             return Ok(new { user });
+        }
+
+        [Authorize]
+        [SwaggerOperation(
+            Summary = "Change password",
+            Description = "Change password for the currently authenticated user."
+        )]
+        [SwaggerResponse(204, "Password changed successfully")]
+        [SwaggerResponse(400, "Validation error")]
+        [SwaggerResponse(401, "Unauthorized")]
+        [HttpPost("change-password")]
+        public async Task<IActionResult> ChangePassword(
+            [FromBody] ChangePasswordRequest request,
+            CancellationToken cancellationToken)
+        {
+            await _authService.ChangePasswordAsync(
+                request,
+                cancellationToken);
+
+            return NoContent();
         }
     }
 }

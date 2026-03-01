@@ -39,5 +39,11 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                         .ThenInclude(vs => vs.Skill)
                 .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
         }
+
+        /// <inheritdoc />
+        public IQueryable<ApplicationUser> GetAllUsersQueryable()
+        {
+            return _context.Users.AsNoTracking().OrderBy(u => u.DisplayName);
+        }
     }
 }

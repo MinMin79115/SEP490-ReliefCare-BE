@@ -17,5 +17,10 @@ namespace ReliefManagementSystem.Application.Common.Interface
         Task<ApplicationUser?> GetByIdWithVolunteerProfileAndSkillsAsync(
             Guid userId, 
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Lấy IQueryable danh sách tất cả users để hỗ trợ phân trang
+        /// </summary>
+        IQueryable<ApplicationUser> GetAllUsersQueryable();
     }
 }

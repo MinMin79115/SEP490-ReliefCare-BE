@@ -105,5 +105,16 @@ namespace ReliefManagementSystem.Application.Services
                 AccessTokenExpires = token.AccessTokenExpires
             };
         }
+
+        public async Task ChangePasswordAsync(
+            ChangePasswordRequest request,
+            CancellationToken cancellationToken)
+        {
+            await _identityAuthService.ChangePasswordAsync(
+                request.CurrentPassword,
+                request.NewPassword,
+                cancellationToken
+            );
+        }
     }
 }

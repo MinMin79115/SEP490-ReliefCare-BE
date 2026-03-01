@@ -26,5 +26,10 @@ namespace ReliefManagementSystem.Application.Interface
 
         Task<ApplicationUser?> ValidateByGoogleAsync(
     CancellationToken cancellationToken);
+
+        Task ChangePasswordAsync(
+            string currentPassword,
+            string newPassword,
+            CancellationToken cancellationToken);
     }
 }

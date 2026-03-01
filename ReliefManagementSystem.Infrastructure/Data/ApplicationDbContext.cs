@@ -270,7 +270,7 @@ namespace ReliefManagementSystem.Infrastructure.Data
 
             builder.Entity<Inventory>()
                 .HasOne(i => i.ReliefStation)
-                .WithMany()
+                .WithMany(rs => rs.Inventories)
                 .HasForeignKey(i => i.ReliefStationId)
                 .OnDelete(DeleteBehavior.Restrict);
 
