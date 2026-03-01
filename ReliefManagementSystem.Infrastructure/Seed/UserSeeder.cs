@@ -190,7 +190,8 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                         VerificationStatus = VerificationStatus.Pending
                     });
 
-                    await context.SaveChangesAsync();
+                    await context.SaveChangesAsync();//push test
+                    
                 }
             }
         }

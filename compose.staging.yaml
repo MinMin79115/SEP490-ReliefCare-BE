@@ -43,6 +43,7 @@ services:
       CorsSettings__AllowedOrigins__2: "http://localhost:4200"
       CorsSettings__AllowedOrigins__3: "https://staging.reliefhub.info.vn"
       CorsSettings__AllowedOrigins__4: "https://reliefhub.info.vn"
+      CorsSettings__AllowedOrigins__5: "https://relief-carevn.vercel.app"
       ASPNETCORE_ENVIRONMENT: "Staging"
       ASPNETCORE_URLS: "http://+:8080"
       Logging__LogLevel__Default: "Information"

@@ -30,6 +30,22 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
         public IVehicleRepository Vehicles { get; }
         public IVehicleTypeRepository VehicleTypes { get; }
 
+        // Inventory Management
+        public ISupplyItemRepository SupplyItems { get; }
+        public IInventoryRepository Inventories { get; }
+        public IInventoryStockRepository InventoryStocks { get; }
+        public IInventoryTransactionRepository InventoryTransactions { get; }
+
+        // Relief Station Management
+        public IReliefStationRepository ReliefStations { get; }
+        public IReliefStationTeamRepository ReliefStationTeams { get; }
+
+        // Supply Allocation
+        public ISupplyAllocationRepository SupplyAllocations { get; }
+
+        // Campaign (stub for validation — full module TBD)
+        public ICampaignRepository Campaigns { get; }
+
         // Relief Station Management
         public IReliefStationRepository ReliefStations { get; }
 
@@ -51,6 +67,14 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             Skills = new SkillRepository(_context);
             Vehicles = new VehicleRepository(_context);
             VehicleTypes = new VehicleTypeRepository(_context);
+            SupplyItems = new SupplyItemRepository(_context);
+            Inventories = new InventoryRepository(_context);
+            InventoryStocks = new InventoryStockRepository(_context);
+            InventoryTransactions = new InventoryTransactionRepository(_context);
+            ReliefStations = new ReliefStationRepository(_context);
+            ReliefStationTeams = new ReliefStationTeamRepository(_context);
+            SupplyAllocations = new SupplyAllocationRepository(_context);
+            Campaigns = new CampaignRepository(_context);
             ReliefStations = new ReliefStationRepository(_context);
             Locations = new LocationRepository(_context);
         }

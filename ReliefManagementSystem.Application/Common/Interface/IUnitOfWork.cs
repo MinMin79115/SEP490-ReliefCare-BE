@@ -26,6 +26,22 @@ namespace ReliefManagementSystem.Application.Common.Interface
         IVehicleRepository Vehicles { get; }
         IVehicleTypeRepository VehicleTypes { get; }
 
+        // Inventory Management
+        ISupplyItemRepository SupplyItems { get; }
+        IInventoryRepository Inventories { get; }
+        IInventoryStockRepository InventoryStocks { get; }
+        IInventoryTransactionRepository InventoryTransactions { get; }
+
+        // Relief Station Management
+        IReliefStationRepository ReliefStations { get; }
+        IReliefStationTeamRepository ReliefStationTeams { get; }
+
+        // Supply Allocation
+        ISupplyAllocationRepository SupplyAllocations { get; }
+
+        // Campaign (stub for validation — full module TBD)
+        ICampaignRepository Campaigns { get; }
+
         // Relief Station Management
         IReliefStationRepository ReliefStations { get; }
 

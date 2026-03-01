@@ -23,6 +23,14 @@ namespace ReliefManagementSystem.Application
             services.AddScoped<ISkillService, SkillService>();
             services.AddScoped<IVehicleService, VehicleService>();
             services.AddScoped<IVehicleTypeService, VehicleTypeService>();
+            // Inventory Management
+            services.AddScoped<ISupplyItemService, SupplyItemService>();
+            services.AddScoped<IInventoryService, InventoryService>();
+            services.AddScoped<IInventoryTransactionService, InventoryTransactionService>();
+            // Relief Station Management
+            services.AddScoped<IReliefStationService, ReliefStationService>();
+            // Supply Allocation
+            services.AddScoped<ISupplyAllocationService, SupplyAllocationService>();
             services.AddScoped<IReliefStationService, ReliefStationService>();
             services.AddScoped<ILocationService, LocationService>();
 

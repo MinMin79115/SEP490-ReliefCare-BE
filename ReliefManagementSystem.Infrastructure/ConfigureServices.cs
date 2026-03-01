@@ -44,6 +44,18 @@ namespace ReliefManagementSystem.Infrastructure
             services.AddScoped<IVehicleRepository, VehicleRepository>();
             services.AddScoped<IVehicleTypeRepository, VehicleTypeRepository>();
 
+            // Inventory Management repositories
+            services.AddScoped<ISupplyItemRepository, SupplyItemRepository>();
+            services.AddScoped<IInventoryRepository, InventoryRepository>();
+            services.AddScoped<IInventoryStockRepository, InventoryStockRepository>();
+            services.AddScoped<IInventoryTransactionRepository, InventoryTransactionRepository>();
+            // Relief Station repositories
+            services.AddScoped<IReliefStationRepository, ReliefStationRepository>();
+            services.AddScoped<IReliefStationTeamRepository, ReliefStationTeamRepository>();
+            // Supply Allocation repositories
+            services.AddScoped<ISupplyAllocationRepository, SupplyAllocationRepository>();
+            services.AddScoped<ICampaignRepository, CampaignRepository>();
+
             // Relief Station repositories
             services.AddScoped<IReliefStationRepository, ReliefStationRepository>();
 
