@@ -126,15 +126,23 @@ jobs:
           # Chuyển tên repo về chữ thường cho đúng chuẩn Docker
           echo "REGISTRY=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
 
+      - name: Free Disk Space Before Deploy
+        run: |
+          echo "=== Disk usage before cleanup ==="
+          df -h /
+          echo "=== Cleaning up unused Docker resources ==="
+          # Xóa images không dùng, stopped containers, unused networks, build cache
+          # Không dùng --volumes để bảo vệ data volumes (postgres, pgadmin)
+          docker system prune -a -f
+          echo "=== Disk usage after cleanup ==="
+          df -h /
+
       - name: Pull and Deploy
         run: |
           echo "Pulling latest images..."
-          # Pull tất cả service được định nghĩa trong file compose
-          # Không cần loop phức tạp, docker compose sẽ tự biết image nào cần pull
           docker compose -f compose.staging.yaml pull
 
           echo "Deploying application..."
-          # Up -d sẽ recreate container nếu có image mới
           docker compose -f compose.staging.yaml up -d --remove-orphans
 
       - name: Wait for Healthcheck
@@ -143,9 +151,10 @@ jobs:
           sleep 10
           docker compose -f compose.staging.yaml ps
 
-      - name: Cleanup Unused Images
+      - name: Cleanup Dangling Images After Deploy
         run: |
-          docker image prune -a -f
+          # Chỉ xóa dangling images (không tag) sau deploy, giữ lại images đang dùng
+          docker image prune -f
 
   # api-image-deploy:
   #   name: Deploy / API
