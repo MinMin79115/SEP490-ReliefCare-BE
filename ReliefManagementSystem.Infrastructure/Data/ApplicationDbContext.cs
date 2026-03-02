@@ -55,6 +55,10 @@ namespace ReliefManagementSystem.Infrastructure.Data
         {
             base.OnModelCreating(builder);
             //VolunteerProfile configuration
+
+            builder.Entity<VolunteerProfile>()
+                .HasKey(v => v.VolunteerProfileId);
+
             builder.Entity<VolunteerProfile>()
                 .HasOne(v => v.User)
                 .WithOne(u => u.VolunteerProfile)
@@ -132,57 +136,57 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .HasForeignKey(r => r.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            builder.Entity<VolunteerProfile>()
-                .HasKey(v => v.VolunteerProfileId);
+            //builder.Entity<VolunteerProfile>()
+            //    .HasKey(v => v.VolunteerProfileId);
 
-            builder.Entity<VolunteerProfile>()
-                .HasOne(v => v.User)
-                .WithOne(u => u.VolunteerProfile)
-                .HasForeignKey<VolunteerProfile>(v => v.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+            //builder.Entity<VolunteerProfile>()
+            //    .HasOne(v => v.User)
+            //    .WithOne(u => u.VolunteerProfile)
+            //    .HasForeignKey<VolunteerProfile>(v => v.UserId)
+            //    .OnDelete(DeleteBehavior.Cascade);
 
-            builder.Entity<VolunteerSkill>()
-                .HasKey(vs => new { vs.VolunteerProfileId, vs.SkillId });
+            //builder.Entity<VolunteerSkill>()
+            //    .HasKey(vs => new { vs.VolunteerProfileId, vs.SkillId });
 
-            builder.Entity<VolunteerSkill>()
-                .HasOne(vs => vs.VolunteerProfile)
-                .WithMany(vp => vp.VolunteerSkills)
-                .HasForeignKey(vs => vs.VolunteerProfileId)
-                .OnDelete(DeleteBehavior.Cascade);
+            //builder.Entity<VolunteerSkill>()
+            //    .HasOne(vs => vs.VolunteerProfile)
+            //    .WithMany(vp => vp.VolunteerSkills)
+            //    .HasForeignKey(vs => vs.VolunteerProfileId)
+            //    .OnDelete(DeleteBehavior.Cascade);
 
-            builder.Entity<VolunteerSkill>()
-                .HasOne(vs => vs.Skill)
-                .WithMany(s => s.VolunteerSkills)
-                .HasForeignKey(vs => vs.SkillId)
-                .OnDelete(DeleteBehavior.Cascade);
+            //builder.Entity<VolunteerSkill>()
+            //    .HasOne(vs => vs.Skill)
+            //    .WithMany(s => s.VolunteerSkills)
+            //    .HasForeignKey(vs => vs.SkillId)
+            //    .OnDelete(DeleteBehavior.Cascade);
 
-            builder.Entity<TeamMember>()
-                .HasKey(tm => new { tm.TeamId, tm.UserId });
+            //builder.Entity<TeamMember>()
+            //    .HasKey(tm => new { tm.TeamId, tm.UserId });
 
-            builder.Entity<TeamMember>()
-                .HasOne(tm => tm.Team)
-                .WithMany(t => t.TeamMembers)
-                .HasForeignKey(tm => tm.TeamId)
-                .OnDelete(DeleteBehavior.Cascade);
+            //builder.Entity<TeamMember>()
+            //    .HasOne(tm => tm.Team)
+            //    .WithMany(t => t.TeamMembers)
+            //    .HasForeignKey(tm => tm.TeamId)
+            //    .OnDelete(DeleteBehavior.Cascade);
 
-            builder.Entity<TeamMember>()
-                .HasOne(tm => tm.User)
-                .WithMany(u => u.TeamMembers)
-                .HasForeignKey(tm => tm.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+            //builder.Entity<TeamMember>()
+            //    .HasOne(tm => tm.User)
+            //    .WithMany(u => u.TeamMembers)
+            //    .HasForeignKey(tm => tm.UserId)
+            //    .OnDelete(DeleteBehavior.Cascade);
 
 
-            builder.Entity<Team>()
-                .HasOne(t => t.Leader)
-                .WithMany()
-                .HasForeignKey(t => t.LeaderId)
-                .OnDelete(DeleteBehavior.Restrict);
+            //builder.Entity<Team>()
+            //    .HasOne(t => t.Leader)
+            //    .WithMany()
+            //    .HasForeignKey(t => t.LeaderId)
+            //    .OnDelete(DeleteBehavior.Restrict);
 
-            builder.Entity<RefreshToken>()
-                .HasOne(r => r.User)
-                .WithMany()
-                .HasForeignKey(r => r.UserId)
-                .OnDelete(DeleteBehavior.Cascade);
+            //builder.Entity<RefreshToken>()
+            //    .HasOne(r => r.User)
+            //    .WithMany()
+            //    .HasForeignKey(r => r.UserId)
+            //    .OnDelete(DeleteBehavior.Cascade);
 
             //Location Configuration
 
@@ -232,8 +236,14 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .HasIndex(vt => vt.TypeName)
                 .IsUnique();
 
+            builder.Entity<Vehicle>()
+                .HasOne(v => v.ReliefStation)
+                .WithMany(rs => rs.Vehicles)
+                .HasForeignKey(v => v.ReliefStationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // Inventory Management Configurations
-            
+
             // InventoryStock Configuration - Unique constraint on (InventoryId, SupplyItemId)
             builder.Entity<InventoryStock>()
                 .HasKey(i => i.InventoryStockId);
@@ -260,7 +270,7 @@ namespace ReliefManagementSystem.Infrastructure.Data
 
             builder.Entity<Inventory>()
                 .HasOne(i => i.ReliefStation)
-                .WithMany()
+                .WithMany(rs => rs.Inventories)
                 .HasForeignKey(i => i.ReliefStationId)
                 .OnDelete(DeleteBehavior.Restrict);
 
@@ -288,13 +298,19 @@ namespace ReliefManagementSystem.Infrastructure.Data
             builder.Entity<ReliefStation>()
                 .HasKey(rs => rs.ReliefStationId);
 
+            builder.Entity<ReliefStation>()
+                .HasOne(rs => rs.ParentStation)
+                .WithMany(rs => rs.ChildStations)
+                .HasForeignKey(rs => rs.ParentReliefStationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // ReliefStationTeam Configuration (Many-to-Many between ReliefStation and Team)
             builder.Entity<ReliefStationTeam>()
-                .HasKey(rst => rst.RelifeStationTeamId);
+                .HasKey(rst => rst.ReliefStationTeamId);
 
             builder.Entity<ReliefStationTeam>()
                 .HasOne(rst => rst.ReliefStation)
-                .WithMany(rs => rs.ReliefStations)
+                .WithMany(rs => rs.ReliefStationTeams)
                 .HasForeignKey(rst => rst.ReliefStationId)
                 .OnDelete(DeleteBehavior.Cascade);
 

@@ -33,7 +33,6 @@ namespace ReliefManagementSystem.Application.Common.Interface
         IInventoryTransactionRepository InventoryTransactions { get; }
 
         // Relief Station Management
-        IReliefStationRepository ReliefStations { get; }
         IReliefStationTeamRepository ReliefStationTeams { get; }
 
         // Supply Allocation
@@ -41,6 +40,13 @@ namespace ReliefManagementSystem.Application.Common.Interface
 
         // Campaign (stub for validation — full module TBD)
         ICampaignRepository Campaigns { get; }
+
+        // Relief Station Management
+        IReliefStationRepository ReliefStations { get; }
+
+        // Location Management
+        ILocationRepository Locations { get; }
+
         Task<int> SaveChangesAsync(
         CancellationToken cancellationToken = default);
 

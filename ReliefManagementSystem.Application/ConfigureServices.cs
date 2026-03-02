@@ -6,6 +6,8 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using FluentValidation;
+using ReliefManagementSystem.Application.Features.User;
 
 namespace ReliefManagementSystem.Application
 {
@@ -29,6 +31,11 @@ namespace ReliefManagementSystem.Application
             services.AddScoped<IReliefStationService, ReliefStationService>();
             // Supply Allocation
             services.AddScoped<ISupplyAllocationService, SupplyAllocationService>();
+            services.AddScoped<IReliefStationService, ReliefStationService>();
+            services.AddScoped<ILocationService, LocationService>();
+
+
+            services.AddValidatorsFromAssemblyContaining<UpdateUserProfileRequest>();
             return services;
         }
     }

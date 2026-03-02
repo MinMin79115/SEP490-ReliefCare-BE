@@ -16,7 +16,10 @@ namespace ReliefManagementSystem.Domain.Entities
         public decimal PopulationDensity { get; set; } 
         public decimal Area { get; set; }              
         public long Population { get; set; }
+        public string NormalizedName { get; set; } = null!;
+        public string Path { get; set; } = null!;
 
+        public string FullName { get; set; } = null!;
         public LocationLevel Level { get; set; }
 
         public int Status { get; set; }

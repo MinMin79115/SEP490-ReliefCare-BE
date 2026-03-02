@@ -6,11 +6,10 @@ using System.Threading.Tasks;
 
 namespace ReliefManagementSystem.Domain.Enum
 {
-    public enum RelifeStationStatus
+    public enum VerificationResult
     {
-        Draft = 0,        
-        Active = 1,       
-        Inactive = 2,     
-        Closed = 3        
+        Confirmed,
+        Failed,
+        Pending
     }
 }

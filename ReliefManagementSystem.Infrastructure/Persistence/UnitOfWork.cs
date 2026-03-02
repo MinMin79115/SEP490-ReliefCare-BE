@@ -46,6 +46,10 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
         // Campaign (stub for validation — full module TBD)
         public ICampaignRepository Campaigns { get; }
 
+
+        //Location Management
+        public ILocationRepository Locations { get; }
+
         // Constructor
         public UnitOfWork(ApplicationDbContext context)
         {
@@ -65,10 +69,11 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             Inventories = new InventoryRepository(_context);
             InventoryStocks = new InventoryStockRepository(_context);
             InventoryTransactions = new InventoryTransactionRepository(_context);
-            ReliefStations = new ReliefStationRepository(_context);
             ReliefStationTeams = new ReliefStationTeamRepository(_context);
             SupplyAllocations = new SupplyAllocationRepository(_context);
             Campaigns = new CampaignRepository(_context);
+            ReliefStations = new ReliefStationRepository(_context);
+            Locations = new LocationRepository(_context);
         }
 
         public async Task<int> SaveChangesAsync(

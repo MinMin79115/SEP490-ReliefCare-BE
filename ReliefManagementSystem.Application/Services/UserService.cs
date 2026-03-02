@@ -1,5 +1,9 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using ReliefManagementSystem.Application.Common.Exceptions.Auth;
 using ReliefManagementSystem.Application.Common.Interface;
+using ReliefManagementSystem.Application.Common.Models;
+using ReliefManagementSystem.Application.Features.User;
 using ReliefManagementSystem.Application.Features.VolunteerRequest.Request;
 using ReliefManagementSystem.Application.Features.VolunteerRequest.Response;
 using ReliefManagementSystem.Application.Interface;
@@ -20,15 +24,82 @@ namespace ReliefManagementSystem.Application.Services
         private readonly ICurrentUserService _currentUserService;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<IdentityRole<Guid>> _roleManager;
+        private readonly IImageService _imageService;
 
 
-        public UserService(IUnitOfWork unitOfWork, ICurrentUserService currentUserService, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole<Guid>> roleManager)
+        public UserService(IUnitOfWork unitOfWork, ICurrentUserService currentUserService, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole<Guid>> roleManager, IImageService imageService)
         {
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
             _userManager = userManager;
             _roleManager = roleManager;
+            _imageService = imageService;
         }
+
+        /// <summary>
+        /// Lấy profile của user đang đăng nhập.
+        /// Throw UserNotFoundException nếu user không tồn tại.
+        /// </summary>
+        public async Task<UserProfileResponse> GetProfileAsync(CancellationToken cancellationToken = default)
+        {
+            var userId = _currentUserService.UserId;
+            var user = await _unitOfWork.Users.GetByIdAsync(userId);
+
+            if (user == null)
+                throw new UserNotFoundException(userId.ToString());
+
+            var roles = await _userManager.GetRolesAsync(user);
+
+            return new UserProfileResponse
+            {
+                Id = user.Id,
+                DisplayName = user.DisplayName,
+                Email = user.Email,
+                PhoneNumber = user.PhoneNumber,
+                DateOfBirth = user.DateOfBirth,
+                Gender = user.Gender,
+                PictureUrl = user.PictureUrl,
+                Roles = roles.ToList()
+            };
+        }
+
+        /// <summary>
+        /// Lấy danh sách tất cả users có phân trang (dành cho Admin).
+        /// Trả về Pagination&lt;UserProfileResponse&gt; với thông tin phân trang.
+        /// </summary>
+        public async Task<Pagination<UserProfileResponse>> GetAllProfilesAsync(
+            GetAllUsersRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var query = _unitOfWork.Users.GetAllUsersQueryable();
+
+            var pagedUsers = await Pagination<ApplicationUser>.ToPagedList(
+                query, request.PageIndex, request.PageSize);
+
+            var userResponses = new List<UserProfileResponse>();
+            foreach (var user in pagedUsers.Items!)
+            {
+                var roles = await _userManager.GetRolesAsync(user);
+                userResponses.Add(new UserProfileResponse
+                {
+                    Id = user.Id,
+                    DisplayName = user.DisplayName,
+                    Email = user.Email,
+                    PhoneNumber = user.PhoneNumber,
+                    DateOfBirth = user.DateOfBirth,
+                    Gender = user.Gender,
+                    PictureUrl = user.PictureUrl,
+                    Roles = roles.ToList()
+                });
+            }
+
+            return new Pagination<UserProfileResponse>(
+                userResponses,
+                pagedUsers.TotalCount,
+                pagedUsers.CurrentPage,
+                pagedUsers.PageSize);
+        }
+
         public async Task<VolunteerProfileResponse> CreateVolunteerProfileAsync(CreateVolunteerRequest request, CancellationToken cancellationToken = default)
         {
             var userId = _currentUserService.UserId;
@@ -258,6 +329,71 @@ namespace ReliefManagementSystem.Application.Services
                 .ToList();
 
             return skills;
+        }
+
+
+        /// <summary>
+        /// Cập nhật profile user đang đăng nhập (partial update).
+        /// Throw UserNotFoundException nếu user không tồn tại.
+        /// </summary>
+        public async Task<UserProfileResponse> UpdateUserProfileAsync(
+            UpdateUserProfileRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var userId = _currentUserService.UserId;
+            var user = await _unitOfWork.Users.GetByIdAsync(userId);
+
+            if (user == null)
+                throw new UserNotFoundException(userId.ToString());
+
+            // Update only non-null fields (partial update)
+            if (request.DisplayName != null)
+                user.DisplayName = request.DisplayName;
+
+            if (request.PhoneNumber != null)
+                user.PhoneNumber = request.PhoneNumber;
+
+            if (request.DateOfBirth.HasValue)
+                user.DateOfBirth = request.DateOfBirth.Value;
+
+            if (request.Gender != null)
+                user.Gender = request.Gender;
+
+            // Handle avatar upload
+            if (request.Avatar != null)
+            {
+                // Delete old avatar if exists
+                if (!string.IsNullOrEmpty(user.PicturePublicId))
+                {
+                    await _imageService.DeleteImageAsync(user.PicturePublicId, cancellationToken);
+                }
+
+                using var stream = request.Avatar.OpenReadStream();
+                var imageUrl = await _imageService.UploadImageAsync(
+                    stream,
+                    request.Avatar.FileName,
+                    cancellationToken);
+
+                user.PictureUrl = imageUrl;
+                user.PicturePublicId = imageUrl; // Store the public ID for future deletion
+            }
+
+            await _unitOfWork.Users.UpdateAsync(user);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            var roles = await _userManager.GetRolesAsync(user);
+
+            return new UserProfileResponse
+            {
+                Id = user.Id,
+                DisplayName = user.DisplayName,
+                Email = user.Email,
+                PhoneNumber = user.PhoneNumber,
+                DateOfBirth = user.DateOfBirth,
+                Gender = user.Gender,
+                PictureUrl = user.PictureUrl,
+                Roles = roles.ToList()
+            };
         }
 
 

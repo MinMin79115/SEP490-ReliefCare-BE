@@ -5,24 +5,24 @@
 namespace ReliefManagementSystem.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class FixLocation : Migration
+    public partial class addPathLocation : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<int>(
-                name: "Level",
+            migrationBuilder.AddColumn<string>(
+                name: "Path",
                 table: "Locations",
-                type: "integer",
+                type: "text",
                 nullable: false,
-                defaultValue: 0);
+                defaultValue: "");
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropColumn(
-                name: "Level",
+                name: "Path",
                 table: "Locations");
         }
     }

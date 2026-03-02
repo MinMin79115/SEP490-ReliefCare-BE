@@ -1,4 +1,9 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 using ReliefManagementSystem.Application.Common.Interface;
 using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Domain.Enum;
@@ -21,7 +26,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
         {
             return await _dbSet
                 .AsNoTracking()
-                .Where(s => s.Status != RelifeStationStatus.Closed)
+                .Where(s => s.Status != ReliefStationStatus.Closed)
                 .Include(s => s.Manager)
                 .Include(s => s.Location)
                 .OrderBy(s => s.Name)
@@ -36,15 +41,15 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             return await _dbSet
                 .Include(s => s.Manager)
                 .Include(s => s.Location)
-                .Include(s => s.ReliefStations)
-                    .ThenInclude(rst => rst.Team)
+                .Include(s => s.ParentStation)
+                    .ThenInclude(rst => rst.ReliefStationTeams)
                 .Include(s => s.Inventories)
                 .FirstOrDefaultAsync(s => s.ReliefStationId == stationId, cancellationToken);
         }
 
         /// <inheritdoc/>
         public async Task<IReadOnlyList<ReliefStation>> GetByStatusAsync(
-            RelifeStationStatus status,
+            ReliefStationStatus status,
             CancellationToken cancellationToken = default)
         {
             return await _dbSet
@@ -77,7 +82,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
         {
             var query = _dbSet.Where(s =>
                 s.Name.ToLower() == name.ToLower() &&
-                s.Status != RelifeStationStatus.Closed);
+                s.Status != ReliefStationStatus.Closed);
 
             if (excludeId.HasValue)
                 query = query.Where(s => s.ReliefStationId != excludeId.Value);

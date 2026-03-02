@@ -23,8 +23,12 @@ namespace ReliefManagementSystem.Application.Interface
 
              Task<AuthResponse> LoginGoogleAsync(
                 CancellationToken cancellationToken);
-            
-                
+
+             Task ChangePasswordAsync(
+                 ChangePasswordRequest request,
+                 CancellationToken cancellationToken);
+
+
     }
 
 }

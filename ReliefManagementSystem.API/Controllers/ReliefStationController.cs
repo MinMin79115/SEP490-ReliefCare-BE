@@ -57,7 +57,7 @@ namespace ReliefManagementSystem.API.Controllers
         /// <response code="200">Filtered list of stations.</response>
         [HttpGet("by-status")]
         public async Task<IActionResult> GetByStatus(
-            [FromQuery] RelifeStationStatus status,
+            [FromQuery] ReliefStationStatus status,
             CancellationToken cancellationToken)
         {
             var result = await _stationService.GetByStatusAsync(status, cancellationToken);
