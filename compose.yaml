@@ -2,17 +2,19 @@
 # ReliefCare - Local Development Docker Compose
 # =============================================================
 # Dùng để chạy và test trên máy local.
+# Tất cả giá trị đã được hardcode - clone về chạy ngay, không cần .env
 #
 # Cách dùng:
-#   docker compose -f compose.local.yaml up --build
-#   docker compose -f compose.local.yaml up --build -d   (chạy background)
-#   docker compose -f compose.local.yaml down            (dừng)
-#   docker compose -f compose.local.yaml down -v         (dừng + xóa volume)
-#   docker compose -f compose.local.yaml logs -f         (xem log)
+#   docker compose up --build
+#   docker compose up --build -d   (chạy background)
+#   docker compose down            (dừng)
+#   docker compose down -v         (dừng + xóa volume)
+#   docker compose logs -f         (xem log)
 #
 # Swagger UI: http://localhost:8080/swagger
 # API:        http://localhost:8080
 # PostgreSQL: localhost:5432
+# pgAdmin:    http://localhost:5050  (admin@reliefcare.local / admin123)
 # =============================================================
 
 services:
@@ -24,9 +26,9 @@ services:
     container_name: reliefcare-local-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-relief_db}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres123}
+      POSTGRES_DB: relief_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
     ports:
       - "5432:5432"
     volumes:
@@ -34,7 +36,7 @@ services:
     networks:
       - reliefcare-local
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-relief_db}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d relief_db"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -56,18 +58,18 @@ services:
         condition: service_healthy
     environment:
       # Database
-      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-relief_db};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres123}"
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=relief_db;Username=postgres;Password=postgres123"
 
       # JWT - chỉ dùng cho local, KHÔNG dùng key này cho production
-      Jwt__Key: ${JWT_KEY:-local-dev-reliefcare-secret-key-minimum-32-characters-long}
-      Jwt__Issuer: ${JWT_ISSUER:-ReliefSystem}
-      Jwt__Audience: ${JWT_AUDIENCE:-ReliefClient}
+      Jwt__Key: "local-dev-reliefcare-secret-key-minimum-32-characters-long"
+      Jwt__Issuer: "ReliefSystem"
+      Jwt__Audience: "ReliefClient"
       Jwt__AccessTokenMinutes: "60"
       Jwt__RefreshTokenDays: "7"
 
-      # Google OAuth (tuỳ chọn, để trống nếu không test Google login)
-      AuthenticationGoogle__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
-      AuthenticationGoogle__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
+      # Google OAuth - để trống, không test Google login trên local docker
+      AuthenticationGoogle__Google__ClientId: ""
+      AuthenticationGoogle__Google__ClientSecret: ""
 
       # CORS - cho phép các frontend local phổ biến
       CorsSettings__AllowedOrigins__0: "http://localhost:3000"
@@ -94,12 +96,37 @@ services:
       retries: 3
       start_period: 90s
 
+  # -----------------------------------------------------------
+  # pgAdmin 4 - Giao diện quản lý PostgreSQL
+  # -----------------------------------------------------------
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: reliefcare-local-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "admin@reliefcare.com"
+      PGADMIN_DEFAULT_PASSWORD: "admin123"
+      PGADMIN_CONFIG_SERVER_MODE: "False"              # Desktop mode - không cần login lần 2
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_local_data:/var/lib/pgadmin
+      - ./pgadmin-servers.json:/pgadmin4/servers.json:ro  # Auto-register server
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - reliefcare-local
+
 # -----------------------------------------------------------
 # Volumes
 # -----------------------------------------------------------
 volumes:
   postgres_local_data:
     name: reliefcare-local-postgres-data
+  pgadmin_local_data:
+    name: reliefcare-local-pgadmin-data
 
 # -----------------------------------------------------------
 # Networks
