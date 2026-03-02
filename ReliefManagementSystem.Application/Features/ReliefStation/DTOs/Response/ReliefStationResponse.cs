@@ -11,7 +11,7 @@ namespace ReliefManagementSystem.Application.Features.ReliefStation.DTOs.Respons
         public string? ContactNumber { get; set; }
         public double Longitude { get; set; }
         public double Latitude { get; set; }
-        public RelifeStationStatus Status { get; set; }
+        public ReliefStationStatus Status { get; set; }
         public string StatusName => Status.ToString();
         public bool IsActive { get; set; }
         public Guid ManagerId { get; set; }

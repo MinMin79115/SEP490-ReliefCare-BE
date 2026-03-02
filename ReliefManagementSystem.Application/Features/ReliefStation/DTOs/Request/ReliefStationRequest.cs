@@ -25,7 +25,7 @@ namespace ReliefManagementSystem.Application.Features.ReliefStation.DTOs.Request
         public double Longitude { get; set; }
         public double Latitude { get; set; }
 
-        public RelifeStationStatus Status { get; set; } = RelifeStationStatus.Draft;
+        public ReliefStationStatus Status { get; set; } = ReliefStationStatus.Draft;
     }
 
     /// <summary>Request model to update an existing relief station.</summary>
@@ -50,7 +50,7 @@ namespace ReliefManagementSystem.Application.Features.ReliefStation.DTOs.Request
         public double Longitude { get; set; }
         public double Latitude { get; set; }
 
-        public RelifeStationStatus Status { get; set; }
+        public ReliefStationStatus Status { get; set; }
     }
 
     /// <summary>Request model to assign a team to a relief station.</summary>
