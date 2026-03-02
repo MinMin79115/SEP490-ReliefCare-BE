@@ -75,8 +75,12 @@ builder.Services.Configure<JwtSettings>(
 builder.Services.Configure<GoogleSetting>(
     builder.Configuration.GetSection("AuthenticationGoogle"));
 
+builder.Services.Configure<CloudinarySettings>(
+    builder.Configuration.GetSection("CloudinarySettings"));
+
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>();
 var googleSettings = builder.Configuration.GetSection("AuthenticationGoogle").Get<GoogleSetting>();
+var cloudSetting = builder.Configuration.GetSection("CloudinarySettings").Get<CloudinarySettings>();
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;

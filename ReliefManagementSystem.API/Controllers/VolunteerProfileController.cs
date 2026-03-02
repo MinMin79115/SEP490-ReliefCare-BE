@@ -45,7 +45,6 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(result);
         }
 
-        [Authorize(Roles = "Admin")]
         [HttpGet]
         public async Task<ActionResult<List<VolunteerProfileResponse>>> GetAll(CancellationToken cancellationToken)
         {
@@ -55,6 +54,7 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(result);
         }
 
+        [Authorize(Roles = "Admin")]
         [HttpPut("{id:guid}/approve")]
         public async Task<ActionResult<VolunteerProfileResponse>> Approve(Guid id,CancellationToken cancellationToken)
         {

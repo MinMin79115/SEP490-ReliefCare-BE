@@ -204,6 +204,9 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Property<bool>("PhoneNumberConfirmed")
                         .HasColumnType("boolean");
 
+                    b.Property<string>("PicturePublicId")
+                        .HasColumnType("text");
+
                     b.Property<string>("PictureUrl")
                         .HasColumnType("text");
 
@@ -508,6 +511,10 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Property<decimal>("Area")
                         .HasColumnType("numeric");
 
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<int>("Level")
                         .HasColumnType("integer");
 
@@ -515,8 +522,16 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("NormalizedName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<Guid?>("ParentId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("Path")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<long>("Population")
                         .HasColumnType("bigint");
@@ -624,11 +639,11 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
 
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
                     b.Property<double>("Latitude")
                         .HasColumnType("double precision");
+
+                    b.Property<int>("Level")
+                        .HasColumnType("integer");
 
                     b.Property<Guid>("LocationId")
                         .HasColumnType("uuid");
@@ -636,13 +651,16 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Property<double>("Longitude")
                         .HasColumnType("double precision");
 
-                    b.Property<Guid>("ManagerId")
+                    b.Property<Guid?>("ManagerId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("Name")
                         .IsRequired()
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
+
+                    b.Property<Guid?>("ParentReliefStationId")
+                        .HasColumnType("uuid");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
@@ -656,12 +674,14 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
                     b.HasIndex("ManagerId");
 
+                    b.HasIndex("ParentReliefStationId");
+
                     b.ToTable("ReliefStations");
                 });
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.ReliefStationTeam", b =>
                 {
-                    b.Property<Guid>("RelifeStationTeamId")
+                    b.Property<Guid>("ReliefStationTeamId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
@@ -677,7 +697,7 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Property<Guid>("TeamId")
                         .HasColumnType("uuid");
 
-                    b.HasKey("RelifeStationTeamId");
+                    b.HasKey("ReliefStationTeamId");
 
                     b.HasIndex("TeamId");
 
@@ -835,11 +855,23 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<DateTime?>("ApprovedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("ApprovedBy")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<int>("RequestedRole")
-                        .HasColumnType("integer");
+                    b.Property<string>("Reason")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("RejectedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("RejectedBy")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("ReviewNote")
                         .HasColumnType("text");
@@ -1276,19 +1308,24 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
                     b.HasOne("ReliefManagementSystem.Domain.Entities.ApplicationUser", "Manager")
                         .WithMany()
-                        .HasForeignKey("ManagerId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
+                        .HasForeignKey("ManagerId");
+
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.ReliefStation", "ParentStation")
+                        .WithMany("ChildStations")
+                        .HasForeignKey("ParentReliefStationId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Location");
 
                     b.Navigation("Manager");
+
+                    b.Navigation("ParentStation");
                 });
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.ReliefStationTeam", b =>
                 {
                     b.HasOne("ReliefManagementSystem.Domain.Entities.ReliefStation", "ReliefStation")
-                        .WithMany("ReliefStations")
+                        .WithMany("ReliefStationTeams")
                         .HasForeignKey("ReliefStationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -1347,7 +1384,7 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.HasOne("ReliefManagementSystem.Domain.Entities.ApplicationUser", "Leader")
                         .WithMany()
                         .HasForeignKey("LeaderId")
-                        .OnDelete(DeleteBehavior.Restrict);
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("ReliefManagementSystem.Domain.Entities.ApplicationUser", "Moderator")
                         .WithMany()
@@ -1416,7 +1453,7 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.HasOne("ReliefManagementSystem.Domain.Entities.ReliefStation", "ReliefStation")
                         .WithMany("Vehicles")
                         .HasForeignKey("ReliefStationId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("ReliefManagementSystem.Domain.Entities.VehicleType", "VehicleType")
@@ -1501,9 +1538,11 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.ReliefStation", b =>
                 {
+                    b.Navigation("ChildStations");
+
                     b.Navigation("Inventories");
 
-                    b.Navigation("ReliefStations");
+                    b.Navigation("ReliefStationTeams");
 
                     b.Navigation("Vehicles");
                 });

@@ -1,5 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.IdentityModel.Tokens;
+using ReliefManagementSystem.Application.Common.Exceptions;
 using ReliefManagementSystem.Application.Common.Exceptions.Auth;
 using ReliefManagementSystem.Application.Common.Interface;
 using ReliefManagementSystem.Application.Features.Auth.DTOs;
@@ -13,7 +15,6 @@ using System.Linq;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
-using ReliefManagementSystem.Application.Common.Exceptions;
 
 namespace ReliefManagementSystem.Infrastructure.Security
 {
@@ -22,13 +23,15 @@ namespace ReliefManagementSystem.Infrastructure.Security
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly SignInManager<ApplicationUser> _signInManager;
-
+        private readonly ICurrentUserService _currentUserService;
         public IdentityAuthService(
             UserManager<ApplicationUser> userManager,
-            SignInManager<ApplicationUser> signInManager)
+            SignInManager<ApplicationUser> signInManager,
+            ICurrentUserService currentUserService)
         {
             _userManager = userManager;
             _signInManager = signInManager;
+            _currentUserService = currentUserService;
         }
 
         public async Task<ApplicationUser> RegisterAsync(
@@ -155,6 +158,42 @@ namespace ReliefManagementSystem.Infrastructure.Security
             }
 
             return user;
+        }
+
+        public async Task ChangePasswordAsync(
+            string currentPassword,
+            string newPassword,
+            CancellationToken cancellationToken)
+        {
+            if (string.IsNullOrEmpty(_currentUserService.UserId.ToString()))
+                throw new UnauthorizedAccessException();
+
+            var user = await _userManager.FindByIdAsync(_currentUserService.UserId.ToString());
+
+            if (user == null)
+                throw new InvalidCredentialsException(); 
+
+            if (await _userManager.IsLockedOutAsync(user))
+                throw new UserLockedException();
+
+            if (currentPassword == newPassword)
+                throw new ValidationException(new Dictionary<string, string[]>
+                {
+                    { "Password", new[] { "New password must be different from current password." } }
+                });
+
+            var result = await _userManager.ChangePasswordAsync(
+                user,
+                currentPassword,
+                newPassword
+            );
+
+            if (!result.Succeeded)
+            {
+                var errors = ConvertErrors(result.Errors);
+                throw new ValidationException(errors);
+            }
+            await _userManager.UpdateSecurityStampAsync(user);
         }
 
         //public async Task ForgotPasswordAsync(string email, CancellationToken cancellationToken)

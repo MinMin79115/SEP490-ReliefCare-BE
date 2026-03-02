@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ReliefManagementSystem.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class InitialCreate : Migration
+    public partial class FixMigration : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -65,6 +65,9 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     PopulationDensity = table.Column<decimal>(type: "numeric", nullable: false),
                     Area = table.Column<decimal>(type: "numeric", nullable: false),
                     Population = table.Column<long>(type: "bigint", nullable: false),
+                    NormalizedName = table.Column<string>(type: "text", nullable: false),
+                    FullName = table.Column<string>(type: "text", nullable: false),
+                    Level = table.Column<int>(type: "integer", nullable: false),
                     Status = table.Column<int>(type: "integer", nullable: false)
                 },
                 constraints: table =>
@@ -277,7 +280,7 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         column: x => x.LeaderId,
                         principalTable: "AspNetUsers",
                         principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
+                        onDelete: ReferentialAction.SetNull);
                     table.ForeignKey(
                         name: "FK_Teams_AspNetUsers_ModeratorId",
                         column: x => x.ModeratorId,
@@ -315,7 +318,7 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 {
                     ReliefStationId = table.Column<Guid>(type: "uuid", nullable: false),
                     Name = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
-                    ManagerId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ManagerId = table.Column<Guid>(type: "uuid", nullable: true),
                     LocationId = table.Column<Guid>(type: "uuid", nullable: false),
                     Address = table.Column<string>(type: "text", nullable: true),
                     ContactNumber = table.Column<string>(type: "text", nullable: true),
@@ -324,6 +327,7 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     CreatedBy = table.Column<Guid>(type: "uuid", nullable: false),
                     Longitude = table.Column<double>(type: "double precision", nullable: false),
                     Latitude = table.Column<double>(type: "double precision", nullable: false),
+                    ParentReliefStationId = table.Column<Guid>(type: "uuid", nullable: true),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
                     Status = table.Column<int>(type: "integer", nullable: false)
                 },
@@ -334,14 +338,19 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         name: "FK_ReliefStations_AspNetUsers_ManagerId",
                         column: x => x.ManagerId,
                         principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
+                        principalColumn: "Id");
                     table.ForeignKey(
                         name: "FK_ReliefStations_Locations_LocationId",
                         column: x => x.LocationId,
                         principalTable: "Locations",
                         principalColumn: "LocationId",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ReliefStations_ReliefStations_ParentReliefStationId",
+                        column: x => x.ParentReliefStationId,
+                        principalTable: "ReliefStations",
+                        principalColumn: "ReliefStationId",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -351,12 +360,16 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     Id = table.Column<Guid>(type: "uuid", nullable: false),
                     TeamId = table.Column<Guid>(type: "uuid", nullable: false),
                     VolunteerId = table.Column<Guid>(type: "uuid", nullable: false),
-                    RequestedRole = table.Column<int>(type: "integer", nullable: false),
                     Status = table.Column<int>(type: "integer", nullable: false),
-                    ReviewedBy = table.Column<Guid>(type: "uuid", nullable: true),
+                    Reason = table.Column<string>(type: "text", nullable: true),
+                    RejectedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    RejectedBy = table.Column<Guid>(type: "uuid", nullable: true),
+                    ApprovedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ApprovedBy = table.Column<Guid>(type: "uuid", nullable: true),
                     ReviewNote = table.Column<string>(type: "text", nullable: true),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    ReviewedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
+                    ReviewedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ReviewedBy = table.Column<Guid>(type: "uuid", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -492,7 +505,7 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 name: "ReliefStationTeams",
                 columns: table => new
                 {
-                    RelifeStationTeamId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ReliefStationTeamId = table.Column<Guid>(type: "uuid", nullable: false),
                     ReliefStationId = table.Column<Guid>(type: "uuid", nullable: false),
                     TeamId = table.Column<Guid>(type: "uuid", nullable: false),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
@@ -500,7 +513,7 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_ReliefStationTeams", x => x.RelifeStationTeamId);
+                    table.PrimaryKey("PK_ReliefStationTeams", x => x.ReliefStationTeamId);
                     table.ForeignKey(
                         name: "FK_ReliefStationTeams_ReliefStations_ReliefStationId",
                         column: x => x.ReliefStationId,
@@ -544,7 +557,7 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         column: x => x.ReliefStationId,
                         principalTable: "ReliefStations",
                         principalColumn: "ReliefStationId",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
                         name: "FK_Vehicles_VehicleTypes_VehicleTypeId",
                         column: x => x.VehicleTypeId,
@@ -969,6 +982,11 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 name: "IX_ReliefStations_ManagerId",
                 table: "ReliefStations",
                 column: "ManagerId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ReliefStations_ParentReliefStationId",
+                table: "ReliefStations",
+                column: "ParentReliefStationId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ReliefStationTeams_ReliefStationId_TeamId",

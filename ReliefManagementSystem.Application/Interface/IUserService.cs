@@ -1,4 +1,6 @@
-﻿using ReliefManagementSystem.Application.Features.VolunteerRequest.Request;
+﻿using ReliefManagementSystem.Application.Common.Models;
+using ReliefManagementSystem.Application.Features.User;
+using ReliefManagementSystem.Application.Features.VolunteerRequest.Request;
 using ReliefManagementSystem.Application.Features.VolunteerRequest.Response;
 using ReliefManagementSystem.Domain.Entities;
 using System;
@@ -11,6 +13,18 @@ namespace ReliefManagementSystem.Application.Interface
 {
     public interface IUserService
     {
+        /// <summary>
+        /// Lấy profile của user đang đăng nhập
+        /// </summary>
+        Task<UserProfileResponse> GetProfileAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Lấy danh sách tất cả users có phân trang (Admin)
+        /// </summary>
+        Task<Pagination<UserProfileResponse>> GetAllProfilesAsync(
+            GetAllUsersRequest request,
+            CancellationToken cancellationToken = default);
+
         public Task<VolunteerProfileResponse> CreateVolunteerProfileAsync(
             CreateVolunteerRequest request,
             CancellationToken cancellationToken = default);
@@ -35,5 +49,9 @@ namespace ReliefManagementSystem.Application.Interface
         Task<VolunteerProfileResponse> RemoveSkillVolunteer(RemoveVolunteerSkillRequest request, CancellationToken cancellationToken);
 
         Task<List<VolunteerSkillResponse>> GetAllSkillsOfVolunteerAsync(CancellationToken cancellationToken);
+
+        Task<UserProfileResponse> UpdateUserProfileAsync(
+            UpdateUserProfileRequest request,
+            CancellationToken cancellationToken = default);
     }
 }

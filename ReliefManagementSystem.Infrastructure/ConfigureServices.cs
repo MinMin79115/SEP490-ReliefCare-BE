@@ -30,6 +30,7 @@ namespace ReliefManagementSystem.Infrastructure
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<ICurrentUserService, CurrentUserService>();
+            services.AddScoped<IImageService, CloudinaryImageService>();
 
             // Team repositories
             services.AddScoped<ITeamRepository, TeamRepository>();
@@ -55,6 +56,11 @@ namespace ReliefManagementSystem.Infrastructure
             services.AddScoped<ISupplyAllocationRepository, SupplyAllocationRepository>();
             services.AddScoped<ICampaignRepository, CampaignRepository>();
 
+            // Relief Station repositories
+            services.AddScoped<IReliefStationRepository, ReliefStationRepository>();
+
+            //Location repositories
+            services.AddScoped<ILocationRepository, LocationRepository>();
             return services;
 
         }

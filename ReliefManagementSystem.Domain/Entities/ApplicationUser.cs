@@ -12,6 +12,8 @@ namespace ReliefManagementSystem.Domain.Entities
     {
         public string? PictureUrl { get; set; }
 
+        public string? PicturePublicId { get; set; }
+
         public DateTime? DateOfBirth { get; set; }
 
         public string? Gender { get; set; }

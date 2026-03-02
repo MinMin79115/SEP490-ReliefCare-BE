@@ -59,7 +59,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             return await _dbSet
                 .Include(rst => rst.Team)
                 .Include(rst => rst.ReliefStation)
-                .FirstOrDefaultAsync(rst => rst.RelifeStationTeamId == assignmentId, cancellationToken);
+                .FirstOrDefaultAsync(rst => rst.ReliefStationTeamId == assignmentId, cancellationToken);
         }
     }
 }

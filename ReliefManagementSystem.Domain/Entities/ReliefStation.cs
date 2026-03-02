@@ -16,7 +16,7 @@ namespace ReliefManagementSystem.Domain.Entities
         [MaxLength(255)]
         public string Name { get; set; } = null!;
 
-        public Guid ManagerId { get; set; }
+        public Guid? ManagerId { get; set; }
         public Guid LocationId { get; set; }
         public String? Address { get; set; }
 
@@ -28,19 +28,21 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public Guid CreatedBy { get; set; }
 
+        public ReliefStationLevel Level { get; set; }
         public double Longitude { get; set; }
         public double Latitude { get; set; }
+        public Guid? ParentReliefStationId { get; set; }
+        public ReliefStation? ParentStation { get; set; }
+        public ICollection<ReliefStation> ChildStations { get; set; }
 
-        public bool IsActive { get; set; }
+        public ReliefStationStatus Status { get; set; }
 
-        public RelifeStationStatus Status { get; set; }
-
-        public ApplicationUser Manager { get; set; } = null!;
+        public ApplicationUser? Manager { get; set; } = null!;
         public Location Location { get; set; } = null!;
 
         public ICollection<Inventory> Inventories { get; set; } = new List<Inventory>();
 
-        public ICollection<ReliefStationTeam>  ReliefStations { get; set; } = new List<ReliefStationTeam>();
+        public ICollection<ReliefStationTeam>  ReliefStationTeams { get; set; } = new List<ReliefStationTeam>();
 
         public ICollection<Vehicle> Vehicles { get; set; } = new List<Vehicle>();
 

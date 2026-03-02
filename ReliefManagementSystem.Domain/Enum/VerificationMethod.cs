@@ -6,9 +6,11 @@ using System.Threading.Tasks;
 
 namespace ReliefManagementSystem.Domain.Enum
 {
-    public enum RelifeStationLevel
+    public enum VerificationMethod
     {
-        Regional = 1, // Trạm cấp vùng
-        Local = 2     // Trạm cấp địa phương
+        GPS,
+        Call,
+        Field,
+        Community
     }
 }
