@@ -20,7 +20,12 @@ namespace ReliefManagementSystem.Domain.Entities
         public ApplicationUser User { get; set; }
         public string? Descriptions { get; set; }
         public string? Reason { get; set; }
-        public ICollection<VolunteerSkill> VolunteerSkills { get; set; }
 
+        /// <summary>Số năm kinh nghiệm của tình nguyện viên.</summary>
+        public int? YearsOfExperience { get; set; }
+
+        public ICollection<VolunteerSkill> VolunteerSkills { get; set; }
+        public ICollection<VolunteerCertificate> Certificates { get; set; } = new List<VolunteerCertificate>();
     }
 }
+

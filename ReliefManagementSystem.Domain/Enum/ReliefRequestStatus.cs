@@ -6,12 +6,14 @@ using System.Threading.Tasks;
 
 namespace ReliefManagementSystem.Domain.Enum
 {
-    public enum Role
+    public enum ReliefRequestStatus
     {
-        Admin,
-        User,
-        Volunteer,
-        Moderator,
-        Manager
+        Pending,
+        Verified,
+        Approved,
+        Allocated,
+        Delivered,
+        Completed,
+        Rejected,
     }
 }
