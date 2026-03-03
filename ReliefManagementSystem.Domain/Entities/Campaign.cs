@@ -36,5 +36,6 @@ namespace ReliefManagementSystem.Domain.Entities
         public ICollection<CampaignTeam> CampaignTeams { get; set; } = new List<CampaignTeam>();
         public ICollection<CampaignTask> CampaignTasks { get; set; } = new List<CampaignTask>();
         public ICollection<ReliefRequest> ReliefRequests { get; set; } = new List<ReliefRequest>();
+        public ICollection<Donation> Donations { get; set; } = new List<Donation>();
     }
 }

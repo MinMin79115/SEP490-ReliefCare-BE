@@ -27,6 +27,12 @@ namespace ReliefManagementSystem.Domain.Entities
         /// </summary>
         public ManagerProfile? ManagerProfile { get; set; }
 
+        /// <summary>
+        /// Profile điều phối (chỉ có nếu user có role Moderator).
+        /// Chứa khu vực giám sát và ngày bổ nhiệm.
+        /// </summary>
+        public ModeratorProfile? ModeratorProfile { get; set; }
+
         public VolunteerProfile VolunteerProfile { get; set; }
         public ICollection<TeamMember> TeamMembers { get; set; }
 

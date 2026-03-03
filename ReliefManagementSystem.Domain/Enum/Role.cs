@@ -11,7 +11,9 @@ namespace ReliefManagementSystem.Domain.Enum
         Admin,
         User,
         Volunteer,
+        /// <summary>Has ModeratorProfile (1:1).</summary>
         Moderator,
+        /// <summary>Has ManagerProfile (1:1).</summary>
         Manager
     }
 }
