@@ -440,56 +440,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.ToTable("CampaignVehicles");
                 });
 
-            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Donation", b =>
-                {
-                    b.Property<Guid>("DonationId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("Amount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<Guid>("CampaignId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("DonatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("DonorName")
-                        .HasColumnType("text");
-
-                    b.Property<Guid?>("DonorUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("GatewayResponse")
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IsAnonymous")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("Message")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("ProcessedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("TransactionRef")
-                        .HasColumnType("text");
-
-                    b.HasKey("DonationId");
-
-                    b.HasIndex("CampaignId");
-
-                    b.HasIndex("DonorUserId");
-
-                    b.ToTable("Donations");
-                });
-
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Inventory", b =>
                 {
                     b.Property<Guid>("InventoryId")
@@ -718,32 +668,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.HasIndex("VolunteerProfileId");
 
                     b.ToTable("MemberTasks");
-                });
-
-            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.ModeratorProfile", b =>
-                {
-                    b.Property<Guid>("ModeratorProfileId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("AppointedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("AssignedArea")
-                        .HasColumnType("text");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("ModeratorProfileId");
-
-                    b.HasIndex("UserId")
-                        .IsUnique();
-
-                    b.ToTable("ModeratorProfiles");
                 });
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.PriorityCriteria", b =>
@@ -1665,24 +1589,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Navigation("Vehicle");
                 });
 
-            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Donation", b =>
-                {
-                    b.HasOne("ReliefManagementSystem.Domain.Entities.Campaign", "Campaign")
-                        .WithMany("Donations")
-                        .HasForeignKey("CampaignId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("ReliefManagementSystem.Domain.Entities.ApplicationUser", "DonorUser")
-                        .WithMany()
-                        .HasForeignKey("DonorUserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Campaign");
-
-                    b.Navigation("DonorUser");
-                });
-
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Inventory", b =>
                 {
                     b.HasOne("ReliefManagementSystem.Domain.Entities.ReliefStation", "ReliefStation")
@@ -1796,17 +1702,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Navigation("CampaignTask");
 
                     b.Navigation("VolunteerProfile");
-                });
-
-            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.ModeratorProfile", b =>
-                {
-                    b.HasOne("ReliefManagementSystem.Domain.Entities.ApplicationUser", "User")
-                        .WithOne("ModeratorProfile")
-                        .HasForeignKey("ReliefManagementSystem.Domain.Entities.ModeratorProfile", "UserId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("User");
                 });
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.RefreshToken", b =>
@@ -2146,8 +2041,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 {
                     b.Navigation("ManagerProfile");
 
-                    b.Navigation("ModeratorProfile");
-
                     b.Navigation("TeamMembers");
 
                     b.Navigation("VolunteerProfile")
@@ -2159,8 +2052,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Navigation("CampaignTasks");
 
                     b.Navigation("CampaignTeams");
-
-                    b.Navigation("Donations");
 
                     b.Navigation("ReliefRequests");
                 });
