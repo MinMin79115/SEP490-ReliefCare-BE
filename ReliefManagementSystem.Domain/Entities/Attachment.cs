@@ -1,26 +1,21 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace ReliefManagementSystem.Domain.Entities;
-
-[Index("RequestId", Name = "IX_Attachments_RequestId")]
-public partial class Attachment
+namespace ReliefManagementSystem.Domain.Entities
 {
-    [Key]
-    public Guid AttachmentId { get; set; }
+    public class Attachment
+    {
+        public Guid AttachmentId { get; set; }
 
-    public Guid RequestId { get; set; }
+        public Guid RequestId { get; set; }
 
-    public string? Url { get; set; }
+        public string? Url { get; set; }
+        public string? FileType { get; set; }
+        public DateTime UploadedAt { get; set; }
 
-    public string? FileType { get; set; }
-
-    public DateTime UploadedAt { get; set; }
-
-    [ForeignKey("RequestId")]
-    [InverseProperty("Attachments")]
-    public virtual Request Request { get; set; } = null!;
+        public Request? Request { get; set; } 
+    }
 }

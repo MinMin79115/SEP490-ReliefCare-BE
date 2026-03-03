@@ -1,31 +1,24 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
+using ReliefManagementSystem.Domain.Enum;
 
-namespace ReliefManagementSystem.Domain.Entities;
-
-[Index("Code", Name = "IX_PriorityCriterias_Code", IsUnique = true)]
-public partial class PriorityCriteria
+namespace ReliefManagementSystem.Domain.Entities
 {
-    [Key]
-    public Guid PriorityCriteriaId { get; set; }
+    public class PriorityCriteria
+    {
+        public Guid PriorityCriteriaId { get; set; }
 
-    [StringLength(200)]
-    public string Name { get; set; } = null!;
+        public string Name { get; set; }
+        public int Point { get; set; }
+        public DisasterType DisasterType { get; set; }
+        public string Code { get; set; }
+        public string Description { get; set; }
+        public string Status { get; set; }
 
-    public int Point { get; set; }
-
-    public string DisasterType { get; set; } = null!;
-
-    [StringLength(50)]
-    public string Code { get; set; } = null!;
-
-    public string Description { get; set; } = null!;
-
-    public string Status { get; set; } = null!;
-
-    [InverseProperty("PriorityCriteria")]
-    public virtual ICollection<RescueRequestPriority> RescueRequestPriorities { get; set; } = new List<RescueRequestPriority>();
+        public ICollection<RescueRequestPriority> RescueRequestPriorities { get; set; } = new List<RescueRequestPriority>();
+    }
 }
+

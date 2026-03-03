@@ -1,38 +1,26 @@
-﻿using System;
+﻿using ReliefManagementSystem.Domain.Enum;
+using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace ReliefManagementSystem.Domain.Entities;
-
-[Index("CampaignId", "TeamId", Name = "IX_CampaignTeams_CampaignId_TeamId", IsUnique = true)]
-[Index("TeamId", Name = "IX_CampaignTeams_TeamId")]
-public partial class CampaignTeam
+namespace ReliefManagementSystem.Domain.Entities
 {
-    [Key]
-    public Guid CampaignTeamId { get; set; }
+    public class CampaignTeam
+    {
+        public Guid CampaignTeamId { get; set; }
+        public Guid CampaignId { get; set; }
+        public Guid TeamId { get; set; }
 
-    public Guid CampaignId { get; set; }
+        public CampaignTeamRole Role { get; set; }
+        public CampaignTeamStatus Status { get; set; }
 
-    public Guid TeamId { get; set; }
+        public DateTime AssignedAt { get; set; }
+        public bool IsDelete { get; set; }
 
-    public int Role { get; set; }
+        public Campaign Campaign { get; set; } = default!;
+        public Team Team { get; set; } = default!;
+    }
 
-    public int Status { get; set; }
-
-    public DateTime AssignedAt { get; set; }
-
-    public bool IsDelete { get; set; }
-
-    [ForeignKey("CampaignId")]
-    [InverseProperty("CampaignTeams")]
-    public virtual Campaign Campaign { get; set; } = null!;
-
-    [InverseProperty("CampaignTeam")]
-    public virtual ICollection<CampaignTask> CampaignTasks { get; set; } = new List<CampaignTask>();
-
-    [ForeignKey("TeamId")]
-    [InverseProperty("CampaignTeams")]
-    public virtual Team Team { get; set; } = null!;
 }

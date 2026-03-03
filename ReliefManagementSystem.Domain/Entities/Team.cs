@@ -1,52 +1,36 @@
-﻿using System;
+﻿using ReliefManagementSystem.Domain.Enum;
+using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace ReliefManagementSystem.Domain.Entities;
-
-[Index("LeaderId", Name = "IX_Teams_LeaderId")]
-[Index("ModeratorId", Name = "IX_Teams_ModeratorId")]
-public partial class Team
+namespace ReliefManagementSystem.Domain.Entities
 {
-    [Key]
-    public Guid TeamId { get; set; }
+    public class Team
+    {
+        public Guid TeamId { get; set; } = Guid.NewGuid();
 
-    public string Name { get; set; } = null!;
+        public string Name { get; set; }
 
-    public string? Description { get; set; }
+        public string? Description { get; set; }
 
-    public Guid ModeratorId { get; set; }
+        // Moderator control team
+        public Guid ModeratorId { get; set; }
+        public ApplicationUser Moderator { get; set; } = null!;
 
-    public Guid? LeaderId { get; set; }
+        // Team leader
+        public Guid? LeaderId { get; set; }
+        public ApplicationUser? Leader { get; set; }
 
-    public int Status { get; set; }
+        public TeamStatus Status { get; set; } = TeamStatus.Active;
 
-    public DateTime CreatedAt { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime? UpdatedAt { get; set; }
 
-    public DateTime? UpdatedAt { get; set; }
+        public ICollection<TeamMember> TeamMembers { get; set; } = new List<TeamMember>();
+        public ICollection<TeamJoinRequest> TeamJoinRequests { get; set; } = new List<TeamJoinRequest>();
+        public ICollection<CampaignTeam> CampaignTeams { get; set; } = new List<CampaignTeam>();
 
-    [InverseProperty("Team")]
-    public virtual ICollection<CampaignTeam> CampaignTeams { get; set; } = new List<CampaignTeam>();
-
-    [ForeignKey("LeaderId")]
-    [InverseProperty("TeamLeaders")]
-    public virtual AspNetUser? Leader { get; set; }
-
-    [ForeignKey("ModeratorId")]
-    [InverseProperty("TeamModerators")]
-    public virtual AspNetUser Moderator { get; set; } = null!;
-
-    [InverseProperty("Team")]
-    public virtual ICollection<ReliefStationTeam> ReliefStationTeams { get; set; } = new List<ReliefStationTeam>();
-
-    [InverseProperty("Team")]
-    public virtual ICollection<RescueOperation> RescueOperations { get; set; } = new List<RescueOperation>();
-
-    [InverseProperty("Team")]
-    public virtual ICollection<TeamJoinRequest> TeamJoinRequests { get; set; } = new List<TeamJoinRequest>();
-
-    [InverseProperty("Team")]
-    public virtual ICollection<TeamMember> TeamMembers { get; set; } = new List<TeamMember>();
+    }
 }

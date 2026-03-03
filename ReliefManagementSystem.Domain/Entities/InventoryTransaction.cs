@@ -1,38 +1,33 @@
-﻿using System;
+﻿using ReliefManagementSystem.Domain.Enum;
+using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace ReliefManagementSystem.Domain.Entities;
-
-[Index("CreatedBy", Name = "IX_InventoryTransactions_CreatedBy")]
-[Index("InventoryId", Name = "IX_InventoryTransactions_InventoryId")]
-public partial class InventoryTransaction
+namespace ReliefManagementSystem.Domain.Entities
 {
-    [Key]
-    public Guid TransactionId { get; set; }
+   public class InventoryTransaction
+    {
+        public Guid TransactionId { get; set; }
 
-    public Guid InventoryId { get; set; }
+        public Guid InventoryId { get; set; }
 
-    public string TransactionCode { get; set; } = null!;
+        public string TransactionCode { get; set; } = null!; // "IN-20260109-001", "OUT-20260109-002"
 
-    public int Type { get; set; }
+        public TransactionType Type { get; set; }
 
-    public DateTime CreatedAt { get; set; }
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
-    public Guid CreatedBy { get; set; }
+        public Guid CreatedBy { get; set; }
+        public ApplicationUser CreatedByUser { get; set; } = null!;
 
-    public string? Notes { get; set; }
+        public string? Notes { get; set; }
 
-    [ForeignKey("CreatedBy")]
-    [InverseProperty("InventoryTransactions")]
-    public virtual AspNetUser CreatedByNavigation { get; set; } = null!;
+        // Navigation properties - One transaction can have multiple items
 
-    [ForeignKey("InventoryId")]
-    [InverseProperty("InventoryTransactions")]
-    public virtual Inventory Inventory { get; set; } = null!;
+        public Inventory Inventory { get; set; } = null!;
 
-    [InverseProperty("Transaction")]
-    public virtual ICollection<InventoryTransactionItem> InventoryTransactionItems { get; set; } = new List<InventoryTransactionItem>();
+        public ICollection<InventoryTransactionItem> Items { get; set; } = new List<InventoryTransactionItem>();
+    }
 }

@@ -1,76 +1,51 @@
-﻿using System;
+﻿using ReliefManagementSystem.Domain.Enum;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace ReliefManagementSystem.Domain.Entities;
-
-[Index("LocationId", Name = "IX_ReliefStations_LocationId")]
-[Index("ManagerId", Name = "IX_ReliefStations_ManagerId")]
-[Index("ParentReliefStationId", Name = "IX_ReliefStations_ParentReliefStationId")]
-public partial class ReliefStation
+namespace ReliefManagementSystem.Domain.Entities
 {
-    [Key]
-    public Guid ReliefStationId { get; set; }
+    public class ReliefStation
+    {
+        public Guid ReliefStationId { get; set; }
 
-    [StringLength(255)]
-    public string Name { get; set; } = null!;
+        [Required]
+        [MaxLength(255)]
+        public string Name { get; set; } = null!;
 
-    public Guid? ManagerId { get; set; }
+        public Guid? ManagerId { get; set; }
+        public Guid LocationId { get; set; }
+        public String? Address { get; set; }
 
-    public Guid LocationId { get; set; }
+        public String? ContactNumber { get; set; }
 
-    public string? Address { get; set; }
+        public DateTime CreatedAt { get; set; }
+            
+        public DateTime UpdatedAt { get; set; }
 
-    public string? ContactNumber { get; set; }
+        public Guid CreatedBy { get; set; }
 
-    public DateTime CreatedAt { get; set; }
+        public ReliefStationLevel Level { get; set; }
+        public double Longitude { get; set; }
+        public double Latitude { get; set; }
+        public Guid? ParentReliefStationId { get; set; }
+        public ReliefStation? ParentStation { get; set; }
+        public ICollection<ReliefStation> ChildStations { get; set; }
 
-    public DateTime UpdatedAt { get; set; }
+        public ReliefStationStatus Status { get; set; }
 
-    public Guid CreatedBy { get; set; }
+        public ApplicationUser? Manager { get; set; } = null!;
+        public Location Location { get; set; } = null!;
 
-    public double Longitude { get; set; }
+        public ICollection<Inventory> Inventories { get; set; } = new List<Inventory>();
 
-    public double Latitude { get; set; }
+        public ICollection<ReliefStationTeam>  ReliefStationTeams { get; set; } = new List<ReliefStationTeam>();
 
-    public Guid? ParentReliefStationId { get; set; }
+        public ICollection<Vehicle> Vehicles { get; set; } = new List<Vehicle>();
 
-    public int Status { get; set; }
 
-    public int Level { get; set; }
-
-    [InverseProperty("ManagedStationReliefStation")]
-    public virtual ICollection<AspNetUser> AspNetUsers { get; set; } = new List<AspNetUser>();
-
-    [InverseProperty("CreatedByStation")]
-    public virtual ICollection<Campaign> Campaigns { get; set; } = new List<Campaign>();
-
-    [InverseProperty("ReliefStation")]
-    public virtual ICollection<Inventory> Inventories { get; set; } = new List<Inventory>();
-
-    [InverseProperty("ParentReliefStation")]
-    public virtual ICollection<ReliefStation> InverseParentReliefStation { get; set; } = new List<ReliefStation>();
-
-    [ForeignKey("LocationId")]
-    [InverseProperty("ReliefStations")]
-    public virtual Location Location { get; set; } = null!;
-
-    [ForeignKey("ManagerId")]
-    [InverseProperty("ReliefStations")]
-    public virtual AspNetUser? Manager { get; set; }
-
-    [ForeignKey("ParentReliefStationId")]
-    [InverseProperty("InverseParentReliefStation")]
-    public virtual ReliefStation? ParentReliefStation { get; set; }
-
-    [InverseProperty("ReliefStation")]
-    public virtual ICollection<ReliefStationTeam> ReliefStationTeams { get; set; } = new List<ReliefStationTeam>();
-
-    [InverseProperty("ReliefStation")]
-    public virtual ICollection<RescueOperation> RescueOperations { get; set; } = new List<RescueOperation>();
-
-    [InverseProperty("ReliefStation")]
-    public virtual ICollection<Vehicle> Vehicles { get; set; } = new List<Vehicle>();
+    }
 }

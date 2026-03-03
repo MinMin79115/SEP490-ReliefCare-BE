@@ -1,22 +1,18 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace ReliefManagementSystem.Domain.Entities;
-
-public partial class Skill
+namespace ReliefManagementSystem.Domain.Entities
 {
-    [Key]
-    public Guid SkillId { get; set; }
+    public class Skill
+    {
+        public Guid SkillId { get; set; }
+        public string Code { get; set; }
+        public string Name { get; set; }
+        public string Description { get; set; }
 
-    public string Code { get; set; } = null!;
-
-    public string Name { get; set; } = null!;
-
-    public string Description { get; set; } = null!;
-
-    [InverseProperty("Skill")]
-    public virtual ICollection<VolunteerSkill> VolunteerSkills { get; set; } = new List<VolunteerSkill>();
+        public ICollection<VolunteerSkill> VolunteerSkills { get; set; } = new List<VolunteerSkill>();
+    }
 }

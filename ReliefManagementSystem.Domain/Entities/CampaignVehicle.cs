@@ -1,42 +1,31 @@
-﻿using System;
+﻿using ReliefManagementSystem.Domain.Enum;
+using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace ReliefManagementSystem.Domain.Entities;
-
-[Index("AssignedDriverId", Name = "IX_CampaignVehicles_AssignedDriverId")]
-[Index("CampaignId", Name = "IX_CampaignVehicles_CampaignId")]
-[Index("VehicleId", Name = "IX_CampaignVehicles_VehicleId")]
-public partial class CampaignVehicle
+namespace ReliefManagementSystem.Domain.Entities
 {
-    [Key]
-    public Guid CampaignVehicleId { get; set; }
+    public class CampaignVehicle
+    {
+        public Guid CampaignVehicleId { get; set; }
 
-    public Guid VehicleId { get; set; }
+        public Guid VehicleId { get; set; }
+        public Guid CampaignId { get; set; }
 
-    public Guid CampaignId { get; set; }
+        public Guid? AssignedDriverId { get; set; }
 
-    public Guid? AssignedDriverId { get; set; }
+        public DateTime StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
 
-    public DateTime StartDate { get; set; }
+        public VehicleAssignmentStatus Status { get; set; }
 
-    public DateTime? EndDate { get; set; }
+        public string? Note { get; set; } 
 
-    public int Status { get; set; }
-
-    public string? Note { get; set; }
-
-    [ForeignKey("AssignedDriverId")]
-    [InverseProperty("CampaignVehicles")]
-    public virtual VolunteerProfile? AssignedDriver { get; set; }
-
-    [ForeignKey("CampaignId")]
-    [InverseProperty("CampaignVehicles")]
-    public virtual Campaign Campaign { get; set; } = null!;
-
-    [ForeignKey("VehicleId")]
-    [InverseProperty("CampaignVehicles")]
-    public virtual Vehicle Vehicle { get; set; } = null!;
+        // Navigation Properties
+        public virtual Vehicle Vehicle { get; set; } = default!;
+        public virtual Campaign Campaign { get; set; } = default!;
+        public virtual VolunteerProfile? Driver { get; set; }
+    }
 }

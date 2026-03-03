@@ -1,28 +1,21 @@
-﻿using System;
+﻿using ReliefManagementSystem.Domain.Enum;
+using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace ReliefManagementSystem.Domain.Entities;
-
-[Index("ReliefRequestId", Name = "IX_ReliefNeedItems_ReliefRequestId")]
-public partial class ReliefNeedItem
+namespace ReliefManagementSystem.Domain.Entities
 {
-    [Key]
-    public Guid ReliefNeedItemId { get; set; }
+    public class ReliefNeedItem
+    {
+        public Guid  ReliefNeedItemId { get; set; }
+        public Guid ReliefRequestId { get; set; }
+        public ReliefNeedType NeedType { get; set; }
+        public UrgencyLevel UrgencyLevel { get; set; }
+        public int PeopleCount { get; set; }
+        public string? Note { get; set; }
 
-    public Guid ReliefRequestId { get; set; }
-
-    public string NeedType { get; set; } = null!;
-
-    public string UrgencyLevel { get; set; } = null!;
-
-    public int PeopleCount { get; set; }
-
-    public string? Note { get; set; }
-
-    [ForeignKey("ReliefRequestId")]
-    [InverseProperty("ReliefNeedItems")]
-    public virtual ReliefRequest ReliefRequest { get; set; } = null!;
+        public ReliefRequest ReliefRequest { get; set; } = default!;
+    }
 }

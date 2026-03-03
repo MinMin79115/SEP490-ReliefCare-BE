@@ -1,26 +1,32 @@
-﻿using System;
-using System.Collections.Generic;
+using System;
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
 
-namespace ReliefManagementSystem.Domain.Entities;
-
-[Index("UserId", Name = "IX_ModeratorProfiles_UserId", IsUnique = true)]
-public partial class ModeratorProfile
+namespace ReliefManagementSystem.Domain.Entities
 {
-    [Key]
-    public Guid ModeratorProfileId { get; set; }
+    /// <summary>
+    /// Profile bổ sung cho user có role Moderator.
+    /// Quan hệ 1:1 với ApplicationUser (giống ManagerProfile).
+    /// </summary>
+    public class ModeratorProfile
+    {
+        [Key]
+        public Guid ModeratorProfileId { get; set; }
 
-    public Guid UserId { get; set; }
+        // 1:1 với ApplicationUser
+        public Guid UserId { get; set; }
+        public ApplicationUser User { get; set; } = null!;
 
-    public string? AssignedArea { get; set; }
+        /// <summary>
+        /// Khu vực / phạm vi giám sát mà Moderator này được phân công.
+        /// Ví dụ: "Miền Nam", "Tỉnh Bình Dương"…
+        /// Null = chưa gán hoặc giám sát toàn quốc.
+        /// </summary>
+        public string? AssignedArea { get; set; }
 
-    public DateTime AppointedAt { get; set; }
+        /// <summary>Ngày được bổ nhiệm làm Moderator.</summary>
+        public DateTime AppointedAt { get; set; } = DateTime.UtcNow;
 
-    public string? Notes { get; set; }
-
-    [ForeignKey("UserId")]
-    [InverseProperty("ModeratorProfile")]
-    public virtual AspNetUser User { get; set; } = null!;
+        /// <summary>Ghi chú bổ sung (phạm vi quyền, v.v.).</summary>
+        public string? Notes { get; set; }
+    }
 }

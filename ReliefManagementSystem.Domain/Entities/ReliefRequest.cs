@@ -1,29 +1,23 @@
-﻿using System;
+﻿using ReliefManagementSystem.Domain.Enum;
+using ReliefManagementSystem.Domain.Exceptions;
+using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace ReliefManagementSystem.Domain.Entities;
-
-[Index("CampaignId", Name = "IX_ReliefRequests_CampaignId")]
-public partial class ReliefRequest
+namespace ReliefManagementSystem.Domain.Entities
 {
-    [Key]
-    public Guid RequestId { get; set; }
+    public class ReliefRequest : Request
+    {
+        public Guid? CampaignId { get; set; }
 
-    public Guid? CampaignId { get; set; }
+        public ReliefRequestStatus Status { get; set; }
 
-    public string Status { get; set; } = null!;
+        public Campaign? Campaign { get; set; } 
 
-    [ForeignKey("CampaignId")]
-    [InverseProperty("ReliefRequests")]
-    public virtual Campaign? Campaign { get; set; }
+        public ICollection<ReliefNeedItem> ReliefNeedItems { get; set; } = new List<ReliefNeedItem>();
 
-    [InverseProperty("ReliefRequest")]
-    public virtual ICollection<ReliefNeedItem> ReliefNeedItems { get; set; } = new List<ReliefNeedItem>();
-
-    [ForeignKey("RequestId")]
-    [InverseProperty("ReliefRequest")]
-    public virtual Request Request { get; set; } = null!;
+    }
 }
+    

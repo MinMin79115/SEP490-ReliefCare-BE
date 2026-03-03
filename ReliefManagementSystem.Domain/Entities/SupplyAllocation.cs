@@ -1,34 +1,25 @@
-﻿using System;
+﻿using ReliefManagementSystem.Domain.Enum;
+using System;
 using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace ReliefManagementSystem.Domain.Entities;
-
-[Index("CampaignId", Name = "IX_SupplyAllocations_CampaignId")]
-[Index("SourceInventoryId", Name = "IX_SupplyAllocations_SourceInventoryId")]
-public partial class SupplyAllocation
+namespace ReliefManagementSystem.Domain.Entities
 {
-    [Key]
-    public Guid AllocationId { get; set; }
+    public class SupplyAllocation
+    {
+        public Guid AllocationId { get; set; }
 
-    public Guid CampaignId { get; set; }
+        public Guid CampaignId { get; set; }
+        public Guid SourceInventoryId { get; set; }
 
-    public Guid SourceInventoryId { get; set; }
+        public DateTime AllocatedAt { get; set; } = DateTime.UtcNow;
+        public SupplyAllocationStatus Status { get; set; }
 
-    public DateTime AllocatedAt { get; set; }
-
-    public int Status { get; set; }
-
-    [ForeignKey("CampaignId")]
-    [InverseProperty("SupplyAllocations")]
-    public virtual Campaign Campaign { get; set; } = null!;
-
-    [ForeignKey("SourceInventoryId")]
-    [InverseProperty("SupplyAllocations")]
-    public virtual Inventory SourceInventory { get; set; } = null!;
-
-    [InverseProperty("Allocation")]
-    public virtual ICollection<SupplyAllocationItem> SupplyAllocationItems { get; set; } = new List<SupplyAllocationItem>();
+        // Navigation
+        public Campaign Campaign { get; set; } = default!;
+        public Inventory SourceInventory { get; set; } = default!;
+        public ICollection<SupplyAllocationItem> Items { get; set; } = new List<SupplyAllocationItem>();
+    }
 }
