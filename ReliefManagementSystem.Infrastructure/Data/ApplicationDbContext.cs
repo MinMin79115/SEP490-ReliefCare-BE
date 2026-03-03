@@ -14,6 +14,10 @@ namespace ReliefManagementSystem.Infrastructure.Data
     {
         public DbSet<VolunteerProfile> VolunteerProfiles { get; set; }
         public DbSet<ManagerProfile> ManagerProfiles { get; set; }
+        public DbSet<ModeratorProfile> ModeratorProfiles { get; set; }
+
+        // Donation
+        public DbSet<Donation> Donations { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<Skill> Skills { get; set; }
         public DbSet<VolunteerSkill> VolunteerSkills { get; set; }
@@ -89,7 +93,17 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .HasConversion<string>()
                 .IsRequired();
 
-            //VolunteerProfile configuration
+            // ModeratorProfile configuration (1:1 với ApplicationUser)
+            builder.Entity<ModeratorProfile>()
+                .HasKey(mp => mp.ModeratorProfileId);
+
+            builder.Entity<ModeratorProfile>()
+                .HasOne(mp => mp.User)
+                .WithOne(u => u.ModeratorProfile)
+                .HasForeignKey<ModeratorProfile>(mp => mp.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // VolunteerProfile configuration
 
             builder.Entity<VolunteerProfile>()
                 .HasKey(v => v.VolunteerProfileId);
@@ -645,6 +659,33 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 entity.Property(pc => pc.DisasterType)
                     .HasConversion<string>()
                     .IsRequired();
+            });
+
+            // =========================
+            // Donation
+            // =========================
+            builder.Entity<Donation>(entity =>
+            {
+                entity.HasKey(d => d.DonationId);
+
+                entity.Property(d => d.Amount)
+                    .HasPrecision(18, 2)
+                    .IsRequired();
+
+                entity.Property(d => d.Status)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                entity.HasOne(d => d.Campaign)
+                    .WithMany(c => c.Donations)
+                    .HasForeignKey(d => d.CampaignId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                // DonorUserId nullable: null nếu ẩn danh
+                entity.HasOne(d => d.DonorUser)
+                    .WithMany()
+                    .HasForeignKey(d => d.DonorUserId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
         }
 
