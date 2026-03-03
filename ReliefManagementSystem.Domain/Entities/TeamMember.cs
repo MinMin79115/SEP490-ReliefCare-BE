@@ -1,22 +1,30 @@
-﻿using ReliefManagementSystem.Domain.Enum;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
-namespace ReliefManagementSystem.Domain.Entities
+namespace ReliefManagementSystem.Domain.Entities;
+
+[PrimaryKey("TeamId", "UserId")]
+[Index("UserId", Name = "IX_TeamMembers_UserId")]
+public partial class TeamMember
 {
-    public class TeamMember
-    {
-        public Guid TeamId { get; set; }
-        public Team Team { get; set; } = null!;
+    [Key]
+    public Guid TeamId { get; set; }
 
-        public Guid UserId { get; set; }
-        public ApplicationUser User { get; set; }
+    [Key]
+    public Guid UserId { get; set; }
 
-        public TeamRole RoleTeam { get; set; }
+    public int RoleTeam { get; set; }
 
-        public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
-    }
+    public DateTime JoinedAt { get; set; }
+
+    [ForeignKey("TeamId")]
+    [InverseProperty("TeamMembers")]
+    public virtual Team Team { get; set; } = null!;
+
+    [ForeignKey("UserId")]
+    [InverseProperty("TeamMembers")]
+    public virtual AspNetUser User { get; set; } = null!;
 }

@@ -1,20 +1,28 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
-namespace ReliefManagementSystem.Domain.Entities
+namespace ReliefManagementSystem.Domain.Entities;
+
+[PrimaryKey("VolunteerProfileId", "SkillId")]
+[Index("SkillId", Name = "IX_VolunteerSkills_SkillId")]
+public partial class VolunteerSkill
 {
-    public class VolunteerSkill
-    {
-        public Guid VolunteerProfileId { get; set; }
-        public VolunteerProfile VolunteerProfile { get; set; }
+    [Key]
+    public Guid VolunteerProfileId { get; set; }
 
-        public Guid SkillId { get; set; }
-        public Skill Skill { get; set; }
+    [Key]
+    public Guid SkillId { get; set; }
 
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; }
 
-    }
+    [ForeignKey("SkillId")]
+    [InverseProperty("VolunteerSkills")]
+    public virtual Skill Skill { get; set; } = null!;
+
+    [ForeignKey("VolunteerProfileId")]
+    [InverseProperty("VolunteerSkills")]
+    public virtual VolunteerProfile VolunteerProfile { get; set; } = null!;
 }

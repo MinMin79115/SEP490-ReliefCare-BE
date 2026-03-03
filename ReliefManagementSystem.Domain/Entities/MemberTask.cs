@@ -1,31 +1,37 @@
-﻿using ReliefManagementSystem.Domain.Enum;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
-namespace ReliefManagementSystem.Domain.Entities
+namespace ReliefManagementSystem.Domain.Entities;
+
+[Index("CampaignTaskId", Name = "IX_MemberTasks_CampaignTaskId")]
+[Index("VolunteerProfileId", Name = "IX_MemberTasks_VolunteerProfileId")]
+public partial class MemberTask
 {
-    public class MemberTask
-    {
-        public Guid MemberTaskId { get; set; }
+    [Key]
+    public Guid MemberTaskId { get; set; }
 
-        public Guid CampaignTaskId { get; set; }
+    public Guid CampaignTaskId { get; set; }
 
-        public Guid VolunteerProfileId { get; set; }
+    public Guid VolunteerProfileId { get; set; }
 
-        public string SubTaskTitle { get; set; } = string.Empty;
-        public string? TaskNote { get; set; }
+    public string SubTaskTitle { get; set; } = null!;
 
-        public DateTime? AssignedAt { get; set; }
-        public DateTime? CompletedAt { get; set; }
+    public string? TaskNote { get; set; }
 
-        public MemberTaskStatus Status { get; set; }
+    public DateTime? AssignedAt { get; set; }
 
-        // Navigation
-        public CampaignTask CampaignTask { get; set; } = default!;
+    public DateTime? CompletedAt { get; set; }
 
-        public VolunteerProfile VolunteerProfile { get; set; } = default!;
-    }
+    public int Status { get; set; }
+
+    [ForeignKey("CampaignTaskId")]
+    [InverseProperty("MemberTasks")]
+    public virtual CampaignTask CampaignTask { get; set; } = null!;
+
+    [ForeignKey("VolunteerProfileId")]
+    [InverseProperty("MemberTasks")]
+    public virtual VolunteerProfile VolunteerProfile { get; set; } = null!;
 }

@@ -1,34 +1,53 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using ReliefManagementSystem.Domain.Enum;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
-namespace ReliefManagementSystem.Domain.Entities
+namespace ReliefManagementSystem.Domain.Entities;
+
+[Index("ReporterUserId", Name = "IX_Requests_ReporterUserId")]
+public partial class Request
 {
-    public class Request
-    {
-        public Guid RequestId { get; set; } 
-        public RequestType RequestType { get; set; }
-        public string Description { get; set; } = string.Empty;
+    [Key]
+    public Guid RequestId { get; set; }
 
-        public double Latitude { get; set; }
-        public double Longitude { get; set; }
-        public double? Accuracy { get; set; }
-        public string Address { get; set; } = string.Empty;
+    public int RequestType { get; set; }
 
-        public Guid? ReporterUserId { get; set; } 
-        public string ReporterFullName { get; set; } = string.Empty;
-        public string ReporterPhone { get; set; } = string.Empty;
+    [StringLength(500)]
+    public string Description { get; set; } = null!;
 
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public DateTime? UpdatedAt { get; set; }
+    public double Latitude { get; set; }
 
-        public ApplicationUser? ReporterUser { get; set; }
-        public ICollection<Attachment> Attachments { get; set; } = new List<Attachment>();
-        public ICollection<RequestVerification> Verifications { get; set; } = new List<RequestVerification>();
-    }
+    public double Longitude { get; set; }
+
+    public double? Accuracy { get; set; }
+
+    public string Address { get; set; } = null!;
+
+    public Guid? ReporterUserId { get; set; }
+
+    public string ReporterFullName { get; set; } = null!;
+
+    public string ReporterPhone { get; set; } = null!;
+
+    public DateTime CreatedAt { get; set; }
+
+    public DateTime? UpdatedAt { get; set; }
+
+    [InverseProperty("Request")]
+    public virtual ICollection<Attachment> Attachments { get; set; } = new List<Attachment>();
+
+    [InverseProperty("Request")]
+    public virtual ReliefRequest? ReliefRequest { get; set; }
+
+    [ForeignKey("ReporterUserId")]
+    [InverseProperty("Requests")]
+    public virtual AspNetUser? ReporterUser { get; set; }
+
+    [InverseProperty("Request")]
+    public virtual ICollection<RequestVerification> RequestVerifications { get; set; } = new List<RequestVerification>();
+
+    [InverseProperty("Request")]
+    public virtual RescueRequest? RescueRequest { get; set; }
 }
-
-

@@ -1,25 +1,31 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
-namespace ReliefManagementSystem.Domain.Entities
+namespace ReliefManagementSystem.Domain.Entities;
+
+[Index("SupplyItemId", Name = "IX_InventoryTransactionItems_SupplyItemId")]
+[Index("TransactionId", Name = "IX_InventoryTransactionItems_TransactionId")]
+public partial class InventoryTransactionItem
 {
-    public class InventoryTransactionItem
-    {
-        public Guid TransactionItemId { get; set; }
+    [Key]
+    public Guid TransactionItemId { get; set; }
 
-        public Guid TransactionId { get; set; }
+    public Guid TransactionId { get; set; }
 
-        public Guid SupplyItemId { get; set; }
+    public Guid SupplyItemId { get; set; }
 
-        public int Quantity { get; set; }
+    public int Quantity { get; set; }
 
-        public string? Notes { get; set; }
+    public string? Notes { get; set; }
 
-        // Navigation
-        public InventoryTransaction Transaction { get; set; } = null!;
-        public SupplyItem SupplyItem { get; set; } = null!;
-    }
+    [ForeignKey("SupplyItemId")]
+    [InverseProperty("InventoryTransactionItems")]
+    public virtual SupplyItem SupplyItem { get; set; } = null!;
+
+    [ForeignKey("TransactionId")]
+    [InverseProperty("InventoryTransactionItems")]
+    public virtual InventoryTransaction Transaction { get; set; } = null!;
 }

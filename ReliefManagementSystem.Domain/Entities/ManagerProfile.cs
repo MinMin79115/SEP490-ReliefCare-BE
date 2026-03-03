@@ -1,38 +1,33 @@
-using ReliefManagementSystem.Domain.Enum;
-using System;
+﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
-namespace ReliefManagementSystem.Domain.Entities
+namespace ReliefManagementSystem.Domain.Entities;
+
+[Index("AssignedLocationId", Name = "IX_ManagerProfiles_AssignedLocationId")]
+[Index("UserId", Name = "IX_ManagerProfiles_UserId", IsUnique = true)]
+public partial class ManagerProfile
 {
-    public class ManagerProfile
-    {
-        [Key]
-        public Guid ManagerProfileId { get; set; }
+    [Key]
+    public Guid ManagerProfileId { get; set; }
 
-        // 1:1 với ApplicationUser
-        public Guid UserId { get; set; }
-        public ApplicationUser User { get; set; } = null!;
+    public Guid UserId { get; set; }
 
-        /// <summary>
-        /// Cấp quản lý: Regional (vùng) | Province (tỉnh) | Local (địa phương).
-        /// </summary>
-        public ReliefStationLevel Level { get; set; }
+    public string Level { get; set; } = null!;
 
-        /// <summary>
-        /// Địa phương/vùng/tỉnh mà manager này phụ trách.
-        /// Null = chưa gán hoặc phụ trách toàn quốc.
-        /// </summary>
-        public Guid? AssignedLocationId { get; set; }
-        public Location? AssignedLocation { get; set; }
+    public Guid? AssignedLocationId { get; set; }
 
-        /// <summary>
-        /// Ngày được bổ nhiệm.
-        /// </summary>
-        public DateTime AppointedAt { get; set; } = DateTime.UtcNow;
+    public DateTime AppointedAt { get; set; }
 
-        /// <summary>
-        /// Ghi chú bổ sung (phạm vi phụ trách, quyền đặc biệt, v.v.).
-        /// </summary>
-        public string? Notes { get; set; }
-    }
+    public string? Notes { get; set; }
+
+    [ForeignKey("AssignedLocationId")]
+    [InverseProperty("ManagerProfiles")]
+    public virtual Location? AssignedLocation { get; set; }
+
+    [ForeignKey("UserId")]
+    [InverseProperty("ManagerProfile")]
+    public virtual AspNetUser User { get; set; } = null!;
 }

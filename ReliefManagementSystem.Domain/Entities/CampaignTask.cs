@@ -1,29 +1,44 @@
-﻿using ReliefManagementSystem.Domain.Enum;
-using System;
+﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
-namespace ReliefManagementSystem.Domain.Entities
+namespace ReliefManagementSystem.Domain.Entities;
+
+[Index("CampaignId", Name = "IX_CampaignTasks_CampaignId")]
+[Index("CampaignTeamId", Name = "IX_CampaignTasks_CampaignTeamId")]
+public partial class CampaignTask
 {
-    public class CampaignTask
-    {
-        public Guid CampaignTaskId { get; set; }
+    [Key]
+    public Guid CampaignTaskId { get; set; }
 
-        public Guid CampaignTeamId { get; set; }
+    public Guid CampaignTeamId { get; set; }
 
-        public string Title { get; set; } = string.Empty;
-        public string? Description { get; set; }
+    public string Title { get; set; } = null!;
 
-        public DateTime StartDate { get; set; }
-        public DateTime? DueDate { get; set; }
+    public string? Description { get; set; }
 
-        public CampaignTaskStatus Status { get; set; }
-        public TaskPriority Priority { get; set; }
+    public DateTime StartDate { get; set; }
 
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-        public CampaignTeam CampaignTeam { get; set; } = default!;
-        public ICollection<MemberTask> MemberTasks { get; set; } = new List<MemberTask>();
-    }
+    public DateTime? DueDate { get; set; }
+
+    public int Status { get; set; }
+
+    public int Priority { get; set; }
+
+    public DateTime CreatedAt { get; set; }
+
+    public Guid? CampaignId { get; set; }
+
+    [ForeignKey("CampaignId")]
+    [InverseProperty("CampaignTasks")]
+    public virtual Campaign? Campaign { get; set; }
+
+    [ForeignKey("CampaignTeamId")]
+    [InverseProperty("CampaignTasks")]
+    public virtual CampaignTeam CampaignTeam { get; set; } = null!;
+
+    [InverseProperty("CampaignTask")]
+    public virtual ICollection<MemberTask> MemberTasks { get; set; } = new List<MemberTask>();
 }

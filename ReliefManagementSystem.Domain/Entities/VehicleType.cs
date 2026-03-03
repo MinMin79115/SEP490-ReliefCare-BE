@@ -1,28 +1,30 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations.Schema;
+using Microsoft.EntityFrameworkCore;
 
-namespace ReliefManagementSystem.Domain.Entities
+namespace ReliefManagementSystem.Domain.Entities;
+
+[Index("TypeName", Name = "IX_VehicleTypes_TypeName", IsUnique = true)]
+public partial class VehicleType
 {
-    public class VehicleType
-    {
-        public Guid VehicleTypeId { get; set; } = Guid.NewGuid();
+    [Key]
+    public Guid VehicleTypeId { get; set; }
 
-        public string TypeName { get; set; } = string.Empty;
+    [StringLength(100)]
+    public string TypeName { get; set; } = null!;
 
-        public int DefaultCapacity { get; set; }
+    public int DefaultCapacity { get; set; }
 
-        public string? Description { get; set; }
+    public string? Description { get; set; }
 
-        public bool IsDeleted { get; set; } = false;
+    public bool IsDeleted { get; set; }
 
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+    public DateTime CreatedAt { get; set; }
 
-        public DateTime? UpdatedAt { get; set; }
+    public DateTime? UpdatedAt { get; set; }
 
-        // Navigation property
-        public ICollection<Vehicle> Vehicles { get; set; } = new List<Vehicle>();
-    }
+    [InverseProperty("VehicleType")]
+    public virtual ICollection<Vehicle> Vehicles { get; set; } = new List<Vehicle>();
 }

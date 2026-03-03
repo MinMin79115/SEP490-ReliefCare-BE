@@ -6,21 +6,21 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ReliefManagementSystem.Domain.Entities;
 
-[Index("UserId", Name = "IX_ModeratorProfiles_UserId", IsUnique = true)]
-public partial class ModeratorProfile
+[PrimaryKey("UserId", "LoginProvider", "Name")]
+public partial class AspNetUserToken
 {
     [Key]
-    public Guid ModeratorProfileId { get; set; }
-
     public Guid UserId { get; set; }
 
-    public string? AssignedArea { get; set; }
+    [Key]
+    public string LoginProvider { get; set; } = null!;
 
-    public DateTime AppointedAt { get; set; }
+    [Key]
+    public string Name { get; set; } = null!;
 
-    public string? Notes { get; set; }
+    public string? Value { get; set; }
 
     [ForeignKey("UserId")]
-    [InverseProperty("ModeratorProfile")]
+    [InverseProperty("AspNetUserTokens")]
     public virtual AspNetUser User { get; set; } = null!;
 }
