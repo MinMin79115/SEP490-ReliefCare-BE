@@ -6,12 +6,9 @@ using System.Threading.Tasks;
 
 namespace ReliefManagementSystem.Domain.Enum
 {
-    public enum Role
+    public enum  RequestType
     {
-        Admin,
-        User,
-        Volunteer,
-        Moderator,
-        Manager
+        Relief = 0,
+        Rescue = 1
     }
 }

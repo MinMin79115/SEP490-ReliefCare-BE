@@ -8,10 +8,14 @@ namespace ReliefManagementSystem.Domain.Entities
 {
     public class Attachment
     {
-        public Guid Id { get; set; }
-        public string Type { get; set; } // image | video
-        public string Url { get; set; }
+        public Guid AttachmentId { get; set; }
 
-        public Guid EmergencyRequestId { get; set; }
+        public Guid RequestId { get; set; }
+
+        public string? Url { get; set; }
+        public string? FileType { get; set; }
+        public DateTime UploadedAt { get; set; }
+
+        public Request? Request { get; set; } 
     }
 }

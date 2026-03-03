@@ -13,9 +13,11 @@ namespace ReliefManagementSystem.Infrastructure.Data
     public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>
     {
         public DbSet<VolunteerProfile> VolunteerProfiles { get; set; }
+        public DbSet<ManagerProfile> ManagerProfiles { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<Skill> Skills { get; set; }
         public DbSet<VolunteerSkill> VolunteerSkills { get; set; }
+        public DbSet<VolunteerCertificate> VolunteerCertificates { get; set; }
         public DbSet<Team> Teams { get; set; }
         public DbSet<TeamMember> TeamMembers { get; set; }
         public DbSet<TeamJoinRequest> TeamJoinRequests { get; set; }
@@ -48,12 +50,45 @@ namespace ReliefManagementSystem.Infrastructure.Data
         public DbSet<SupplyAllocation> SupplyAllocations { get; set; }
         public DbSet<SupplyAllocationItem> SupplyAllocationItems { get; set; }
 
+        //Request Management
+        public DbSet<Request> Requests { get; set; }
+        public DbSet<ReliefRequest> ReliefRequests { get; set; }
+        public DbSet<RescueRequest> RescueRequests { get; set; }
+        public DbSet<PriorityCriteria> PriorityCriterias { get; set; }
+        public DbSet<Attachment> Attachments { get; set; }
+        public DbSet<RequestVerification> RequestVerifications { get; set; }
+        public DbSet<ReliefNeedItem> ReliefNeedItems { get; set; }
+        public DbSet<RescueOperation> RescueOperations { get; set; }
+        public DbSet<RescueRequestPriority> RescueRequestPriorities { get; set; }
+
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
           : base(options) { }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
+
+            // ManagerProfile configuration (1:1 với ApplicationUser)
+            builder.Entity<ManagerProfile>()
+                .HasKey(mp => mp.ManagerProfileId);
+
+            builder.Entity<ManagerProfile>()
+                .HasOne(mp => mp.User)
+                .WithOne(u => u.ManagerProfile)
+                .HasForeignKey<ManagerProfile>(mp => mp.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<ManagerProfile>()
+                .HasOne(mp => mp.AssignedLocation)
+                .WithMany()
+                .HasForeignKey(mp => mp.AssignedLocationId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<ManagerProfile>()
+                .Property(mp => mp.Level)
+                .HasConversion<string>()
+                .IsRequired();
+
             //VolunteerProfile configuration
 
             builder.Entity<VolunteerProfile>()
@@ -64,6 +99,21 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .WithOne(u => u.VolunteerProfile)
                 .HasForeignKey<VolunteerProfile>(v => v.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // VolunteerCertificate configuration
+            builder.Entity<VolunteerCertificate>()
+                .HasKey(c => c.CertificateId);
+
+            builder.Entity<VolunteerCertificate>()
+                .HasOne(c => c.VolunteerProfile)
+                .WithMany(vp => vp.Certificates)
+                .HasForeignKey(c => c.VolunteerProfileId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<VolunteerCertificate>()
+                .Property(c => c.Name)
+                .HasMaxLength(200)
+                .IsRequired();
 
             //VolunteerSkill configuration
             builder.Entity<VolunteerSkill>()
@@ -136,71 +186,6 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .HasForeignKey(r => r.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            //builder.Entity<VolunteerProfile>()
-            //    .HasKey(v => v.VolunteerProfileId);
-
-            //builder.Entity<VolunteerProfile>()
-            //    .HasOne(v => v.User)
-            //    .WithOne(u => u.VolunteerProfile)
-            //    .HasForeignKey<VolunteerProfile>(v => v.UserId)
-            //    .OnDelete(DeleteBehavior.Cascade);
-
-            //builder.Entity<VolunteerSkill>()
-            //    .HasKey(vs => new { vs.VolunteerProfileId, vs.SkillId });
-
-            //builder.Entity<VolunteerSkill>()
-            //    .HasOne(vs => vs.VolunteerProfile)
-            //    .WithMany(vp => vp.VolunteerSkills)
-            //    .HasForeignKey(vs => vs.VolunteerProfileId)
-            //    .OnDelete(DeleteBehavior.Cascade);
-
-            //builder.Entity<VolunteerSkill>()
-            //    .HasOne(vs => vs.Skill)
-            //    .WithMany(s => s.VolunteerSkills)
-            //    .HasForeignKey(vs => vs.SkillId)
-            //    .OnDelete(DeleteBehavior.Cascade);
-
-            //builder.Entity<TeamMember>()
-            //    .HasKey(tm => new { tm.TeamId, tm.UserId });
-
-            //builder.Entity<TeamMember>()
-            //    .HasOne(tm => tm.Team)
-            //    .WithMany(t => t.TeamMembers)
-            //    .HasForeignKey(tm => tm.TeamId)
-            //    .OnDelete(DeleteBehavior.Cascade);
-
-            //builder.Entity<TeamMember>()
-            //    .HasOne(tm => tm.User)
-            //    .WithMany(u => u.TeamMembers)
-            //    .HasForeignKey(tm => tm.UserId)
-            //    .OnDelete(DeleteBehavior.Cascade);
-
-
-            //builder.Entity<Team>()
-            //    .HasOne(t => t.Leader)
-            //    .WithMany()
-            //    .HasForeignKey(t => t.LeaderId)
-            //    .OnDelete(DeleteBehavior.Restrict);
-
-            //builder.Entity<RefreshToken>()
-            //    .HasOne(r => r.User)
-            //    .WithMany()
-            //    .HasForeignKey(r => r.UserId)
-            //    .OnDelete(DeleteBehavior.Cascade);
-
-            //Location Configuration
-
-            //builder.Entity<Location>()
-            //    .HasKey(l => l.LocationId);
-
-            //builder.Entity<Location>()
-            //    .HasOne(l => l.Parent)
-            //    .WithMany(l => l.Children)
-            //    .HasForeignKey(l => l.ParentId)
-            //    .OnDelete(DeleteBehavior.SetNull);
-
-            //builder.Entity<Location>()
-            //    .HasIndex(l => l.ParentId);
 
 
 
@@ -468,6 +453,199 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .WithMany(s => s.SupplyAllocationItems)
                 .HasForeignKey(sai => sai.SupplyItemId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+
+            // ReliefStation – Manager and Location FK
+            builder.Entity<ReliefStation>()
+                .HasOne(rs => rs.Manager)
+                .WithMany()
+                .HasForeignKey(rs => rs.ManagerId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<ReliefStation>()
+                .HasOne(rs => rs.Location)
+                .WithMany()
+                .HasForeignKey(rs => rs.LocationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // Campaign – CreatedBy FK
+            builder.Entity<Campaign>()
+                .HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(c => c.CreatedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // =========================
+            // Request (TPT – Table-Per-Type: RescueRequest và ReliefRequest có bảng riêng,
+            // dùng shared PK với bảng Requests)
+            // =========================
+            builder.Entity<Request>(entity =>
+            {
+                entity.ToTable("Requests");
+
+                entity.HasKey(r => r.RequestId);
+
+                entity.Property(r => r.Description)
+                    .IsRequired()
+                    .HasMaxLength(500);
+
+                entity.Property(r => r.CreatedAt)
+                    .IsRequired();
+
+                entity.HasOne(r => r.ReporterUser)
+                    .WithMany()
+                    .HasForeignKey(r => r.ReporterUserId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // =========================
+            // RescueRequest (TPT)
+            // =========================
+            builder.Entity<RescueRequest>(entity =>
+            {
+                entity.ToTable("RescueRequests");
+
+                entity.Property(r => r.RescueRequestStatus)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                entity.Property(r => r.DisasterType)
+                    .HasConversion<string>()
+                    .IsRequired();
+            });
+
+            // =========================
+            // ReliefRequest (TPT)
+            // =========================
+            builder.Entity<ReliefRequest>(entity =>
+            {
+                entity.ToTable("ReliefRequests");
+
+                entity.Property(r => r.Status)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                entity.HasOne(r => r.Campaign)
+                    .WithMany(c => c.ReliefRequests)
+                    .HasForeignKey(r => r.CampaignId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasMany(r => r.ReliefNeedItems)
+                    .WithOne(n => n.ReliefRequest)
+                    .HasForeignKey(n => n.ReliefRequestId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // =========================
+            // Attachment
+            // =========================
+            builder.Entity<Attachment>(entity =>
+            {
+                entity.HasKey(a => a.AttachmentId);
+
+                entity.HasOne(a => a.Request)
+                    .WithMany(r => r.Attachments)
+                    .HasForeignKey(a => a.RequestId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // =========================
+            // RequestVerification
+            // =========================
+            builder.Entity<RequestVerification>(entity =>
+            {
+                entity.HasKey(rv => rv.RequestVerificationId);
+
+                entity.HasOne(rv => rv.Request)
+                    .WithMany(r => r.Verifications)
+                    .HasForeignKey(rv => rv.RequestId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(rv => rv.Verifier)
+                    .WithMany()
+                    .HasForeignKey(rv => rv.VerifiedBy)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // =========================
+            // ReliefNeedItem
+            // =========================
+            builder.Entity<ReliefNeedItem>(entity =>
+            {
+                entity.HasKey(n => n.ReliefNeedItemId);
+
+                entity.Property(n => n.NeedType)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                entity.Property(n => n.UrgencyLevel)
+                    .HasConversion<string>()
+                    .IsRequired();
+            });
+
+            // =========================
+            // RescueRequestPriority
+            // =========================
+            builder.Entity<RescueRequestPriority>(entity =>
+            {
+                entity.HasKey(rp => new { rp.RescueRequestId, rp.PriorityCriteriaId });
+
+                entity.HasOne(rp => rp.RescueRequest)
+                    .WithMany(r => r.RescueRequestPriorities)
+                    .HasForeignKey(rp => rp.RescueRequestId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(rp => rp.PriorityCriteria)
+                    .WithMany(pc => pc.RescueRequestPriorities)
+                    .HasForeignKey(rp => rp.PriorityCriteriaId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // =========================
+            // RescueOperation
+            // =========================
+            builder.Entity<RescueOperation>(entity =>
+            {
+                entity.HasKey(ro => ro.RescueOperationId);
+
+                entity.HasOne(ro => ro.RescueRequest)
+                    .WithMany(r => r.RescueOperations)
+                    .HasForeignKey(ro => ro.RescueRequestId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(ro => ro.Team)
+                    .WithMany()
+                    .HasForeignKey(ro => ro.TeamId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(ro => ro.ReliefStation)
+                    .WithMany()
+                    .HasForeignKey(ro => ro.ReliefStationId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // =========================
+            // PriorityCriteria
+            // =========================
+            builder.Entity<PriorityCriteria>(entity =>
+            {
+                entity.HasKey(pc => pc.PriorityCriteriaId);
+
+                entity.Property(pc => pc.Name)
+                    .HasMaxLength(200)
+                    .IsRequired();
+
+                entity.Property(pc => pc.Code)
+                    .HasMaxLength(50)
+                    .IsRequired();
+
+                entity.HasIndex(pc => pc.Code)
+                    .IsUnique();
+
+                entity.Property(pc => pc.DisasterType)
+                    .HasConversion<string>()
+                    .IsRequired();
+            });
         }
 
     }

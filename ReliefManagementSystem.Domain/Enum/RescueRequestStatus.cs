@@ -6,12 +6,13 @@ using System.Threading.Tasks;
 
 namespace ReliefManagementSystem.Domain.Enum
 {
-    public enum Role
+    public enum RescueRequestStatus
     {
-        Admin,
-        User,
-        Volunteer,
-        Moderator,
-        Manager
+        Pending,
+        Verified,
+        Assigned,
+        InProgress,
+        Completed,
+        Cancelled
     }
 }

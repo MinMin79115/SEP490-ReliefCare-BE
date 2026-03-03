@@ -1,5 +1,4 @@
 ﻿using Microsoft.AspNetCore.Identity;
-using ReliefManagementSystem.Domain.Enum;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -20,8 +19,21 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public string? DisplayName { get; set; }
 
+        public string? Address { get; set; }
+
+        /// <summary>
+        /// Profile quản lý (chỉ có nếu user có role Manager).
+        /// Chứa cấp quản lý (Regional/Province/Local) và địa phương phụ trách.
+        /// </summary>
+        public ManagerProfile? ManagerProfile { get; set; }
+
         public VolunteerProfile VolunteerProfile { get; set; }
         public ICollection<TeamMember> TeamMembers { get; set; }
 
+        /// <summary>
+        /// Trạm cứu trợ mà user này đang quản lý (role Manager, 1 Manager – 1 trạm).
+        /// Từ đây có thể lấy ManagedStation.Location để biết cấp vùng (tỉnh / huyện / xã).
+        /// </summary>
+        public ReliefStation? ManagedStation { get; set; }
     }
 }
