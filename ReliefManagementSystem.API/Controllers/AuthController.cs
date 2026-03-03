@@ -185,13 +185,10 @@ namespace ReliefManagementSystem.API.Controllers
         public async Task<IActionResult> GoogleCallback(
             CancellationToken cancellationToken)
         {
-            var user = await _authService
-                .LoginGoogleAsync(cancellationToken);
-
-            if (user == null)
-                return Unauthorized("Google login failed");
-
-            return Ok(new { user });
+            // AuthService.LoginGoogleAsync sẽ throw UnauthorizedAccessException nếu Google login thất bại
+            // ExceptionMiddleware sẽ bắt và trả về 401 tự động
+            var result = await _authService.LoginGoogleAsync(cancellationToken);
+            return Ok(result);
         }
 
         [Authorize]

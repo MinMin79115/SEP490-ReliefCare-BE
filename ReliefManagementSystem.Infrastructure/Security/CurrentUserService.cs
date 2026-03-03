@@ -18,9 +18,19 @@ namespace ReliefManagementSystem.Infrastructure.Security
             _httpContextAccessor = httpContextAccessor;
         }
 
-        public Guid UserId =>
-            Guid.Parse(_httpContextAccessor.HttpContext?
-                .User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        /// <summary>
+        /// Trả về UserId từ JWT claim. Nếu claim không tồn tại, trả về <see cref="Guid.Empty"/>.
+        /// </summary>
+        public Guid UserId
+        {
+            get
+            {
+                var value = _httpContextAccessor.HttpContext?
+                    .User.FindFirstValue(ClaimTypes.NameIdentifier);
+
+                return Guid.TryParse(value, out var id) ? id : Guid.Empty;
+            }
+        }
 
         public string? Email =>
             _httpContextAccessor.HttpContext?

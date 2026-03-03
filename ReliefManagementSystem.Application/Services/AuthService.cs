@@ -92,11 +92,17 @@ namespace ReliefManagementSystem.Application.Services
 
         public async Task<AuthResponse> LoginGoogleAsync(CancellationToken cancellationToken)
         {
-           var user = await _identityAuthService.ValidateByGoogleAsync(cancellationToken);
+            var user = await _identityAuthService.ValidateByGoogleAsync(cancellationToken);
+
+            // ValidateByGoogleAsync trả về null khi Google login thất bại (không có external info)
+            if (user == null)
+                throw new UnauthorizedAccessException("Google login failed or was cancelled.");
+
             var token = await _tokenService.GenerateTokenAsync(
                 user,
                 new[] { "api" },
-                CancellationToken.None);
+                cancellationToken);
+
             return new AuthResponse
             {
                 UserId = user.Id,

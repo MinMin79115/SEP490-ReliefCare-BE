@@ -1,6 +1,6 @@
 ﻿using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.IdentityModel.Tokens;
+using Microsoft.EntityFrameworkCore;
 using ReliefManagementSystem.Application.Common.Exceptions;
 using ReliefManagementSystem.Application.Common.Exceptions.Auth;
 using ReliefManagementSystem.Application.Common.Interface;
@@ -88,16 +88,21 @@ namespace ReliefManagementSystem.Infrastructure.Security
             string password,
             CancellationToken cancellationToken)
         {
-            var user = await _userManager.FindByNameAsync(phone);
+            // Tìm user theo PhoneNumber thay vì UserName
+            var user = await _userManager.Users
+                .FirstOrDefaultAsync(u => u.PhoneNumber == phone, cancellationToken);
 
             if (user == null)
-                throw new UnauthorizedAccessException("Invalid credentials");
+                throw new InvalidCredentialsException();
+
+            if (await _userManager.IsLockedOutAsync(user))
+                throw new UserLockedException();
 
             var check = await _signInManager
                 .CheckPasswordSignInAsync(user, password, false);
 
             if (!check.Succeeded)
-                throw new UnauthorizedAccessException("Invalid credentials");
+                throw new InvalidCredentialsException();
 
             return user;
         }
@@ -120,10 +125,16 @@ namespace ReliefManagementSystem.Infrastructure.Security
 
             if (signInResult.Succeeded)
             {
-                user = await _userManager.FindByLoginAsync(
+                var existingUser = await _userManager.FindByLoginAsync(
                     info.LoginProvider,
                     info.ProviderKey
                 );
+
+                // FindByLoginAsync có thể trả về null nếu provider key không tìm thấy
+                if (existingUser == null)
+                    throw new Exception("Google login succeeded but user could not be found.");
+
+                user = existingUser;
             }
             else
             {
@@ -132,9 +143,10 @@ namespace ReliefManagementSystem.Infrastructure.Security
 
                 var name = info.Principal.FindFirstValue(ClaimTypes.Name);
 
-                user = await _userManager.FindByEmailAsync(email);
+                // FindByEmailAsync trả về nullable — tách biến để compiler hiểu flow
+                var existingByEmail = await _userManager.FindByEmailAsync(email);
 
-                if (user == null)
+                if (existingByEmail == null)
                 {
                     user = new ApplicationUser
                     {
@@ -151,6 +163,10 @@ namespace ReliefManagementSystem.Infrastructure.Security
                     await _userManager.AddToRoleAsync(
                         user, Role.User.ToString());
                 }
+                else
+                {
+                    user = existingByEmail;
+                }
 
                 var loginResult = await _userManager.AddLoginAsync(user, info);
                 if (!loginResult.Succeeded)
@@ -165,7 +181,8 @@ namespace ReliefManagementSystem.Infrastructure.Security
             string newPassword,
             CancellationToken cancellationToken)
         {
-            if (string.IsNullOrEmpty(_currentUserService.UserId.ToString()))
+            // Guid.ToString() không bao giờ trả về null — phải so với Guid.Empty
+            if (_currentUserService.UserId == Guid.Empty)
                 throw new UnauthorizedAccessException();
 
             var user = await _userManager.FindByIdAsync(_currentUserService.UserId.ToString());
