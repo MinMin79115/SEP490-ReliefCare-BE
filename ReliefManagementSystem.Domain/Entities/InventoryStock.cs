@@ -1,8 +1,9 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using ReliefManagementSystem.Domain.Enum;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
 
 namespace ReliefManagementSystem.Domain.Entities;
 
@@ -23,11 +24,25 @@ public partial class InventoryStock
 
     public int MaximumStockLevel { get; set; }
 
-    [ForeignKey("InventoryId")]
-    [InverseProperty("InventoryStocks")]
+    [NotMapped]
+    public InventoryStatus InventoryStatus
+    {
+        get
+        {
+            if (MaximumStockLevel <= 0)
+                return InventoryStatus.Critical;
+
+            var percentage =
+                (decimal)CurrentQuantity / MaximumStockLevel * 100;
+
+            if (percentage >= 100) return InventoryStatus.Full;
+            if (percentage >= 50) return InventoryStatus.Safe;
+            if (percentage >= 15) return InventoryStatus.NeedRestock;
+            return InventoryStatus.Critical;
+        }
+    }
+
     public virtual Inventory Inventory { get; set; } = null!;
 
-    [ForeignKey("SupplyItemId")]
-    [InverseProperty("InventoryStocks")]
     public virtual SupplyItem SupplyItem { get; set; } = null!;
 }

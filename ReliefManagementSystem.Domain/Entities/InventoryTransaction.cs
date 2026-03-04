@@ -1,8 +1,9 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using ReliefManagementSystem.Domain.Enum;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
 
 namespace ReliefManagementSystem.Domain.Entities;
 
@@ -17,7 +18,7 @@ public partial class InventoryTransaction
 
     public string TransactionCode { get; set; } = null!;
 
-    public int Type { get; set; }
+    public TransactionType Type { get; set; }
 
     public DateTime CreatedAt { get; set; }
 
@@ -25,14 +26,9 @@ public partial class InventoryTransaction
 
     public string? Notes { get; set; }
 
-    [ForeignKey("CreatedBy")]
-    [InverseProperty("InventoryTransactions")]
-    public virtual AspNetUser CreatedByNavigation { get; set; } = null!;
+    public virtual ApplicationUser CreatedByUser { get; set; } = null!;
 
-    [ForeignKey("InventoryId")]
-    [InverseProperty("InventoryTransactions")]
     public virtual Inventory Inventory { get; set; } = null!;
 
-    [InverseProperty("Transaction")]
-    public virtual ICollection<InventoryTransactionItem> InventoryTransactionItems { get; set; } = new List<InventoryTransactionItem>();
+    public virtual ICollection<InventoryTransactionItem> Items { get; set; } = new List<InventoryTransactionItem>();
 }

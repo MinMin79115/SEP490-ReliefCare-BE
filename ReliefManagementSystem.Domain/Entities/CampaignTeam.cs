@@ -25,14 +25,9 @@ public partial class CampaignTeam
 
     public bool IsDelete { get; set; }
 
-    [ForeignKey("CampaignId")]
-    [InverseProperty("CampaignTeams")]
     public virtual Campaign Campaign { get; set; } = null!;
 
-    [InverseProperty("CampaignTeam")]
     public virtual ICollection<CampaignTask> CampaignTasks { get; set; } = new List<CampaignTask>();
 
-    [ForeignKey("TeamId")]
-    [InverseProperty("CampaignTeams")]
     public virtual Team Team { get; set; } = null!;
 }

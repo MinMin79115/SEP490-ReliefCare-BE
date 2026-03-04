@@ -35,19 +35,13 @@ public partial class Request
 
     public DateTime? UpdatedAt { get; set; }
 
-    [InverseProperty("Request")]
     public virtual ICollection<Attachment> Attachments { get; set; } = new List<Attachment>();
 
-    [InverseProperty("Request")]
     public virtual ReliefRequest? ReliefRequest { get; set; }
 
-    [ForeignKey("ReporterUserId")]
-    [InverseProperty("Requests")]
-    public virtual AspNetUser? ReporterUser { get; set; }
+    public virtual ApplicationUser? ReporterUser { get; set; }
 
-    [InverseProperty("Request")]
     public virtual ICollection<RequestVerification> RequestVerifications { get; set; } = new List<RequestVerification>();
 
-    [InverseProperty("Request")]
     public virtual RescueRequest? RescueRequest { get; set; }
 }

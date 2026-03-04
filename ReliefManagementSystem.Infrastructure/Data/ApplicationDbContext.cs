@@ -1,11 +1,13 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using ReliefManagementSystem.Domain.Entities;
+using System;
+using System.Collections.Generic;
 
 namespace ReliefManagementSystem.Infrastructure.Data;
 
-public partial class ApplicationDbContext : DbContext
+public partial class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>
 {
     public ApplicationDbContext()
     {
@@ -16,17 +18,6 @@ public partial class ApplicationDbContext : DbContext
     {
     }
 
-    public virtual DbSet<AspNetRole> AspNetRoles { get; set; }
-
-    public virtual DbSet<AspNetRoleClaim> AspNetRoleClaims { get; set; }
-
-    public virtual DbSet<AspNetUser> AspNetUsers { get; set; }
-
-    public virtual DbSet<AspNetUserClaim> AspNetUserClaims { get; set; }
-
-    public virtual DbSet<AspNetUserLogin> AspNetUserLogins { get; set; }
-
-    public virtual DbSet<AspNetUserToken> AspNetUserTokens { get; set; }
 
     public virtual DbSet<Attachment> Attachments { get; set; }
 
@@ -108,27 +99,7 @@ public partial class ApplicationDbContext : DbContext
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<AspNetRole>(entity =>
-        {
-            entity.Property(e => e.Id).ValueGeneratedNever();
-        });
-
-        modelBuilder.Entity<AspNetUser>(entity =>
-        {
-            entity.Property(e => e.Id).ValueGeneratedNever();
-
-            entity.HasMany(d => d.Roles).WithMany(p => p.Users)
-                .UsingEntity<Dictionary<string, object>>(
-                    "AspNetUserRole",
-                    r => r.HasOne<AspNetRole>().WithMany().HasForeignKey("RoleId"),
-                    l => l.HasOne<AspNetUser>().WithMany().HasForeignKey("UserId"),
-                    j =>
-                    {
-                        j.HasKey("UserId", "RoleId");
-                        j.ToTable("AspNetUserRoles");
-                        j.HasIndex(new[] { "RoleId" }, "IX_AspNetUserRoles_RoleId");
-                    });
-        });
+       
 
         modelBuilder.Entity<Attachment>(entity =>
         {
@@ -140,7 +111,7 @@ public partial class ApplicationDbContext : DbContext
             entity.Property(e => e.CampaignId).ValueGeneratedNever();
             entity.Property(e => e.Name).HasDefaultValueSql("''::text");
 
-            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.Campaigns).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(d => d.Creator).WithMany().OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne(d => d.CreatedByStation).WithMany(p => p.Campaigns).OnDelete(DeleteBehavior.Restrict);
 
@@ -170,7 +141,7 @@ public partial class ApplicationDbContext : DbContext
         {
             entity.Property(e => e.DonationId).ValueGeneratedNever();
 
-            entity.HasOne(d => d.DonorUser).WithMany(p => p.Donations).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(d => d.DonorUser).WithMany().OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<Inventory>(entity =>
@@ -189,7 +160,7 @@ public partial class ApplicationDbContext : DbContext
         {
             entity.Property(e => e.TransactionId).ValueGeneratedNever();
 
-            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.InventoryTransactions).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(d => d.CreatedByUser).WithMany().OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<InventoryTransactionItem>(entity =>
@@ -198,7 +169,7 @@ public partial class ApplicationDbContext : DbContext
 
             entity.HasOne(d => d.SupplyItem).WithMany(p => p.InventoryTransactionItems).OnDelete(DeleteBehavior.Restrict);
 
-            entity.HasOne(d => d.Transaction).WithMany(p => p.InventoryTransactionItems).HasConstraintName("FK_InventoryTransactionItems_InventoryTransactions_Transaction~");
+            entity.HasOne(d => d.Transaction).WithMany(p => p.Items).HasConstraintName("FK_InventoryTransactionItems_InventoryTransactions_Transaction~");
         });
 
         modelBuilder.Entity<Location>(entity =>
@@ -251,11 +222,11 @@ public partial class ApplicationDbContext : DbContext
         modelBuilder.Entity<ReliefStation>(entity =>
         {
             entity.Property(e => e.ReliefStationId).ValueGeneratedNever();
-            entity.Property(e => e.Level).HasDefaultValue(0);
+            entity.Property(e => e.Level);
 
             entity.HasOne(d => d.Location).WithMany(p => p.ReliefStations).OnDelete(DeleteBehavior.Restrict);
 
-            entity.HasOne(d => d.Manager).WithMany(p => p.ReliefStations).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(d => d.Manager).WithMany().OnDelete(DeleteBehavior.SetNull);
 
             entity.HasOne(d => d.ParentReliefStation).WithMany(p => p.InverseParentReliefStation).OnDelete(DeleteBehavior.Restrict);
         });
@@ -269,14 +240,14 @@ public partial class ApplicationDbContext : DbContext
         {
             entity.Property(e => e.RequestId).ValueGeneratedNever();
 
-            entity.HasOne(d => d.ReporterUser).WithMany(p => p.Requests).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(d => d.ReporterUser).WithMany().OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<RequestVerification>(entity =>
         {
             entity.Property(e => e.RequestVerificationId).ValueGeneratedNever();
 
-            entity.HasOne(d => d.VerifiedByNavigation).WithMany(p => p.RequestVerifications).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(d => d.VerifiedByNavigation).WithMany().OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<RescueOperation>(entity =>
@@ -326,23 +297,23 @@ public partial class ApplicationDbContext : DbContext
         {
             entity.Property(e => e.TeamId).ValueGeneratedNever();
 
-            entity.HasOne(d => d.Leader).WithMany(p => p.TeamLeaders).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(d => d.Leader).WithMany().OnDelete(DeleteBehavior.SetNull);
 
-            entity.HasOne(d => d.Moderator).WithMany(p => p.TeamModerators).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(d => d.Moderator).WithMany().OnDelete(DeleteBehavior.Restrict);
         });
 
         modelBuilder.Entity<TeamJoinRequest>(entity =>
         {
             entity.Property(e => e.Id).ValueGeneratedNever();
 
-            entity.HasOne(d => d.ReviewedByNavigation).WithMany(p => p.TeamJoinRequestReviewedByNavigations).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(d => d.ReviewedByNavigation).WithMany().OnDelete(DeleteBehavior.SetNull);
         });
 
         modelBuilder.Entity<Vehicle>(entity =>
         {
             entity.Property(e => e.VehicleId).ValueGeneratedNever();
 
-            entity.HasOne(d => d.CreatedByNavigation).WithMany(p => p.Vehicles).OnDelete(DeleteBehavior.Restrict);
+            entity.HasOne(d => d.Creator).WithMany().OnDelete(DeleteBehavior.Restrict);
 
             entity.HasOne(d => d.ReliefStation).WithMany(p => p.Vehicles).OnDelete(DeleteBehavior.Restrict);
 

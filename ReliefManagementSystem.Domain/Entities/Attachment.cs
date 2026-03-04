@@ -20,7 +20,5 @@ public partial class Attachment
 
     public DateTime UploadedAt { get; set; }
 
-    [ForeignKey("RequestId")]
-    [InverseProperty("Attachments")]
     public virtual Request Request { get; set; } = null!;
 }

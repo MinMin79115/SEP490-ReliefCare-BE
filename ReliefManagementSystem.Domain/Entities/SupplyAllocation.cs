@@ -1,8 +1,9 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using ReliefManagementSystem.Domain.Enum;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
 
 namespace ReliefManagementSystem.Domain.Entities;
 
@@ -19,16 +20,11 @@ public partial class SupplyAllocation
 
     public DateTime AllocatedAt { get; set; }
 
-    public int Status { get; set; }
+    public SupplyAllocationStatus Status { get; set; }
 
-    [ForeignKey("CampaignId")]
-    [InverseProperty("SupplyAllocations")]
     public virtual Campaign Campaign { get; set; } = null!;
 
-    [ForeignKey("SourceInventoryId")]
-    [InverseProperty("SupplyAllocations")]
     public virtual Inventory SourceInventory { get; set; } = null!;
 
-    [InverseProperty("Allocation")]
-    public virtual ICollection<SupplyAllocationItem> SupplyAllocationItems { get; set; } = new List<SupplyAllocationItem>();
+    public virtual ICollection<SupplyAllocationItem> Items { get; set; } = new List<SupplyAllocationItem>();
 }

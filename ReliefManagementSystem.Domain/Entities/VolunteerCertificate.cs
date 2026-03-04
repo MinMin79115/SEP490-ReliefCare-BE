@@ -25,7 +25,5 @@ public partial class VolunteerCertificate
 
     public string? FileUrl { get; set; }
 
-    [ForeignKey("VolunteerProfileId")]
-    [InverseProperty("VolunteerCertificates")]
     public virtual VolunteerProfile VolunteerProfile { get; set; } = null!;
 }

@@ -20,7 +20,5 @@ public partial class ModeratorProfile
 
     public string? Notes { get; set; }
 
-    [ForeignKey("UserId")]
-    [InverseProperty("ModeratorProfile")]
-    public virtual AspNetUser User { get; set; } = null!;
+    public virtual ApplicationUser User { get; set; } = null!;
 }

@@ -1,8 +1,9 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using ReliefManagementSystem.Domain.Enum;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
 
 namespace ReliefManagementSystem.Domain.Entities;
 
@@ -14,20 +15,16 @@ public partial class Inventory
 
     public Guid ReliefStationId { get; set; }
 
-    public int Level { get; set; }
+    public InventoryLevel Level { get; set; }
 
-    public int Status { get; set; }
+    public EntityStatus Status { get; set; }
 
-    [InverseProperty("Inventory")]
-    public virtual ICollection<InventoryStock> InventoryStocks { get; set; } = new List<InventoryStock>();
+    public virtual ICollection<InventoryStock> InventoryItems { get; set; } = new List<InventoryStock>();
 
-    [InverseProperty("Inventory")]
     public virtual ICollection<InventoryTransaction> InventoryTransactions { get; set; } = new List<InventoryTransaction>();
 
     [ForeignKey("ReliefStationId")]
-    [InverseProperty("Inventories")]
     public virtual ReliefStation ReliefStation { get; set; } = null!;
 
-    [InverseProperty("SourceInventory")]
     public virtual ICollection<SupplyAllocation> SupplyAllocations { get; set; } = new List<SupplyAllocation>();
 }

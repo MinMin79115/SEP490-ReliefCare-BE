@@ -41,7 +41,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             return await _dbSet
                 .Include(s => s.Manager)
                 .Include(s => s.Location)
-                .Include(s => s.ParentStation)
+                .Include(s => s.ParentReliefStation)
                     .ThenInclude(rst => rst.ReliefStationTeams)
                 .Include(s => s.Inventories)
                 .FirstOrDefaultAsync(s => s.ReliefStationId == stationId, cancellationToken);

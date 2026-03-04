@@ -26,6 +26,5 @@ public partial class PriorityCriteria
 
     public string Status { get; set; } = null!;
 
-    [InverseProperty("PriorityCriteria")]
     public virtual ICollection<RescueRequestPriority> RescueRequestPriorities { get; set; } = new List<RescueRequestPriority>();
 }

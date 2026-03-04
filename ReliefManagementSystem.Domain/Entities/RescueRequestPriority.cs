@@ -6,11 +6,9 @@ using Microsoft.EntityFrameworkCore;
 
 namespace ReliefManagementSystem.Domain.Entities;
 
-[PrimaryKey("RescueRequestId", "PriorityCriteriaId")]
-[Index("PriorityCriteriaId", Name = "IX_RescueRequestPriorities_PriorityCriteriaId")]
+
 public partial class RescueRequestPriority
 {
-    [Key]
     public Guid RescueRequestId { get; set; }
 
     [Key]
@@ -20,11 +18,8 @@ public partial class RescueRequestPriority
 
     public string Status { get; set; } = null!;
 
-    [ForeignKey("PriorityCriteriaId")]
-    [InverseProperty("RescueRequestPriorities")]
+
     public virtual PriorityCriteria PriorityCriteria { get; set; } = null!;
 
-    [ForeignKey("RescueRequestId")]
-    [InverseProperty("RescueRequestPriorities")]
     public virtual RescueRequest RescueRequest { get; set; } = null!;
 }

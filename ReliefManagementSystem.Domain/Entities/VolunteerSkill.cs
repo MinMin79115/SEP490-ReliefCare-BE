@@ -18,11 +18,7 @@ public partial class VolunteerSkill
 
     public DateTime CreatedAt { get; set; }
 
-    [ForeignKey("SkillId")]
-    [InverseProperty("VolunteerSkills")]
     public virtual Skill Skill { get; set; } = null!;
 
-    [ForeignKey("VolunteerProfileId")]
-    [InverseProperty("VolunteerSkills")]
     public virtual VolunteerProfile VolunteerProfile { get; set; } = null!;
 }

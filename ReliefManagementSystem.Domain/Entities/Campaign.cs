@@ -42,33 +42,21 @@ public partial class Campaign
 
     public string Name { get; set; } = null!;
 
-    [InverseProperty("Campaign")]
     public virtual ICollection<CampaignTask> CampaignTasks { get; set; } = new List<CampaignTask>();
 
-    [InverseProperty("Campaign")]
     public virtual ICollection<CampaignTeam> CampaignTeams { get; set; } = new List<CampaignTeam>();
 
-    [InverseProperty("Campaign")]
     public virtual ICollection<CampaignVehicle> CampaignVehicles { get; set; } = new List<CampaignVehicle>();
 
-    [ForeignKey("CreatedBy")]
-    [InverseProperty("Campaigns")]
-    public virtual AspNetUser CreatedByNavigation { get; set; } = null!;
+    public virtual ApplicationUser Creator { get; set; } = null!;
 
-    [ForeignKey("CreatedByStationId")]
-    [InverseProperty("Campaigns")]
     public virtual ReliefStation CreatedByStation { get; set; } = null!;
 
-    [InverseProperty("Campaign")]
     public virtual ICollection<Donation> Donations { get; set; } = new List<Donation>();
 
-    [ForeignKey("LocationId")]
-    [InverseProperty("Campaigns")]
     public virtual Location Location { get; set; } = null!;
 
-    [InverseProperty("Campaign")]
     public virtual ICollection<ReliefRequest> ReliefRequests { get; set; } = new List<ReliefRequest>();
 
-    [InverseProperty("Campaign")]
     public virtual ICollection<SupplyAllocation> SupplyAllocations { get; set; } = new List<SupplyAllocation>();
 }

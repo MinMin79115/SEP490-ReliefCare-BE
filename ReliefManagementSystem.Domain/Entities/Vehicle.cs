@@ -1,8 +1,9 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using ReliefManagementSystem.Domain.Enum;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
 
 namespace ReliefManagementSystem.Domain.Entities;
 
@@ -26,26 +27,20 @@ public partial class Vehicle
 
     public string? TeamUsed { get; set; }
 
-    public int Status { get; set; }
-
+    public VehicleStatus Status { get; set; } = VehicleStatus.Free;
     public bool IsDeleted { get; set; }
 
     public DateTime CreatedAt { get; set; }
 
     public DateTime? UpdatedAt { get; set; }
 
-    [InverseProperty("Vehicle")]
+
     public virtual ICollection<CampaignVehicle> CampaignVehicles { get; set; } = new List<CampaignVehicle>();
 
-    [ForeignKey("CreatedBy")]
-    [InverseProperty("Vehicles")]
-    public virtual AspNetUser CreatedByNavigation { get; set; } = null!;
+    public virtual ApplicationUser Creator { get; set; } = null!;
 
-    [ForeignKey("ReliefStationId")]
-    [InverseProperty("Vehicles")]
+
     public virtual ReliefStation ReliefStation { get; set; } = null!;
 
-    [ForeignKey("VehicleTypeId")]
-    [InverseProperty("Vehicles")]
     public virtual VehicleType VehicleType { get; set; } = null!;
 }

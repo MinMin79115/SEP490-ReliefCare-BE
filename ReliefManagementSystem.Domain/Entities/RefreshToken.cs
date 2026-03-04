@@ -26,7 +26,5 @@ public partial class RefreshToken
 
     public string? Device { get; set; }
 
-    [ForeignKey("UserId")]
-    [InverseProperty("RefreshTokens")]
-    public virtual AspNetUser User { get; set; } = null!;
+    public virtual ApplicationUser User { get; set; } = null!;
 }

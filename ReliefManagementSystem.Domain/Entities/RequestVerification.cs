@@ -25,11 +25,6 @@ public partial class RequestVerification
 
     public string Note { get; set; } = null!;
 
-    [ForeignKey("RequestId")]
-    [InverseProperty("RequestVerifications")]
     public virtual Request Request { get; set; } = null!;
-
-    [ForeignKey("VerifiedBy")]
-    [InverseProperty("RequestVerifications")]
-    public virtual AspNetUser VerifiedByNavigation { get; set; } = null!;
+    public virtual ApplicationUser VerifiedByNavigation { get; set; } = null!;
 }

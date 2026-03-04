@@ -37,10 +37,8 @@ public partial class Donation
     public DateTime? ProcessedAt { get; set; }
 
     [ForeignKey("CampaignId")]
-    [InverseProperty("Donations")]
     public virtual Campaign Campaign { get; set; } = null!;
 
     [ForeignKey("DonorUserId")]
-    [InverseProperty("Donations")]
-    public virtual AspNetUser? DonorUser { get; set; }
+    public virtual ApplicationUser? DonorUser { get; set; }
 }

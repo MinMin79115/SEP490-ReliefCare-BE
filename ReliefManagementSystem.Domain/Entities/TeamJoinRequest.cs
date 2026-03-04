@@ -1,8 +1,9 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using ReliefManagementSystem.Domain.Enum;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
 
 namespace ReliefManagementSystem.Domain.Entities;
 
@@ -18,7 +19,7 @@ public partial class TeamJoinRequest
 
     public Guid VolunteerId { get; set; }
 
-    public int Status { get; set; }
+    public TeamJoinRequestStatus Status { get; set; } = TeamJoinRequestStatus.Pending;
 
     public string? Reason { get; set; }
 
@@ -38,15 +39,9 @@ public partial class TeamJoinRequest
 
     public DateTime CreatedAt { get; set; }
 
-    [ForeignKey("ReviewedBy")]
-    [InverseProperty("TeamJoinRequestReviewedByNavigations")]
-    public virtual AspNetUser? ReviewedByNavigation { get; set; }
 
-    [ForeignKey("TeamId")]
-    [InverseProperty("TeamJoinRequests")]
+    public virtual ApplicationUser? ReviewedByNavigation { get; set; }
+
     public virtual Team Team { get; set; } = null!;
-
-    [ForeignKey("VolunteerId")]
-    [InverseProperty("TeamJoinRequestVolunteers")]
-    public virtual AspNetUser Volunteer { get; set; } = null!;
+    public virtual ApplicationUser Volunteer { get; set; } = null!;
 }

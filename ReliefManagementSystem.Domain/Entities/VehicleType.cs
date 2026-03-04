@@ -25,6 +25,5 @@ public partial class VehicleType
 
     public DateTime? UpdatedAt { get; set; }
 
-    [InverseProperty("VehicleType")]
     public virtual ICollection<Vehicle> Vehicles { get; set; } = new List<Vehicle>();
 }

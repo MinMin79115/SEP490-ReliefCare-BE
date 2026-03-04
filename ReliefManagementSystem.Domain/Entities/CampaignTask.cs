@@ -31,14 +31,8 @@ public partial class CampaignTask
 
     public Guid? CampaignId { get; set; }
 
-    [ForeignKey("CampaignId")]
-    [InverseProperty("CampaignTasks")]
     public virtual Campaign? Campaign { get; set; }
 
-    [ForeignKey("CampaignTeamId")]
-    [InverseProperty("CampaignTasks")]
     public virtual CampaignTeam CampaignTeam { get; set; } = null!;
-
-    [InverseProperty("CampaignTask")]
     public virtual ICollection<MemberTask> MemberTasks { get; set; } = new List<MemberTask>();
 }

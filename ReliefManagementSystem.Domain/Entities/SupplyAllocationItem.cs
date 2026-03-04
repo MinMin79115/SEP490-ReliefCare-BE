@@ -19,11 +19,7 @@ public partial class SupplyAllocationItem
 
     public int Quantity { get; set; }
 
-    [ForeignKey("AllocationId")]
-    [InverseProperty("SupplyAllocationItems")]
     public virtual SupplyAllocation Allocation { get; set; } = null!;
 
-    [ForeignKey("SupplyItemId")]
-    [InverseProperty("SupplyAllocationItems")]
     public virtual SupplyItem SupplyItem { get; set; } = null!;
 }

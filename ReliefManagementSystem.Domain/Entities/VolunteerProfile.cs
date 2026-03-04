@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.EntityFrameworkCore;
+using ReliefManagementSystem.Domain.Enum;
 
 namespace ReliefManagementSystem.Domain.Entities;
 
@@ -12,7 +13,7 @@ public partial class VolunteerProfile
     [Key]
     public Guid VolunteerProfileId { get; set; }
 
-    public int VerificationStatus { get; set; }
+    public  VerificationStatus VerificationStatus { get; set; }
 
     public Guid? VerifiedBy { get; set; }
 
@@ -26,19 +27,15 @@ public partial class VolunteerProfile
 
     public int? YearsOfExperience { get; set; }
 
-    [InverseProperty("AssignedDriver")]
     public virtual ICollection<CampaignVehicle> CampaignVehicles { get; set; } = new List<CampaignVehicle>();
 
-    [InverseProperty("VolunteerProfile")]
     public virtual ICollection<MemberTask> MemberTasks { get; set; } = new List<MemberTask>();
 
-    [ForeignKey("UserId")]
-    [InverseProperty("VolunteerProfile")]
-    public virtual AspNetUser User { get; set; } = null!;
 
-    [InverseProperty("VolunteerProfile")]
+    public virtual ApplicationUser User { get; set; } = null!;
+
+
     public virtual ICollection<VolunteerCertificate> VolunteerCertificates { get; set; } = new List<VolunteerCertificate>();
 
-    [InverseProperty("VolunteerProfile")]
     public virtual ICollection<VolunteerSkill> VolunteerSkills { get; set; } = new List<VolunteerSkill>();
 }

@@ -17,6 +17,5 @@ public partial class Skill
 
     public string Description { get; set; } = null!;
 
-    [InverseProperty("Skill")]
     public virtual ICollection<VolunteerSkill> VolunteerSkills { get; set; } = new List<VolunteerSkill>();
 }

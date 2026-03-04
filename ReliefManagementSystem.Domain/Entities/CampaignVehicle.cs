@@ -27,16 +27,8 @@ public partial class CampaignVehicle
     public int Status { get; set; }
 
     public string? Note { get; set; }
-
-    [ForeignKey("AssignedDriverId")]
-    [InverseProperty("CampaignVehicles")]
     public virtual VolunteerProfile? AssignedDriver { get; set; }
-
-    [ForeignKey("CampaignId")]
-    [InverseProperty("CampaignVehicles")]
     public virtual Campaign Campaign { get; set; } = null!;
 
-    [ForeignKey("VehicleId")]
-    [InverseProperty("CampaignVehicles")]
     public virtual Vehicle Vehicle { get; set; } = null!;
 }

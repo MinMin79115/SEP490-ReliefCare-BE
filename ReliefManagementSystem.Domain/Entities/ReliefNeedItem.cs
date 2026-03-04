@@ -22,7 +22,5 @@ public partial class ReliefNeedItem
 
     public string? Note { get; set; }
 
-    [ForeignKey("ReliefRequestId")]
-    [InverseProperty("ReliefNeedItems")]
     public virtual ReliefRequest ReliefRequest { get; set; } = null!;
 }

@@ -21,11 +21,7 @@ public partial class InventoryTransactionItem
 
     public string? Notes { get; set; }
 
-    [ForeignKey("SupplyItemId")]
-    [InverseProperty("InventoryTransactionItems")]
     public virtual SupplyItem SupplyItem { get; set; } = null!;
 
-    [ForeignKey("TransactionId")]
-    [InverseProperty("InventoryTransactionItems")]
     public virtual InventoryTransaction Transaction { get; set; } = null!;
 }

@@ -1,8 +1,9 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using ReliefManagementSystem.Domain.Enum;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
 
 namespace ReliefManagementSystem.Domain.Entities;
 
@@ -15,19 +16,14 @@ public partial class ManagerProfile
 
     public Guid UserId { get; set; }
 
-    public string Level { get; set; } = null!;
+    public ReliefStationLevel Level { get; set; }
 
     public Guid? AssignedLocationId { get; set; }
 
     public DateTime AppointedAt { get; set; }
 
     public string? Notes { get; set; }
-
-    [ForeignKey("AssignedLocationId")]
-    [InverseProperty("ManagerProfiles")]
     public virtual Location? AssignedLocation { get; set; }
 
-    [ForeignKey("UserId")]
-    [InverseProperty("ManagerProfile")]
-    public virtual AspNetUser User { get; set; } = null!;
+    public virtual ApplicationUser User { get; set; } = null!;
 }

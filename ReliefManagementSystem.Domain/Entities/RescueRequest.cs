@@ -1,8 +1,9 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using ReliefManagementSystem.Domain.Enum;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
 
 namespace ReliefManagementSystem.Domain.Entities;
 
@@ -17,15 +18,12 @@ public partial class RescueRequest
 
     public string? Note { get; set; }
 
-    public string RescueRequestStatus { get; set; } = null!;
+    public RescueRequestStatus RescueRequestStatus { get; set; }
 
-    [ForeignKey("RequestId")]
-    [InverseProperty("RescueRequest")]
+
     public virtual Request Request { get; set; } = null!;
 
-    [InverseProperty("RescueRequest")]
     public virtual ICollection<RescueOperation> RescueOperations { get; set; } = new List<RescueOperation>();
 
-    [InverseProperty("RescueRequest")]
     public virtual ICollection<RescueRequestPriority> RescueRequestPriorities { get; set; } = new List<RescueRequestPriority>();
 }

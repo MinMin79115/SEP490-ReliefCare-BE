@@ -1,8 +1,9 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using ReliefManagementSystem.Domain.Enum;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
 
 namespace ReliefManagementSystem.Domain.Entities;
 
@@ -26,25 +27,19 @@ public partial class Location
 
     public string FullName { get; set; } = null!;
 
-    public int Level { get; set; }
+    public LocationLevel Level { get; set; }
 
     public int Status { get; set; }
 
     public string Path { get; set; } = null!;
 
-    [InverseProperty("Location")]
     public virtual ICollection<Campaign> Campaigns { get; set; } = new List<Campaign>();
 
-    [InverseProperty("Parent")]
     public virtual ICollection<Location> InverseParent { get; set; } = new List<Location>();
 
-    [InverseProperty("AssignedLocation")]
     public virtual ICollection<ManagerProfile> ManagerProfiles { get; set; } = new List<ManagerProfile>();
 
-    [ForeignKey("ParentId")]
-    [InverseProperty("InverseParent")]
     public virtual Location? Parent { get; set; }
 
-    [InverseProperty("Location")]
     public virtual ICollection<ReliefStation> ReliefStations { get; set; } = new List<ReliefStation>();
 }

@@ -1,8 +1,9 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using ReliefManagementSystem.Domain.Enum;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
 
 namespace ReliefManagementSystem.Domain.Entities;
 
@@ -37,40 +38,25 @@ public partial class ReliefStation
 
     public Guid? ParentReliefStationId { get; set; }
 
-    public int Status { get; set; }
+    public ReliefStationStatus Status { get; set; }
 
-    public int Level { get; set; }
+    public ReliefStationLevel Level { get; set; }
 
-    [InverseProperty("ManagedStationReliefStation")]
-    public virtual ICollection<AspNetUser> AspNetUsers { get; set; } = new List<AspNetUser>();
+    public virtual ICollection<ApplicationUser> AspNetUsers { get; set; } = new List<ApplicationUser>();
 
-    [InverseProperty("CreatedByStation")]
     public virtual ICollection<Campaign> Campaigns { get; set; } = new List<Campaign>();
 
-    [InverseProperty("ReliefStation")]
     public virtual ICollection<Inventory> Inventories { get; set; } = new List<Inventory>();
 
-    [InverseProperty("ParentReliefStation")]
     public virtual ICollection<ReliefStation> InverseParentReliefStation { get; set; } = new List<ReliefStation>();
-
-    [ForeignKey("LocationId")]
-    [InverseProperty("ReliefStations")]
     public virtual Location Location { get; set; } = null!;
 
-    [ForeignKey("ManagerId")]
-    [InverseProperty("ReliefStations")]
-    public virtual AspNetUser? Manager { get; set; }
-
-    [ForeignKey("ParentReliefStationId")]
-    [InverseProperty("InverseParentReliefStation")]
+    public virtual ApplicationUser? Manager { get; set; }
     public virtual ReliefStation? ParentReliefStation { get; set; }
 
-    [InverseProperty("ReliefStation")]
     public virtual ICollection<ReliefStationTeam> ReliefStationTeams { get; set; } = new List<ReliefStationTeam>();
 
-    [InverseProperty("ReliefStation")]
     public virtual ICollection<RescueOperation> RescueOperations { get; set; } = new List<RescueOperation>();
 
-    [InverseProperty("ReliefStation")]
     public virtual ICollection<Vehicle> Vehicles { get; set; } = new List<Vehicle>();
 }

@@ -1,8 +1,9 @@
-﻿using System;
+﻿using Microsoft.EntityFrameworkCore;
+using ReliefManagementSystem.Domain.Enum;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
-using Microsoft.EntityFrameworkCore;
 
 namespace ReliefManagementSystem.Domain.Entities;
 
@@ -16,15 +17,12 @@ public partial class TeamMember
     [Key]
     public Guid UserId { get; set; }
 
-    public int RoleTeam { get; set; }
+    public TeamRole RoleTeam { get; set; }
 
     public DateTime JoinedAt { get; set; }
 
-    [ForeignKey("TeamId")]
-    [InverseProperty("TeamMembers")]
     public virtual Team Team { get; set; } = null!;
 
-    [ForeignKey("UserId")]
-    [InverseProperty("TeamMembers")]
-    public virtual AspNetUser User { get; set; } = null!;
+
+    public virtual ApplicationUser User { get; set; } = null!;
 }
