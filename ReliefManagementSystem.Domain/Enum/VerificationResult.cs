@@ -8,8 +8,8 @@ namespace ReliefManagementSystem.Domain.Enum
 {
     public enum VerificationResult
     {
-        Confirmed,
-        Failed,
-        Pending
+        Pending = 0,
+        Confirmed = 1,
+        Failed = 2
     }
 }

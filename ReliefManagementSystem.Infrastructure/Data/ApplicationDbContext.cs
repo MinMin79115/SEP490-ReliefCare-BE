@@ -54,6 +54,13 @@ namespace ReliefManagementSystem.Infrastructure.Data
         public DbSet<SupplyAllocation> SupplyAllocations { get; set; }
         public DbSet<SupplyAllocationItem> SupplyAllocationItems { get; set; }
 
+        // Supply Transfer (vận chuyển hàng giữa các trạm)
+        public DbSet<SupplyTransfer> SupplyTransfers { get; set; }
+        public DbSet<SupplyTransferItem> SupplyTransferItems { get; set; }
+
+        // Notification (thông báo real-time)
+        public DbSet<Notification> Notifications { get; set; }
+
         //Request Management
         public DbSet<Request> Requests { get; set; }
         public DbSet<ReliefRequest> ReliefRequests { get; set; }
@@ -686,6 +693,100 @@ namespace ReliefManagementSystem.Infrastructure.Data
                     .WithMany()
                     .HasForeignKey(d => d.DonorUserId)
                     .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // =========================
+            // SupplyTransfer
+            // =========================
+            builder.Entity<SupplyTransfer>(entity =>
+            {
+                entity.HasKey(st => st.SupplyTransferId);
+
+                entity.Property(st => st.TransferCode)
+                    .HasMaxLength(50)
+                    .IsRequired();
+
+                entity.HasIndex(st => st.TransferCode)
+                    .IsUnique();
+
+                entity.Property(st => st.Status)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                // Trạm nguồn
+                entity.HasOne(st => st.SourceStation)
+                    .WithMany(rs => rs.OutboundTransfers)
+                    .HasForeignKey(st => st.SourceStationId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // Trạm đích
+                entity.HasOne(st => st.DestinationStation)
+                    .WithMany(rs => rs.InboundTransfers)
+                    .HasForeignKey(st => st.DestinationStationId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // Người tạo phiếu
+                entity.HasOne(st => st.RequestedByUser)
+                    .WithMany()
+                    .HasForeignKey(st => st.RequestedBy)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                // Người duyệt (nullable)
+                entity.HasOne(st => st.ApprovedByUser)
+                    .WithMany()
+                    .HasForeignKey(st => st.ApprovedBy)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // =========================
+            // SupplyTransferItem
+            // =========================
+            builder.Entity<SupplyTransferItem>(entity =>
+            {
+                entity.HasKey(sti => sti.SupplyTransferItemId);
+
+                entity.HasOne(sti => sti.SupplyTransfer)
+                    .WithMany(st => st.Items)
+                    .HasForeignKey(sti => sti.SupplyTransferId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(sti => sti.SupplyItem)
+                    .WithMany()
+                    .HasForeignKey(sti => sti.SupplyItemId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            // =========================
+            // Notification
+            // =========================
+            builder.Entity<Notification>(entity =>
+            {
+                entity.HasKey(n => n.NotificationId);
+
+                entity.Property(n => n.Type)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                entity.Property(n => n.Title)
+                    .HasMaxLength(200)
+                    .IsRequired();
+
+                entity.Property(n => n.Message)
+                    .HasMaxLength(1000);
+
+                entity.Property(n => n.ReferenceType)
+                    .HasMaxLength(100);
+
+                // Index để query nhanh: thông báo chưa đọc của một user
+                entity.HasIndex(n => new { n.RecipientId, n.IsRead });
+
+                // Index để sort theo thời gian tạo
+                entity.HasIndex(n => n.CreatedAt);
+
+                entity.HasOne(n => n.Recipient)
+                    .WithMany()
+                    .HasForeignKey(n => n.RecipientId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
         }
 

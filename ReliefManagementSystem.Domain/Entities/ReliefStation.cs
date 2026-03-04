@@ -42,10 +42,14 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public ICollection<Inventory> Inventories { get; set; } = new List<Inventory>();
 
-        public ICollection<ReliefStationTeam>  ReliefStationTeams { get; set; } = new List<ReliefStationTeam>();
+        public ICollection<ReliefStationTeam> ReliefStationTeams { get; set; } = new List<ReliefStationTeam>();
 
         public ICollection<Vehicle> Vehicles { get; set; } = new List<Vehicle>();
 
+        /// <summary>Các phiếu vận chuyển hàng MÀ trạm này xuất đi</summary>
+        public ICollection<SupplyTransfer> OutboundTransfers { get; set; } = new List<SupplyTransfer>();
 
+        /// <summary>Các phiếu vận chuyển hàng MÀ trạm này nhận vào</summary>
+        public ICollection<SupplyTransfer> InboundTransfers { get; set; } = new List<SupplyTransfer>();
     }
 }

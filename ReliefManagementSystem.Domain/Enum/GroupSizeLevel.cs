@@ -8,9 +8,9 @@ namespace ReliefManagementSystem.Domain.Enum
 {
     public enum GroupSizeLevel
     {
-        Single,
-        Small,
-        Medium,
-        Large
+        Single = 0,
+        Small = 1,
+        Medium = 2,
+        Large =3
     }
 }

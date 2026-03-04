@@ -8,9 +8,9 @@ namespace ReliefManagementSystem.Domain.Enum
 {
     public enum VerificationMethod
     {
-        GPS,
-        Call,
-        Field,
-        Community
+        GPS =1,
+        Call = 2,
+        Field = 3,
+        Community =4
     }
 }
