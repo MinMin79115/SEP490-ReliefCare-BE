@@ -16,14 +16,11 @@ namespace ReliefManagementSystem.Domain.Entities
         [MaxLength(255)]
         public string Name { get; set; } = null!;
 
-        public Guid? ManagerId { get; set; }
         public Guid LocationId { get; set; }
-        public String? Address { get; set; }
-
-        public String? ContactNumber { get; set; }
+        public string? Address { get; set; }
+        public string? ContactNumber { get; set; }
 
         public DateTime CreatedAt { get; set; }
-            
         public DateTime UpdatedAt { get; set; }
 
         public Guid CreatedBy { get; set; }
@@ -31,14 +28,19 @@ namespace ReliefManagementSystem.Domain.Entities
         public ReliefStationLevel Level { get; set; }
         public double Longitude { get; set; }
         public double Latitude { get; set; }
+
+        public bool IsActive { get; set; } = true;
+
         public Guid? ParentReliefStationId { get; set; }
         public ReliefStation? ParentStation { get; set; }
-        public ICollection<ReliefStation> ChildStations { get; set; }
+        public ICollection<ReliefStation> ChildStations { get; set; } = new List<ReliefStation>();
 
         public ReliefStationStatus Status { get; set; }
 
-        public ApplicationUser? Manager { get; set; } = null!;
         public Location Location { get; set; } = null!;
+
+        /// <summary>Danh sách Moderator được gán vào trạm này (có thể có 1 IsStationHead = true).</summary>
+        public ICollection<ModeratorProfile> Moderators { get; set; } = new List<ModeratorProfile>();
 
         public ICollection<Inventory> Inventories { get; set; } = new List<Inventory>();
 

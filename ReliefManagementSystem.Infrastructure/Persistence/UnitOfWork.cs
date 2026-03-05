@@ -16,6 +16,12 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
         public IUserRepository Users { get; }
         public IRefreshTokenRepository RefreshTokens { get; }
 
+        // Manager Profiles
+        public IManagerProfileRepository ManagerProfiles { get; }
+
+        // Moderator Profiles
+        public IModeratorProfileRepository ModeratorProfiles { get; }
+
         
         public ITeamRepository Teams { get; }
         public ITeamMemberRepository TeamMembers { get; }
@@ -56,6 +62,8 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             _context = context;
             Users = new UserRepository(_context);
             RefreshTokens = new RefreshTokenRepository(_context);
+            ManagerProfiles = new ManagerProfileRepository(_context);
+            ModeratorProfiles = new ModeratorProfileRepository(_context);
 
 
             Teams = new TeamRepository(_context);

@@ -1,0 +1,14 @@
+using ReliefManagementSystem.Domain.Entities;
+
+namespace ReliefManagementSystem.Application.Common.Interface
+{
+    /// <summary>Interface for ModeratorProfile data access.</summary>
+    public interface IModeratorProfileRepository : IGenericRepository<ModeratorProfile>
+    {
+        /// <summary>
+        /// Lấy ModeratorProfile của user theo UserId (kèm ReliefStation).
+        /// Trả về null nếu user chưa có profile Moderator.
+        /// </summary>
+        Task<ModeratorProfile?> GetByUserIdAsync(Guid userId, CancellationToken ct = default);
+    }
+}

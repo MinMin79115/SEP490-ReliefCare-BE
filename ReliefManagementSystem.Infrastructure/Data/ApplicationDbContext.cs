@@ -100,6 +100,7 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .HasConversion<string>()
                 .IsRequired();
 
+
             // ModeratorProfile configuration (1:1 với ApplicationUser)
             builder.Entity<ModeratorProfile>()
                 .HasKey(mp => mp.ModeratorProfileId);
@@ -109,6 +110,13 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .WithOne(u => u.ModeratorProfile)
                 .HasForeignKey<ModeratorProfile>(mp => mp.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // ModeratorProfile → ReliefStation (nhiều Moderator có thể thuộc 1 trạm)
+            builder.Entity<ModeratorProfile>()
+                .HasOne(mp => mp.ReliefStation)
+                .WithMany(rs => rs.Moderators)
+                .HasForeignKey(mp => mp.ReliefStationId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             // VolunteerProfile configuration
 
@@ -476,12 +484,7 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .OnDelete(DeleteBehavior.Restrict);
 
 
-            // ReliefStation – Manager and Location FK
-            builder.Entity<ReliefStation>()
-                .HasOne(rs => rs.Manager)
-                .WithMany()
-                .HasForeignKey(rs => rs.ManagerId)
-                .OnDelete(DeleteBehavior.SetNull);
+            // ReliefStation – Location FK
 
             builder.Entity<ReliefStation>()
                 .HasOne(rs => rs.Location)

@@ -8,8 +8,8 @@ namespace ReliefManagementSystem.Domain.Enum
 {
     public enum ReliefStationLevel
     {
-        Regional = 1, 
-        Province = 2,
+        Regional = 1,
+        Provincial = 2,
         Local = 3
     }
 }
