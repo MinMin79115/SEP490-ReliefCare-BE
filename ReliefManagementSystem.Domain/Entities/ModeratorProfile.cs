@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel.DataAnnotations;
+using ReliefManagementSystem.Domain.Enum;
 
 namespace ReliefManagementSystem.Domain.Entities
 {
@@ -34,5 +35,18 @@ namespace ReliefManagementSystem.Domain.Entities
 
         /// <summary>Ghi chú bổ sung (phạm vi quyền, v.v.).</summary>
         public string? Notes { get; set; }
+
+        /// <summary>
+        /// Trạng thái hoạt động của Moderator.
+        /// Sử dụng để track việc đình chỉ (Suspended), sa thải (Dismissed),
+        /// hoặc đang rảnh (Inactive).
+        /// </summary>
+        public ModeratorStatus Status { get; set; } = ModeratorStatus.Inactive;
+
+        /// <summary>
+        /// Lý do cho trạng thái hiện tại (ví dụ: lý do kỷ luật, lý do từ chức).
+        /// </summary>
+        [MaxLength(500)]
+        public string? StatusReason { get; set; }
     }
 }

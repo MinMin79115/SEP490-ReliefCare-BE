@@ -270,6 +270,27 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                     await context.SaveChangesAsync();
                 }
             }
+
+            // ⭐ SEED MODERATOR PROFILE
+            if (role == Role.Moderator)
+            {
+                var exists = await context.ModeratorProfiles
+                    .AnyAsync(mp => mp.UserId == user.Id);
+
+                if (!exists)
+                {
+                    context.ModeratorProfiles.Add(new ModeratorProfile
+                    {
+                        UserId = user.Id,
+                        AppointedAt = DateTime.UtcNow,
+                        IsStationHead = false,
+                        Status = ModeratorStatus.Inactive,
+                        StatusReason = "Initial state"
+                    });
+
+                    await context.SaveChangesAsync();
+                }
+            }
         }
     }
 }

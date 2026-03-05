@@ -142,5 +142,26 @@ namespace ReliefManagementSystem.Application.Features.ReliefStation.DTOs.Request
     {
         [Required(ErrorMessage = "Status is required.")]
         public ReliefTeamAssignmentStatus Status { get; set; }
+
+        /// <summary>Request model để gán Moderator vào một trạm cứu trợ.</summary>
+        public class AssignModeratorRequest
+        {
+            /// <summary>UserId của Moderator cần thao tác.</summary>
+            [Required(ErrorMessage = "ModeratorUserId là bắt buộc.")]
+            public Guid ModeratorUserId { get; set; }
+
+            /// <summary>Có gán làm trưởng trạm hay không? (1 trạm chỉ có 1 trưởng trạm).</summary>
+            public bool IsStationHead { get; set; } = false;
+
+            /// <summary>
+            /// Trạng thái mới của Moderator (tuỳ chọn).
+            /// Nếu null, hệ thống tự động gán là Active.
+            /// </summary>
+            public ModeratorStatus? Status { get; set; }
+
+            /// <summary>Lý do thay đổi trạng thái hoặc lý do phân công (tuỳ chọn).</summary>
+            [MaxLength(500)]
+            public string? Reason { get; set; }
+        }
     }
 }

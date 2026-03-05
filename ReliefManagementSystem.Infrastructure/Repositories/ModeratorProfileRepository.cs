@@ -17,5 +17,12 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .Include(mp => mp.ReliefStation)
                 .FirstOrDefaultAsync(mp => mp.UserId == userId, ct);
         }
+
+        /// <inheritdoc/>
+        public async Task<ModeratorProfile?> GetStationHeadAsync(Guid stationId, CancellationToken ct = default)
+        {
+            return await _context.ModeratorProfiles
+                .FirstOrDefaultAsync(mp => mp.ReliefStationId == stationId && mp.IsStationHead, ct);
+        }
     }
 }

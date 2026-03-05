@@ -179,5 +179,71 @@ namespace ReliefManagementSystem.API.Controllers
             var result = await _stationService.CreateLocalStationAsync(request, ct);
             return CreatedAtAction(nameof(CreateLocalStation), new { id = result.ReliefStationId }, result);
         }
+
+        // ──────────────────────────────────────────────────────────────
+        //  POST api/relief-stations/{id}/moderators
+        // ──────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Gán Moderator vào một trạm cứu trợ (Admin, Manager vùng, hoặc Moderator trưởng trạm cha).
+        /// </summary>
+        /// <remarks>
+        /// **Quy tắc nghiệp vụ:**
+        /// - **Admin**: Gán cho bất kỳ trạm nào.
+        /// - **Manager**: Chỉ gán cho các trạm thuộc vùng mình phụ trách.
+        /// - **Moderator (Trưởng trạm)**: Chỉ gán cho trạm Local trực thuộc trạm Provincial của mình.
+        /// - Moderator được gán không được thuộc trạm khác.
+        /// - Nếu `isStationHead = true`, hệ thống tự động gỡ quyền trưởng trạm của người cũ (nếu có).
+        ///
+        /// **Ví dụ request body (Gán mới / Active):**
+        /// ```json
+        /// {
+        ///   "moderatorUserId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        ///   "isStationHead": true,
+        ///   "status": 1,
+        ///   "reason": "Điều chuyển công tác"
+        /// }
+        /// ```
+        ///
+        /// **Ví dụ request body (Gỡ quyền / Đình chỉ):**
+        /// Tự động gỡ Moderator khỏi trạm nếu chuyền status = 2 (Inactive), 3 (Suspended) hoặc 4 (Dismissed).
+        /// ```json
+        /// {
+        ///   "moderatorUserId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        ///   "isStationHead": false,
+        ///   "status": 3,
+        ///   "reason": "Vi phạm quy chế"
+        /// }
+        /// ```
+        ///
+        /// **Các lỗi có thể xảy ra:**
+        /// | Status | ErrorCode | Mô tả |
+        /// |--------|-----------|-------|
+        /// | 400 | MODERATOR_ALREADY_ASSIGNED | Moderator đang thuộc trạm khác |
+        /// | 403 | UNAUTHORIZED_MODERATOR_ASSIGNMENT | Bạn không có quyền quản lý trạm này |
+        /// | 404 | STATION_NOT_FOUND | Không tìm thấy trạm |
+        /// | 404 | MODERATOR_NOT_FOUND | Không tìm thấy hồ sơ Moderator |
+        /// </remarks>
+        /// <param name="id">ID của trạm cần gán.</param>
+        /// <param name="request">Thông tin gán (UserId và quyền trưởng trạm).</param>
+        /// <param name="ct">Cancellation token.</param>
+        [HttpPost("{id}/moderators")]
+        [Authorize(Roles = "Admin,Manager,Moderator")]
+        [SwaggerOperation(
+            Summary = "Gán Moderator Vào Trạm",
+            Description = "Gán một Moderator vào một trạm cứu trợ. Tính năng này dành cho Admin, Manager (theo vùng), và Moderator trưởng trạm (đối với trạm con). Id trong request là id của trạm cần gán."
+        )]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> AssignModerator(
+            Guid id,
+            [FromBody] UpdateTeamAssignmentRequest.AssignModeratorRequest request,
+            CancellationToken ct)
+        {
+            await _stationService.AssignModeratorAsync(id, request, ct);
+            return Ok(new { Message = "Gán Moderator thành công." });
+        }
     }
 }

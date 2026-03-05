@@ -1,4 +1,5 @@
-﻿using ReliefManagementSystem.Application.Common.Exceptions.ReliefStationExceptions;
+﻿using Microsoft.AspNetCore.Identity;
+using ReliefManagementSystem.Application.Common.Exceptions.ReliefStationExceptions;
 using ReliefManagementSystem.Application.Common.Interface;
 using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Application.Features.ReliefStation.DTOs.Request;
@@ -16,11 +17,13 @@ namespace ReliefManagementSystem.Application.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserService _currentUser;
+        private readonly UserManager<ApplicationUser> _userManager;
 
-        public ReliefStationService(IUnitOfWork unitOfWork, ICurrentUserService currentUser)
+        public ReliefStationService(IUnitOfWork unitOfWork, ICurrentUserService currentUser, UserManager<ApplicationUser> userManager)
         {
             _unitOfWork = unitOfWork;
             _currentUser = currentUser;
+            _userManager = userManager;
         }
 
         // ═══════════════════════════════════════════════════════════
@@ -172,6 +175,131 @@ namespace ReliefManagementSystem.Application.Services
             await _unitOfWork.SaveChangesAsync(ct);
 
             return MapToResponse(station, location.Name);
+        }
+
+        // ═══════════════════════════════════════════════════════════
+        //  ASSIGN MODERATOR
+        // ═══════════════════════════════════════════════════════════
+
+        /// <inheritdoc/>
+        public async Task<bool> AssignModeratorAsync(
+            Guid stationId,
+            UpdateTeamAssignmentRequest.AssignModeratorRequest request,
+            CancellationToken ct = default)
+        {
+            // 1. Get Station
+            var station = await _unitOfWork.ReliefStations.GetByIdAsync(stationId);
+            if (station is null)
+                throw new ReliefStationNotFoundException();
+
+            // 2. Authorization
+            var user = await _userManager.FindByIdAsync(_currentUser.UserId.ToString());
+            if (user == null)
+                throw new UnauthorizedModeratorAssignmentException();
+
+            var roles = await _userManager.GetRolesAsync(user);
+            bool isAuthorized = false;
+
+            if (roles.Contains(Role.Admin.ToString()))
+            {
+                isAuthorized = true;
+            }
+            else if (roles.Contains(Role.Manager.ToString()))
+            {
+                var managerProfile = await _unitOfWork.ManagerProfiles.GetByUserIdAsync(_currentUser.UserId, ct);
+                if (managerProfile?.AssignedLocationId != null)
+                {
+                    var regionalStation = await _unitOfWork.ReliefStations
+                        .GetRegionalByLocationIdAsync(managerProfile.AssignedLocationId.Value, ct);
+
+                    if (regionalStation != null)
+                    {
+                        if (station.ReliefStationId == regionalStation.ReliefStationId)
+                            isAuthorized = true;
+                        else if (station.ParentReliefStationId == regionalStation.ReliefStationId)
+                            isAuthorized = true;
+                        else if (station.Level == ReliefStationLevel.Local)
+                        {
+                            var parentStation = await _unitOfWork.ReliefStations.GetByIdAsync(station.ParentReliefStationId ?? Guid.Empty);
+                            if (parentStation?.ParentReliefStationId == regionalStation.ReliefStationId)
+                                isAuthorized = true;
+                        }
+                    }
+                }
+            }
+            else if (roles.Contains(Role.Moderator.ToString()))
+            {
+                var modProfile = await _unitOfWork.ModeratorProfiles.GetByUserIdAsync(_currentUser.UserId, ct);
+                if (modProfile != null && modProfile.IsStationHead && modProfile.ReliefStationId == station.ParentReliefStationId)
+                {
+                    isAuthorized = true;
+                }
+            }
+
+            if (!isAuthorized)
+                throw new UnauthorizedModeratorAssignmentException();
+
+            // 3. Find Moderator Profile
+            var targetMod = await _unitOfWork.ModeratorProfiles.GetByUserIdAsync(request.ModeratorUserId, ct);
+            if (targetMod == null)
+                throw new ModeratorProfileNotFoundException();
+
+            if (targetMod.ReliefStationId != null && targetMod.ReliefStationId != stationId)
+            {
+                // Cho phép gỡ khỏi trạm hiện tại nếu trạng thái truyền vào mang ý nghĩa ngắt/thôi việc
+                // Thay vì cấm hoàn toàn, nếu đổi Status = Inactive/Suspended/Dismissed thì cho phép gỡ ReliefStationId
+                if (request.Status is ModeratorStatus.Inactive or ModeratorStatus.Suspended or ModeratorStatus.Dismissed)
+                {
+                   targetMod.ReliefStationId = null;
+                   targetMod.IsStationHead = false;
+                }
+                else
+                {
+                   throw new ModeratorAlreadyAssignedException();
+                }
+            }
+
+            // 4. Handle IsStationHead logic (chỉ khi đang Active và gán trạm)
+            if (request.IsStationHead && (request.Status == null || request.Status == ModeratorStatus.Active))
+            {
+                var existingHead = await _unitOfWork.ModeratorProfiles.GetStationHeadAsync(stationId, ct);
+                if (existingHead != null && existingHead.UserId != targetMod.UserId)
+                {
+                    existingHead.IsStationHead = false;
+                    _unitOfWork.ModeratorProfiles.UpdateAsync(existingHead);
+                }
+            }
+
+            // 5. Update Status & Reason
+            if (request.Status.HasValue)
+            {
+                targetMod.Status = request.Status.Value;
+                targetMod.StatusReason = request.Reason;
+                
+                // Nếu bị đình chỉ/sa thải/không hoạt động -> Gỡ khỏi trạm
+                if (targetMod.Status != ModeratorStatus.Active)
+                {
+                    targetMod.ReliefStationId = null;
+                    targetMod.IsStationHead = false;
+                }
+                else
+                {
+                    targetMod.ReliefStationId = stationId;
+                    targetMod.IsStationHead = request.IsStationHead;
+                }
+            }
+            else // Mặc định gán vào trạm -> Active
+            {
+                targetMod.ReliefStationId = stationId;
+                targetMod.IsStationHead = request.IsStationHead;
+                targetMod.Status = ModeratorStatus.Active;
+                targetMod.StatusReason = request.Reason;
+            }
+
+            _unitOfWork.ModeratorProfiles.UpdateAsync(targetMod);
+            await _unitOfWork.SaveChangesAsync(ct);
+
+            return true;
         }
 
         // ═══════════════════════════════════════════════════════════

@@ -35,5 +35,16 @@ namespace ReliefManagementSystem.Application.Interface
         Task<ReliefStationResponse> CreateLocalStationAsync(
             CreateLocalStationRequest request,
             CancellationToken ct = default);
+
+        /// <summary>
+        /// Gán Moderator vào một trạm cứu trợ.
+        /// - Admin có thể gán cho bất kỳ trạm nào.
+        /// - Manager chỉ có thể gán cho các trạm nằm trong vùng mình phân công (Regional/Provincial/Local).
+        /// - Moderator trưởng trạm tỉnh có thể gán cho trạm Local (nơi họ là Parent).
+        /// </summary>
+        Task<bool> AssignModeratorAsync(
+            Guid stationId,
+            UpdateTeamAssignmentRequest.AssignModeratorRequest request,
+            CancellationToken ct = default);
     }
 }

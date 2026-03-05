@@ -10,5 +10,10 @@ namespace ReliefManagementSystem.Application.Common.Interface
         /// Trả về null nếu user chưa có profile Moderator.
         /// </summary>
         Task<ModeratorProfile?> GetByUserIdAsync(Guid userId, CancellationToken ct = default);
+
+        /// <summary>
+        /// Lấy trưởng trạm hiện tại của một trạm.
+        /// </summary>
+        Task<ModeratorProfile?> GetStationHeadAsync(Guid stationId, CancellationToken ct = default);
     }
 }
