@@ -8,13 +8,13 @@ namespace ReliefManagementSystem.Domain.Enum
 {
     public enum RequestStatus
     {
-        Draft,      // đang điền form
-        Submitted,  // đã gửi, chờ xử lý
-        Verified,
-        Rejected,
-        InProgress, // đang được xử lý
-        Resolved,   // hoàn thành
-        Cancelled
+        Draft =0 ,      
+        Submitted = 1, 
+        Verified =2,
+        Rejected =3 ,
+        InProgress =4, 
+        Resolved =5,   
+        Cancelled =6
     }
 
 }

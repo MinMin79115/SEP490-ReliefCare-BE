@@ -8,11 +8,11 @@ namespace ReliefManagementSystem.Domain.Enum
 {
     public enum RescueRequestStatus
     {
-        Pending,
-        Verified,
-        Assigned,
-        InProgress,
-        Completed,
-        Cancelled
+        Pending = 0,
+        Verified = 1,
+        Assigned = 2,
+        InProgress = 3,
+        Completed = 4,
+        Cancelled = 5
     }
 }

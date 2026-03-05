@@ -8,34 +8,22 @@ using ReliefManagementSystem.Domain.Enum;
 
 namespace ReliefManagementSystem.Application.Common.Interface
 {
-    /// <summary>
-    /// Repository interface for ReliefStation operations.
-    /// </summary>
     public interface IReliefStationRepository : IGenericRepository<ReliefStation>
     {
         /// <summary>
-        /// Gets all active (non-Closed) stations with Manager and Location info.
+        /// Tìm trạm Regional (cấp vùng) có LocationId khớp với vùng phụ trách
+        /// của Manager (dùng để tự động gán ParentReliefStationId khi tạo trạm tỉnh).
         /// </summary>
-        Task<IReadOnlyList<ReliefStation>> GetAllWithDetailsAsync(CancellationToken cancellationToken = default);
+        Task<ReliefStation?> GetRegionalByLocationIdAsync(
+            Guid regionLocationId,
+            CancellationToken ct = default);
 
         /// <summary>
-        /// Gets a single station with full details including teams and inventories.
+        /// Trả về IQueryable tất cả trạm, có thể filter theo Level và search theo tên.
+        /// Include Location navigation property để lấy LocationName.
         /// </summary>
-        Task<ReliefStation?> GetByIdWithDetailsAsync(Guid stationId, CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// Gets stations filtered by status.
-        /// </summary>
-        Task<IReadOnlyList<ReliefStation>> GetByStatusAsync(ReliefStationStatus status, CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// Gets stations managed by a specific user.
-        /// </summary>
-        Task<IReadOnlyList<ReliefStation>> GetByManagerIdAsync(Guid managerId, CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// Checks whether a station with the same name already exists (case-insensitive).
-        /// </summary>
-        Task<bool> IsNameExistsAsync(string name, Guid? excludeId = null, CancellationToken cancellationToken = default);
+        IQueryable<ReliefStation> GetAllQueryable(
+            ReliefStationLevel? level = null,
+            string? search = null);
     }
 }

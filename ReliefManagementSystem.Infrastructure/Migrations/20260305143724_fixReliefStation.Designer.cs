@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using ReliefManagementSystem.Infrastructure.Data;
@@ -11,9 +12,11 @@ using ReliefManagementSystem.Infrastructure.Data;
 namespace ReliefManagementSystem.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260305143724_fixReliefStation")]
+    partial class fixReliefStation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -729,28 +732,16 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Property<DateTime>("AppointedAt")
                         .HasColumnType("timestamp with time zone");
 
-                    b.Property<bool>("IsStationHead")
-                        .HasColumnType("boolean");
+                    b.Property<string>("AssignedArea")
+                        .HasColumnType("text");
 
                     b.Property<string>("Notes")
                         .HasColumnType("text");
-
-                    b.Property<Guid?>("ReliefStationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("StatusReason")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
 
                     b.Property<Guid>("UserId")
                         .HasColumnType("uuid");
 
                     b.HasKey("ModeratorProfileId");
-
-                    b.HasIndex("ReliefStationId");
 
                     b.HasIndex("UserId")
                         .IsUnique();
@@ -927,9 +918,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Property<Guid>("CreatedBy")
                         .HasColumnType("uuid");
 
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
                     b.Property<double>("Latitude")
                         .HasColumnType("double precision");
 
@@ -941,6 +929,9 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
                     b.Property<double>("Longitude")
                         .HasColumnType("double precision");
+
+                    b.Property<Guid?>("ManagerId")
+                        .HasColumnType("uuid");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -959,6 +950,8 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.HasKey("ReliefStationId");
 
                     b.HasIndex("LocationId");
+
+                    b.HasIndex("ManagerId");
 
                     b.HasIndex("ParentReliefStationId");
 
@@ -1947,18 +1940,11 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.ModeratorProfile", b =>
                 {
-                    b.HasOne("ReliefManagementSystem.Domain.Entities.ReliefStation", "ReliefStation")
-                        .WithMany("Moderators")
-                        .HasForeignKey("ReliefStationId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
                     b.HasOne("ReliefManagementSystem.Domain.Entities.ApplicationUser", "User")
                         .WithOne("ModeratorProfile")
                         .HasForeignKey("ReliefManagementSystem.Domain.Entities.ModeratorProfile", "UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("ReliefStation");
 
                     b.Navigation("User");
                 });
@@ -2004,6 +1990,11 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.ApplicationUser", "StationHeadId")
+                        .WithMany()
+                        .HasForeignKey("ManagerId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("ReliefManagementSystem.Domain.Entities.ReliefStation", "ParentStation")
                         .WithMany("ChildStations")
                         .HasForeignKey("ParentReliefStationId")
@@ -2012,6 +2003,8 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Navigation("Location");
 
                     b.Navigation("ParentStation");
+
+                    b.Navigation("StationHeadId");
                 });
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.ReliefStationTeam", b =>
@@ -2410,8 +2403,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Navigation("InboundTransfers");
 
                     b.Navigation("Inventories");
-
-                    b.Navigation("Moderators");
 
                     b.Navigation("OutboundTransfers");
 

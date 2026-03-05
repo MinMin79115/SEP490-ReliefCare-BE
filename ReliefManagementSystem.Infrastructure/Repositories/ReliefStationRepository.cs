@@ -16,78 +16,37 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
     /// </summary>
     public class ReliefStationRepository : GenericRepository<ReliefStation>, IReliefStationRepository
     {
-        public ReliefStationRepository(ApplicationDbContext context) : base(context)
+        public ReliefStationRepository(ApplicationDbContext context) : base(context) { }
+
+        /// <inheritdoc/>
+        public async Task<ReliefStation?> GetRegionalByLocationIdAsync(
+            Guid regionLocationId,
+            CancellationToken ct = default)
         {
+            return await _context.ReliefStations
+                .FirstOrDefaultAsync(
+                    rs => rs.Level == ReliefStationLevel.Regional
+                       && rs.LocationId == regionLocationId
+                       && rs.IsActive,
+                    ct);
         }
 
         /// <inheritdoc/>
-        public async Task<IReadOnlyList<ReliefStation>> GetAllWithDetailsAsync(
-            CancellationToken cancellationToken = default)
+        public IQueryable<ReliefStation> GetAllQueryable(
+            ReliefStationLevel? level = null,
+            string? search = null)
         {
-            return await _dbSet
-                .AsNoTracking()
-                .Where(s => s.Status != ReliefStationStatus.Closed)
-                .Include(s => s.Manager)
-                .Include(s => s.Location)
-                .OrderBy(s => s.Name)
-                .ToListAsync(cancellationToken);
-        }
+            var query = _context.ReliefStations
+                .Include(rs => rs.Location)
+                .AsQueryable();
 
-        /// <inheritdoc/>
-        public async Task<ReliefStation?> GetByIdWithDetailsAsync(
-            Guid stationId,
-            CancellationToken cancellationToken = default)
-        {
-            return await _dbSet
-                .Include(s => s.Manager)
-                .Include(s => s.Location)
-                .Include(s => s.ParentStation)
-                    .ThenInclude(rst => rst.ReliefStationTeams)
-                .Include(s => s.Inventories)
-                .FirstOrDefaultAsync(s => s.ReliefStationId == stationId, cancellationToken);
-        }
+            if (level.HasValue)
+                query = query.Where(rs => rs.Level == level.Value);
 
-        /// <inheritdoc/>
-        public async Task<IReadOnlyList<ReliefStation>> GetByStatusAsync(
-            ReliefStationStatus status,
-            CancellationToken cancellationToken = default)
-        {
-            return await _dbSet
-                .AsNoTracking()
-                .Where(s => s.Status == status)
-                .Include(s => s.Manager)
-                .Include(s => s.Location)
-                .OrderBy(s => s.Name)
-                .ToListAsync(cancellationToken);
-        }
+            if (!string.IsNullOrWhiteSpace(search))
+                query = query.Where(rs => rs.Name.Contains(search));
 
-        /// <inheritdoc/>
-        public async Task<IReadOnlyList<ReliefStation>> GetByManagerIdAsync(
-            Guid managerId,
-            CancellationToken cancellationToken = default)
-        {
-            return await _dbSet
-                .AsNoTracking()
-                .Where(s => s.ManagerId == managerId)
-                .Include(s => s.Location)
-                .OrderBy(s => s.Name)
-                .ToListAsync(cancellationToken);
-        }
-
-        /// <inheritdoc/>
-        public async Task<bool> IsNameExistsAsync(
-            string name,
-            Guid? excludeId = null,
-            CancellationToken cancellationToken = default)
-        {
-            var query = _dbSet.Where(s =>
-                s.Name.ToLower() == name.ToLower() &&
-                s.Status != ReliefStationStatus.Closed);
-
-            if (excludeId.HasValue)
-                query = query.Where(s => s.ReliefStationId != excludeId.Value);
-
-            return await query.AnyAsync(cancellationToken);
+            return query.OrderByDescending(rs => rs.CreatedAt);
         }
     }
 }

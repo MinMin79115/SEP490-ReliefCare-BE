@@ -8,8 +8,9 @@ namespace ReliefManagementSystem.Domain.Enum
 {
     public enum ReliefNeedType
     {
-        Food,
-        Medical,
-        Shelter
+        Food = 1,
+        Medical = 2,
+        Shelter = 3,
+        Other = 4
     }
 }

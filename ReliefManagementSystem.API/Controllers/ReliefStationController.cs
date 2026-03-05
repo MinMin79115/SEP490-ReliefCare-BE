@@ -1,15 +1,18 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Application.Features.ReliefStation.DTOs.Request;
+using ReliefManagementSystem.Application.Features.ReliefStation.DTOs.Response;
 using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Domain.Enum;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace ReliefManagementSystem.API.Controllers
 {
     /// <summary>
-    /// Manages relief stations and their team assignments.
+    /// Quản lý trạm cứu trợ (ReliefStation) và phân công Team.
     /// </summary>
-    [Route("api/[controller]")]
+    [Route("api/relief-stations")]
     [ApiController]
     [Authorize]
     public class ReliefStationController : ControllerBase
@@ -21,189 +24,226 @@ namespace ReliefManagementSystem.API.Controllers
             _stationService = stationService;
         }
 
-        // ═══════════════════════════════════════════════════
-        //  ReliefStation CRUD
-        // ═══════════════════════════════════════════════════
+        // ──────────────────────────────────────────────────────────────
+        //  GET api/relief-stations
+        // ──────────────────────────────────────────────────────────────
 
-        /// <summary>Creates a new relief station.</summary>
-        /// <response code="200">Station created.</response>
-        /// <response code="400">Name already exists.</response>
-        [HttpPost]
-        public async Task<IActionResult> Create(
-            [FromBody] CreateReliefStationRequest request,
-            CancellationToken cancellationToken)
-        {
-            try
-            {
-                var result = await _stationService.CreateAsync(request, cancellationToken);
-                return Ok(result);
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-        }
-
-        /// <summary>Gets all active relief stations.</summary>
-        /// <response code="200">List of stations.</response>
+        /// <summary>
+        /// Lấy danh sách tất cả trạm cứu trợ có phân trang.
+        /// </summary>
+        /// <remarks>
+        /// **Hướng dẫn sử dụng:**
+        /// - Gọi không có filter → trả về tất cả trạm (mọi cấp).
+        /// - Thêm `level` để lọc: 1 = Regional, 2 = Provincial, 3 = Local.
+        /// - Thêm `search` để tìm kiếm theo tên trạm (chứa chuỗi — contains).
+        ///
+        /// **Ví dụ URL:**
+        /// - Tất cả: `GET /api/relief-stations?pageIndex=1&amp;pageSize=10`
+        /// - Chỉ trạm vùng: `GET /api/relief-stations?level=1`
+        /// - Chỉ trạm tỉnh: `GET /api/relief-stations?level=2`
+        /// - Chỉ trạm địa phương: `GET /api/relief-stations?level=3`
+        /// - Tìm kiếm: `GET /api/relief-stations?search=Bình Dương`
+        /// - Kết hợp: `GET /api/relief-stations?level=2&amp;search=Bình&amp;pageIndex=1&amp;pageSize=5`
+        /// </remarks>
+        /// <param name="request">Query string params: pageIndex, pageSize, level, search.</param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>Danh sách trạm phân trang kèm thông tin TotalCount, TotalPages, HasNext, HasPrevious.</returns>
         [HttpGet]
-        public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
+        [SwaggerOperation(
+            Summary = "Danh Sách Trạm Cứu Trợ",
+            Description = "Lấy danh sách tất cả trạm cứu trợ có phân trang. " +
+                          "Hỗ trợ lọc theo cấp trạm (level): 1=Regional, 2=Provincial, 3=Local. " +
+                          "Hỗ trợ tìm kiếm theo tên trạm (search)."
+        )]
+        [ProducesResponseType(typeof(Pagination<ReliefStationResponse>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetAllStations(
+            [FromQuery] GetAllStationsRequest request,
+            CancellationToken ct)
         {
-            var result = await _stationService.GetAllAsync(cancellationToken);
+            var result = await _stationService.GetAllStationsAsync(request, ct);
             return Ok(result);
         }
 
-        /// <summary>Gets all relief stations filtered by status.</summary>
-        /// <response code="200">Filtered list of stations.</response>
-        [HttpGet("by-status")]
-        public async Task<IActionResult> GetByStatus(
-            [FromQuery] ReliefStationStatus status,
-            CancellationToken cancellationToken)
+        // ──────────────────────────────────────────────────────────────
+        //  POST api/relief-stations/provincial
+        // ──────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// [Manager] Tạo trạm cứu trợ cấp Tỉnh (Provincial).
+        /// </summary>
+        /// <remarks>
+        /// **Quy tắc nghiệp vụ:**
+        /// - Chỉ user có role **Manager** mới được gọi API này.
+        /// - `locationId` phải là ID của một địa điểm **cấp Tỉnh** (level = 2).
+        ///   Gọi `GET /api/locations?level=2` để lấy danh sách.
+        /// - Hệ thống **tự động** tìm và gán `parentReliefStationId` = trạm Regional
+        ///   của vùng mà Manager đang phụ trách.
+        ///
+        /// **Ví dụ request body:**
+        /// ```json
+        /// {
+        ///   "name": "Trạm Bình Dương",
+        ///   "locationId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        ///   "address": "123 Đại lộ Bình Dương",
+        ///   "contactNumber": "0271000000",
+        ///   "longitude": 106.6297,
+        ///   "latitude": 11.0686
+        /// }
+        /// ```
+        ///
+        /// **Các lỗi có thể xảy ra:**
+        /// | Status | ErrorCode | Mô tả |
+        /// |--------|-----------|-------|
+        /// | 400 | INVALID_LOCATION_LEVEL | `locationId` không phải cấp Tỉnh |
+        /// | 403 | UNAUTHORIZED_STATION_CREATION | User không có ManagerProfile |
+        /// | 404 | LOCATION_NOT_FOUND | `locationId` không tồn tại |
+        /// | 404 | PARENT_STATION_NOT_FOUND | Không có trạm Regional cha trong vùng Manager phụ trách |
+        /// </remarks>
+        /// <param name="request">Thông tin trạm tỉnh cần tạo.</param>
+        /// <param name="ct">Cancellation token (tự động inject bởi framework).</param>
+        /// <returns>Thông tin trạm vừa được tạo, bao gồm <c>parentReliefStationId</c> được gán tự động.</returns>
+        [HttpPost("provincial")]
+        [Authorize(Roles = "Manager,Admin")]
+        [SwaggerOperation(
+            Summary = "Tạo Trạm Cấp Tỉnh",
+            Description = "Tạo Trạm Cấp Tỉnh, chỉ cho phép Manager Và Admin được tạo, " +
+                          "Nếu Manager tạo trạm thì chỉ có thể tạo được các trạm tính thuộc vùng mình quản lý, " +
+                          "ví dụ Manager quản lý trạm miền Nam thì chỉ cho phép tạo trạm ở khu vực tỉnh miền Nam "
+        )]
+        [ProducesResponseType(typeof(ReliefStationResponse), StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> CreateProvincialStation(
+            [FromBody] CreateProvincialStationRequest request,
+            CancellationToken ct)
         {
-            var result = await _stationService.GetByStatusAsync(status, cancellationToken);
-            return Ok(result);
+            var result = await _stationService.CreateProvincialStationAsync(request, ct);
+            return CreatedAtAction(nameof(CreateProvincialStation), new { id = result.ReliefStationId }, result);
         }
 
-        /// <summary>Gets a single relief station with full details including teams.</summary>
-        /// <response code="200">Station detail.</response>
-        /// <response code="404">Station not found.</response>
-        [HttpGet("{id:guid}")]
-        public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
+        // ──────────────────────────────────────────────────────────────
+        //  POST api/relief-stations/local
+        // ──────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// [Moderator – trưởng trạm tỉnh] Tạo trạm cứu trợ cấp Địa phương (Local).
+        /// </summary>
+        /// <remarks>
+        /// **Quy tắc nghiệp vụ:**
+        /// - Chỉ user có role **Moderator** và **IsStationHead = true** tại một trạm **Provincial** mới được gọi API này.
+        /// - `locationId` phải là ID của một địa điểm **cấp Xã/Phường** (level = 3).
+        ///   Gọi `GET /api/locations?level=3` để lấy danh sách.
+        /// - Hệ thống **tự động** gán `parentReliefStationId` = trạm Provincial
+        ///   mà Moderator đang đứng đầu.
+        ///
+        /// **Ví dụ request body:**
+        /// ```json
+        /// {
+        ///   "name": "Trạm Phường An Phú",
+        ///   "locationId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        ///   "address": "456 Đường XYZ, An Phú",
+        ///   "contactNumber": "0274000000",
+        ///   "longitude": 106.73,
+        ///   "latitude": 10.80
+        /// }
+        /// ```
+        ///
+        /// **Các lỗi có thể xảy ra:**
+        /// | Status | ErrorCode | Mô tả |
+        /// |--------|-----------|-------|
+        /// | 400 | INVALID_LOCATION_LEVEL | `locationId` không phải cấp Xã/Phường |
+        /// | 403 | UNAUTHORIZED_STATION_CREATION | User không phải Moderator trưởng trạm |
+        /// | 404 | LOCATION_NOT_FOUND | `locationId` không tồn tại |
+        /// | 404 | PARENT_STATION_NOT_FOUND | Moderator chưa được gán vào trạm Provincial |
+        /// </remarks>
+        /// <param name="request">Thông tin trạm địa phương cần tạo.</param>
+        /// <param name="ct">Cancellation token (tự động inject bởi framework).</param>
+        /// <returns>Thông tin trạm vừa được tạo, bao gồm <c>parentReliefStationId</c> được gán tự động.</returns>
+        [HttpPost("local")]
+        [Authorize(Roles = "Moderator,Admin")]
+        [SwaggerOperation(
+            Summary = "Tạo Trạm Cấp Địa Phương",
+            Description = "Tạo Trạm Cấp Địa Phương (Local), chỉ cho phép Moderator trưởng trạm tỉnh và Admin được tạo. " +
+                          "Moderator phải là người đứng đầu (IsStationHead) của một trạm Provincial. " +
+                          "Hệ thống tự động gán parentReliefStationId = trạm tỉnh mà Moderator đang đứng đầu."
+        )]
+        [ProducesResponseType(typeof(ReliefStationResponse), StatusCodes.Status201Created)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> CreateLocalStation(
+            [FromBody] CreateLocalStationRequest request,
+            CancellationToken ct)
         {
-            try
-            {
-                var result = await _stationService.GetByIdAsync(id, cancellationToken);
-                return Ok(result);
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
+            var result = await _stationService.CreateLocalStationAsync(request, ct);
+            return CreatedAtAction(nameof(CreateLocalStation), new { id = result.ReliefStationId }, result);
         }
 
-        /// <summary>Updates a relief station.</summary>
-        /// <response code="200">Station updated.</response>
-        /// <response code="400">Name conflict.</response>
-        /// <response code="404">Station not found.</response>
-        [HttpPut("{id:guid}")]
-        public async Task<IActionResult> Update(
+        // ──────────────────────────────────────────────────────────────
+        //  POST api/relief-stations/{id}/moderators
+        // ──────────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Gán Moderator vào một trạm cứu trợ (Admin, Manager vùng, hoặc Moderator trưởng trạm cha).
+        /// </summary>
+        /// <remarks>
+        /// **Quy tắc nghiệp vụ:**
+        /// - **Admin**: Gán cho bất kỳ trạm nào.
+        /// - **Manager**: Chỉ gán cho các trạm thuộc vùng mình phụ trách.
+        /// - **Moderator (Trưởng trạm)**: Chỉ gán cho trạm Local trực thuộc trạm Provincial của mình.
+        /// - Moderator được gán không được thuộc trạm khác.
+        /// - Nếu `isStationHead = true`, hệ thống tự động gỡ quyền trưởng trạm của người cũ (nếu có).
+        ///
+        /// **Ví dụ request body (Gán mới / Active):**
+        /// ```json
+        /// {
+        ///   "moderatorUserId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        ///   "isStationHead": true,
+        ///   "status": 1,
+        ///   "reason": "Điều chuyển công tác"
+        /// }
+        /// ```
+        ///
+        /// **Ví dụ request body (Gỡ quyền / Đình chỉ):**
+        /// Tự động gỡ Moderator khỏi trạm nếu chuyền status = 2 (Inactive), 3 (Suspended) hoặc 4 (Dismissed).
+        /// ```json
+        /// {
+        ///   "moderatorUserId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+        ///   "isStationHead": false,
+        ///   "status": 3,
+        ///   "reason": "Vi phạm quy chế"
+        /// }
+        /// ```
+        ///
+        /// **Các lỗi có thể xảy ra:**
+        /// | Status | ErrorCode | Mô tả |
+        /// |--------|-----------|-------|
+        /// | 400 | MODERATOR_ALREADY_ASSIGNED | Moderator đang thuộc trạm khác |
+        /// | 403 | UNAUTHORIZED_MODERATOR_ASSIGNMENT | Bạn không có quyền quản lý trạm này |
+        /// | 404 | STATION_NOT_FOUND | Không tìm thấy trạm |
+        /// | 404 | MODERATOR_NOT_FOUND | Không tìm thấy hồ sơ Moderator |
+        /// </remarks>
+        /// <param name="id">ID của trạm cần gán.</param>
+        /// <param name="request">Thông tin gán (UserId và quyền trưởng trạm).</param>
+        /// <param name="ct">Cancellation token.</param>
+        [HttpPost("{id}/moderators")]
+        [Authorize(Roles = "Admin,Manager,Moderator")]
+        [SwaggerOperation(
+            Summary = "Gán Moderator Vào Trạm",
+            Description = "Gán một Moderator vào một trạm cứu trợ. Tính năng này dành cho Admin, Manager (theo vùng), và Moderator trưởng trạm (đối với trạm con). Id trong request là id của trạm cần gán."
+        )]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> AssignModerator(
             Guid id,
-            [FromBody] UpdateReliefStationRequest request,
-            CancellationToken cancellationToken)
+            [FromBody] UpdateTeamAssignmentRequest.AssignModeratorRequest request,
+            CancellationToken ct)
         {
-            try
-            {
-                var result = await _stationService.UpdateAsync(id, request, cancellationToken);
-                return Ok(result);
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-        }
-
-        /// <summary>Closes (soft-deletes) a relief station.</summary>
-        /// <response code="204">Station closed.</response>
-        /// <response code="404">Station not found.</response>
-        [HttpDelete("{id:guid}")]
-        public async Task<IActionResult> Delete(Guid id, CancellationToken cancellationToken)
-        {
-            try
-            {
-                await _stationService.DeleteAsync(id, cancellationToken);
-                return NoContent();
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-        }
-
-        // ═══════════════════════════════════════════════════
-        //  Team Assignment (nested under station)
-        // ═══════════════════════════════════════════════════
-
-        /// <summary>Gets all team assignments for a station.</summary>
-        /// <response code="200">List of team assignments.</response>
-        /// <response code="404">Station not found.</response>
-        [HttpGet("{id:guid}/teams")]
-        public async Task<IActionResult> GetTeams(Guid id, CancellationToken cancellationToken)
-        {
-            try
-            {
-                var result = await _stationService.GetTeamsAsync(id, cancellationToken);
-                return Ok(result);
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-        }
-
-        /// <summary>Assigns a team to a relief station.</summary>
-        /// <response code="200">Team assigned.</response>
-        /// <response code="400">Team already assigned.</response>
-        /// <response code="404">Station or team not found.</response>
-        [HttpPost("{id:guid}/teams")]
-        public async Task<IActionResult> AssignTeam(
-            Guid id,
-            [FromBody] AssignTeamRequest request,
-            CancellationToken cancellationToken)
-        {
-            try
-            {
-                var result = await _stationService.AssignTeamAsync(id, request, cancellationToken);
-                return Ok(result);
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-            catch (InvalidOperationException ex)
-            {
-                return BadRequest(new { message = ex.Message });
-            }
-        }
-
-        /// <summary>Updates the assignment status of a team at a station.</summary>
-        /// <response code="200">Assignment updated.</response>
-        /// <response code="404">Assignment not found.</response>
-        [HttpPut("teams/{assignmentId:guid}")]
-        public async Task<IActionResult> UpdateTeamAssignment(
-            Guid assignmentId,
-            [FromBody] UpdateTeamAssignmentRequest request,
-            CancellationToken cancellationToken)
-        {
-            try
-            {
-                var result = await _stationService.UpdateTeamAssignmentAsync(assignmentId, request, cancellationToken);
-                return Ok(result);
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
-        }
-
-        /// <summary>Removes a team from a relief station (hard delete of assignment record).</summary>
-        /// <response code="204">Team removed.</response>
-        /// <response code="404">Assignment not found.</response>
-        [HttpDelete("teams/{assignmentId:guid}")]
-        public async Task<IActionResult> RemoveTeam(Guid assignmentId, CancellationToken cancellationToken)
-        {
-            try
-            {
-                await _stationService.RemoveTeamAsync(assignmentId, cancellationToken);
-                return NoContent();
-            }
-            catch (KeyNotFoundException ex)
-            {
-                return NotFound(new { message = ex.Message });
-            }
+            await _stationService.AssignModeratorAsync(id, request, ct);
+            return Ok(new { Message = "Gán Moderator thành công." });
         }
     }
 }

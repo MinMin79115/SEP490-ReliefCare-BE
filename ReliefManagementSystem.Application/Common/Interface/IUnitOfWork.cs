@@ -12,7 +12,11 @@ namespace ReliefManagementSystem.Application.Common.Interface
         IUserRepository Users { get; }
         IRefreshTokenRepository RefreshTokens { get; }
 
+        // Manager Profiles
+        IManagerProfileRepository ManagerProfiles { get; }
 
+        // Moderator Profiles
+        IModeratorProfileRepository ModeratorProfiles { get; }
         
         ITeamRepository Teams { get; }
         ITeamMemberRepository TeamMembers { get; }
