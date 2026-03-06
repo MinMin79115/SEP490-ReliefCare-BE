@@ -159,17 +159,20 @@ namespace ReliefManagementSystem.Application.Services
         }
         
         //Get team list
-        public async Task<List<TeamResponse>> GetAllTeamsAsync(CancellationToken cancellationToken)
+        public async Task<Pagination<TeamResponse>> GetAllTeamsAsync(int pageIndex, int pageSize, CancellationToken cancellationToken)
         {
-            var teams = await _unitOfWork.Teams.GetAllAsync();
+            var query = _unitOfWork.Teams.GetQueryable()
+                .OrderByDescending(t => t.CreatedAt);
 
-            var responses = new List<TeamResponse>();
-            foreach (var team in teams)
+            var pagedTeams = await Pagination<Team>.ToPagedList(query, pageIndex, pageSize);
+
+            var responseItems = new List<TeamResponse>();
+            foreach (var team in pagedTeams.Items!)
             {
-                responses.Add(await MapToTeamResponse(team, cancellationToken));
+                responseItems.Add(await MapToTeamResponse(team, cancellationToken));
             }
 
-            return responses;
+            return new Pagination<TeamResponse>(responseItems, pagedTeams.TotalCount, pagedTeams.CurrentPage, pagedTeams.PageSize);
         }
 
         //Search team
