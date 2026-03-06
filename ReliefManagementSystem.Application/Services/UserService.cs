@@ -42,7 +42,8 @@ namespace ReliefManagementSystem.Application.Services
         /// </summary>
         public async Task<UserProfileResponse> GetProfileAsync(CancellationToken cancellationToken = default)
         {
-            var userId = _currentUserService.UserId;
+            var userId = _currentUserService.UserId
+                         ?? throw new UnauthorizedAccessException("User not authenticated"); 
             var user = await _unitOfWork.Users.GetByIdAsync(userId);
 
             if (user == null)
@@ -102,7 +103,8 @@ namespace ReliefManagementSystem.Application.Services
 
         public async Task<VolunteerProfileResponse> CreateVolunteerProfileAsync(CreateVolunteerRequest request, CancellationToken cancellationToken = default)
         {
-            var userId = _currentUserService.UserId;
+            var userId = _currentUserService.UserId
+                         ?? throw new UnauthorizedAccessException("User not authenticated"); 
             var user = await _unitOfWork.Users.GetByIdWithVolunteerProfileAsync(userId);
 
             if (user == null || user.VolunteerProfile != null)
@@ -218,8 +220,8 @@ namespace ReliefManagementSystem.Application.Services
 
         public async Task<VolunteerProfileResponse> AddNewSkillVolunteer(AddVolunteerRequest request,    CancellationToken cancellationToken)
         {
-            var userId = _currentUserService.UserId;
-
+            var userId = _currentUserService.UserId
+                         ?? throw new UnauthorizedAccessException("User not authenticated");
             var user = await _unitOfWork.VolunteerProfiles
                 .GetByIdWithVolunteerProfileAsync(userId);
 
@@ -268,8 +270,8 @@ namespace ReliefManagementSystem.Application.Services
 
         public async Task<VolunteerProfileResponse> RemoveSkillVolunteer(RemoveVolunteerSkillRequest request, CancellationToken cancellationToken)
         {
-            var userId = _currentUserService.UserId;
-
+            var userId = _currentUserService.UserId
+                         ?? throw new UnauthorizedAccessException("User not authenticated");
             var user = await _unitOfWork.VolunteerProfiles
                 .GetByIdWithVolunteerProfileAsync(userId);
 
@@ -309,8 +311,8 @@ namespace ReliefManagementSystem.Application.Services
 
         public async Task<List<VolunteerSkillResponse>> GetAllSkillsOfVolunteerAsync(CancellationToken cancellationToken)
         {
-            var userId = _currentUserService.UserId;
-
+            var userId = _currentUserService.UserId
+                         ?? throw new UnauthorizedAccessException("User not authenticated");
             var user = await _unitOfWork.VolunteerProfiles
                 .GetByIdWithVolunteerProfileAsync(userId);
 
@@ -340,7 +342,8 @@ namespace ReliefManagementSystem.Application.Services
             UpdateUserProfileRequest request,
             CancellationToken cancellationToken = default)
         {
-            var userId = _currentUserService.UserId;
+            var userId = _currentUserService.UserId
+                         ?? throw new UnauthorizedAccessException("User not authenticated");
             var user = await _unitOfWork.Users.GetByIdAsync(userId);
 
             if (user == null)

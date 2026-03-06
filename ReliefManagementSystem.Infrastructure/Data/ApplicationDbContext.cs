@@ -1,7 +1,11 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
 using ReliefManagementSystem.Domain.Entities;
+using ReliefManagementSystem.Domain.Entities.Common;
+using ReliefManagementSystem.Application.Interface;
+using System.Text.Json;
+using System.Threading;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,12 +16,15 @@ namespace ReliefManagementSystem.Infrastructure.Data
 {
     public class ApplicationDbContext : IdentityDbContext<ApplicationUser, IdentityRole<Guid>, Guid>
     {
+        public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<VolunteerProfile> VolunteerProfiles { get; set; }
         public DbSet<ManagerProfile> ManagerProfiles { get; set; }
         public DbSet<ModeratorProfile> ModeratorProfiles { get; set; }
 
         // Donation
         public DbSet<Donation> Donations { get; set; }
+        public DbSet<PaymentTransaction> PaymentTransactions { get; set; }
+        public DbSet<PaymentTransactionDetail> PaymentTransactionDetails { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<Skill> Skills { get; set; }
         public DbSet<VolunteerSkill> VolunteerSkills { get; set; }
@@ -72,8 +79,107 @@ namespace ReliefManagementSystem.Infrastructure.Data
         public DbSet<RescueOperation> RescueOperations { get; set; }
         public DbSet<RescueRequestPriority> RescueRequestPriorities { get; set; }
 
-        public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
-          : base(options) { }
+        public ApplicationDbContext(
+            DbContextOptions<ApplicationDbContext> options,
+            ICurrentUserService? currentUserService = null)
+          : base(options) 
+        {
+            _currentUserService = currentUserService;
+        }
+
+        private readonly ICurrentUserService? _currentUserService;
+
+        public override int SaveChanges()
+        {
+            return SaveChangesAsync().GetAwaiter().GetResult();
+        }
+
+        public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+        {
+            var userId = _currentUserService?.UserId;
+            var auditLogs = new List<AuditLog>();
+
+            foreach (var entry in ChangeTracker.Entries())
+            {
+                if (entry.State == EntityState.Detached || entry.State == EntityState.Unchanged)
+                    continue;
+
+                // 1. AuditableEntity Tracking
+                if (entry.Entity is AuditableEntity auditableEntity)
+                {
+                    switch (entry.State)
+                    {
+                        case EntityState.Added:
+                            auditableEntity.CreatedAt = DateTime.UtcNow;
+                            auditableEntity.CreatedBy = userId;
+                            break;
+                        case EntityState.Modified:
+                            auditableEntity.UpdatedAt = DateTime.UtcNow;
+                            auditableEntity.UpdatedBy = userId;
+                            break;
+                        case EntityState.Deleted:
+                            entry.State = EntityState.Modified;
+                            auditableEntity.IsDeleted = true;
+                            auditableEntity.UpdatedAt = DateTime.UtcNow;
+                            auditableEntity.UpdatedBy = userId;
+                            break;
+                    }
+                }
+
+                // 2. AuditLog History Recording
+                if (entry.Entity is AuditLog)
+                    continue;
+
+                var oldValues = new Dictionary<string, object?>();
+                var newValues = new Dictionary<string, object?>();
+
+                foreach (var property in entry.Properties)
+                {
+                    if (property.IsTemporary) continue;
+                    string propertyName = property.Metadata.Name;
+
+                    switch (entry.State)
+                    {
+                        case EntityState.Added:
+                            newValues[propertyName] = property.CurrentValue;
+                            break;
+                        case EntityState.Deleted:
+                            oldValues[propertyName] = property.OriginalValue;
+                            break;
+                        case EntityState.Modified:
+                            if (property.IsModified)
+                            {
+                                oldValues[propertyName] = property.OriginalValue;
+                                newValues[propertyName] = property.CurrentValue;
+                            }
+                            break;
+                    }
+                }
+
+                if (oldValues.Count > 0 || newValues.Count > 0 || entry.State == EntityState.Deleted || entry.State == EntityState.Added)
+                {
+                    var primaryKey = entry.Properties.FirstOrDefault(p => p.Metadata.IsPrimaryKey());
+                    
+                    auditLogs.Add(new AuditLog
+                    {
+                        EntityName = entry.Entity.GetType().Name,
+                        Action = entry.State.ToString(),
+                        Timestamp = DateTime.UtcNow,
+                        UserId = userId,
+                        PrimaryKey = primaryKey?.CurrentValue?.ToString(),
+                        OldValues = oldValues.Count > 0 ? JsonSerializer.Serialize(oldValues) : null,
+                        NewValues = newValues.Count > 0 ? JsonSerializer.Serialize(newValues) : null
+                    });
+                }
+            }
+
+            if (auditLogs.Count > 0)
+            {
+                AuditLogs.AddRange(auditLogs);
+            }
+
+            return await base.SaveChangesAsync(cancellationToken);
+        }
 
         protected override void OnModelCreating(ModelBuilder builder)
         {
@@ -696,6 +802,45 @@ namespace ReliefManagementSystem.Infrastructure.Data
                     .WithMany()
                     .HasForeignKey(d => d.DonorUserId)
                     .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // =========================
+            // DonationTransaction
+            // =========================
+            builder.Entity<PaymentTransaction>(entity =>
+            {
+                entity.HasKey(dt => dt.PaymentTransactionId);
+
+                entity.Property(dt => dt.OrderAmount)
+                    .HasPrecision(18, 2)
+                    .IsRequired();
+
+                entity.HasOne(dt => dt.Donation)
+                    .WithMany()
+                    .HasForeignKey(dt => dt.DonationId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(dt => dt.User)
+                    .WithMany()
+                    .HasForeignKey(dt => dt.UserId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // =========================
+            // DonationTransactionDetail
+            // =========================
+            builder.Entity<PaymentTransactionDetail>(entity =>
+            {
+                entity.HasKey(dtd => dtd.PaymentTransactionDetailId);
+
+                entity.Property(dtd => dtd.TransactionAmount)
+                    .HasPrecision(18, 2)
+                    .IsRequired();
+
+                entity.HasOne(dtd => dtd.PaymentTransaction)
+                    .WithMany(dt => dt.TransactionDetails)
+                    .HasForeignKey(dtd => dtd.PaymentTransactionId)
+                    .OnDelete(DeleteBehavior.Cascade);
             });
 
             // =========================

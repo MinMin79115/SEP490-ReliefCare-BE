@@ -1,4 +1,5 @@
 ﻿using ReliefManagementSystem.Domain.Enum;
+using ReliefManagementSystem.Domain.Entities.Common;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -8,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace ReliefManagementSystem.Domain.Entities
 {
-    public class ReliefStation
+    public class ReliefStation : AuditableEntity
     {
         public Guid ReliefStationId { get; set; }
 
@@ -19,11 +20,6 @@ namespace ReliefManagementSystem.Domain.Entities
         public Guid LocationId { get; set; }
         public string? Address { get; set; }
         public string? ContactNumber { get; set; }
-
-        public DateTime CreatedAt { get; set; }
-        public DateTime UpdatedAt { get; set; }
-
-        public Guid CreatedBy { get; set; }
 
         public ReliefStationLevel Level { get; set; }
         public double Longitude { get; set; }
