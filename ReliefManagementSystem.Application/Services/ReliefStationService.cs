@@ -63,9 +63,11 @@ namespace ReliefManagementSystem.Application.Services
             CreateProvincialStationRequest request,
             CancellationToken ct = default)
         {
+            var userId = _currentUser.UserId
+                         ?? throw new UnauthorizedAccessException("User not authenticated");
             // 1. Kiểm tra user hiện tại có ManagerProfile không
             var managerProfile = await _unitOfWork.ManagerProfiles
-                .GetByUserIdAsync(_currentUser.UserId, ct);
+                .GetByUserIdAsync(userId, ct);
 
             if (managerProfile is null)
                 throw new UnauthorizedStationCreationException();
@@ -125,9 +127,11 @@ namespace ReliefManagementSystem.Application.Services
             CreateLocalStationRequest request,
             CancellationToken ct = default)
         {
+            var userId = _currentUser.UserId
+                         ?? throw new UnauthorizedAccessException("User not authenticated");
             // 1. Kiểm tra user hiện tại có ModeratorProfile + IsStationHead không
             var moderatorProfile = await _unitOfWork.ModeratorProfiles
-                .GetByUserIdAsync(_currentUser.UserId, ct);
+                .GetByUserIdAsync(userId, ct);
 
             if (moderatorProfile is null || !moderatorProfile.IsStationHead)
                 throw new UnauthorizedStationCreationException();
@@ -187,13 +191,15 @@ namespace ReliefManagementSystem.Application.Services
             UpdateTeamAssignmentRequest.AssignModeratorRequest request,
             CancellationToken ct = default)
         {
+            var userId = _currentUser.UserId
+                         ?? throw new UnauthorizedAccessException("User not authenticated");
             // 1. Get Station
             var station = await _unitOfWork.ReliefStations.GetByIdAsync(stationId);
             if (station is null)
                 throw new ReliefStationNotFoundException();
 
             // 2. Authorization
-            var user = await _userManager.FindByIdAsync(_currentUser.UserId.ToString());
+            var user = await _userManager.FindByIdAsync(userId.ToString());
             if (user == null)
                 throw new UnauthorizedModeratorAssignmentException();
 
@@ -206,7 +212,7 @@ namespace ReliefManagementSystem.Application.Services
             }
             else if (roles.Contains(Role.Manager.ToString()))
             {
-                var managerProfile = await _unitOfWork.ManagerProfiles.GetByUserIdAsync(_currentUser.UserId, ct);
+                var managerProfile = await _unitOfWork.ManagerProfiles.GetByUserIdAsync(userId, ct);
                 if (managerProfile?.AssignedLocationId != null)
                 {
                     var regionalStation = await _unitOfWork.ReliefStations
@@ -229,7 +235,7 @@ namespace ReliefManagementSystem.Application.Services
             }
             else if (roles.Contains(Role.Moderator.ToString()))
             {
-                var modProfile = await _unitOfWork.ModeratorProfiles.GetByUserIdAsync(_currentUser.UserId, ct);
+                var modProfile = await _unitOfWork.ModeratorProfiles.GetByUserIdAsync(userId, ct);
                 if (modProfile != null && modProfile.IsStationHead && modProfile.ReliefStationId == station.ParentReliefStationId)
                 {
                     isAuthorized = true;
@@ -321,7 +327,7 @@ namespace ReliefManagementSystem.Application.Services
             LocationId            = rs.LocationId,
             LocationName          = locationName,
             CreatedAt             = rs.CreatedAt,
-            UpdatedAt             = rs.UpdatedAt
+            UpdatedAt             = rs.UpdatedAt ?? rs.CreatedAt
         };
     }
 }

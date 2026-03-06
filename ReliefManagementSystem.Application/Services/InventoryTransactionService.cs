@@ -87,7 +87,7 @@ namespace ReliefManagementSystem.Application.Services
                 TransactionCode = code,
                 Type = request.Type,
                 CreatedAt = DateTime.UtcNow,
-                CreatedBy = _currentUser.UserId,
+                //CreatedBy = _currentUser.UserId,
                 Notes = request.Notes,
                 Items = request.Items.Select(i => new Domain.Entities.InventoryTransactionItem
                 {

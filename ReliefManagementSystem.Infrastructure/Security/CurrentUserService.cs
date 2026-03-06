@@ -18,12 +18,16 @@ namespace ReliefManagementSystem.Infrastructure.Security
             _httpContextAccessor = httpContextAccessor;
         }
 
-        public Guid UserId =>
-            Guid.Parse(_httpContextAccessor.HttpContext?
-                .User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        public Guid? UserId
+        {
+            get
+            {
+                var idString = _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.NameIdentifier);
+                return string.IsNullOrEmpty(idString) ? null : Guid.Parse(idString);
+            }
+        }
 
         public string? Email =>
-            _httpContextAccessor.HttpContext?
-                .User.FindFirstValue(ClaimTypes.Email);
+            _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.Email);
     }
 }

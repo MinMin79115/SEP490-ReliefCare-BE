@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using ReliefManagementSystem.Infrastructure.Data;
@@ -11,9 +12,11 @@ using ReliefManagementSystem.Infrastructure.Data;
 namespace ReliefManagementSystem.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260306071259_addAuditLog")]
+    partial class addAuditLog
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -837,150 +840,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.HasIndex("RecipientId", "IsRead");
 
                     b.ToTable("Notifications");
-                });
-
-            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.PaymentTransaction", b =>
-                {
-                    b.Property<Guid>("PaymentTransactionId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("AuthenticationStatus")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("DonationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("GatewayCustomerId")
-                        .HasColumnType("text");
-
-                    b.Property<string>("GatewayId")
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<decimal>("OrderAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<string>("OrderCurrency")
-                        .HasColumnType("text");
-
-                    b.Property<string>("OrderDescription")
-                        .HasColumnType("text");
-
-                    b.Property<string>("OrderId")
-                        .HasColumnType("text");
-
-                    b.Property<string>("OrderInvoiceNumber")
-                        .HasColumnType("text");
-
-                    b.Property<string>("OrderStatus")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("PayloadCreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("PayloadUpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("UserId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("PaymentTransactionId");
-
-                    b.HasIndex("DonationId");
-
-                    b.HasIndex("UserId");
-
-                    b.ToTable("PaymentTransactions");
-                });
-
-            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.PaymentTransactionDetail", b =>
-                {
-                    b.Property<Guid>("PaymentTransactionDetailId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("AuthenticationStatus")
-                        .HasColumnType("text");
-
-                    b.Property<string>("CardBrand")
-                        .HasColumnType("text");
-
-                    b.Property<string>("CardExpiry")
-                        .HasColumnType("text");
-
-                    b.Property<string>("CardFundingMethod")
-                        .HasColumnType("text");
-
-                    b.Property<string>("CardHolderName")
-                        .HasColumnType("text");
-
-                    b.Property<string>("CardNumber")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("GatewayTransactionId")
-                        .HasColumnType("text");
-
-                    b.Property<bool>("IsDeleted")
-                        .HasColumnType("boolean");
-
-                    b.Property<string>("PaymentMethod")
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("PaymentTransactionId")
-                        .HasColumnType("uuid");
-
-                    b.Property<decimal>("TransactionAmount")
-                        .HasPrecision(18, 2)
-                        .HasColumnType("numeric(18,2)");
-
-                    b.Property<string>("TransactionCurrency")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("TransactionDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("TransactionLastUpdatedDate")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("TransactionStatus")
-                        .HasColumnType("text");
-
-                    b.Property<string>("TransactionType")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("UpdatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("UpdatedBy")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("PaymentTransactionDetailId");
-
-                    b.HasIndex("PaymentTransactionId");
-
-                    b.ToTable("PaymentTransactionDetails");
                 });
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.PriorityCriteria", b =>
@@ -2158,34 +2017,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Navigation("Recipient");
                 });
 
-            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.PaymentTransaction", b =>
-                {
-                    b.HasOne("ReliefManagementSystem.Domain.Entities.Donation", "Donation")
-                        .WithMany()
-                        .HasForeignKey("DonationId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("ReliefManagementSystem.Domain.Entities.ApplicationUser", "User")
-                        .WithMany()
-                        .HasForeignKey("UserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.Navigation("Donation");
-
-                    b.Navigation("User");
-                });
-
-            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.PaymentTransactionDetail", b =>
-                {
-                    b.HasOne("ReliefManagementSystem.Domain.Entities.PaymentTransaction", "PaymentTransaction")
-                        .WithMany("TransactionDetails")
-                        .HasForeignKey("PaymentTransactionId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("PaymentTransaction");
-                });
-
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.RefreshToken", b =>
                 {
                     b.HasOne("ReliefManagementSystem.Domain.Entities.ApplicationUser", "User")
@@ -2608,11 +2439,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Location", b =>
                 {
                     b.Navigation("Children");
-                });
-
-            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.PaymentTransaction", b =>
-                {
-                    b.Navigation("TransactionDetails");
                 });
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.PriorityCriteria", b =>
