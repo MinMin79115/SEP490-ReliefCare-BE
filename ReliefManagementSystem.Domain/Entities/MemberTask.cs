@@ -1,4 +1,4 @@
-﻿using ReliefManagementSystem.Domain.Enum;
+using ReliefManagementSystem.Domain.Enum;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -27,5 +27,7 @@ namespace ReliefManagementSystem.Domain.Entities
         public CampaignTask CampaignTask { get; set; } = default!;
 
         public VolunteerProfile VolunteerProfile { get; set; } = default!;
+
+        public ICollection<MemberTaskItem> MemberTaskItems { get; set; } = new List<MemberTaskItem>();
     }
 }

@@ -15,6 +15,6 @@ namespace ReliefManagementSystem.Domain.Entities
         public Skill Skill { get; set; }
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
-
+        
     }
 }

@@ -1,4 +1,4 @@
-﻿using ReliefManagementSystem.Domain.Enum;
+using ReliefManagementSystem.Domain.Enum;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -31,5 +31,7 @@ namespace ReliefManagementSystem.Domain.Entities
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public DateTime? UpdatedAt { get; set; }
+
+        public ICollection<SupplyTransfer> SupplyTransfers { get; set; } = new List<SupplyTransfer>();
     }
 }

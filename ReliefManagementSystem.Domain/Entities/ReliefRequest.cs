@@ -1,4 +1,4 @@
-﻿using ReliefManagementSystem.Domain.Enum;
+using ReliefManagementSystem.Domain.Enum;
 using ReliefManagementSystem.Domain.Exceptions;
 using System;
 using System.Collections.Generic;

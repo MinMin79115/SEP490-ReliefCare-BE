@@ -23,6 +23,8 @@ namespace ReliefManagementSystem.Infrastructure.Data
 
         // Donation
         public DbSet<Donation> Donations { get; set; }
+        public DbSet<InKindDonation> InKindDonations { get; set; }
+        public DbSet<InKindDonationDetail> InKindDonationDetails { get; set; }
         public DbSet<PaymentTransaction> PaymentTransactions { get; set; }
         public DbSet<PaymentTransactionDetail> PaymentTransactionDetails { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
@@ -56,6 +58,9 @@ namespace ReliefManagementSystem.Infrastructure.Data
         public DbSet<CampaignTask> CampaignTasks { get; set; }
         public DbSet<CampaignVehicle> CampaignVehicles { get; set; }
         public DbSet<MemberTask> MemberTasks { get; set; }
+        
+        public DbSet<CampaignTaskItem> CampaignTaskItems { get; set; }
+        public DbSet<MemberTaskItem> MemberTaskItems { get; set; }
 
         // Supply Allocation
         public DbSet<SupplyAllocation> SupplyAllocations { get; set; }
@@ -414,6 +419,12 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .HasForeignKey(it => it.CreatedBy)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            builder.Entity<InventoryTransaction>()
+                .HasOne(it => it.SupplyTransfer)
+                .WithMany(st => st.InventoryTransactions)
+                .HasForeignKey(it => it.SupplyTransferId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // ReliefStation Configuration
             builder.Entity<ReliefStation>()
                 .HasKey(rs => rs.ReliefStationId);
@@ -557,6 +568,38 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .HasForeignKey(mt => mt.VolunteerProfileId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            // CampaignTaskItem Configuration
+            builder.Entity<CampaignTaskItem>()
+                .HasKey(cti => cti.CampaignTaskItemId);
+
+            builder.Entity<CampaignTaskItem>()
+                .HasOne(cti => cti.CampaignTask)
+                .WithMany(ct => ct.CampaignTaskItems)
+                .HasForeignKey(cti => cti.CampaignTaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<CampaignTaskItem>()
+                .HasOne(cti => cti.SupplyAllocationItem)
+                .WithMany(sai => sai.CampaignTaskItems)
+                .HasForeignKey(cti => cti.SupplyAllocationItemId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // MemberTaskItem Configuration
+            builder.Entity<MemberTaskItem>()
+                .HasKey(mti => mti.MemberTaskItemId);
+
+            builder.Entity<MemberTaskItem>()
+                .HasOne(mti => mti.MemberTask)
+                .WithMany(mt => mt.MemberTaskItems)
+                .HasForeignKey(mti => mti.MemberTaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<MemberTaskItem>()
+                .HasOne(mti => mti.CampaignTaskItem)
+                .WithMany(cti => cti.MemberTaskItems)
+                .HasForeignKey(mti => mti.CampaignTaskItemId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // SupplyAllocation Configuration
             builder.Entity<SupplyAllocation>()
                 .HasKey(sa => sa.AllocationId);
@@ -572,6 +615,12 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .WithMany()
                 .HasForeignKey(sa => sa.SourceInventoryId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<SupplyAllocation>()
+                .HasOne(sa => sa.InventoryTransaction)
+                .WithOne(it => it.SupplyAllocation)
+                .HasForeignKey<SupplyAllocation>(sa => sa.InventoryTransactionId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             // SupplyAllocationItem Configuration
             builder.Entity<SupplyAllocationItem>()
@@ -597,6 +646,19 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .WithMany()
                 .HasForeignKey(rs => rs.LocationId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // SupplyTransfer Logistics FKs
+            builder.Entity<SupplyTransfer>()
+                .HasOne(st => st.Vehicle)
+                .WithMany(v => v.SupplyTransfers)
+                .HasForeignKey(st => st.VehicleId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<SupplyTransfer>()
+                .HasOne(st => st.DriverUser)
+                .WithMany()
+                .HasForeignKey(st => st.DriverUserId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             // Campaign – CreatedBy FK
             builder.Entity<Campaign>()
@@ -802,6 +864,56 @@ namespace ReliefManagementSystem.Infrastructure.Data
                     .WithMany()
                     .HasForeignKey(d => d.DonorUserId)
                     .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // =========================
+            // InKindDonation
+            // =========================
+            builder.Entity<InKindDonation>(entity =>
+            {
+                entity.HasKey(ik => ik.InKindDonationId);
+
+                entity.Property(ik => ik.Status)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                entity.HasOne(ik => ik.Campaign)
+                    .WithMany(c => c.InKindDonations)
+                    .HasForeignKey(ik => ik.CampaignId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(ik => ik.ReliefStation)
+                    .WithMany(rs => rs.ReceivedInKindDonations)
+                    .HasForeignKey(ik => ik.ReliefStationId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(ik => ik.DonorUser)
+                    .WithMany()
+                    .HasForeignKey(ik => ik.DonorUserId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(ik => ik.InventoryTransaction)
+                    .WithMany(it => it.InKindDonations)
+                    .HasForeignKey(ik => ik.InventoryTransactionId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // =========================
+            // InKindDonationDetail
+            // =========================
+            builder.Entity<InKindDonationDetail>(entity =>
+            {
+                entity.HasKey(ikd => ikd.InKindDonationDetailId);
+
+                entity.HasOne(ikd => ikd.InKindDonation)
+                    .WithMany(ik => ik.InKindDonationDetails)
+                    .HasForeignKey(ikd => ikd.InKindDonationId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(ikd => ikd.SupplyItem)
+                    .WithMany(si => si.InKindDonationDetails)
+                    .HasForeignKey(ikd => ikd.SupplyItemId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             // =========================

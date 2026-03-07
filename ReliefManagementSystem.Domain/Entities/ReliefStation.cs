@@ -1,4 +1,4 @@
-﻿using ReliefManagementSystem.Domain.Enum;
+using ReliefManagementSystem.Domain.Enum;
 using ReliefManagementSystem.Domain.Entities.Common;
 using System;
 using System.Collections.Generic;
@@ -49,5 +49,7 @@ namespace ReliefManagementSystem.Domain.Entities
 
         /// <summary>Các phiếu vận chuyển hàng MÀ trạm này nhận vào</summary>
         public ICollection<SupplyTransfer> InboundTransfers { get; set; } = new List<SupplyTransfer>();
+
+        public ICollection<InKindDonation> ReceivedInKindDonations { get; set; } = new List<InKindDonation>();
     }
 }

@@ -58,6 +58,16 @@ namespace ReliefManagementSystem.Domain.Entities
         public ApplicationUser RequestedByUser { get; set; } = null!;
         public ApplicationUser? ApprovedByUser { get; set; }
 
+        // ── Thông tin vận chuyển (Logistics) ──────────────────────────
+        /// <summary>Xe được điều động để chở hàng cho phiếu này</summary>
+        public Guid? VehicleId { get; set; }
+        public Vehicle? Vehicle { get; set; }
+
+        /// <summary>Tài xế lái xe (Account) phụ trách chuyến này</summary>
+        public Guid? DriverUserId { get; set; }
+        public ApplicationUser? DriverUser { get; set; }
+
         public ICollection<SupplyTransferItem> Items { get; set; } = new List<SupplyTransferItem>();
+        public ICollection<InventoryTransaction> InventoryTransactions { get; set; } = new List<InventoryTransaction>();
     }
 }
