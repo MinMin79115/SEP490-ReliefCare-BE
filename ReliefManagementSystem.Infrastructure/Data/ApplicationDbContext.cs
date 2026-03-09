@@ -54,6 +54,7 @@ namespace ReliefManagementSystem.Infrastructure.Data
 
         // Campaign Management
         public DbSet<Campaign> Campaigns { get; set; }
+        public DbSet<CampaignStation> CampaignStations { get; set; }
         public DbSet<CampaignTeam> CampaignTeams { get; set; }
         public DbSet<CampaignTask> CampaignTasks { get; set; }
         public DbSet<CampaignVehicle> CampaignVehicles { get; set; }
@@ -429,12 +430,6 @@ namespace ReliefManagementSystem.Infrastructure.Data
             builder.Entity<ReliefStation>()
                 .HasKey(rs => rs.ReliefStationId);
 
-            builder.Entity<ReliefStation>()
-                .HasOne(rs => rs.ParentStation)
-                .WithMany(rs => rs.ChildStations)
-                .HasForeignKey(rs => rs.ParentReliefStationId)
-                .OnDelete(DeleteBehavior.Restrict);
-
             // ReliefStationTeam Configuration (Many-to-Many between ReliefStation and Team)
             builder.Entity<ReliefStationTeam>()
                 .HasKey(rst => rst.ReliefStationTeamId);
@@ -494,11 +489,21 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .HasForeignKey(c => c.LocationId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            builder.Entity<Campaign>()
-                .HasOne(c => c.CreatedByStation)
-                .WithMany()
-                .HasForeignKey(c => c.CreatedByStationId)
-                .OnDelete(DeleteBehavior.Restrict);
+            // CampaignStation Configuration
+            builder.Entity<CampaignStation>()
+                .HasKey(cs => new { cs.CampaignId, cs.ReliefStationId });
+
+            builder.Entity<CampaignStation>()
+                .HasOne(cs => cs.Campaign)
+                .WithMany(c => c.CampaignStations)
+                .HasForeignKey(cs => cs.CampaignId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<CampaignStation>()
+                .HasOne(cs => cs.ReliefStation)
+                .WithMany(rs => rs.CampaignStations)
+                .HasForeignKey(cs => cs.ReliefStationId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             // CampaignTeam Configuration
             builder.Entity<CampaignTeam>()

@@ -10,5 +10,6 @@ namespace ReliefManagementSystem.Application.Features.VolunteerRequest.Request
     {
         public string Descriptions { get; set; } = null!;
         public List<Guid> SkillIds { get; set; }
+        public int? YearsOfExperience { get; set; }
     }
 }

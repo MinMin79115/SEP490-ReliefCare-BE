@@ -26,14 +26,11 @@ namespace ReliefManagementSystem.Domain.Entities
         public double Latitude { get; set; }
 
         public bool IsActive { get; set; } = true;
-
-        public Guid? ParentReliefStationId { get; set; }
-        public ReliefStation? ParentStation { get; set; }
-        public ICollection<ReliefStation> ChildStations { get; set; } = new List<ReliefStation>();
-
         public ReliefStationStatus Status { get; set; }
 
         public Location Location { get; set; } = null!;
+
+        public ICollection<CampaignStation> CampaignStations { get; set; } = new List<CampaignStation>();
 
         /// <summary>Danh sách Moderator được gán vào trạm này (có thể có 1 IsStationHead = true).</summary>
         public ICollection<ModeratorProfile> Moderators { get; set; } = new List<ModeratorProfile>();

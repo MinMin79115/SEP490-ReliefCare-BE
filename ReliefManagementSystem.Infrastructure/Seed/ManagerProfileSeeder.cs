@@ -29,9 +29,7 @@ namespace ReliefManagementSystem.Infrastructure.Seed
             // ──────────────────────────────────────────────────
             var mapping = new[]
             {
-                new { Email = "regional.manager@system.com", ContactNumber = "024-3823-0001"  },
-                new { Email = "regional.manager1@system.com",ContactNumber = "0236-3823-0002" },
-                new { Email = "regional.manager2@system.com", ContactNumber = "028-3823-0003"   },
+                new { Email = "regional.manager@system.com", ContactNumber = "0236-3823-0002"},
             };
 
             foreach (var entry in mapping)

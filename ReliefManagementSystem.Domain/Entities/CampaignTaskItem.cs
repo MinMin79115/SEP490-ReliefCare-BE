@@ -18,7 +18,7 @@ namespace ReliefManagementSystem.Domain.Entities
         public int QuantityDelivered { get; set; }
 
         // Navigation
-        public CampaignTask CampaignTask { get; set; } = default!;
+        public CampaignTask CampaignTask { get; set; } = default!;  
         public SupplyAllocationItem SupplyAllocationItem { get; set; } = default!;
         
         public ICollection<MemberTaskItem> MemberTaskItems { get; set; } = new List<MemberTaskItem>();

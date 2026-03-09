@@ -38,32 +38,15 @@ namespace ReliefManagementSystem.Infrastructure.Seed
             }
 
             // ──────────────────────────────────────────────────
-            // 1️⃣  TRẠM CẤP VÙNG (Regional) – 4 trạm
-            //     LocationId = Region (cấp vùng)
-            //     Manager    = regional.manager[0-3]
+            // 1️⃣  TRẠM CẤP CỨU TRỢ TRUNG TÂM
+            //     LocationId = Region (Miền Trung)
             // ──────────────────────────────────────────────────
             var stations = new List<ReliefStation>
             {
                 new ReliefStation
                 {
                     ReliefStationId    = Guid.NewGuid(),
-                    Name               = "Trạm Cấp Phát Vùng Bắc Bộ",
-                    Level              = ReliefStationLevel.Regional,
-                    LocationId         = await GetLocationId("mien-bac", LocationLevel.Region),
-                    Address            = "120, Yên Lãng, Hà Nội, Việt Nam",
-                    ContactNumber      = "024-3823-0001",
-                    Longitude          = 105.8342,
-                    Latitude           = 21.0278,
-                    Status             = ReliefStationStatus.Active,
-                    CreatedAt          = DateTime.UtcNow,
-                    UpdatedAt          = DateTime.UtcNow,
-                    ParentReliefStationId = null
-                },
-
-                new ReliefStation
-                {
-                    ReliefStationId    = Guid.NewGuid(),
-                    Name               = "Trạm Cấp Phát Vùng Trung Bộ",
+                    Name               = "Trạm Cấp Phát Trung Tâm Miền Trung",
                     Level              = ReliefStationLevel.Regional,
                     LocationId         = await GetLocationId("mien-trung", LocationLevel.Region),
                     Address            = "Đà Nẵng, Việt Nam",
@@ -72,26 +55,8 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                     Latitude           = 16.0544,
                     Status             = ReliefStationStatus.Active,
                     CreatedAt          = DateTime.UtcNow,
-                    UpdatedAt          = DateTime.UtcNow,
-                    ParentReliefStationId = null
-                },
-
-                new ReliefStation
-                {
-                    ReliefStationId    = Guid.NewGuid(),
-                    Name               = "Trạm Cấp Phát Vùng Nam Bộ",
-                    Level              = ReliefStationLevel.Regional,
-                    LocationId         = await GetLocationId("mien-nam", LocationLevel.Region),
-                    Address            = "TP. Hồ Chí Minh, Việt Nam",
-                    ContactNumber      = "028-3823-0003",
-                    Longitude          = 106.6297,
-                    Latitude           = 10.8231,
-                    Status             = ReliefStationStatus.Active,
-                    CreatedAt          = DateTime.UtcNow,
-                    UpdatedAt          = DateTime.UtcNow,
-                    ParentReliefStationId = null
-                },
-
+                    UpdatedAt          = DateTime.UtcNow
+                }
             };
 
 
