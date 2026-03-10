@@ -8,7 +8,7 @@ namespace ReliefManagementSystem.Application.Interface
 {
     public interface ICurrentUserService
     {
-        Guid UserId { get; }
+        Guid? UserId { get; }
         string? Email { get; }
     }
 }

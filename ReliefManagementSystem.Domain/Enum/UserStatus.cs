@@ -8,7 +8,7 @@ namespace ReliefManagementSystem.Domain.Enum
 {
     public enum UserStatus
     {
-        ACTIVE,
+        ACTIVE = 0,
         INACTIVE,
         SUSPENDED,
         DELETED

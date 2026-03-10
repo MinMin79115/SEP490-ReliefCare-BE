@@ -8,9 +8,16 @@ using System.Threading.Tasks;
 
 namespace ReliefManagementSystem.Domain.Entities
 {
-    public sealed class ReliefRequest : EmergencyRequest
+    public class ReliefRequest : Request
     {
-       
+        public Guid? CampaignId { get; set; }
+
+        public ReliefRequestStatus Status { get; set; }
+
+        public Campaign? Campaign { get; set; } 
+
+        public ICollection<ReliefNeedItem> ReliefNeedItems { get; set; } = new List<ReliefNeedItem>();
+
     }
 }
     

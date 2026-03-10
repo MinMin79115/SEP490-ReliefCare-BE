@@ -63,10 +63,13 @@ namespace ReliefManagementSystem.API.Controllers
 
         // GET /api/team
         [HttpGet]
-        [SwaggerOperation(OperationId = "GetAllTeams", Description = "Lấy danh sách tất cả teams")]
-        public async Task<IActionResult> GetAllTeams(CancellationToken cancellationToken)
+        [SwaggerOperation(OperationId = "GetAllTeams", Description = "Lấy danh sách tất cả teams có phân trang")]
+        public async Task<IActionResult> GetAllTeams(
+            [FromQuery] int pageIndex = 1,
+            [FromQuery] int pageSize = 10,
+            CancellationToken cancellationToken = default)
         {
-            var result = await _teamService.GetAllTeamsAsync(cancellationToken);
+            var result = await _teamService.GetAllTeamsAsync(pageIndex, pageSize, cancellationToken);
             return Ok(result);
         }
 

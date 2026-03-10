@@ -14,8 +14,14 @@ namespace ReliefManagementSystem.Application.Features.ReliefStation.DTOs.Respons
         public ReliefStationStatus Status { get; set; }
         public string StatusName => Status.ToString();
         public bool IsActive { get; set; }
-        public Guid ManagerId { get; set; }
-        public string ManagerName { get; set; } = null!;
+
+        /// <summary>Cấp trạm: Regional (vùng) | Provincial (tỉnh) | Local (địa phương).</summary>
+        public ReliefStationLevel Level { get; set; }
+        public string LevelName => Level.ToString();
+
+        /// <summary>ID trạm cha (null nếu là trạm Regional).</summary>
+        public Guid? ParentReliefStationId { get; set; }
+
         public Guid LocationId { get; set; }
         public string LocationName { get; set; } = null!;
         public DateTime CreatedAt { get; set; }

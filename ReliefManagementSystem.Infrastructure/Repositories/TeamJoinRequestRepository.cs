@@ -88,5 +88,17 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                     tjr.VolunteerId == volunteerId &&
                     tjr.Status == TeamJoinRequestStatus.Pending);
         }
+
+        public IQueryable<TeamJoinRequest> GetQueryableWithDetails()
+        {
+            return _dbSet
+                .Include(tjr => tjr.Team)
+                    .ThenInclude(t => t.Moderator)
+                .Include(tjr => tjr.Volunteer)
+                    .ThenInclude(v => v.VolunteerProfile)
+                        .ThenInclude(vp => vp.VolunteerSkills)
+                            .ThenInclude(vs => vs.Skill)
+                .AsQueryable();
+        }
     }
 }

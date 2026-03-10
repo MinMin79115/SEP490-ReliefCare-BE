@@ -206,7 +206,9 @@ using (var scope = app.Services.CreateScope())
     await UserSeeder.SeedAsync(userManager, context);
     await SkillSeeder.SeedAsync(context);
     await TeamSeeder.SeedAsync(context);
-    
+    await LocationExcelSeeder.SeedAsync(context);
+    await ReliefStationSeeder.SeedAsync(context);
+    await ManagerProfileSeeder.SeedAsync(context);
     logger.LogInformation("Database seeding completed.");
 }
 
