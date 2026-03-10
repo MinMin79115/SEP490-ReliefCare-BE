@@ -6,11 +6,11 @@ using System.Threading.Tasks;
 
 namespace ReliefManagementSystem.Application.Common.Exceptions.ReliefStationExceptions
 {
-    public class ReliefStationNameTooLongException : AppException
+    public class StationNameAlreadyExistsException : AppException
     {
-        public ReliefStationNameTooLongException()
-            : base("Relief station name exceeds 255 characters",
-                "RELIEF_STATION_NAME_TOO_LONG",
+        public StationNameAlreadyExistsException(string name)
+            : base($"Trạm bị trùng tên vui lòn xử dụng tên khác",
+                "RELIEF_STATION_NAME_EXISTS",
                 400)
         {
         }

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using ReliefManagementSystem.Infrastructure.Data;
@@ -11,9 +12,11 @@ using ReliefManagementSystem.Infrastructure.Data;
 namespace ReliefManagementSystem.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260307041749_InkindDonation")]
+    partial class InkindDonation
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -305,9 +308,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<string>("AddressDetail")
-                        .HasColumnType("text");
-
                     b.Property<double>("AreaRadiusKm")
                         .HasColumnType("double precision");
 
@@ -321,6 +321,9 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.Property<Guid>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CreatedByStationId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("Description")
@@ -348,37 +351,15 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
-                    b.Property<int>("Type")
-                        .HasColumnType("integer");
-
                     b.HasKey("CampaignId");
 
                     b.HasIndex("CreatedBy");
 
+                    b.HasIndex("CreatedByStationId");
+
                     b.HasIndex("LocationId");
 
                     b.ToTable("Campaigns");
-                });
-
-            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.CampaignStation", b =>
-                {
-                    b.Property<Guid>("CampaignId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ReliefStationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("AssignedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
-                    b.HasKey("CampaignId", "ReliefStationId");
-
-                    b.HasIndex("ReliefStationId");
-
-                    b.ToTable("CampaignStations");
                 });
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.CampaignTask", b =>
@@ -1295,9 +1276,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Property<Guid?>("ParentReliefStationId")
                         .HasColumnType("uuid");
 
-                    b.Property<Guid?>("ParentStationReliefStationId")
-                        .HasColumnType("uuid");
-
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
@@ -1311,7 +1289,7 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
                     b.HasIndex("LocationId");
 
-                    b.HasIndex("ParentStationReliefStationId");
+                    b.HasIndex("ParentReliefStationId");
 
                     b.ToTable("ReliefStations");
                 });
@@ -2102,32 +2080,21 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.ReliefStation", "CreatedByStation")
+                        .WithMany()
+                        .HasForeignKey("CreatedByStationId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("ReliefManagementSystem.Domain.Entities.Location", "Location")
                         .WithMany()
                         .HasForeignKey("LocationId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
+                    b.Navigation("CreatedByStation");
+
                     b.Navigation("Location");
-                });
-
-            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.CampaignStation", b =>
-                {
-                    b.HasOne("ReliefManagementSystem.Domain.Entities.Campaign", "Campaign")
-                        .WithMany("CampaignStations")
-                        .HasForeignKey("CampaignId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("ReliefManagementSystem.Domain.Entities.ReliefStation", "ReliefStation")
-                        .WithMany("CampaignStations")
-                        .HasForeignKey("ReliefStationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Campaign");
-
-                    b.Navigation("ReliefStation");
                 });
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.CampaignTask", b =>
@@ -2508,7 +2475,8 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
                     b.HasOne("ReliefManagementSystem.Domain.Entities.ReliefStation", "ParentStation")
                         .WithMany("ChildStations")
-                        .HasForeignKey("ParentStationReliefStationId");
+                        .HasForeignKey("ParentReliefStationId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.Navigation("Location");
 
@@ -2889,8 +2857,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Campaign", b =>
                 {
-                    b.Navigation("CampaignStations");
-
                     b.Navigation("CampaignTasks");
 
                     b.Navigation("CampaignTeams");
@@ -2957,8 +2923,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.ReliefStation", b =>
                 {
-                    b.Navigation("CampaignStations");
-
                     b.Navigation("ChildStations");
 
                     b.Navigation("InboundTransfers");

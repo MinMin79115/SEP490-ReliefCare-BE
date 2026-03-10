@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -18,5 +18,7 @@ namespace ReliefManagementSystem.Domain.Entities
         // Navigation
         public SupplyAllocation SupplyAllocation { get; set; } = default!;
         public SupplyItem SupplyItem { get; set; } = default!;
+
+        public ICollection<CampaignTaskItem> CampaignTaskItems { get; set; } = new List<CampaignTaskItem>();
     }
 }

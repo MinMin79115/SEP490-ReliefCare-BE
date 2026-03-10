@@ -6,12 +6,12 @@ using System.Threading.Tasks;
 
 namespace ReliefManagementSystem.Application.Common.Exceptions.ReliefStationExceptions
 {
-    public class ManagerNotFoundException : AppException
+    public class InvalidCoordinatesException : AppException
     {
-        public ManagerNotFoundException()
-            : base("Manager not found",
-                "MANAGER_NOT_FOUND",
-                404)
+        public InvalidCoordinatesException()
+            : base("Kinh độ hoặc vĩ dộ không hợp lệ",
+                "INVALID_COORDINATES",
+                400)
         {
         }
     }

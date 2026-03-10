@@ -1,4 +1,4 @@
-﻿using ReliefManagementSystem.Domain.Enum;
+using ReliefManagementSystem.Domain.Enum;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -17,6 +17,9 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public TransactionType Type { get; set; }
 
+        public TransactionReason Reason { get; set; }
+
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public Guid CreatedBy { get; set; }
@@ -28,6 +31,12 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public Inventory Inventory { get; set; } = null!;
 
+        public Guid? SupplyTransferId { get; set; }
+        public SupplyTransfer? SupplyTransfer { get; set; }
+
+        public SupplyAllocation? SupplyAllocation { get; set; } // Liên kết 1-1 với phiếu cấp phát
+
         public ICollection<InventoryTransactionItem> Items { get; set; } = new List<InventoryTransactionItem>();
+        public ICollection<InKindDonation> InKindDonations { get; set; } = new List<InKindDonation>();
     }
 }

@@ -6,12 +6,12 @@ using System.Threading.Tasks;
 
 namespace ReliefManagementSystem.Application.Common.Exceptions.ReliefStationExceptions
 {
-    public class ReliefStationNameRequiredException : AppException
+    public class InventoryCreationFailedException : AppException
     {
-        public ReliefStationNameRequiredException()
-            : base("Relief station name is required",
-                "RELIEF_STATION_NAME_REQUIRED",
-                400)
+        public InventoryCreationFailedException()
+            : base("Lỗi trong quá trình tạo kho",
+                "INVENTORY_CREATION_FAILED",
+                500)
         {
         }
     }

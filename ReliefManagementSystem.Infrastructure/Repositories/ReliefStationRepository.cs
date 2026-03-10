@@ -17,36 +17,16 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
     public class ReliefStationRepository : GenericRepository<ReliefStation>, IReliefStationRepository
     {
         public ReliefStationRepository(ApplicationDbContext context) : base(context) { }
-
-        /// <inheritdoc/>
-        public async Task<ReliefStation?> GetRegionalByLocationIdAsync(
-            Guid regionLocationId,
-            CancellationToken ct = default)
+        public async Task<bool> ExistsByNameAsync(string name)
         {
-            return await _context.ReliefStations
-                .FirstOrDefaultAsync(
-                    rs => rs.Level == ReliefStationLevel.Regional
-                       && rs.LocationId == regionLocationId
-                       && rs.IsActive,
-                    ct);
+            return await _context.ReliefStations.AnyAsync(x => x.Name == name);
+        }
+        public async Task<bool> ExistsProvincialStationInLocationAsync(Guid locationId)
+        {
+            return await _context.ReliefStations.AnyAsync(x =>
+                x.LocationId == locationId &&
+                x.Level == ReliefStationLevel.Provincial);
         }
 
-        /// <inheritdoc/>
-        public IQueryable<ReliefStation> GetAllQueryable(
-            ReliefStationLevel? level = null,
-            string? search = null)
-        {
-            var query = _context.ReliefStations
-                .Include(rs => rs.Location)
-                .AsQueryable();
-
-            if (level.HasValue)
-                query = query.Where(rs => rs.Level == level.Value);
-
-            if (!string.IsNullOrWhiteSpace(search))
-                query = query.Where(rs => rs.Name.Contains(search));
-
-            return query.OrderByDescending(rs => rs.CreatedAt);
-        }
     }
 }

@@ -15,6 +15,7 @@ namespace ReliefManagementSystem.Application.Features.VolunteerRequest.Response
         public string PhoneNumber { get; set; }
         public string? Descriptions { get; set; }
         public VerificationStatus VerificationStatus { get; set; }
+        public int? YearsOfExperience { get; set; }
         public List<Guid> Skills { get; set; } = new List<Guid>();
     }
 }

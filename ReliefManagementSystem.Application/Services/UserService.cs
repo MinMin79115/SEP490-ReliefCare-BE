@@ -119,6 +119,7 @@ namespace ReliefManagementSystem.Application.Services
                 VerifiedAt = null,
                 VerifiedBy = null,
                 Descriptions = request.Descriptions,
+                YearsOfExperience = request.YearsOfExperience,
                 VolunteerSkills = request.SkillIds.Select(skillId => new VolunteerSkill
                 {
                     SkillId = skillId
@@ -134,6 +135,7 @@ namespace ReliefManagementSystem.Application.Services
                 PhoneNumber = user.PhoneNumber,
                 Descriptions = volunteerProfile.Descriptions,
                 VerificationStatus = volunteerProfile.VerificationStatus,
+                YearsOfExperience = volunteerProfile.YearsOfExperience,
                 Skills = volunteerProfile.VolunteerSkills.Select(vs => vs.SkillId).ToList()
             };
         }
@@ -363,22 +365,16 @@ namespace ReliefManagementSystem.Application.Services
                 user.Gender = request.Gender;
 
             // Handle avatar upload
-            if (request.Avatar != null)
+            if (request.PictureUrl != null)
             {
-                // Delete old avatar if exists
-                if (!string.IsNullOrEmpty(user.PicturePublicId))
+                if (!string.IsNullOrEmpty(user.PicturePublicId) &&
+                    !string.IsNullOrEmpty(request.PicturePublicId))
                 {
-                    await _imageService.DeleteImageAsync(user.PicturePublicId, cancellationToken);
+                    await _imageService.DeleteImageAsync(user.PicturePublicId);
                 }
 
-                using var stream = request.Avatar.OpenReadStream();
-                var imageUrl = await _imageService.UploadImageAsync(
-                    stream,
-                    request.Avatar.FileName,
-                    cancellationToken);
-
-                user.PictureUrl = imageUrl;
-                user.PicturePublicId = imageUrl; // Store the public ID for future deletion
+                user.PictureUrl = request.PictureUrl;
+                user.PicturePublicId = request.PicturePublicId;
             }
 
             await _unitOfWork.Users.UpdateAsync(user);

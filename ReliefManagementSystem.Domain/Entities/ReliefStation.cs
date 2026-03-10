@@ -1,4 +1,4 @@
-﻿using ReliefManagementSystem.Domain.Enum;
+using ReliefManagementSystem.Domain.Enum;
 using ReliefManagementSystem.Domain.Entities.Common;
 using System;
 using System.Collections.Generic;
@@ -26,14 +26,11 @@ namespace ReliefManagementSystem.Domain.Entities
         public double Latitude { get; set; }
 
         public bool IsActive { get; set; } = true;
-
-        public Guid? ParentReliefStationId { get; set; }
-        public ReliefStation? ParentStation { get; set; }
-        public ICollection<ReliefStation> ChildStations { get; set; } = new List<ReliefStation>();
-
         public ReliefStationStatus Status { get; set; }
 
         public Location Location { get; set; } = null!;
+
+        public ICollection<CampaignStation> CampaignStations { get; set; } = new List<CampaignStation>();
 
         /// <summary>Danh sách Moderator được gán vào trạm này (có thể có 1 IsStationHead = true).</summary>
         public ICollection<ModeratorProfile> Moderators { get; set; } = new List<ModeratorProfile>();
@@ -49,5 +46,7 @@ namespace ReliefManagementSystem.Domain.Entities
 
         /// <summary>Các phiếu vận chuyển hàng MÀ trạm này nhận vào</summary>
         public ICollection<SupplyTransfer> InboundTransfers { get; set; } = new List<SupplyTransfer>();
+
+        public ICollection<InKindDonation> ReceivedInKindDonations { get; set; } = new List<InKindDonation>();
     }
 }

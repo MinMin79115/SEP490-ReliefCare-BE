@@ -14,9 +14,9 @@ namespace ReliefManagementSystem.Domain.Entities
         public ApplicationUser User { get; set; } = null!;
 
         /// <summary>
-        /// Cấp quản lý: Regional (vùng) | Province (tỉnh) | Local (địa phương).
+        /// Cấp quản lý: Region (vùng) | Province (tỉnh) | Commune (địa phương).
         /// </summary>
-        public ReliefStationLevel Level { get; set; }
+        public LocationLevel Level { get; set; }
 
         /// <summary>
         /// Địa phương/vùng/tỉnh mà manager này phụ trách.
