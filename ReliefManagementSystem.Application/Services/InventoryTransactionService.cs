@@ -86,8 +86,10 @@ namespace ReliefManagementSystem.Application.Services
                 InventoryId = request.InventoryId,
                 TransactionCode = code,
                 Type = request.Type,
+                Reason = request.Reason,
                 CreatedAt = DateTime.UtcNow,
-                //CreatedBy = _currentUser.UserId,
+                CreatedBy = _currentUser.UserId
+                    ?? throw new UnauthorizedAccessException("User is not authenticated."),
                 Notes = request.Notes,
                 Items = request.Items.Select(i => new Domain.Entities.InventoryTransactionItem
                 {
@@ -180,6 +182,7 @@ namespace ReliefManagementSystem.Application.Services
             ReliefStationName = t.Inventory?.ReliefStation?.Name ?? string.Empty,
             TransactionCode = t.TransactionCode,
             Type = t.Type,
+            Reason = t.Reason,
             CreatedAt = t.CreatedAt,
             CreatedBy = t.CreatedBy,
             CreatedByName = t.CreatedByUser?.DisplayName ?? string.Empty,
@@ -201,6 +204,7 @@ namespace ReliefManagementSystem.Application.Services
             InventoryId = t.InventoryId,
             TransactionCode = t.TransactionCode,
             Type = t.Type,
+            Reason = t.Reason,
             TotalItems = t.Items.Count,
             CreatedAt = t.CreatedAt,
             CreatedByName = t.CreatedByUser?.DisplayName ?? string.Empty,

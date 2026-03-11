@@ -33,6 +33,7 @@ namespace ReliefManagementSystem.Application.Services
                 SupplyItemId = Guid.NewGuid(),
                 Name = request.Name,
                 Description = request.Description,
+                IconUrl = request.IconUrl,
                 Category = request.Category,
                 Unit = request.Unit,
                 CreatedAt = DateTime.UtcNow
@@ -86,6 +87,7 @@ namespace ReliefManagementSystem.Application.Services
 
             supplyItem.Name = request.Name;
             supplyItem.Description = request.Description;
+            supplyItem.IconUrl = request.IconUrl;
             supplyItem.Category = request.Category;
             supplyItem.Unit = request.Unit;
             supplyItem.UpdatedAt = DateTime.UtcNow;
@@ -120,6 +122,7 @@ namespace ReliefManagementSystem.Application.Services
             SupplyItemId = item.SupplyItemId,
             Name = item.Name,
             Description = item.Description,
+            IconUrl = item.IconUrl,
             Category = item.Category,
             Unit = item.Unit,
             CreatedAt = item.CreatedAt,

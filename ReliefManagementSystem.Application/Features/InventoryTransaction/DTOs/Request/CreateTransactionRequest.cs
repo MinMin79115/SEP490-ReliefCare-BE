@@ -17,6 +17,14 @@ namespace ReliefManagementSystem.Application.Features.InventoryTransaction.DTOs.
         [Required(ErrorMessage = "Type is required.")]
         public TransactionType Type { get; set; }
 
+        /// <summary>
+        /// Reason for this transaction:
+        /// Donation (1), SupplyTransferIn (2), SupplyTransferOut (3),
+        /// CampaignAllocation (4), Other (5).
+        /// </summary>
+        [Required(ErrorMessage = "Reason is required.")]
+        public TransactionReason Reason { get; set; }
+
         /// <summary>Optional note for the overall transaction.</summary>
         [MaxLength(500)]
         public string? Notes { get; set; }
