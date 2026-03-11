@@ -22,5 +22,10 @@ namespace ReliefManagementSystem.Application.Common.Interface
         /// Checks whether a supply item name already exists, optionally excluding a specific item.
         /// </summary>
         Task<bool> IsNameExistsAsync(string name, Guid? excludeId = null, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Returns a queryable for composing server-side filter + pagination.
+        /// </summary>
+        IQueryable<SupplyItem> GetQueryable();
     }
 }

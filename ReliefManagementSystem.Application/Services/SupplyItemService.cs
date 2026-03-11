@@ -1,4 +1,5 @@
 using ReliefManagementSystem.Application.Common.Interface;
+using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Application.Features.SupplyItem.DTOs.Request;
 using ReliefManagementSystem.Application.Features.SupplyItem.DTOs.Response;
 using ReliefManagementSystem.Application.Interface;
@@ -60,12 +61,34 @@ namespace ReliefManagementSystem.Application.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IReadOnlyList<SupplyItemResponse>> GetAllSupplyItemsAsync(
+        public async Task<Pagination<SupplyItemResponse>> GetAllSupplyItemsAsync(
             SupplyCategory? category = null,
+            int pageIndex = 1,
+            int pageSize = 20,
             CancellationToken cancellationToken = default)
         {
-            var items = await _unitOfWork.SupplyItems.GetAllAsync(category, cancellationToken);
-            return items.Select(MapToResponse).ToList();
+            var query = _unitOfWork.SupplyItems
+                .GetQueryable()
+                .OrderBy(s => s.Category)
+                .ThenBy(s => s.Name)
+                .AsQueryable();
+
+            if (category.HasValue)
+                query = query.Where(s => s.Category == category.Value);
+
+            var projectedQuery = query.Select(s => new SupplyItemResponse
+            {
+                SupplyItemId = s.SupplyItemId,
+                Name = s.Name,
+                Description = s.Description,
+                IconUrl = s.IconUrl,
+                Category = s.Category,
+                Unit = s.Unit,
+                CreatedAt = s.CreatedAt,
+                UpdatedAt = s.UpdatedAt
+            });
+
+            return await Pagination<SupplyItemResponse>.ToPagedList(projectedQuery, pageIndex, pageSize);
         }
 
         /// <inheritdoc/>

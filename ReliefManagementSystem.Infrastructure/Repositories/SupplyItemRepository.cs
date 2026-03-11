@@ -53,5 +53,11 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
 
             return await query.AnyAsync(cancellationToken);
         }
+
+        /// <inheritdoc/>
+        public IQueryable<SupplyItem> GetQueryable()
+        {
+            return _dbSet.AsNoTracking();
+        }
     }
 }

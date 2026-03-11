@@ -37,5 +37,11 @@ namespace ReliefManagementSystem.Application.Common.Interface
         Task<int> CountTodayByTypeAsync(
             TransactionType type,
             CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Returns a queryable for composing server-side filter + pagination.
+        /// Includes CreatedByUser, Items, and SupplyItem by default.
+        /// </summary>
+        IQueryable<InventoryTransaction> GetQueryable();
     }
 }

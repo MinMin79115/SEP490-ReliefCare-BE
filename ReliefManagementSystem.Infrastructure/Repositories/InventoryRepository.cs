@@ -79,5 +79,14 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
 
             return await query.AnyAsync(cancellationToken);
         }
+        /// <inheritdoc/>
+        public IQueryable<Inventory> GetQueryable()
+        {
+            return _dbSet
+                .Include(i => i.ReliefStation)
+                .Include(i => i.InventoryItems)
+                    .ThenInclude(s => s.SupplyItem)
+                .Where(i => i.Status != EntityStatus.Deleted);
+        }
     }
 }

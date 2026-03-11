@@ -43,16 +43,20 @@ namespace ReliefManagementSystem.API.Controllers
         }
 
         /// <summary>
-        /// Gets all supply items, with optional category filter.
+        /// Gets paginated supply items, with optional category filter.
         /// </summary>
         /// <param name="category">Optional category to filter by.</param>
-        /// <response code="200">List of supply items.</response>
+        /// <param name="pageIndex">Page number, default 1.</param>
+        /// <param name="pageSize">Items per page, default 20.</param>
+        /// <response code="200">Paged list of supply items.</response>
         [HttpGet]
         public async Task<IActionResult> GetAllSupplyItems(
             [FromQuery] SupplyCategory? category,
-            CancellationToken cancellationToken)
+            [FromQuery] int pageIndex = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
         {
-            var result = await _supplyItemService.GetAllSupplyItemsAsync(category, cancellationToken);
+            var result = await _supplyItemService.GetAllSupplyItemsAsync(category, pageIndex, pageSize, cancellationToken);
             return Ok(result);
         }
 
