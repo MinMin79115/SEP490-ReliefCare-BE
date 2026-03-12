@@ -31,6 +31,7 @@ namespace ReliefManagementSystem.Infrastructure
             services.AddScoped<IUnitOfWork, UnitOfWork>();
             services.AddScoped<ICurrentUserService, CurrentUserService>();
             services.AddScoped<IImageService, CloudinaryImageService>();
+            services.AddScoped<IEmailService, BrevoEmailService>();
 
             // Team repositories
             services.AddScoped<ITeamRepository, TeamRepository>();

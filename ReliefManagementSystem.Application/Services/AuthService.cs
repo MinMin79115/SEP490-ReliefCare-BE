@@ -116,5 +116,25 @@ namespace ReliefManagementSystem.Application.Services
                 cancellationToken
             );
         }
+
+        public async Task ForgotPasswordAsync(
+            ForgotPasswordRequest request,
+            CancellationToken cancellationToken)
+        {
+            await _identityAuthService.ForgotPasswordAsync(
+                request.Email,
+                cancellationToken);
+        }
+
+        public async Task ResetPasswordAsync(
+            ResetPasswordRequest request,
+            CancellationToken cancellationToken)
+        {
+            await _identityAuthService.ResetPasswordAsync(
+                request.Email,
+                request.Token,
+                request.NewPassword,
+                cancellationToken);
+        }
     }
 }

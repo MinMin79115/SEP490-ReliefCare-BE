@@ -1,12 +1,11 @@
 ﻿using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Identity;
-using Microsoft.IdentityModel.Tokens;
+using Microsoft.AspNetCore.WebUtilities;
 using ReliefManagementSystem.Application.Common.Exceptions;
 using ReliefManagementSystem.Application.Common.Exceptions.Auth;
 using ReliefManagementSystem.Application.Common.Interface;
 using ReliefManagementSystem.Application.Features.Auth.DTOs;
 using ReliefManagementSystem.Application.Interface;
-using ReliefManagementSystem.Application.Services;
 using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Domain.Enum;
 using System;
@@ -18,20 +17,23 @@ using System.Threading.Tasks;
 
 namespace ReliefManagementSystem.Infrastructure.Security
 {
-
     public class IdentityAuthService : IIdentityAuthService
     {
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IEmailService _emailService;
+
         public IdentityAuthService(
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
-            ICurrentUserService currentUserService)
+            ICurrentUserService currentUserService,
+            IEmailService emailService)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _currentUserService = currentUserService;
+            _emailService = emailService;
         }
 
         public async Task<ApplicationUser> RegisterAsync(
@@ -103,7 +105,7 @@ namespace ReliefManagementSystem.Infrastructure.Security
         }
 
         public async Task<ApplicationUser?> ValidateByGoogleAsync(
-    CancellationToken cancellationToken)
+            CancellationToken cancellationToken)
         {
             var info = await _signInManager.GetExternalLoginInfoAsync();
 
@@ -171,7 +173,7 @@ namespace ReliefManagementSystem.Infrastructure.Security
             var user = await _userManager.FindByIdAsync(_currentUserService.UserId.ToString());
 
             if (user == null)
-                throw new InvalidCredentialsException(); 
+                throw new InvalidCredentialsException();
 
             if (await _userManager.IsLockedOutAsync(user))
                 throw new UserLockedException();
@@ -193,23 +195,102 @@ namespace ReliefManagementSystem.Infrastructure.Security
                 var errors = ConvertErrors(result.Errors);
                 throw new ValidationException(errors);
             }
+
             await _userManager.UpdateSecurityStampAsync(user);
         }
 
-        //public async Task ForgotPasswordAsync(string email, CancellationToken cancellationToken)
-        //{
-        //    var user = await _userManager.FindByEmailAsync(email);
+        public async Task ForgotPasswordAsync(
+            string email,
+            CancellationToken cancellationToken)
+        {
+            var user = await _userManager.FindByEmailAsync(email);
 
-        //    if (user == null)
-        //        return; // ❗ Không leak thông tin user tồn tại hay không
+            // Không leak thông tin: nếu email không tồn tại thì vẫn trả về thành công
+            if (user == null)
+                return;
 
-        //    var token = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var rawToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(rawToken));
 
-        //    var resetLink = $"https://your-frontend/reset-password?email={email}&token={Uri.EscapeDataString(token)}";
+            // TODO: Thay bằng URL frontend thực tế (có thể đọc từ appsettings["FrontendUrl"])
+            var resetLink = $"https://reliefcare.app/reset-password?email={Uri.EscapeDataString(email)}&token={encodedToken}";
 
-        //    // TODO: Send email
-        //    await _emailService.SendAsync(email, "Reset Password", resetLink);
-        //}
+            var subject = "Đặt lại mật khẩu - Relief Care";
+            var body = BuildForgotPasswordEmailBody(user.DisplayName ?? email, resetLink);
+
+            await _emailService.SendEmailAsync(email, subject, body);
+        }
+
+        public async Task ResetPasswordAsync(
+            string email,
+            string token,
+            string newPassword,
+            CancellationToken cancellationToken)
+        {
+            var user = await _userManager.FindByEmailAsync(email);
+
+            if (user == null)
+                throw new InvalidCredentialsException();
+
+            // Decode token từ Base64Url trước khi truyền vào UserManager
+            var decodedBytes = WebEncoders.Base64UrlDecode(token);
+            var decodedToken = Encoding.UTF8.GetString(decodedBytes);
+
+            var result = await _userManager.ResetPasswordAsync(user, decodedToken, newPassword);
+
+            if (!result.Succeeded)
+            {
+                var errors = ConvertErrors(result.Errors);
+                throw new ValidationException(errors);
+            }
+
+            await _userManager.UpdateSecurityStampAsync(user);
+        }
+
+        private static string BuildForgotPasswordEmailBody(string displayName, string resetLink)
+        {
+            return $@"<!DOCTYPE html>
+<html lang=""vi"">
+<head>
+  <meta charset=""UTF-8"" />
+  <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"" />
+  <title>Đặt lại mật khẩu</title>
+  <style>
+    body {{ font-family: 'Segoe UI', Arial, sans-serif; background: #f4f6f8; margin: 0; padding: 0; }}
+    .wrapper {{ max-width: 560px; margin: 40px auto; background: #ffffff; border-radius: 12px;
+                box-shadow: 0 4px 20px rgba(0,0,0,0.08); overflow: hidden; }}
+    .header {{ background: linear-gradient(135deg, #1565c0, #42a5f5); padding: 32px 40px; text-align: center; }}
+    .header h1 {{ color: #ffffff; margin: 0; font-size: 22px; letter-spacing: 0.5px; }}
+    .body {{ padding: 32px 40px; color: #333; }}
+    .body p {{ line-height: 1.7; margin: 0 0 16px; }}
+    .btn-wrap {{ text-align: center; margin: 28px 0; }}
+    .btn {{ display: inline-block; background: linear-gradient(135deg, #1565c0, #42a5f5);
+            color: #ffffff !important; text-decoration: none; padding: 14px 36px;
+            border-radius: 8px; font-weight: bold; font-size: 15px; letter-spacing: 0.3px; }}
+    .note {{ font-size: 13px; color: #888; border-top: 1px solid #eee; padding-top: 16px; margin-top: 8px; }}
+    .footer {{ background: #f4f6f8; text-align: center; padding: 16px; font-size: 12px; color: #aaa; }}
+  </style>
+</head>
+<body>
+  <div class=""wrapper"">
+    <div class=""header"">
+      <h1>&#128272; Đặt lại mật khẩu</h1>
+    </div>
+    <div class=""body"">
+      <p>Xin chào <strong>{displayName}</strong>,</p>
+      <p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản <strong>Relief Care</strong> của bạn.</p>
+      <div class=""btn-wrap"">
+        <a href=""{resetLink}"" class=""btn"">Đặt lại mật khẩu</a>
+      </div>
+      <p>Hoặc dán đường link sau vào trình duyệt:</p>
+      <p style=""word-break:break-all; font-size:13px; color:#1565c0;"">{resetLink}</p>
+      <p class=""note"">&#9200; Link có hiệu lực trong <strong>1 giờ</strong>. Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này — tài khoản của bạn vẫn an toàn.</p>
+    </div>
+    <div class=""footer"">© 2025 Relief Care System &nbsp;·&nbsp; support@reliefcare.app</div>
+  </div>
+</body>
+</html>";
+        }
 
         private static IDictionary<string, string[]> ConvertErrors(IEnumerable<IdentityError> errors)
         {
@@ -220,7 +301,5 @@ namespace ReliefManagementSystem.Infrastructure.Security
                     g => g.Select(e => e.Description).ToArray()
                 );
         }
-
-
     }
 }
