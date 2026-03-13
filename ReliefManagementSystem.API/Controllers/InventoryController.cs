@@ -41,14 +41,21 @@ namespace ReliefManagementSystem.API.Controllers
             }
         }
 
-        /// <summary>Gets all active inventories, optionally filtered by relief station.</summary>
+        /// <summary>Gets paginated inventories, optionally filtered by relief station and level.</summary>
         /// <param name="reliefStationId">Optional filter by station ID.</param>
+        /// <param name="level">Optional filter by inventory level.</param>
+        /// <param name="pageIndex">Page number, default 1.</param>
+        /// <param name="pageSize">Items per page, default 10.</param>
         [HttpGet]
         public async Task<IActionResult> GetAllInventories(
             [FromQuery] Guid? reliefStationId,
-            CancellationToken cancellationToken)
+            [FromQuery] ReliefManagementSystem.Domain.Enum.InventoryLevel? level,
+            [FromQuery] int pageIndex = 1,
+            [FromQuery] int pageSize = 10,
+            CancellationToken cancellationToken = default)
         {
-            var result = await _inventoryService.GetAllInventoriesAsync(reliefStationId, cancellationToken);
+            var result = await _inventoryService.GetAllInventoriesAsync(
+                reliefStationId, level, pageIndex, pageSize, cancellationToken);
             return Ok(result);
         }
 
@@ -113,15 +120,22 @@ namespace ReliefManagementSystem.API.Controllers
 
         // ─── Stock Endpoints (nested under /api/inventory/{id}/stocks) ────────
 
-        /// <summary>Gets all stock entries for a specific inventory.</summary>
-        /// <response code="200">List of stock entries.</response>
+        /// <summary>Gets paginated stock entries for a specific inventory.</summary>
+        /// <param name="id">Inventory ID.</param>
+        /// <param name="pageIndex">Page number, default 1.</param>
+        /// <param name="pageSize">Items per page, default 20.</param>
+        /// <response code="200">Paged list of stock entries.</response>
         /// <response code="404">Inventory not found.</response>
         [HttpGet("{id:guid}/stocks")]
-        public async Task<IActionResult> GetStocks(Guid id, CancellationToken cancellationToken)
+        public async Task<IActionResult> GetStocks(
+            Guid id,
+            [FromQuery] int pageIndex = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
         {
             try
             {
-                var result = await _inventoryService.GetStocksByInventoryIdAsync(id, cancellationToken);
+                var result = await _inventoryService.GetStocksByInventoryIdAsync(id, pageIndex, pageSize, cancellationToken);
                 return Ok(result);
             }
             catch (KeyNotFoundException ex)

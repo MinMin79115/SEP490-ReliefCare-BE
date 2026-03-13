@@ -15,6 +15,9 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public string? Description { get; set; }
 
+        /// <summary>Optional URL of the icon image for this supply item.</summary>
+        public string? IconUrl { get; set; }
+
         public SupplyCategory Category { get; set; }
 
         public string Unit { get; set; } = null!; 

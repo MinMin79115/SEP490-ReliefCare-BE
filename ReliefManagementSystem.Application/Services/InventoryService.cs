@@ -1,4 +1,6 @@
+using Microsoft.EntityFrameworkCore;
 using ReliefManagementSystem.Application.Common.Interface;
+using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Application.Features.Inventory.DTOs.Request;
 using ReliefManagementSystem.Application.Features.Inventory.DTOs.Response;
 using ReliefManagementSystem.Application.Interface;
@@ -67,12 +69,36 @@ namespace ReliefManagementSystem.Application.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IReadOnlyList<InventoryResponse>> GetAllInventoriesAsync(
+        public async Task<Pagination<InventoryResponse>> GetAllInventoriesAsync(
             Guid? reliefStationId = null,
+            InventoryLevel? level = null,
+            int pageIndex = 1,
+            int pageSize = 10,
             CancellationToken cancellationToken = default)
         {
-            var inventories = await _unitOfWork.Inventories.GetAllActiveAsync(reliefStationId, cancellationToken);
-            return inventories.Select(MapToResponse).ToList();
+            var query = _unitOfWork.Inventories.GetQueryable();
+
+            if (reliefStationId.HasValue)
+                query = query.Where(i => i.ReliefStationId == reliefStationId.Value);
+
+            if (level.HasValue)
+                query = query.Where(i => i.Level == level.Value);
+
+            query = query.OrderBy(i => i.Level);
+
+            // Project to response DTO before paging to avoid EF tracking issues with computed props
+            var projectedQuery = query.Select(i => new InventoryResponse
+            {
+                InventoryId = i.InventoryId,
+                ReliefStationId = i.ReliefStationId,
+                ReliefStationName = i.ReliefStation != null ? i.ReliefStation.Name : string.Empty,
+                Level = i.Level,
+                Status = i.Status,
+                TotalStockSlots = i.InventoryItems.Count(),
+                CriticalCount = i.InventoryItems.Count(s => s.InventoryStatus == InventoryStatus.Critical)
+            });
+
+            return await Pagination<InventoryResponse>.ToPagedList(projectedQuery, pageIndex, pageSize);
         }
 
         /// <inheritdoc/>
@@ -186,18 +212,36 @@ namespace ReliefManagementSystem.Application.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IReadOnlyList<InventoryStockResponse>> GetStocksByInventoryIdAsync(
+        public async Task<Pagination<InventoryStockResponse>> GetStocksByInventoryIdAsync(
             Guid inventoryId,
+            int pageIndex = 1,
+            int pageSize = 20,
             CancellationToken cancellationToken = default)
         {
             // Ensure inventory exists
             if (!await _unitOfWork.Inventories.ExistsAsync(inventoryId))
-            {
                 throw new KeyNotFoundException($"Inventory '{inventoryId}' was not found.");
-            }
 
-            var stocks = await _unitOfWork.InventoryStocks.GetByInventoryIdAsync(inventoryId, cancellationToken);
-            return stocks.Select(MapToStockResponse).ToList();
+            var query = _unitOfWork.InventoryStocks
+                .GetQueryable()
+                .Where(s => s.InventoryId == inventoryId)
+                .OrderBy(s => s.SupplyItem!.Name);
+
+            var projectedQuery = query.Select(s => new InventoryStockResponse
+            {
+                InventoryStockId = s.InventoryStockId,
+                InventoryId = s.InventoryId,
+                SupplyItemId = s.SupplyItemId,
+                SupplyItemName = s.SupplyItem != null ? s.SupplyItem.Name : string.Empty,
+                SupplyItemUnit = s.SupplyItem != null ? s.SupplyItem.Unit : string.Empty,
+                SupplyItemCategory = s.SupplyItem != null ? s.SupplyItem.Category : SupplyCategory.Khac,
+                CurrentQuantity = s.CurrentQuantity,
+                MinimumStockLevel = s.MinimumStockLevel,
+                MaximumStockLevel = s.MaximumStockLevel,
+                StockStatus = s.InventoryStatus
+            });
+
+            return await Pagination<InventoryStockResponse>.ToPagedList(projectedQuery, pageIndex, pageSize);
         }
 
         /// <inheritdoc/>

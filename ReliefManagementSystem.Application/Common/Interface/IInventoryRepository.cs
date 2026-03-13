@@ -27,5 +27,10 @@ namespace ReliefManagementSystem.Application.Common.Interface
         /// Checks whether a relief station already has an inventory of the given level.
         /// </summary>
         Task<bool> IsLevelExistsForStationAsync(Guid reliefStationId, InventoryLevel level, Guid? excludeId = null, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Returns a queryable for composing server-side filter + pagination.
+        /// </summary>
+        IQueryable<Inventory> GetQueryable();
     }
 }

@@ -22,6 +22,13 @@ namespace ReliefManagementSystem.Application.Features.SupplyItem.DTOs.Request
         public string? Description { get; set; }
 
         /// <summary>
+        /// Updated icon URL. Pass null to clear the existing icon.
+        /// </summary>
+        [MaxLength(500, ErrorMessage = "IconUrl must not exceed 500 characters.")]
+        [Url(ErrorMessage = "IconUrl must be a valid URL.")]
+        public string? IconUrl { get; set; }
+
+        /// <summary>
         /// Updated category.
         /// </summary>
         [Required(ErrorMessage = "Category is required.")]

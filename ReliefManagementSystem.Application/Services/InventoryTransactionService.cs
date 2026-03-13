@@ -1,7 +1,10 @@
+using Microsoft.EntityFrameworkCore;
 using ReliefManagementSystem.Application.Common.Interface;
+using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Application.Features.InventoryTransaction.DTOs.Request;
 using ReliefManagementSystem.Application.Features.InventoryTransaction.DTOs.Response;
 using ReliefManagementSystem.Application.Interface;
+using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Domain.Enum;
 
 namespace ReliefManagementSystem.Application.Services
@@ -86,8 +89,10 @@ namespace ReliefManagementSystem.Application.Services
                 InventoryId = request.InventoryId,
                 TransactionCode = code,
                 Type = request.Type,
+                Reason = request.Reason,
                 CreatedAt = DateTime.UtcNow,
-                //CreatedBy = _currentUser.UserId,
+                CreatedBy = _currentUser.UserId
+                    ?? throw new UnauthorizedAccessException("User is not authenticated."),
                 Notes = request.Notes,
                 Items = request.Items.Select(i => new Domain.Entities.InventoryTransactionItem
                 {
@@ -132,29 +137,47 @@ namespace ReliefManagementSystem.Application.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IReadOnlyList<TransactionSummaryResponse>> GetTransactionsByInventoryAsync(
+        public async Task<Pagination<TransactionSummaryResponse>> GetTransactionsByInventoryAsync(
             Guid inventoryId,
+            int pageIndex = 1,
+            int pageSize = 20,
             CancellationToken cancellationToken = default)
         {
             if (!await _unitOfWork.Inventories.ExistsAsync(inventoryId))
                 throw new KeyNotFoundException($"Inventory '{inventoryId}' was not found.");
 
-            var transactions = await _unitOfWork.InventoryTransactions
-                .GetByInventoryIdAsync(inventoryId, cancellationToken);
+            var query = _unitOfWork.InventoryTransactions
+                .GetQueryable()
+                .Where(t => t.InventoryId == inventoryId)
+                .OrderByDescending(t => t.CreatedAt);
 
-            return transactions.Select(MapToSummary).ToList();
+            var paged = await Pagination<InventoryTransaction>.ToPagedList(query, pageIndex, pageSize);
+
+            var items = paged.Items!.Select(MapToSummary).ToList();
+            return new Pagination<TransactionSummaryResponse>(items, paged.TotalCount, paged.CurrentPage, paged.PageSize);
         }
 
         /// <inheritdoc/>
-        public async Task<IReadOnlyList<TransactionSummaryResponse>> GetTransactionsByTypeAsync(
+        public async Task<Pagination<TransactionSummaryResponse>> GetTransactionsByTypeAsync(
             TransactionType type,
             Guid? inventoryId = null,
+            int pageIndex = 1,
+            int pageSize = 20,
             CancellationToken cancellationToken = default)
         {
-            var transactions = await _unitOfWork.InventoryTransactions
-                .GetByTypeAsync(type, inventoryId, cancellationToken);
+            var query = _unitOfWork.InventoryTransactions
+                .GetQueryable()
+                .Where(t => t.Type == type);
 
-            return transactions.Select(MapToSummary).ToList();
+            if (inventoryId.HasValue)
+                query = query.Where(t => t.InventoryId == inventoryId.Value);
+
+            query = query.OrderByDescending(t => t.CreatedAt);
+
+            var paged = await Pagination<InventoryTransaction>.ToPagedList(query, pageIndex, pageSize);
+
+            var items = paged.Items!.Select(MapToSummary).ToList();
+            return new Pagination<TransactionSummaryResponse>(items, paged.TotalCount, paged.CurrentPage, paged.PageSize);
         }
 
         // ═══════════════════════════════════════════════════════════
@@ -180,6 +203,7 @@ namespace ReliefManagementSystem.Application.Services
             ReliefStationName = t.Inventory?.ReliefStation?.Name ?? string.Empty,
             TransactionCode = t.TransactionCode,
             Type = t.Type,
+            Reason = t.Reason,
             CreatedAt = t.CreatedAt,
             CreatedBy = t.CreatedBy,
             CreatedByName = t.CreatedByUser?.DisplayName ?? string.Empty,
@@ -201,6 +225,7 @@ namespace ReliefManagementSystem.Application.Services
             InventoryId = t.InventoryId,
             TransactionCode = t.TransactionCode,
             Type = t.Type,
+            Reason = t.Reason,
             TotalItems = t.Items.Count,
             CreatedAt = t.CreatedAt,
             CreatedByName = t.CreatedByUser?.DisplayName ?? string.Empty,

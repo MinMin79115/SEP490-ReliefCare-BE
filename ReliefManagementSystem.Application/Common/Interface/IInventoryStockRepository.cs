@@ -27,5 +27,11 @@ namespace ReliefManagementSystem.Application.Common.Interface
         /// Checks whether a supply item is already registered in the given inventory.
         /// </summary>
         Task<bool> IsSupplyItemExistsInInventoryAsync(Guid inventoryId, Guid supplyItemId, Guid? excludeId = null, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Returns a queryable for composing server-side filter + pagination.
+        /// Includes SupplyItem navigation by default.
+        /// </summary>
+        IQueryable<InventoryStock> GetQueryable();
     }
 }
