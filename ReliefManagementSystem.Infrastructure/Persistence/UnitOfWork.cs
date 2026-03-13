@@ -56,6 +56,12 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
         //Location Management
         public ILocationRepository Locations { get; }
 
+        public IRescueRequestRepository RescueRequests { get; }
+        public IPriorityCriteriaRepository PriorityCriterias { get; }
+        public IRescueRequestPriorityRepository RescueRequestPriorities { get; }
+
+        public IRescueOperationRepository RescueOperations { get; }
+
         // Constructor
         public UnitOfWork(ApplicationDbContext context)
         {
@@ -82,6 +88,10 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             Campaigns = new CampaignRepository(_context);
             ReliefStations = new ReliefStationRepository(_context);
             Locations = new LocationRepository(_context);
+            RescueRequests = new RescueRequestRepository(_context);
+            PriorityCriterias = new PriorityCriteriaRepository(_context);
+            RescueRequestPriorities = new RescueRequestPriorityRepository(_context);
+            RescueOperations = new RescueOperationRepository(_context);
         }
 
         public async Task<int> SaveChangesAsync(

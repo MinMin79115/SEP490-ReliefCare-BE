@@ -62,6 +62,12 @@ namespace ReliefManagementSystem.Infrastructure
 
             //Location repositories
             services.AddScoped<ILocationRepository, LocationRepository>();
+
+
+            services.AddScoped<IRescueRequestRepository, RescueRequestRepository>();
+            services.AddScoped<IPriorityCriteriaRepository, PriorityCriteriaRepository>();
+            services.AddScoped<IRescueRequestPriorityRepository, RescueRequestPriorityRepository>();
+            services.AddScoped<IRescueOperationRepository, RescueOperationRepository>();
             return services;
 
         }

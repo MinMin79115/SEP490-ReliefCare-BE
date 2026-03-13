@@ -62,6 +62,18 @@ namespace ReliefManagementSystem.Infrastructure.Seed
 
             context.ReliefStations.AddRange(stations);
             await context.SaveChangesAsync();
+
+            var inventories = stations.Select(s => new Inventory
+            {
+                InventoryId = Guid.NewGuid(),
+                ReliefStationId = s.ReliefStationId,
+                Level = InventoryLevel.Regional,
+                Status = EntityStatus.Active
+            }).ToList();
+
+            context.Inventories.AddRange(inventories);
+
+            await context.SaveChangesAsync();
         }
     }
 }

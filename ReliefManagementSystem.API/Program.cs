@@ -213,6 +213,7 @@ using (var scope = app.Services.CreateScope())
     await LocationExcelSeeder.SeedAsync(context);
     await ReliefStationSeeder.SeedAsync(context);
     await ManagerProfileSeeder.SeedAsync(context);
+    await PriorityCriteriaSeeder.SeedAsync(context);
     logger.LogInformation("Database seeding completed.");
 }
 

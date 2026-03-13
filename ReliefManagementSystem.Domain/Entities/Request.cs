@@ -22,9 +22,11 @@ namespace ReliefManagementSystem.Domain.Entities
         public string ReporterFullName { get; set; } = string.Empty;
         public string ReporterPhone { get; set; } = string.Empty;
 
+        public Guid? LocationId  { get; set; } 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? UpdatedAt { get; set; }
 
+        public Location? Location { get; set; }
         public ApplicationUser? ReporterUser { get; set; }
         public ICollection<Attachment> Attachments { get; set; } = new List<Attachment>();
         public ICollection<RequestVerification> Verifications { get; set; } = new List<RequestVerification>();

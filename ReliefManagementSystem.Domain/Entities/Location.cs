@@ -27,5 +27,7 @@ namespace ReliefManagementSystem.Domain.Entities
         
         public Location Parent { get; set; }
         public ICollection<Location> Children { get; set; }
+        public ICollection<Request> Requests { get; set; }
+            = new List<Request>();
     }
 }

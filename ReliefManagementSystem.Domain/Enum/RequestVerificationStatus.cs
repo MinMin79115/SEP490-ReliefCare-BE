@@ -6,13 +6,10 @@ using System.Threading.Tasks;
 
 namespace ReliefManagementSystem.Domain.Enum
 {
-    public enum DisasterType
+    public enum RequestVerificationStatus
     {
-        Flood  =0,
-        Landslide =1,
-        Earthquake =2,
-        Fire =3,
-        Storm =4 ,
-        Other =5
+        Pending = 0,
+        Approved = 1,
+        Rejected = 2
     }
 }
