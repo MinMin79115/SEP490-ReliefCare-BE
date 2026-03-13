@@ -51,6 +51,10 @@ namespace ReliefManagementSystem.Application.Common.Interface
         // Location Management
         ILocationRepository Locations { get; }
 
+        IRescueOperationRepository RescueOperations { get; }
+        IRescueRequestRepository RescueRequests { get; }
+        IRescueRequestPriorityRepository RescueRequestPriorities { get; }
+        IPriorityCriteriaRepository PriorityCriterias { get; }
         Task<int> SaveChangesAsync(
         CancellationToken cancellationToken = default);
 

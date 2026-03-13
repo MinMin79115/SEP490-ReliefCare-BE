@@ -78,9 +78,13 @@ builder.Services.Configure<GoogleSetting>(
 builder.Services.Configure<CloudinarySettings>(
     builder.Configuration.GetSection("CloudinarySettings"));
 
+builder.Services.Configure<EmailSettings>(
+    builder.Configuration.GetSection("EmailSettings"));
+
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>();
 var googleSettings = builder.Configuration.GetSection("AuthenticationGoogle").Get<GoogleSetting>();
 var cloudSetting = builder.Configuration.GetSection("CloudinarySettings").Get<CloudinarySettings>();
+var brevoEmailSetting = builder.Configuration.GetSection("EmailSettings").Get<EmailSettings>();
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -209,6 +213,7 @@ using (var scope = app.Services.CreateScope())
     await LocationExcelSeeder.SeedAsync(context);
     await ReliefStationSeeder.SeedAsync(context);
     await ManagerProfileSeeder.SeedAsync(context);
+    await PriorityCriteriaSeeder.SeedAsync(context);
     logger.LogInformation("Database seeding completed.");
 }
 

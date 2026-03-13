@@ -31,5 +31,15 @@ namespace ReliefManagementSystem.Application.Interface
             string currentPassword,
             string newPassword,
             CancellationToken cancellationToken);
+
+        Task ForgotPasswordAsync(
+            string email,
+            CancellationToken cancellationToken);
+
+        Task ResetPasswordAsync(
+            string email,
+            string token,
+            string newPassword,
+            CancellationToken cancellationToken);
     }
 }

@@ -693,6 +693,11 @@ namespace ReliefManagementSystem.Infrastructure.Data
                     .WithMany()
                     .HasForeignKey(r => r.ReporterUserId)
                     .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(r => r.Location)
+                    .WithMany(l => l.Requests)
+                    .HasForeignKey(r => r.LocationId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
 
             // =========================

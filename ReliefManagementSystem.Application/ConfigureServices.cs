@@ -34,6 +34,10 @@ namespace ReliefManagementSystem.Application
             services.AddScoped<IReliefStationService, ReliefStationService>();
             services.AddScoped<ILocationService, LocationService>();
 
+            //Resuce request service
+
+            services.AddScoped<IRescueRequestService, RescueRequestService>();
+
 
             services.AddValidatorsFromAssemblyContaining<UpdateUserProfileRequest>();
             return services;

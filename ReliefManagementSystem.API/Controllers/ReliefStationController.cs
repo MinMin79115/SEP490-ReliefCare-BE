@@ -33,5 +33,62 @@ namespace ReliefManagementSystem.API.Controllers
             var result = await _stationService.CreateProvincialReliefStationAsync(request,cancellationToken);
             return Ok(result);
         }
+
+        [Authorize(Roles = "Manager")]
+        [SwaggerOperation(OperationId = "UpdateProvincialStation", Description = "Manager cập nhật thông tin trạm cấp Tỉnh")]
+        [HttpPut("provincial/{stationId:guid}")]
+        public async Task<IActionResult> UpdateProvincialStation(
+            Guid stationId,
+            [FromBody] UpdateProvincialStationRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _stationService.UpdateProvincialReliefStationAsync(stationId, request, cancellationToken);
+            return Ok(result);
+        }
+
+        [SwaggerOperation(OperationId = "GetProvincialStations", Description = "Lấy danh sách trạm cấp Tỉnh, có hỗ trợ tìm kiếm và phân trang")]
+        [HttpGet("provincial")]
+        public async Task<IActionResult> GetProvincialStations(
+            [FromQuery] string? search,
+            [FromQuery] int pageIndex = 1,
+            [FromQuery] int pageSize = 10,
+            CancellationToken cancellationToken = default)
+        {
+            var (items, totalCount) = await _stationService.GetProvincialStationsAsync(search, pageIndex, pageSize, cancellationToken);
+            return Ok(new
+            {
+                TotalCount = totalCount,
+                PageIndex = pageIndex,
+                PageSize = pageSize,
+                Items = items
+            });
+        }
+
+        [Authorize(Roles = "Manager")]
+        [SwaggerOperation(OperationId = "DisableProvincialStation", Description = "Manager huỷ (vô hiệu hoá) trạm cấp Tỉnh và các kho liên quan")]
+        [HttpPut("provincial/{stationId:guid}/disable")]
+        public async Task<IActionResult> DisableProvincialStation(Guid stationId, CancellationToken cancellationToken)
+        {
+            var result = await _stationService.DisableProvincialStationAsync(stationId, cancellationToken);
+            return Ok(result);
+        }
+
+        [Authorize(Roles = "Manager")]
+        [SwaggerOperation(OperationId = "ActivateProvincialStation", Description = "Manager kích hoạt lại trạm cấp Tỉnh và các kho liên quan")]
+        [HttpPut("provincial/{stationId:guid}/activate")]
+        public async Task<IActionResult> ActivateProvincialStation(Guid stationId, CancellationToken cancellationToken)
+        {
+            var result = await _stationService.ActivateProvincialStationAsync(stationId, cancellationToken);
+            return Ok(result);
+        }
+
+        [Authorize(Roles = "Manager")]
+        [SwaggerOperation(OperationId = "AssignModerator", Description = "Manager gán 1 Moderator duy nhất (làm trưởng trạm) cho một trạm cứu trợ")]
+        [HttpPut("{stationId:guid}/assign-moderator")]
+        public async Task<IActionResult> AssignModerator(Guid stationId, [FromBody] AssignModeratorRequest request, CancellationToken cancellationToken)
+        {
+            await _stationService.AssignModeratorAsync(stationId, request, cancellationToken);
+            return NoContent();
+        }
     }
 }

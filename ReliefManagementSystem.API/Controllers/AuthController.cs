@@ -213,5 +213,70 @@ namespace ReliefManagementSystem.API.Controllers
 
             return NoContent();
         }
+
+        /// <summary>
+        /// Gửi email đặt lại mật khẩu
+        /// </summary>
+        /// <remarks>
+        /// Nhận email của người dùng và gửi link đặt lại mật khẩu qua email.
+        /// 
+        /// **Bảo mật**: Luôn trả về 204 dù email có tồn tại hay không (tránh leak thông tin).
+        /// 
+        /// Sample request:
+        /// 
+        ///     POST /api/Auth/forgot-password
+        ///     {
+        ///         "email": "user@example.com"
+        ///     }
+        /// 
+        /// </remarks>
+        /// <param name="request">Email của tài khoản cần đặt lại mật khẩu</param>
+        /// <param name="cancellationToken">Token hủy request</param>
+        /// <response code="204">Yêu cầu đã được xử lý — nếu email tồn tại, link đặt lại đã được gửi</response>
+        /// <response code="400">Dữ liệu không hợp lệ (email sai định dạng)</response>
+        [HttpPost("forgot-password")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> ForgotPassword(
+            [FromBody] ForgotPasswordRequest request,
+            CancellationToken cancellationToken)
+        {
+            await _authService.ForgotPasswordAsync(request, cancellationToken);
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Đặt lại mật khẩu bằng token từ email
+        /// </summary>
+        /// <remarks>
+        /// Sử dụng token nhận được từ email đặt lại mật khẩu để cập nhật mật khẩu mới.
+        /// 
+        /// **Lưu ý**: Token chỉ có hiệu lực trong 1 giờ kể từ khi được tạo.
+        /// 
+        /// Sample request:
+        /// 
+        ///     POST /api/Auth/reset-password
+        ///     {
+        ///         "email": "user@example.com",
+        ///         "token": "CfDJ8...(token từ email)...",
+        ///         "newPassword": "NewSecurePass123!"
+        ///     }
+        /// 
+        /// </remarks>
+        /// <param name="request">Email, token và mật khẩu mới</param>
+        /// <param name="cancellationToken">Token hủy request</param>
+        /// <response code="204">Mật khẩu đã được cập nhật thành công</response>
+        /// <response code="400">Token không hợp lệ hoặc đã hết hạn, mật khẩu không đủ mạnh</response>
+        [HttpPost("reset-password")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> ResetPassword(
+            [FromBody] ResetPasswordRequest request,
+            CancellationToken cancellationToken)
+        {
+            await _authService.ResetPasswordAsync(request, cancellationToken);
+            return NoContent();
+        }
     }
 }
+

@@ -13,13 +13,12 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public Guid RequestId { get; set; }
 
-        public string Method { get; set; }
-        public string Result { get; set; }
-
-        public Guid VerifiedBy { get; set; }
-        public DateTime VerifiedAt { get; set; }
-
-        public string Note { get; set; }
+        public VerificationMethod Method { get; set; }
+        public string? Note { get; set; }
+        public string? Reason { get; set; }
+        public RequestVerificationStatus Status { get; set; }
+        public Guid? VerifiedBy { get; set; }
+        public DateTime? VerifiedAt { get; set; }
 
         public Request? Request { get; set; }
         public ApplicationUser? Verifier { get; set; }

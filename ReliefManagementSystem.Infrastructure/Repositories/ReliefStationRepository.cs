@@ -28,5 +28,35 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 x.Level == ReliefStationLevel.Provincial);
         }
 
+        public async Task<bool> ExistsByNameExcludingIdAsync(string name, Guid excludeStationId)
+        {
+            return await _context.ReliefStations.AnyAsync(x =>
+                x.Name == name &&
+                x.ReliefStationId != excludeStationId);
+        }
+
+        public async Task<(List<ReliefStation> Items, int TotalCount)> GetProvincialStationsAsync(
+            string? search, int pageIndex, int pageSize, CancellationToken cancellationToken)
+        {
+            var query = _context.ReliefStations
+                .Include(x => x.Location)
+                .Where(x => x.Level == ReliefStationLevel.Provincial);
+
+            if (!string.IsNullOrWhiteSpace(search))
+            {
+                query = query.Where(x => x.Name.Contains(search));
+            }
+
+            var totalCount = await query.CountAsync(cancellationToken);
+
+            var items = await query
+                .OrderBy(x => x.Name)
+                .Skip((pageIndex - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+            return (items, totalCount);
+        }
+
     }
 }

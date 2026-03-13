@@ -12,8 +12,10 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public Guid RequestId { get; set; }
 
-        public string? Url { get; set; }
-        public string? FileType { get; set; }
+        public string FileUrl { get; set; }
+
+        public string ContentType { get; set; }
+
         public DateTime UploadedAt { get; set; }
 
         public Request? Request { get; set; } 
