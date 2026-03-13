@@ -13,8 +13,9 @@ namespace ReliefManagementSystem.Domain.Entities
         [Key]
         public Guid VolunteerProfileId { get; set; }
         public VerificationStatus VerificationStatus { get; set; } = VerificationStatus.Pending;
-
+        public VolunteerStatus Status { get; set; }
         public Guid? VerifiedBy { get; set; }
+        public DateTime? CreatedAt { get; set; } = DateTime.UtcNow;
         public DateTime? VerifiedAt { get; set; }
         public Guid UserId { get; set; }
         public ApplicationUser User { get; set; }

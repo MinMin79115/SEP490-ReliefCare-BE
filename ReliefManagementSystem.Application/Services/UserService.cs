@@ -120,9 +120,18 @@ namespace ReliefManagementSystem.Application.Services
                 VerifiedBy = null,
                 Descriptions = request.Descriptions,
                 YearsOfExperience = request.YearsOfExperience,
+                Status = VolunteerStatus.Inactive,
                 VolunteerSkills = request.SkillIds.Select(skillId => new VolunteerSkill
                 {
                     SkillId = skillId
+                }).ToList(),
+                Certificates = request.Certificates.Select(c => new VolunteerCertificate
+                {
+                    Name = c.Name,
+                    IssuedBy = c.IssuedBy,
+                    IssuedDate = c.IssuedDate,
+                    ExpiryDate = c.ExpiryDate,
+                    FileUrl = c.FileUrl
                 }).ToList()
             };
             await _unitOfWork.VolunteerProfiles.AddAsync(volunteerProfile);
@@ -136,7 +145,17 @@ namespace ReliefManagementSystem.Application.Services
                 Descriptions = volunteerProfile.Descriptions,
                 VerificationStatus = volunteerProfile.VerificationStatus,
                 YearsOfExperience = volunteerProfile.YearsOfExperience,
-                Skills = volunteerProfile.VolunteerSkills.Select(vs => vs.SkillId).ToList()
+                Skills = volunteerProfile.VolunteerSkills.Select(vs => vs.SkillId).ToList(),
+                Certificates = volunteerProfile.Certificates
+                    .Select(c => new VolunteerCertificateResponse
+                    {
+                        Name = c.Name,
+                        IssuedBy = c.IssuedBy,
+                        IssuedDate = c.IssuedDate,
+                        ExpiryDate = c.ExpiryDate,
+                        FileUrl = c.FileUrl
+                    }).ToList()
+                    
             };
         }
 
@@ -155,6 +174,7 @@ namespace ReliefManagementSystem.Application.Services
             profile.VerificationStatus = VerificationStatus.Approved;
             profile.VerifiedAt = DateTime.UtcNow;
             profile.VerifiedBy = _currentUserService.UserId;
+            profile.Status = VolunteerStatus.Active; 
 
             var currentRoles = await _userManager.GetRolesAsync(user);
 
@@ -190,6 +210,7 @@ namespace ReliefManagementSystem.Application.Services
             profile.VerifiedAt = DateTime.UtcNow;
             profile.VerifiedBy = _currentUserService.UserId;
             profile.Reason = reason;
+            profile.Status = VolunteerStatus.Inactive;
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
