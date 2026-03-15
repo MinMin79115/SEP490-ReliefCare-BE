@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Application.Services;
 using System;
@@ -38,6 +38,8 @@ namespace ReliefManagementSystem.Application
 
             services.AddScoped<IRescueRequestService, RescueRequestService>();
 
+            // Priority Criteria CRUD
+            services.AddScoped<IPriorityCriteriaService, PriorityCriteriaService>();
 
             services.AddValidatorsFromAssemblyContaining<UpdateUserProfileRequest>();
             return services;

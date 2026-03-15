@@ -1,4 +1,4 @@
-﻿using ReliefManagementSystem.Application.Features.Auth.DTOs;
+using ReliefManagementSystem.Application.Features.Auth.DTOs;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -35,6 +35,9 @@ namespace ReliefManagementSystem.Application.Interface
              Task ResetPasswordAsync(
                  ResetPasswordRequest request,
                  CancellationToken cancellationToken);
+
+             /// <summary>Xác nhận email từ link được gửi sau khi đăng ký.</summary>
+             Task ConfirmEmailAsync(string email, string token, CancellationToken cancellationToken);
     }
 
 }

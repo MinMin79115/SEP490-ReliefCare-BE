@@ -1,4 +1,4 @@
-﻿using ReliefManagementSystem.Application.Features.Auth.DTOs;
+using ReliefManagementSystem.Application.Features.Auth.DTOs;
 using ReliefManagementSystem.Domain.Entities;
 using System;
 using System.Collections.Generic;
@@ -41,5 +41,11 @@ namespace ReliefManagementSystem.Application.Interface
             string token,
             string newPassword,
             CancellationToken cancellationToken);
+
+        /// <summary>Gửi email xác thực tới địa chỉ email vừa đăng ký.</summary>
+        Task SendEmailConfirmationAsync(ApplicationUser user, CancellationToken cancellationToken);
+
+        /// <summary>Xác nhận email từ token trong link được gửi qua email.</summary>
+        Task ConfirmEmailAsync(string email, string token, CancellationToken cancellationToken);
     }
 }

@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 using ReliefManagementSystem.Application.Features.Auth.DTOs;
 using ReliefManagementSystem.Application.Interface;
 using System;
@@ -26,21 +26,15 @@ namespace ReliefManagementSystem.Application.Services
             RegisterRequest request,
             CancellationToken cancellationToken)
         {
-            var user = await _identityAuthService.RegisterAsync(
+            // Tạo user và gửi email xác thực
+            await _identityAuthService.RegisterAsync(
                 request,
                 cancellationToken);
 
-            var token = await _tokenService.GenerateTokenAsync(
-                user,
-                new[] { "api" },
-                cancellationToken);
-
+            // Không cấp JWT ngay — user phải xác thực email trước
             return new AuthResponse
             {
-                UserId = user.Id,
-                AccessToken = token.AccessToken,
-                RefreshToken = token.RefreshToken,
-                AccessTokenExpires = token.AccessTokenExpires
+                Message = "Registration successful. Please check your email to confirm your account."
             };
         }
 
@@ -135,6 +129,11 @@ namespace ReliefManagementSystem.Application.Services
                 request.Token,
                 request.NewPassword,
                 cancellationToken);
+        }
+
+        public async Task ConfirmEmailAsync(string email, string token, CancellationToken cancellationToken)
+        {
+            await _identityAuthService.ConfirmEmailAsync(email, token, cancellationToken);
         }
     }
 }

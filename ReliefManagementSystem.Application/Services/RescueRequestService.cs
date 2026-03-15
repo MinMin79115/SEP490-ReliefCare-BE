@@ -206,6 +206,62 @@ namespace ReliefManagementSystem.Application.Services
             return response;
         }
 
+        public async Task<RescueRequestResponseDto> ApprovedRescueRequestAsync(Guid requestId,
+            VerifyRescueRequestDto request,
+            CancellationToken cancellationToken = default)
+        {
+            var rescueRequest = await _unitOfWork.RescueRequests.GetByIdAsync(requestId, cancellationToken);
+            if (rescueRequest == null)
+                throw new InvalidOperationException($"Rescue request {requestId} not found");
+
+            rescueRequest.RescueRequestStatus = Domain.Enum.RescueRequestStatus.Verified;
+
+            var verification = rescueRequest.Verifications
+                .FirstOrDefault(v => v.Status == RequestVerificationStatus.Pending);
+
+            if (verification == null)
+                throw new InvalidOperationException("No pending verification found");
+
+            verification.Status = request.Status;
+            verification.Note = request.Note;
+            verification.Method = request.Method;
+            verification.VerifiedAt = DateTime.UtcNow;
+            verification.VerifiedBy = _currentUserService.UserId;
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            await DispatchToStationsAsync(requestId, cancellationToken);
+
+            return await GetRescueRequestByIdAsync(requestId, cancellationToken);
+
+        }
+
+        public async Task<RescueRequestResponseDto> RejectRescueRequestAsync(
+            Guid requestId,
+            VerifyRescueRequestDto request,
+            CancellationToken cancellationToken = default)
+        {
+            var rescueRequest = await _unitOfWork.RescueRequests.GetByIdAsync(requestId, cancellationToken);
+
+            if (rescueRequest == null)
+                throw new InvalidOperationException($"Rescue request {requestId} not found");
+
+            rescueRequest.RescueRequestStatus = Domain.Enum.RescueRequestStatus.Cancelled;
+
+            var verification = new RequestVerification
+            {
+                RequestVerificationId = Guid.NewGuid(),
+                RequestId = requestId,
+                VerifiedAt = DateTime.UtcNow,
+                Reason = request.Reason,
+                Status = RequestVerificationStatus.Rejected,
+                VerifiedBy = (Guid)_currentUserService.UserId,
+            };
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            return await GetRescueRequestByIdAsync(requestId, cancellationToken);
+
+        }
         public async Task<RescueRequestResponseDto> VerifyRescueRequestAsync(
             Guid requestId,
             VerifyRescueRequestDto request,

@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authentication.Google;
+using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
@@ -66,6 +66,39 @@ namespace ReliefManagementSystem.API.Controllers
             CancellationToken cancellationToken)
         {
             return Ok(await _authService.RegisterAsync(request, cancellationToken));
+        }
+
+        /// <summary>
+        /// Xác thực email sau khi đăng ký
+        /// </summary>
+        /// <remarks>
+        /// Endpoint này được gọi từ link xác thực trong email đăng ký.
+        /// 
+        /// Frontend/Mobile nhận link dạng:
+        /// 
+        ///     GET /api/auth/confirm-email?email=user@example.com&amp;token=CfDJ8...
+        /// 
+        /// Sau khi xác thực thành công → chuyển hướng user đến trang đăng nhập.
+        /// 
+        /// **Lưu ý cho Mobile**: Nếu muốn mở thẳng app thay vì browser, cần cấu hình deep link
+        /// (ví dụ: `reliefcare://confirm-email?...`) ở phía frontend/mobile.
+        /// </remarks>
+        /// <param name="email">Email của tài khoản cần xác thực</param>
+        /// <param name="token">Token xác thực từ link trong email</param>
+        /// <param name="cancellationToken">Token hủy request</param>
+        /// <response code="200">Xác thực email thành công</response>
+        /// <response code="400">Token không hợp lệ hoặc đã hết hạn</response>
+        [HttpGet("confirm-email")]
+        [AllowAnonymous]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> ConfirmEmail(
+            [FromQuery] string email,
+            [FromQuery] string token,
+            CancellationToken cancellationToken)
+        {
+            await _authService.ConfirmEmailAsync(email, token, cancellationToken);
+            return Ok(new { message = "Email confirmed successfully. You can now log in." });
         }
 
         /// <summary>
