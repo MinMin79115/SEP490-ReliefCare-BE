@@ -9,7 +9,7 @@ namespace ReliefManagementSystem.Domain.Entities
     /// Kết hợp với SignalR để push real-time; đồng thời persist DB
     /// để user offline vẫn nhận được khi kết nối lại.
     /// </summary>
-    public class Notification
+    public class Notification 
     {
         public Guid NotificationId { get; set; }
 

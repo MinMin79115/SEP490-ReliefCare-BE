@@ -55,6 +55,8 @@ namespace ReliefManagementSystem.Application.Common.Interface
         IRescueRequestRepository RescueRequests { get; }
         IRescueRequestPriorityRepository RescueRequestPriorities { get; }
         IPriorityCriteriaRepository PriorityCriterias { get; }
+
+        INotificationRepository Notifications { get; }
         Task<int> SaveChangesAsync(
         CancellationToken cancellationToken = default);
 

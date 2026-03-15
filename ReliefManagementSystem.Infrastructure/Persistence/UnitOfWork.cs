@@ -62,6 +62,8 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
 
         public IRescueOperationRepository RescueOperations { get; }
 
+        public INotificationRepository Notifications { get; }
+
         // Constructor
         public UnitOfWork(ApplicationDbContext context)
         {
@@ -92,6 +94,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             PriorityCriterias = new PriorityCriteriaRepository(_context);
             RescueRequestPriorities = new RescueRequestPriorityRepository(_context);
             RescueOperations = new RescueOperationRepository(_context);
+            Notifications = new NotificationRepository(_context);
         }
 
         public async Task<int> SaveChangesAsync(
