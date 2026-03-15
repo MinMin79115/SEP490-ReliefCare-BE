@@ -10,6 +10,7 @@ using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Infrastructure;
 using ReliefManagementSystem.Infrastructure.Data;
+using ReliefManagementSystem.Infrastructure.Security;
 using ReliefManagementSystem.Infrastructure.Seed;
 using Swashbuckle.AspNetCore.Annotations;
 using System;
@@ -231,5 +232,6 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<ExceptionMiddleware>();
 app.MapControllers();
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();

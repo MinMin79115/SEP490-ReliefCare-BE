@@ -1,4 +1,4 @@
-﻿using ReliefManagementSystem.Application.Common.Interface;
+using ReliefManagementSystem.Application.Common.Interface;
 using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Domain.Enum;
@@ -7,21 +7,20 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using Microsoft.AspNetCore.SignalR;
 
 namespace ReliefManagementSystem.Application.Services
 {
     public class NotificationService : INotificationService
     {
         private readonly IUnitOfWork _unitOfWork;
-        private readonly IHubContext<NotificationHub> _hubContext;
+        private readonly INotificationRealtimePublisher _notificationRealtimePublisher;
 
         public NotificationService(
             IUnitOfWork unitOfWork,
-            IHubContext<NotificationHub> hubContext)
+            INotificationRealtimePublisher notificationRealtimePublisher)
         {
             _unitOfWork = unitOfWork;
-            _hubContext = hubContext;
+            _notificationRealtimePublisher = notificationRealtimePublisher;
         }
 
         public async Task CreateAsync(
@@ -49,9 +48,7 @@ namespace ReliefManagementSystem.Application.Services
 
         public async Task PushAsync(Notification notification)
         {
-            await _hubContext.Clients
-                .User(notification.RecipientId.ToString())
-                .SendAsync("ReceiveNotification", notification);
+            await _notificationRealtimePublisher.PublishAsync(notification);
         }
     }
 }
