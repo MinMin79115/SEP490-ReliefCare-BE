@@ -38,6 +38,7 @@ namespace ReliefManagementSystem.Domain.Entities
         public ICollection<Inventory> Inventories { get; set; } = new List<Inventory>();
 
         public ICollection<ReliefStationTeam> ReliefStationTeams { get; set; } = new List<ReliefStationTeam>();
+        public ICollection<StationJoinRequest> StationJoinRequests { get; set; } = new List<StationJoinRequest>();
 
         public ICollection<Vehicle> Vehicles { get; set; } = new List<Vehicle>();
 

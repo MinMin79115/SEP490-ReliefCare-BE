@@ -90,5 +90,31 @@ namespace ReliefManagementSystem.API.Controllers
             await _stationService.AssignModeratorAsync(stationId, request, cancellationToken);
             return NoContent();
         }
+
+        [Authorize(Roles = "Moderator")]
+        [SwaggerOperation(OperationId = "AssignTeamToStation", Description = "Moderator trưởng trạm duyệt/gán team vào trạm")]
+        [HttpPost("{stationId:guid}/teams")]
+        public async Task<IActionResult> AssignTeamToStation(
+            Guid stationId,
+            [FromBody] AssignTeamRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _stationService.AssignTeamToStationAsync(stationId, request, cancellationToken);
+            return Ok(result);
+        }
+
+        [Authorize(Roles = "Moderator")]
+        [SwaggerOperation(OperationId = "UpdateTeamAssignmentStatus", Description = "Moderator trưởng trạm cập nhật trạng thái team tại trạm (Active/Transferred/Suspended/Completed/Cancelled)")]
+        [HttpPatch("{stationId:guid}/teams/{teamId:guid}/status")]
+        public async Task<IActionResult> UpdateTeamAssignmentStatus(
+            Guid stationId,
+            Guid teamId,
+            [FromBody] UpdateTeamAssignmentRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _stationService.UpdateTeamAssignmentStatusAsync(stationId, teamId, request, cancellationToken);
+            return Ok(result);
+        }
+
     }
 }

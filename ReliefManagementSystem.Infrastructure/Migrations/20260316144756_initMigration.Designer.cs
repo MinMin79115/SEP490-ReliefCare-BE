@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using ReliefManagementSystem.Infrastructure.Data;
@@ -11,9 +12,11 @@ using ReliefManagementSystem.Infrastructure.Data;
 namespace ReliefManagementSystem.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260316144756_initMigration")]
+    partial class initMigration
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -1532,67 +1535,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.ToTable("Skills");
                 });
 
-            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.StationJoinRequest", b =>
-                {
-                    b.Property<Guid>("StationJoinRequestId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("ApprovedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("CancelledAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("Description")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<DateTime?>("RejectedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<string>("RejectionReason")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<Guid>("ReliefStationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("RequestedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid>("RequestedByLeaderId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("ReviewNote")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<DateTime?>("ReviewedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("ReviewedByModeratorId")
-                        .HasColumnType("uuid");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("TeamId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("StationJoinRequestId");
-
-                    b.HasIndex("ReliefStationId");
-
-                    b.HasIndex("RequestedByLeaderId");
-
-                    b.HasIndex("ReviewedByModeratorId");
-
-                    b.HasIndex("TeamId", "ReliefStationId", "Status");
-
-                    b.ToTable("StationJoinRequests");
-                });
-
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.SupplyAllocation", b =>
                 {
                     b.Property<Guid>("AllocationId")
@@ -2700,40 +2642,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Navigation("RescueRequest");
                 });
 
-            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.StationJoinRequest", b =>
-                {
-                    b.HasOne("ReliefManagementSystem.Domain.Entities.ReliefStation", "ReliefStation")
-                        .WithMany("StationJoinRequests")
-                        .HasForeignKey("ReliefStationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("ReliefManagementSystem.Domain.Entities.ApplicationUser", "RequestedByLeader")
-                        .WithMany()
-                        .HasForeignKey("RequestedByLeaderId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("ReliefManagementSystem.Domain.Entities.ApplicationUser", "ReviewedByModerator")
-                        .WithMany()
-                        .HasForeignKey("ReviewedByModeratorId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("ReliefManagementSystem.Domain.Entities.Team", "Team")
-                        .WithMany("StationJoinRequests")
-                        .HasForeignKey("TeamId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("ReliefStation");
-
-                    b.Navigation("RequestedByLeader");
-
-                    b.Navigation("ReviewedByModerator");
-
-                    b.Navigation("Team");
-                });
-
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.SupplyAllocation", b =>
                 {
                     b.HasOne("ReliefManagementSystem.Domain.Entities.Campaign", "Campaign")
@@ -3100,8 +3008,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
                     b.Navigation("ReliefStationTeams");
 
-                    b.Navigation("StationJoinRequests");
-
                     b.Navigation("Vehicles");
                 });
 
@@ -3148,8 +3054,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Team", b =>
                 {
                     b.Navigation("CampaignTeams");
-
-                    b.Navigation("StationJoinRequests");
 
                     b.Navigation("TeamJoinRequests");
 
