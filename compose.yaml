@@ -68,8 +68,8 @@ services:
       Jwt__RefreshTokenDays: "7"
 
       # Google OAuth - để trống, không test Google login trên local docker
-      AuthenticationGoogle__Google__ClientId: ""
-      AuthenticationGoogle__Google__ClientSecret: ""
+      AuthenticationGoogle__Google__ClientId: "914612994476-7tdvcqqm1e97mir23ilunou2vgmd4s5b.apps.googleusercontent.com"
+      AuthenticationGoogle__Google__ClientSecret: "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"
 
       # CORS - cho phép các frontend local phổ biến
       CorsSettings__AllowedOrigins__0: "http://localhost:3000"
