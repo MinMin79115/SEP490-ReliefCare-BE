@@ -71,6 +71,19 @@ services:
       AuthenticationGoogle__Google__ClientId: "914612994476-7tdvcqqm1e97mir23ilunou2vgmd4s5b.apps.googleusercontent.com"
       AuthenticationGoogle__Google__ClientSecret: "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"
 
+      # Email (Brevo SMTP) - để test gửi email local
+      EmailSettings__Host: "smtp-relay.brevo.com"
+      EmailSettings__Port: "587"
+      EmailSettings__Username: "a48731001@smtp-brevo.com"
+      EmailSettings__Password: "xsmtpsib-b66ddf7d5e1abb70a14ff3ee491160393f19e7fc6eaabd7560790f656a5d7756-pYuEASxLXEJtQYV8"
+      EmailSettings__SenderEmail: "noreply@reliefhub.info.vn"
+      EmailSettings__SenderName: "Relief Hub"
+
+      # Cloudinary - để test upload ảnh local
+      CloudinarySettings__CloudName: "dhwnptz55"
+      CloudinarySettings__ApiKey: "785678439139647"
+      CloudinarySettings__ApiSecret: "1KfZ09qTXVtLO1zteXBUB4RU3-g"
+
       # CORS - cho phép các frontend local phổ biến
       CorsSettings__AllowedOrigins__0: "http://localhost:3000"
       CorsSettings__AllowedOrigins__1: "http://localhost:5173"
