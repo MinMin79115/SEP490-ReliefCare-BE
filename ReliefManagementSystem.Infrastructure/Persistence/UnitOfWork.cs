@@ -52,6 +52,8 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
 
         // Campaign (stub for validation — full module TBD)
         public ICampaignRepository Campaigns { get; }
+        public IDonationRepository Donations { get; }
+        public IPaymentTransactionRepository PaymentTransactions { get; }
 
 
         //Location Management
@@ -90,6 +92,8 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             ReliefStationTeams = new ReliefStationTeamRepository(_context);
             SupplyAllocations = new SupplyAllocationRepository(_context);
             Campaigns = new CampaignRepository(_context);
+            Donations = new DonationRepository(_context);
+            PaymentTransactions = new PaymentTransactionRepository(_context);
             ReliefStations = new ReliefStationRepository(_context);
             Locations = new LocationRepository(_context);
             RescueRequests = new RescueRequestRepository(_context);

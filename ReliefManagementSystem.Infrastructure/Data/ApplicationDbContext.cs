@@ -893,12 +893,25 @@ namespace ReliefManagementSystem.Infrastructure.Data
                     .HasConversion<string>()
                     .IsRequired();
 
+                entity.Property(d => d.DonorName)
+                    .HasMaxLength(255)
+                    .IsRequired();
+
+                entity.Property(d => d.PayOsPaymentLinkId)
+                    .HasMaxLength(128);
+
+                entity.Property(d => d.CheckoutUrl)
+                    .HasMaxLength(500);
+
+                entity.HasIndex(d => d.PayOsOrderCode)
+                    .IsUnique();
+
                 entity.HasOne(d => d.Campaign)
                     .WithMany(c => c.Donations)
                     .HasForeignKey(d => d.CampaignId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-                // DonorUserId nullable: null nếu ẩn danh
+                // DonorUserId nullable: null nếu donate khi chưa login
                 entity.HasOne(d => d.DonorUser)
                     .WithMany()
                     .HasForeignKey(d => d.DonorUserId)
@@ -962,9 +975,39 @@ namespace ReliefManagementSystem.Infrastructure.Data
             {
                 entity.HasKey(dt => dt.PaymentTransactionId);
 
-                entity.Property(dt => dt.OrderAmount)
+                entity.Property(dt => dt.Provider)
+                    .HasMaxLength(50)
+                    .IsRequired();
+
+                entity.Property(dt => dt.PaymentLinkId)
+                    .HasMaxLength(128);
+
+                entity.Property(dt => dt.Reference)
+                    .HasMaxLength(100);
+
+                entity.Property(dt => dt.EventCode)
+                    .HasMaxLength(20);
+
+                entity.Property(dt => dt.EventDescription)
+                    .HasMaxLength(255);
+
+                entity.Property(dt => dt.Amount)
                     .HasPrecision(18, 2)
                     .IsRequired();
+
+                entity.Property(dt => dt.Currency)
+                    .HasMaxLength(10)
+                    .IsRequired();
+
+                entity.Property(dt => dt.Signature)
+                    .HasMaxLength(256)
+                    .IsRequired();
+
+                entity.Property(dt => dt.RawPayload)
+                    .IsRequired();
+
+                entity.HasIndex(dt => new { dt.Provider, dt.Reference });
+                entity.HasIndex(dt => new { dt.Provider, dt.OrderCode, dt.PaymentLinkId });
 
                 entity.HasOne(dt => dt.Donation)
                     .WithMany()
@@ -984,12 +1027,14 @@ namespace ReliefManagementSystem.Infrastructure.Data
             {
                 entity.HasKey(dtd => dtd.PaymentTransactionDetailId);
 
-                entity.Property(dtd => dtd.TransactionAmount)
-                    .HasPrecision(18, 2)
-                    .IsRequired();
+                entity.Property(dtd => dtd.FieldName)
+                    .HasMaxLength(100);
+
+                entity.Property(dtd => dtd.FieldValue)
+                    .HasMaxLength(1000);
 
                 entity.HasOne(dtd => dtd.PaymentTransaction)
-                    .WithMany(dt => dt.TransactionDetails)
+                    .WithMany()
                     .HasForeignKey(dtd => dtd.PaymentTransactionId)
                     .OnDelete(DeleteBehavior.Cascade);
             });

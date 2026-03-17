@@ -45,6 +45,8 @@ namespace ReliefManagementSystem.Application.Common.Interface
 
         // Campaign (stub for validation — full module TBD)
         ICampaignRepository Campaigns { get; }
+        IDonationRepository Donations { get; }
+        IPaymentTransactionRepository PaymentTransactions { get; }
 
         // Relief Station Management
         IReliefStationRepository ReliefStations { get; }

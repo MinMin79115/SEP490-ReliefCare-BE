@@ -4,11 +4,6 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ReliefManagementSystem.Domain.Entities
 {
-    /// <summary>
-    /// Lưu thông tin một lần donate vào Campaign.
-    /// Người donate có thể ẩn danh (IsAnonymous = true, DonorUserId = null),
-    /// nhưng hệ thống luôn lưu response từ cổng thanh toán để đối soát.
-    /// </summary>
     public class Donation
     {
         [Key]
@@ -18,22 +13,12 @@ namespace ReliefManagementSystem.Domain.Entities
         public Guid CampaignId { get; set; }
         public Campaign Campaign { get; set; } = null!;
 
-        // FK đến người donate – nullable nếu ẩn danh
+        // FK đến người donate – nullable nếu chưa đăng nhập
         public Guid? DonorUserId { get; set; }
         public ApplicationUser? DonorUser { get; set; }
 
-        /// <summary>
-        /// True nếu người donate chọn ẩn danh.
-        /// Dù ẩn danh, DonorUserId (nếu đã login) vẫn được lưu nội bộ để đối soát,
-        /// nhưng sẽ không hiển thị ra ngoài.
-        /// </summary>
-        public bool IsAnonymous { get; set; } = false;
-
-        /// <summary>
-        /// Tên hiển thị công khai (do người donate nhập hoặc lấy từ DisplayName).
-        /// Nếu IsAnonymous = true, giá trị này sẽ không được hiển thị.
-        /// </summary>
-        public string? DonorName { get; set; }
+        /// <summary>Tên người donate hiển thị công khai.</summary>
+        public string DonorName { get; set; } = string.Empty;
 
         /// <summary>Số tiền donate (VNĐ hoặc đơn vị tiền tệ của hệ thống).</summary>
         public decimal Amount { get; set; }
@@ -52,6 +37,18 @@ namespace ReliefManagementSystem.Domain.Entities
         /// Dùng để tra cứu / đối soát với cổng thanh toán.
         /// </summary>
         public string? TransactionRef { get; set; }
+
+        /// <summary>orderCode gửi sang PayOS, dùng để định danh đơn thanh toán.</summary>
+        public long? PayOsOrderCode { get; set; }
+
+        /// <summary>paymentLinkId do PayOS trả về.</summary>
+        public string? PayOsPaymentLinkId { get; set; }
+
+        /// <summary>Checkout URL do PayOS trả về khi tạo link.</summary>
+        public string? CheckoutUrl { get; set; }
+
+        /// <summary>Thời gian hết hạn link thanh toán (UTC).</summary>
+        public DateTime ExpiresAt { get; set; }
 
         /// <summary>
         /// Response thô (JSON) từ cổng thanh toán sau khi xử lý.

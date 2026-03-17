@@ -5,9 +5,6 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ReliefManagementSystem.Domain.Entities
 {
-    /// <summary>
-    /// Lưu trữ thông tin response từ webhook của payment gateway (ví dụ SePay) liên quan đến Donation.
-    /// </summary>
     public class PaymentTransaction : AuditableEntity
     {
         [Key]
@@ -19,22 +16,22 @@ namespace ReliefManagementSystem.Domain.Entities
         public Guid? UserId { get; set; }
         public ApplicationUser? User { get; set; }
 
-        // Webhook original response data
-        public string? GatewayId { get; set; } // id từ payload (e.g. "1")
-        public string? GatewayCustomerId { get; set; } // customer_id
-        public string? OrderId { get; set; } // order_id (e.g. "SEPAY-68B01673A77FF")
-        public string? OrderInvoiceNumber { get; set; } // order_invoice_number
-        public string? OrderStatus { get; set; } // order_status (e.g. "CAPTURED")
-        public decimal OrderAmount { get; set; } // order_amount
-        public string? OrderCurrency { get; set; } // order_currency
-        public string? OrderDescription { get; set; } // order_description
-        public string? AuthenticationStatus { get; set; } // authentication_status
-
-        // Transaction timestamps từ payload
-        public DateTime? PayloadCreatedAt { get; set; } // created_at
-        public DateTime? PayloadUpdatedAt { get; set; } // updated_at
-
-        // Danh sách các giao dịch con
-        public ICollection<PaymentTransactionDetail> TransactionDetails { get; set; } = new List<PaymentTransactionDetail>();
+        public string Provider { get; set; } = "PayOS";
+        public long OrderCode { get; set; }
+        public string? PaymentLinkId { get; set; }
+        public string? Reference { get; set; }
+        public string? EventCode { get; set; }
+        public string? EventDescription { get; set; }
+        public decimal Amount { get; set; }
+        public string Currency { get; set; } = "VND";
+        public DateTime? TransactionDateTime { get; set; }
+        public string? CounterAccountName { get; set; }
+        public string? CounterAccountNumber { get; set; }
+        public string? CounterAccountBankName { get; set; }
+        public string? VirtualAccountName { get; set; }
+        public string? VirtualAccountNumber { get; set; }
+        public string RawPayload { get; set; } = string.Empty;
+        public string Signature { get; set; } = string.Empty;
+        public bool IsSignatureValid { get; set; }
     }
 }
