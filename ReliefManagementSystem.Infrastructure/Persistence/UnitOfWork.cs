@@ -26,6 +26,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
         public ITeamRepository Teams { get; }
         public ITeamMemberRepository TeamMembers { get; }
         public ITeamJoinRequestRepository TeamJoinRequests { get; }
+        public IStationJoinRequestRepository StationJoinRequests { get; }
 
         // Volunteer Profiles
         public IVolunteerProfileRepository VolunteerProfiles { get; }
@@ -77,6 +78,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             Teams = new TeamRepository(_context);
             TeamMembers = new TeamMemberRepository(_context);
             TeamJoinRequests = new TeamJoinRequestRepository(_context);
+            StationJoinRequests = new StationJoinRequestRepository(_context);
             VolunteerProfiles = new VolunteerProfileRepository(_context);
             Skills = new SkillRepository(_context);
             Vehicles = new VehicleRepository(_context);

@@ -493,5 +493,6 @@ namespace ReliefManagementSystem.Application.Services
     
             return teams.Select(team => MapToTeamDetailResponse(team)).ToList();
         }
+
     }
 }

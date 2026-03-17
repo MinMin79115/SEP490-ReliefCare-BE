@@ -34,6 +34,7 @@ namespace ReliefManagementSystem.Infrastructure.Data
         public DbSet<Team> Teams { get; set; }
         public DbSet<TeamMember> TeamMembers { get; set; }
         public DbSet<TeamJoinRequest> TeamJoinRequests { get; set; }
+        public DbSet<StationJoinRequest> StationJoinRequests { get; set; }
 
 
         // Vehicle Management
@@ -319,6 +320,34 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .WithMany()
                 .HasForeignKey(tjr => tjr.ReviewedBy)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            // StationJoinRequest Configuration
+            builder.Entity<StationJoinRequest>()
+                .HasOne(sjr => sjr.Team)
+                .WithMany(t => t.StationJoinRequests)
+                .HasForeignKey(sjr => sjr.TeamId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<StationJoinRequest>()
+                .HasOne(sjr => sjr.ReliefStation)
+                .WithMany(rs => rs.StationJoinRequests)
+                .HasForeignKey(sjr => sjr.ReliefStationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<StationJoinRequest>()
+                .HasOne(sjr => sjr.RequestedByLeader)
+                .WithMany()
+                .HasForeignKey(sjr => sjr.RequestedByLeaderId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<StationJoinRequest>()
+                .HasOne(sjr => sjr.ReviewedByModerator)
+                .WithMany()
+                .HasForeignKey(sjr => sjr.ReviewedByModeratorId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<StationJoinRequest>()
+                .HasIndex(sjr => new { sjr.TeamId, sjr.ReliefStationId, sjr.Status });
 
             //RefreshToken Configuration
             builder.Entity<RefreshToken>()

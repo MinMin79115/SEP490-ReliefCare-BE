@@ -35,5 +35,9 @@ namespace ReliefManagementSystem.Application.Features.ReliefStation.DTOs.Respons
         public ReliefTeamAssignmentStatus Status { get; set; }
         public string StatusName => Status.ToString();
         public bool IsActive { get; set; }
+        public string? Description { get; set; }
+        public string? RejectionReason { get; set; }
+        public DateTime? JoinedAt { get; set; }
+        public DateTime? TransferredAt { get; set; }
     }
 }

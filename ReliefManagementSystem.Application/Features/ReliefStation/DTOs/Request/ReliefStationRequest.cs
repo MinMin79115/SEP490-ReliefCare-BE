@@ -167,6 +167,9 @@ namespace ReliefManagementSystem.Application.Features.ReliefStation.DTOs.Request
     {
         [Required(ErrorMessage = "TeamId is required.")]
         public Guid TeamId { get; set; }
+
+        [MaxLength(1000)]
+        public string? Description { get; set; }
     }
 
     /// <summary>Request model to update the assignment status of a team at a station.</summary>
@@ -174,6 +177,28 @@ namespace ReliefManagementSystem.Application.Features.ReliefStation.DTOs.Request
     {
         [Required(ErrorMessage = "Status is required.")]
         public ReliefTeamAssignmentStatus Status { get; set; }
+
+        [MaxLength(1000)]
+        public string? Description { get; set; }
+
+        [MaxLength(1000)]
+        public string? RejectionReason { get; set; }
+    }
+
+    public class RejectTeamStationRequest
+    {
+        [Required(ErrorMessage = "RejectionReason is required.")]
+        [MaxLength(1000)]
+        public string RejectionReason { get; set; } = null!;
+
+        [MaxLength(1000)]
+        public string? Description { get; set; }
+    }
+
+    public class ApproveTeamStationRequest
+    {
+        [MaxLength(1000)]
+        public string? Description { get; set; }
     }
 
     /// <summary>Request model để gán Moderator vào một trạm cứu trợ.</summary>

@@ -21,6 +21,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
         ITeamRepository Teams { get; }
         ITeamMemberRepository TeamMembers { get; }
         ITeamJoinRequestRepository TeamJoinRequests { get; }
+        IStationJoinRequestRepository StationJoinRequests { get; }
 
         // Volunteer Profiles
         IVolunteerProfileRepository VolunteerProfiles { get; }

@@ -1,5 +1,6 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 using ReliefManagementSystem.Application.Common.Exceptions.ReliefStationExceptions;
+using ReliefManagementSystem.Application.Common.Exceptions.Team;
 using ReliefManagementSystem.Application.Common.Interface;
 using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Application.Features.ReliefStation.Dtos;
@@ -324,5 +325,175 @@ namespace ReliefManagementSystem.Application.Services
             
             await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
+
+        public async Task<StationTeamResponse> AssignTeamToStationAsync(Guid stationId, AssignTeamRequest request, CancellationToken cancellationToken)
+        {
+            var currentUserId = _currentUser.UserId;
+            if (!currentUserId.HasValue)
+            {
+                throw new OnlyStationHeadCanManageAssignmentsException();
+            }
+
+            var station = await _unitOfWork.ReliefStations.GetByIdAsync(stationId);
+            if (station == null)
+            {
+                throw new ReliefStationNotFoundException(stationId);
+            }
+
+            if (station.Level != ReliefStationLevel.Provincial || station.Level != ReliefStationLevel.Regional)
+            {
+                throw new InvalidLocationForProvincialStationException();
+            }
+
+            var stationHead = await _unitOfWork.ModeratorProfiles.GetStationHeadAsync(stationId, cancellationToken);
+            if (stationHead == null || stationHead.UserId != currentUserId.Value)
+            {
+                throw new OnlyStationHeadCanManageAssignmentsException();
+            }
+
+            var team = await _unitOfWork.Teams.GetByIdAsync(request.TeamId);
+            if (team == null)
+            {
+                throw new TeamNotFoundException(request.TeamId);
+            }
+
+            if (team.Status != TeamStatus.Active)
+            {
+                throw new TeamInactiveException(team.Name);
+            }
+
+            var existing = await _unitOfWork.ReliefStationTeams
+                .GetByStationAndTeamAsync(stationId, request.TeamId, cancellationToken);
+
+            if (existing != null)
+            {
+                if (existing.Status == ReliefTeamAssignmentStatus.Pending)
+                {
+                    existing.Status = ReliefTeamAssignmentStatus.Active;
+                    existing.IsActive = true;
+                    existing.Description = request.Description ?? existing.Description;
+                    existing.RejectionReason = null;
+                    existing.JoinedAt ??= DateTime.UtcNow;
+                    await _unitOfWork.ReliefStationTeams.UpdateAsync(existing);
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                    return new StationTeamResponse
+                    {
+                        AssignmentId = existing.ReliefStationTeamId,
+                        TeamId = existing.TeamId,
+                        TeamName = existing.Team?.Name ?? team.Name,
+                        Status = existing.Status,
+                        IsActive = existing.IsActive,
+                        Description = existing.Description,
+                        RejectionReason = existing.RejectionReason,
+                        JoinedAt = existing.JoinedAt,
+                        TransferredAt = existing.TransferredAt
+                    };
+                }
+
+                throw new ReliefStationAssignmentAlreadyExistsException(stationId, request.TeamId);
+            }
+
+            var assignment = new ReliefStationTeam
+            {
+                ReliefStationTeamId = Guid.NewGuid(),
+                ReliefStationId = stationId,
+                TeamId = request.TeamId,
+                Status = ReliefTeamAssignmentStatus.Active,
+                IsActive = true,
+                Description = request.Description,
+                JoinedAt = DateTime.UtcNow
+            };
+
+            await _unitOfWork.ReliefStationTeams.AddAsync(assignment);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return new StationTeamResponse
+            {
+                AssignmentId = assignment.ReliefStationTeamId,
+                TeamId = assignment.TeamId,
+                TeamName = team.Name,
+                Status = assignment.Status,
+                IsActive = assignment.IsActive,
+                Description = assignment.Description,
+                RejectionReason = assignment.RejectionReason,
+                JoinedAt = assignment.JoinedAt,
+                TransferredAt = assignment.TransferredAt
+            };
+        }
+
+        public async Task<StationTeamResponse> UpdateTeamAssignmentStatusAsync(
+            Guid stationId,
+            Guid teamId,
+            UpdateTeamAssignmentRequest request,
+            CancellationToken cancellationToken)
+        {
+            var currentUserId = _currentUser.UserId;
+            if (!currentUserId.HasValue)
+            {
+                throw new OnlyStationHeadCanManageAssignmentsException();
+            }
+
+            var stationHead = await _unitOfWork.ModeratorProfiles.GetStationHeadAsync(stationId, cancellationToken);
+            if (stationHead == null || stationHead.UserId != currentUserId.Value)
+            {
+                throw new OnlyStationHeadCanManageAssignmentsException();
+            }
+
+            var assignment = await _unitOfWork.ReliefStationTeams
+                .GetByStationAndTeamAsync(stationId, teamId, cancellationToken);
+
+            if (assignment == null)
+            {
+                throw new ReliefStationAssignmentNotFoundException(stationId, teamId);
+            }
+
+            assignment.Status = request.Status;
+            assignment.Description = request.Description ?? assignment.Description;
+
+            if (request.Status == ReliefTeamAssignmentStatus.Cancelled)
+            {
+                if (string.IsNullOrWhiteSpace(request.RejectionReason))
+                {
+                    throw new RejectionReasonRequiredException();
+                }
+
+                assignment.RejectionReason = request.RejectionReason;
+                assignment.IsActive = false;
+            }
+            else if (request.Status == ReliefTeamAssignmentStatus.Active)
+            {
+                assignment.RejectionReason = null;
+                assignment.IsActive = true;
+                assignment.JoinedAt ??= DateTime.UtcNow;
+            }
+            else if (request.Status == ReliefTeamAssignmentStatus.Transferred)
+            {
+                assignment.IsActive = false;
+                assignment.TransferredAt = DateTime.UtcNow;
+            }
+            else if (request.Status == ReliefTeamAssignmentStatus.Suspended
+                  || request.Status == ReliefTeamAssignmentStatus.Completed)
+            {
+                assignment.IsActive = false;
+            }
+
+            await _unitOfWork.ReliefStationTeams.UpdateAsync(assignment);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return new StationTeamResponse
+            {
+                AssignmentId = assignment.ReliefStationTeamId,
+                TeamId = assignment.TeamId,
+                TeamName = assignment.Team?.Name ?? string.Empty,
+                Status = assignment.Status,
+                IsActive = assignment.IsActive,
+                Description = assignment.Description,
+                RejectionReason = assignment.RejectionReason,
+                JoinedAt = assignment.JoinedAt,
+                TransferredAt = assignment.TransferredAt
+            };
+        }
+
     }
 }

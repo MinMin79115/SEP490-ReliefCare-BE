@@ -19,6 +19,7 @@ namespace ReliefManagementSystem.Application
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<ITeamService, TeamService>();
             services.AddScoped<ITeamJoinRequestService, TeamJoinRequestService>();
+            services.AddScoped<IStationJoinRequestService, StationJoinRequestService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<ISkillService, SkillService>();
             services.AddScoped<IVehicleService, VehicleService>();
