@@ -6,6 +6,7 @@ using ReliefManagementSystem.Application.Features;
 using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Infrastructure.Data;
 using ReliefManagementSystem.Infrastructure.Persistence;
+using ReliefManagementSystem.Infrastructure.Payments;
 using ReliefManagementSystem.Infrastructure.Repositories;
 using ReliefManagementSystem.Infrastructure.Security;
 
@@ -59,6 +60,8 @@ namespace ReliefManagementSystem.Infrastructure
             // Supply Allocation repositories
             services.AddScoped<ISupplyAllocationRepository, SupplyAllocationRepository>();
             services.AddScoped<ICampaignRepository, CampaignRepository>();
+            services.AddScoped<IDonationRepository, DonationRepository>();
+            services.AddScoped<IPaymentTransactionRepository, PaymentTransactionRepository>();
 
             // Relief Station repositories
             services.AddScoped<IReliefStationRepository, ReliefStationRepository>();
@@ -71,6 +74,7 @@ namespace ReliefManagementSystem.Infrastructure
             services.AddScoped<IPriorityCriteriaRepository, PriorityCriteriaRepository>();
             services.AddScoped<IRescueRequestPriorityRepository, RescueRequestPriorityRepository>();
             services.AddScoped<IRescueOperationRepository, RescueOperationRepository>();
+            services.AddHttpClient<IPayOsGateway, PayOsGateway>();
             return services;
 
         }

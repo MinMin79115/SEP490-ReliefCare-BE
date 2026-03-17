@@ -82,6 +82,9 @@ builder.Services.Configure<CloudinarySettings>(
 builder.Services.Configure<EmailSettings>(
     builder.Configuration.GetSection("EmailSettings"));
 
+builder.Services.Configure<PayOsSettings>(
+    builder.Configuration.GetSection("PayOs"));
+
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>();
 var googleSettings = builder.Configuration.GetSection("AuthenticationGoogle").Get<GoogleSetting>();
 var cloudSetting = builder.Configuration.GetSection("CloudinarySettings").Get<CloudinarySettings>();
