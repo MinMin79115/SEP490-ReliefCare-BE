@@ -41,6 +41,12 @@ services:
       Jwt__RefreshTokenDays: "7"
       AuthenticationGoogle__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
       AuthenticationGoogle__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
+      PayOs__ClientId: ${PAYOS_CLIENT_ID:-}
+      PayOs__ApiKey: ${PAYOS_API_KEY:-}
+      PayOs__ChecksumKey: ${PAYOS_CHECKSUM_KEY:-}
+      PayOs__ReturnUrl: ${PAYOS_RETURN_URL:-https://staging.reliefhub.info.vn/donation/return}
+      PayOs__CancelUrl: ${PAYOS_CANCEL_URL:-https://staging.reliefhub.info.vn/donation/cancel}
+      PayOs__ExpiredMinutes: ${PAYOS_EXPIRED_MINUTES:-15}
       # CORS - domain thật + localhost để FE dev test local gọi lên staging API
       CorsSettings__AllowedOrigins__0: "https://staging.reliefhub.info.vn"
       CorsSettings__AllowedOrigins__1: "https://reliefhub.info.vn"
