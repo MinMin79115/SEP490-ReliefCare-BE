@@ -55,6 +55,7 @@ namespace ReliefManagementSystem.Infrastructure.Data
 
         // Campaign Management
         public DbSet<Campaign> Campaigns { get; set; }
+        public DbSet<CampaignResourceGoal> CampaignResourceGoals { get; set; }
         public DbSet<CampaignStation> CampaignStations { get; set; }
         public DbSet<CampaignTeam> CampaignTeams { get; set; }
         public DbSet<CampaignTask> CampaignTasks { get; set; }
@@ -517,6 +518,39 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .WithMany()
                 .HasForeignKey(c => c.LocationId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<Campaign>()
+                .Property(c => c.Type)
+                .HasConversion<string>()
+                .IsRequired();
+
+            builder.Entity<Campaign>()
+                .Property(c => c.Status)
+                .HasConversion<string>()
+                .IsRequired();
+
+            builder.Entity<Campaign>()
+                .Property(c => c.AllowOverTarget)
+                .HasDefaultValue(true);
+
+            // CampaignResourceGoal Configuration
+            builder.Entity<CampaignResourceGoal>()
+                .HasKey(g => g.CampaignResourceGoalId);
+
+            builder.Entity<CampaignResourceGoal>()
+                .Property(g => g.ResourceType)
+                .HasConversion<string>()
+                .IsRequired();
+
+            builder.Entity<CampaignResourceGoal>()
+                .HasOne(g => g.Campaign)
+                .WithMany(c => c.ResourceGoals)
+                .HasForeignKey(g => g.CampaignId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<CampaignResourceGoal>()
+                .HasIndex(g => new { g.CampaignId, g.ResourceType })
+                .IsUnique();
 
             // CampaignStation Configuration
             builder.Entity<CampaignStation>()

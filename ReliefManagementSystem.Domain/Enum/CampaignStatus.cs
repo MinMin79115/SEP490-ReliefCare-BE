@@ -8,11 +8,15 @@ namespace ReliefManagementSystem.Domain.Enum
 {
     public enum CampaignStatus
     {
-        Inactive = 0,
+        Draft = 0,
         Active = 1,
         Suspended = 2,
         Completed = 3,
-        Cancelled = 4
+        Cancelled = 4,
+        GoalsMet = 5,
+        ReadyToExecute = 6,
+        InProgress = 7,
+        Closing = 8
     }
 
 }
