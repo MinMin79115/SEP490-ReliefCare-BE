@@ -68,37 +68,27 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(await _authService.RegisterAsync(request, cancellationToken));
         }
 
-        /// <summary>
-        /// Xác thực email sau khi đăng ký
-        /// </summary>
-        /// <remarks>
-        /// Endpoint này được gọi từ link xác thực trong email đăng ký.
-        /// 
-        /// Frontend/Mobile nhận link dạng:
-        /// 
-        ///     GET /api/auth/confirm-email?email=user@example.com&amp;token=CfDJ8...
-        /// 
-        /// Sau khi xác thực thành công → chuyển hướng user đến trang đăng nhập.
-        /// 
-        /// **Lưu ý cho Mobile**: Nếu muốn mở thẳng app thay vì browser, cần cấu hình deep link
-        /// (ví dụ: `reliefcare://confirm-email?...`) ở phía frontend/mobile.
-        /// </remarks>
-        /// <param name="email">Email của tài khoản cần xác thực</param>
-        /// <param name="token">Token xác thực từ link trong email</param>
-        /// <param name="cancellationToken">Token hủy request</param>
-        /// <response code="200">Xác thực email thành công</response>
-        /// <response code="400">Token không hợp lệ hoặc đã hết hạn</response>
-        [HttpGet("confirm-email")]
+        [HttpPost("verify-email-otp")]
         [AllowAnonymous]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> ConfirmEmail(
-            [FromQuery] string email,
-            [FromQuery] string token,
+        public async Task<IActionResult> VerifyEmailOtp(
+            [FromBody] VerifyEmailOtpRequest request,
             CancellationToken cancellationToken)
         {
-            await _authService.ConfirmEmailAsync(email, token, cancellationToken);
-            return Ok(new { message = "Email confirmed successfully. You can now log in." });
+            await _authService.VerifyEmailOtpAsync(request, cancellationToken);
+            return Ok(new { message = "Email verified successfully." });
+        }
+
+        [HttpPost("resend-email-otp")]
+        [AllowAnonymous]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        public async Task<IActionResult> ResendEmailOtp(
+            [FromBody] ResendEmailOtpRequest request,
+            CancellationToken cancellationToken)
+        {
+            await _authService.ResendEmailOtpAsync(request, cancellationToken);
+            return NoContent();
         }
 
         /// <summary>
@@ -248,66 +238,44 @@ namespace ReliefManagementSystem.API.Controllers
         }
 
         /// <summary>
-        /// Gửi email đặt lại mật khẩu
+        /// Bước 1: Gửi OTP quên mật khẩu qua mobile/email
         /// </summary>
-        /// <remarks>
-        /// Nhận email của người dùng và gửi link đặt lại mật khẩu qua email.
-        /// 
-        /// **Bảo mật**: Luôn trả về 204 dù email có tồn tại hay không (tránh leak thông tin).
-        /// 
-        /// Sample request:
-        /// 
-        ///     POST /api/Auth/forgot-password
-        ///     {
-        ///         "email": "user@example.com"
-        ///     }
-        /// 
-        /// </remarks>
-        /// <param name="request">Email của tài khoản cần đặt lại mật khẩu</param>
-        /// <param name="cancellationToken">Token hủy request</param>
-        /// <response code="204">Yêu cầu đã được xử lý — nếu email tồn tại, link đặt lại đã được gửi</response>
-        /// <response code="400">Dữ liệu không hợp lệ (email sai định dạng)</response>
-        [HttpPost("forgot-password")]
+        [HttpPost("forgot-password/send-otp")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> ForgotPassword(
-            [FromBody] ForgotPasswordRequest request,
+        public async Task<IActionResult> SendForgotPasswordOtp(
+            [FromBody] SendForgotPasswordOtpRequest request,
             CancellationToken cancellationToken)
         {
-            await _authService.ForgotPasswordAsync(request, cancellationToken);
+            await _authService.SendForgotPasswordOtpAsync(request, cancellationToken);
             return NoContent();
         }
 
         /// <summary>
-        /// Đặt lại mật khẩu bằng token từ email
+        /// Bước 2: Xác thực OTP quên mật khẩu và nhận reset token
         /// </summary>
-        /// <remarks>
-        /// Sử dụng token nhận được từ email đặt lại mật khẩu để cập nhật mật khẩu mới.
-        /// 
-        /// **Lưu ý**: Token chỉ có hiệu lực trong 1 giờ kể từ khi được tạo.
-        /// 
-        /// Sample request:
-        /// 
-        ///     POST /api/Auth/reset-password
-        ///     {
-        ///         "email": "user@example.com",
-        ///         "token": "CfDJ8...(token từ email)...",
-        ///         "newPassword": "NewSecurePass123!"
-        ///     }
-        /// 
-        /// </remarks>
-        /// <param name="request">Email, token và mật khẩu mới</param>
-        /// <param name="cancellationToken">Token hủy request</param>
-        /// <response code="204">Mật khẩu đã được cập nhật thành công</response>
-        /// <response code="400">Token không hợp lệ hoặc đã hết hạn, mật khẩu không đủ mạnh</response>
-        [HttpPost("reset-password")]
-        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [HttpPost("forgot-password/verify-otp")]
+        [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<IActionResult> ResetPassword(
-            [FromBody] ResetPasswordRequest request,
+        public async Task<IActionResult> VerifyForgotPasswordOtp(
+            [FromBody] VerifyForgotPasswordOtpRequest request,
             CancellationToken cancellationToken)
         {
-            await _authService.ResetPasswordAsync(request, cancellationToken);
+            var response = await _authService.VerifyForgotPasswordOtpAsync(request, cancellationToken);
+            return Ok(response);
+        }
+
+        /// <summary>
+        /// Bước 3: Đặt lại mật khẩu bằng reset token sau khi xác thực OTP
+        /// </summary>
+        [HttpPost("forgot-password/reset")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> ResetPasswordByToken(
+            [FromBody] ResetPasswordByTokenRequest request,
+            CancellationToken cancellationToken)
+        {
+            await _authService.ResetPasswordByTokenAsync(request, cancellationToken);
             return NoContent();
         }
     }
