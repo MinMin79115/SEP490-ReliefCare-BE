@@ -29,6 +29,7 @@ namespace ReliefManagementSystem.Infrastructure
             services.AddScoped<IIdentityAuthService, IdentityAuthService>();
             services.AddScoped<ITokenService, TokenService>();
             services.AddScoped<IUnitOfWork, UnitOfWork>();
+            services.AddScoped<IEmailOtpRepository, EmailOtpRepository>();
             services.AddScoped<ICurrentUserService, CurrentUserService>();
             services.AddScoped<IImageService, CloudinaryImageService>();
             services.AddScoped<IEmailService, BrevoEmailService>();

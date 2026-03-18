@@ -32,20 +32,16 @@ namespace ReliefManagementSystem.Application.Interface
             string newPassword,
             CancellationToken cancellationToken);
 
-        Task ForgotPasswordAsync(
-            string email,
-            CancellationToken cancellationToken);
+        Task SendEmailOtpAsync(ApplicationUser user, CancellationToken cancellationToken);
 
-        Task ResetPasswordAsync(
-            string email,
-            string token,
-            string newPassword,
-            CancellationToken cancellationToken);
+        Task VerifyEmailOtpAsync(string email, string code, CancellationToken cancellationToken);
 
-        /// <summary>Gửi email xác thực tới địa chỉ email vừa đăng ký.</summary>
-        Task SendEmailConfirmationAsync(ApplicationUser user, CancellationToken cancellationToken);
+        Task ResendEmailOtpAsync(string email, CancellationToken cancellationToken);
 
-        /// <summary>Xác nhận email từ token trong link được gửi qua email.</summary>
-        Task ConfirmEmailAsync(string email, string token, CancellationToken cancellationToken);
+        Task SendForgotPasswordOtpAsync(string email, CancellationToken cancellationToken);
+
+        Task<string> VerifyForgotPasswordOtpAsync(string email, string otpCode, CancellationToken cancellationToken);
+
+        Task ResetPasswordByTokenAsync(string email, string resetToken, string newPassword, CancellationToken cancellationToken);
     }
 }

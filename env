@@ -1,0 +1,19 @@
+POSTGRES_DB=relief_db
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=postgres123
+
+JWT_KEY=local-dev-reliefcare-secret-key-minimum-32-characters-long
+
+GOOGLE_CLIENT_ID=914612994476-7tdvcqqm1e97mir23ilunou2vgmd4s5b.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=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
+
+EMAIL_HOST=smtp-relay.brevo.com
+EMAIL_PORT=587
+EMAIL_USERNAME=a48731001@smtp-brevo.com
+EMAIL_PASSWORD=xsmtpsib-b66ddf7d5e1abb70a14ff3ee491160393f19e7fc6eaabd7560790f656a5d7756-hsmUmQEfeSSOOm7T
+EMAIL_SENDER_EMAIL=noreply@reliefhub.info.vn
+EMAIL_SENDER_NAME=Relief Hub
+
+CLOUDINARY_CLOUD_NAME=dhwnptz55
+CLOUDINARY_API_KEY=785678439139647
+CLOUDINARY_API_SECRET=1KfZ09qTXVtLO1zteXBUB4RU3-g

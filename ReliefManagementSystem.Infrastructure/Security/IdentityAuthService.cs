@@ -1,7 +1,6 @@
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
-using Microsoft.Extensions.Configuration;
 using ReliefManagementSystem.Application.Common.Exceptions;
 using ReliefManagementSystem.Application.Common.Exceptions.Auth;
 using ReliefManagementSystem.Application.Common.Interface;
@@ -12,6 +11,7 @@ using ReliefManagementSystem.Domain.Enum;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Security.Claims;
 using System.Text;
 using System.Threading.Tasks;
@@ -24,20 +24,20 @@ namespace ReliefManagementSystem.Infrastructure.Security
         private readonly SignInManager<ApplicationUser> _signInManager;
         private readonly ICurrentUserService _currentUserService;
         private readonly IEmailService _emailService;
-        private readonly IConfiguration _configuration;
+        private readonly IUnitOfWork _unitOfWork;
 
         public IdentityAuthService(
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
             ICurrentUserService currentUserService,
             IEmailService emailService,
-            IConfiguration configuration)
+            IUnitOfWork unitOfWork)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _currentUserService = currentUserService;
             _emailService = emailService;
-            _configuration = configuration;
+            _unitOfWork = unitOfWork;
         }
 
         public async Task<ApplicationUser> RegisterAsync(
@@ -62,46 +62,115 @@ namespace ReliefManagementSystem.Infrastructure.Security
 
             await _userManager.AddToRoleAsync(user, Role.User.ToString());
 
-            // Gửi email xác thực sau khi tạo tài khoản thành công
-            await SendEmailConfirmationAsync(user, cancellationToken);
+            // Gửi OTP 6 số xác thực sau khi tạo tài khoản thành công
+            await SendEmailOtpAsync(user, cancellationToken);
 
             return user;
         }
 
-        /// <inheritdoc/>
-        public async Task SendEmailConfirmationAsync(ApplicationUser user, CancellationToken cancellationToken)
+        public async Task SendEmailOtpAsync(ApplicationUser user, CancellationToken cancellationToken)
         {
-            var rawToken = await _userManager.GenerateEmailConfirmationTokenAsync(user);
-            var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(rawToken));
+            var otp = await CreateOtpAsync(user, OtpPurpose.EmailVerification, cancellationToken);
 
-            var frontendUrl = _configuration["FrontendUrl"] ?? "https://reliefcare.app";
-            var confirmLink = $"{frontendUrl}/confirm-email?email={Uri.EscapeDataString(user.Email!)}&token={encodedToken}";
-
-            var subject = "Xác thực tài khoản - Relief Care";
-            var body = BuildEmailConfirmationBody(user.DisplayName ?? user.Email!, confirmLink);
-
+            var subject = "Mã xác thực tài khoản - Relief Care";
+            var body = BuildEmailOtpBody(user.DisplayName ?? user.Email!, otp);
             await _emailService.SendEmailAsync(user.Email!, subject, body);
         }
 
-        /// <inheritdoc/>
-        public async Task ConfirmEmailAsync(string email, string token, CancellationToken cancellationToken)
+        public async Task VerifyEmailOtpAsync(string email, string code, CancellationToken cancellationToken)
         {
             var user = await _userManager.FindByEmailAsync(email)
                 ?? throw new InvalidCredentialsException();
 
             if (user.EmailConfirmed)
-                return; // Đã xác thực rồi thì bỏ qua
+                return;
 
-            var decodedBytes = WebEncoders.Base64UrlDecode(token);
-            var decodedToken = Encoding.UTF8.GetString(decodedBytes);
+            var otp = await _unitOfWork.EmailOtps.GetLatestValidAsync(user.Id, OtpPurpose.EmailVerification, cancellationToken);
+            if (otp == null)
+                throw new ValidationException(new Dictionary<string, string[]> { { "Code", new[] { "OTP không tồn tại hoặc đã hết hạn." } } });
 
-            var result = await _userManager.ConfirmEmailAsync(user, decodedToken);
+            if (!VerifyOtpHash(code, otp.CodeHash))
+                throw new ValidationException(new Dictionary<string, string[]> { { "Code", new[] { "OTP không đúng." } } });
+
+            user.EmailConfirmed = true;
+            var updateResult = await _userManager.UpdateAsync(user);
+            if (!updateResult.Succeeded)
+            {
+                var errors = ConvertErrors(updateResult.Errors);
+                throw new ValidationException(errors);
+            }
+
+            otp.ConsumedAt = DateTime.UtcNow;
+            await _unitOfWork.EmailOtps.UpdateAsync(otp);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
+        public async Task ResendEmailOtpAsync(string email, CancellationToken cancellationToken)
+        {
+            var user = await _userManager.FindByEmailAsync(email);
+            if (user == null || user.EmailConfirmed)
+                return;
+
+            await SendEmailOtpAsync(user, cancellationToken);
+        }
+
+        public async Task SendForgotPasswordOtpAsync(string email, CancellationToken cancellationToken)
+        {
+            var user = await _userManager.FindByEmailAsync(email);
+
+            // Không leak thông tin: nếu email không tồn tại thì vẫn trả về thành công
+            if (user == null)
+                return;
+
+            var otp = await CreateOtpAsync(user, OtpPurpose.PasswordReset, cancellationToken);
+            var subject = "Mã OTP đặt lại mật khẩu - Relief Care";
+            var body = BuildForgotPasswordOtpBody(user.DisplayName ?? email, otp);
+
+            await _emailService.SendEmailAsync(email, subject, body);
+        }
+
+        public async Task<string> VerifyForgotPasswordOtpAsync(string email, string otpCode, CancellationToken cancellationToken)
+        {
+            var user = await _userManager.FindByEmailAsync(email);
+
+            if (user == null)
+                throw new InvalidCredentialsException();
+
+            var otp = await _unitOfWork.EmailOtps.GetLatestValidAsync(user.Id, OtpPurpose.PasswordReset, cancellationToken);
+            if (otp == null)
+                throw new ValidationException(new Dictionary<string, string[]> { { "Code", new[] { "OTP không tồn tại hoặc đã hết hạn." } } });
+
+            if (!VerifyOtpHash(otpCode, otp.CodeHash))
+                throw new ValidationException(new Dictionary<string, string[]> { { "Code", new[] { "OTP không đúng." } } });
+
+            otp.ConsumedAt = DateTime.UtcNow;
+            await _unitOfWork.EmailOtps.UpdateAsync(otp);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            var internalToken = await _userManager.GeneratePasswordResetTokenAsync(user);
+            var tokenBytes = Encoding.UTF8.GetBytes(internalToken);
+            return WebEncoders.Base64UrlEncode(tokenBytes);
+        }
+
+        public async Task ResetPasswordByTokenAsync(string email, string resetToken, string newPassword, CancellationToken cancellationToken)
+        {
+            var user = await _userManager.FindByEmailAsync(email);
+
+            if (user == null)
+                throw new InvalidCredentialsException();
+
+            var tokenBytes = WebEncoders.Base64UrlDecode(resetToken);
+            var internalToken = Encoding.UTF8.GetString(tokenBytes);
+
+            var result = await _userManager.ResetPasswordAsync(user, internalToken, newPassword);
 
             if (!result.Succeeded)
             {
                 var errors = ConvertErrors(result.Errors);
                 throw new ValidationException(errors);
             }
+
+            await _userManager.UpdateSecurityStampAsync(user);
         }
 
         public async Task<ApplicationUser> ValidateByEmailAsync(
@@ -246,142 +315,80 @@ namespace ReliefManagementSystem.Infrastructure.Security
             await _userManager.UpdateSecurityStampAsync(user);
         }
 
-        public async Task ForgotPasswordAsync(
-            string email,
-            CancellationToken cancellationToken)
+        private static string BuildEmailOtpBody(string displayName, string otp)
         {
-            var user = await _userManager.FindByEmailAsync(email);
-
-            // Không leak thông tin: nếu email không tồn tại thì vẫn trả về thành công
-            if (user == null)
-                return;
-
-            var rawToken = await _userManager.GeneratePasswordResetTokenAsync(user);
-            var encodedToken = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(rawToken));
-
-            // TODO: Thay bằng URL frontend thực tế (có thể đọc từ appsettings["FrontendUrl"])
-            var resetLink = $"https://reliefcare.app/reset-password?email={Uri.EscapeDataString(email)}&token={encodedToken}";
-
-            var subject = "Đặt lại mật khẩu - Relief Care";
-            var body = BuildForgotPasswordEmailBody(user.DisplayName ?? email, resetLink);
-
-            await _emailService.SendEmailAsync(email, subject, body);
+            return $@"<!DOCTYPE html>
+<html lang=""vi""><head><meta charset=""UTF-8"" /><meta name=""viewport"" content=""width=device-width, initial-scale=1.0"" />
+<title>Mã xác thực</title></head>
+<body style=""font-family:Segoe UI,Arial,sans-serif;background:#f4f6f8;padding:24px;"">
+  <div style=""max-width:520px;margin:auto;background:#fff;border-radius:12px;padding:24px;"">
+    <h2 style=""margin-top:0;color:#1b5e20;"">Xác thực tài khoản Relief Care</h2>
+    <p>Xin chào <strong>{displayName}</strong>,</p>
+    <p>Mã xác thực 6 số của bạn là:</p>
+    <div style=""font-size:32px;font-weight:700;letter-spacing:8px;color:#1b5e20;margin:16px 0;"">{otp}</div>
+    <p>Mã có hiệu lực trong <strong>10 phút</strong>.</p>
+    <p style=""color:#666;font-size:13px;"">Nếu bạn không thực hiện đăng ký, hãy bỏ qua email này.</p>
+  </div>
+</body></html>";
         }
 
-        public async Task ResetPasswordAsync(
-            string email,
-            string token,
-            string newPassword,
-            CancellationToken cancellationToken)
+        private static string BuildForgotPasswordOtpBody(string displayName, string otp)
         {
-            var user = await _userManager.FindByEmailAsync(email);
+            return $@"<!DOCTYPE html>
+<html lang=""vi""><head><meta charset=""UTF-8"" /><meta name=""viewport"" content=""width=device-width, initial-scale=1.0"" />
+<title>Mã OTP đặt lại mật khẩu</title></head>
+<body style=""font-family:Segoe UI,Arial,sans-serif;background:#f4f6f8;padding:24px;"">
+  <div style=""max-width:520px;margin:auto;background:#fff;border-radius:12px;padding:24px;"">
+    <h2 style=""margin-top:0;color:#1565c0;"">Đặt lại mật khẩu Relief Care</h2>
+    <p>Xin chào <strong>{displayName}</strong>,</p>
+    <p>Mã OTP 6 số để đặt lại mật khẩu của bạn là:</p>
+    <div style=""font-size:32px;font-weight:700;letter-spacing:8px;color:#1565c0;margin:16px 0;"">{otp}</div>
+    <p>Mã có hiệu lực trong <strong>10 phút</strong>.</p>
+    <p style=""color:#666;font-size:13px;"">Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này.</p>
+  </div>
+</body></html>";
+        }
 
-            if (user == null)
-                throw new InvalidCredentialsException();
+        private async Task<string> CreateOtpAsync(ApplicationUser user, OtpPurpose purpose, CancellationToken cancellationToken)
+        {
+            await _unitOfWork.EmailOtps.InvalidateAllActiveAsync(user.Id, purpose, cancellationToken);
 
-            // Decode token từ Base64Url trước khi truyền vào UserManager
-            var decodedBytes = WebEncoders.Base64UrlDecode(token);
-            var decodedToken = Encoding.UTF8.GetString(decodedBytes);
+            var code = Random.Shared.Next(100000, 1000000).ToString();
+            var now = DateTime.UtcNow;
 
-            var result = await _userManager.ResetPasswordAsync(user, decodedToken, newPassword);
-
-            if (!result.Succeeded)
+            var otp = new EmailOtp
             {
-                var errors = ConvertErrors(result.Errors);
-                throw new ValidationException(errors);
-            }
+                EmailOtpId = Guid.NewGuid(),
+                UserId = user.Id,
+                Purpose = purpose,
+                CodeHash = HashOtp(code),
+                CreatedAt = now,
+                ExpiresAt = now.AddMinutes(10)
+            };
 
-            await _userManager.UpdateSecurityStampAsync(user);
+            await _unitOfWork.EmailOtps.AddAsync(otp);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return code;
         }
 
-        private static string BuildEmailConfirmationBody(string displayName, string confirmLink)
+        private static string HashOtp(string code)
         {
-            return $@"<!DOCTYPE html>
-<html lang=""vi"">
-<head>
-  <meta charset=""UTF-8"" />
-  <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"" />
-  <title>Xác thực tài khoản</title>
-  <style>
-    body {{ font-family: 'Segoe UI', Arial, sans-serif; background: #f4f6f8; margin: 0; padding: 0; }}
-    .wrapper {{ max-width: 560px; margin: 40px auto; background: #ffffff; border-radius: 12px;
-                box-shadow: 0 4px 20px rgba(0,0,0,0.08); overflow: hidden; }}
-    .header {{ background: linear-gradient(135deg, #1b5e20, #43a047); padding: 32px 40px; text-align: center; }}
-    .header h1 {{ color: #ffffff; margin: 0; font-size: 22px; letter-spacing: 0.5px; }}
-    .body {{ padding: 32px 40px; color: #333; }}
-    .body p {{ line-height: 1.7; margin: 0 0 16px; }}
-    .btn-wrap {{ text-align: center; margin: 28px 0; }}
-    .btn {{ display: inline-block; background: linear-gradient(135deg, #1b5e20, #43a047);
-            color: #ffffff !important; text-decoration: none; padding: 14px 36px;
-            border-radius: 8px; font-weight: bold; font-size: 15px; letter-spacing: 0.3px; }}
-    .note {{ font-size: 13px; color: #888; border-top: 1px solid #eee; padding-top: 16px; margin-top: 8px; }}
-    .footer {{ background: #f4f6f8; text-align: center; padding: 16px; font-size: 12px; color: #aaa; }}
-  </style>
-</head>
-<body>
-  <div class=""wrapper"">
-    <div class=""header"">
-      <h1>&#9989; Xác thực tài khoản Relief Care</h1>
-    </div>
-    <div class=""body"">
-      <p>Xin chào <strong>{displayName}</strong>,</p>
-      <p>Cảm ơn bạn đã đăng ký tài khoản tại <strong>Relief Care</strong>. Vui lòng nhấn nút bên dưới để xác thực địa chỉ email và kích hoạt tài khoản của bạn.</p>
-      <div class=""btn-wrap"">
-        <a href=""{confirmLink}"" class=""btn"">Xác thực tài khoản</a>
-      </div>
-      <p>Hoặc dán đường link sau vào trình duyệt:</p>
-      <p style=""word-break:break-all; font-size:13px; color:#1b5e20;"">{confirmLink}</p>
-      <p class=""note"">&#9200; Link có hiệu lực trong <strong>24 giờ</strong>. Nếu bạn không đăng ký tài khoản này, hãy bỏ qua email — tài khoản sẽ tự động bị xóa sau 24 giờ.</p>
-    </div>
-    <div class=""footer"">© 2025 Relief Care System &nbsp;·&nbsp; support@reliefcare.app</div>
-  </div>
-</body>
-</html>";
+            var bytes = Encoding.UTF8.GetBytes(code);
+            var hash = SHA256.HashData(bytes);
+            return Convert.ToHexString(hash);
         }
 
-        private static string BuildForgotPasswordEmailBody(string displayName, string resetLink)
+        private static bool VerifyOtpHash(string providedCode, string storedHash)
         {
-            return $@"<!DOCTYPE html>
-<html lang=""vi"">
-<head>
-  <meta charset=""UTF-8"" />
-  <meta name=""viewport"" content=""width=device-width, initial-scale=1.0"" />
-  <title>Đặt lại mật khẩu</title>
-  <style>
-    body {{ font-family: 'Segoe UI', Arial, sans-serif; background: #f4f6f8; margin: 0; padding: 0; }}
-    .wrapper {{ max-width: 560px; margin: 40px auto; background: #ffffff; border-radius: 12px;
-                box-shadow: 0 4px 20px rgba(0,0,0,0.08); overflow: hidden; }}
-    .header {{ background: linear-gradient(135deg, #1565c0, #42a5f5); padding: 32px 40px; text-align: center; }}
-    .header h1 {{ color: #ffffff; margin: 0; font-size: 22px; letter-spacing: 0.5px; }}
-    .body {{ padding: 32px 40px; color: #333; }}
-    .body p {{ line-height: 1.7; margin: 0 0 16px; }}
-    .btn-wrap {{ text-align: center; margin: 28px 0; }}
-    .btn {{ display: inline-block; background: linear-gradient(135deg, #1565c0, #42a5f5);
-            color: #ffffff !important; text-decoration: none; padding: 14px 36px;
-            border-radius: 8px; font-weight: bold; font-size: 15px; letter-spacing: 0.3px; }}
-    .note {{ font-size: 13px; color: #888; border-top: 1px solid #eee; padding-top: 16px; margin-top: 8px; }}
-    .footer {{ background: #f4f6f8; text-align: center; padding: 16px; font-size: 12px; color: #aaa; }}
-  </style>
-</head>
-<body>
-  <div class=""wrapper"">
-    <div class=""header"">
-      <h1>&#128272; Đặt lại mật khẩu</h1>
-    </div>
-    <div class=""body"">
-      <p>Xin chào <strong>{displayName}</strong>,</p>
-      <p>Chúng tôi nhận được yêu cầu đặt lại mật khẩu cho tài khoản <strong>Relief Care</strong> của bạn.</p>
-      <div class=""btn-wrap"">
-        <a href=""{resetLink}"" class=""btn"">Đặt lại mật khẩu</a>
-      </div>
-      <p>Hoặc dán đường link sau vào trình duyệt:</p>
-      <p style=""word-break:break-all; font-size:13px; color:#1565c0;"">{resetLink}</p>
-      <p class=""note"">&#9200; Link có hiệu lực trong <strong>1 giờ</strong>. Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này — tài khoản của bạn vẫn an toàn.</p>
-    </div>
-    <div class=""footer"">© 2025 Relief Care System &nbsp;·&nbsp; support@reliefcare.app</div>
-  </div>
-</body>
-</html>";
+            var providedHash = HashOtp(providedCode);
+            var providedHashBytes = Encoding.UTF8.GetBytes(providedHash);
+            var storedHashBytes = Encoding.UTF8.GetBytes(storedHash);
+
+            if (providedHashBytes.Length != storedHashBytes.Length)
+                return false;
+
+            return CryptographicOperations.FixedTimeEquals(providedHashBytes, storedHashBytes);
         }
 
         private static IDictionary<string, string[]> ConvertErrors(IEnumerable<IdentityError> errors)
