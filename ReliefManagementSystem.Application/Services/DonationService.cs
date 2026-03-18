@@ -19,15 +19,18 @@ namespace ReliefManagementSystem.Application.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserService _currentUserService;
         private readonly IPayOsGateway _payOsGateway;
+        private readonly ICampaignService _campaignService;
 
         public DonationService(
             IUnitOfWork unitOfWork,
             ICurrentUserService currentUserService,
-            IPayOsGateway payOsGateway)
+            IPayOsGateway payOsGateway,
+            ICampaignService campaignService)
         {
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
             _payOsGateway = payOsGateway;
+            _campaignService = campaignService;
         }
 
         public async Task<CreateDonationCheckoutResponse> CreateCheckoutAsync(CreateDonationCheckoutRequest request, CancellationToken cancellationToken = default)
@@ -164,6 +167,7 @@ namespace ReliefManagementSystem.Application.Services
                 donation.DonorName = request.Data.CounterAccountName!;
             }
 
+            var previousStatus = donation.Status;
             donation.Status = MapStatusFromPayOs(request, donation.ExpiresAt);
             if (donation.Status != DonationStatus.Pending)
             {
@@ -172,6 +176,8 @@ namespace ReliefManagementSystem.Application.Services
 
             await _unitOfWork.Donations.UpdateAsync(donation);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            await AdjustCampaignProgressAsync(donation.CampaignId, donation.Amount, previousStatus, donation.Status, cancellationToken);
         }
 
         public async Task<Pagination<AdminDonationItemResponse>> GetAdminDonationsAsync(AdminDonationQueryRequest request, CancellationToken cancellationToken = default)
@@ -267,6 +273,7 @@ namespace ReliefManagementSystem.Application.Services
 
             var payOsInfo = await _payOsGateway.GetPaymentLinkInfoAsync(identifier, cancellationToken);
 
+            var previousStatus = donation.Status;
             donation.Status = MapStatusFromPayOsStatus(payOsInfo.Status, donation.ExpiresAt);
             donation.GatewayResponse = JsonSerializer.Serialize(payOsInfo);
             donation.PayOsPaymentLinkId = payOsInfo.PaymentLinkId ?? donation.PayOsPaymentLinkId;
@@ -277,6 +284,8 @@ namespace ReliefManagementSystem.Application.Services
 
             await _unitOfWork.Donations.UpdateAsync(donation);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            await AdjustCampaignProgressAsync(donation.CampaignId, donation.Amount, previousStatus, donation.Status, cancellationToken);
 
             return MapStatus(donation);
         }
@@ -299,12 +308,15 @@ namespace ReliefManagementSystem.Application.Services
                 : (donation.PayOsOrderCode ?? 0).ToString(CultureInfo.InvariantCulture);
 
             var result = await _payOsGateway.CancelPaymentLinkAsync(identifier, reason, cancellationToken);
+            var previousStatus = donation.Status;
             donation.Status = MapStatusFromPayOsStatus(result.Status, donation.ExpiresAt);
             donation.GatewayResponse = JsonSerializer.Serialize(result);
             donation.ProcessedAt = DateTime.UtcNow;
 
             await _unitOfWork.Donations.UpdateAsync(donation);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            await AdjustCampaignProgressAsync(donation.CampaignId, donation.Amount, previousStatus, donation.Status, cancellationToken);
 
             return MapStatus(donation);
         }
@@ -354,6 +366,30 @@ namespace ReliefManagementSystem.Application.Services
             }
 
             return sb.ToString();
+        }
+
+        private async Task AdjustCampaignProgressAsync(
+            Guid campaignId,
+            decimal amount,
+            DonationStatus previousStatus,
+            DonationStatus newStatus,
+            CancellationToken cancellationToken)
+        {
+            if (previousStatus == newStatus)
+            {
+                return;
+            }
+
+            if (previousStatus != DonationStatus.Completed && newStatus == DonationStatus.Completed)
+            {
+                // Transition into Completed: add the donated amount
+                await _campaignService.UpdateProgressAsync(campaignId, CampaignResourceType.Money, amount, cancellationToken);
+            }
+            else if (previousStatus == DonationStatus.Completed && newStatus != DonationStatus.Completed)
+            {
+                // Transition out of Completed (refund, correction, cancel): subtract the donated amount
+                await _campaignService.UpdateProgressAsync(campaignId, CampaignResourceType.Money, -amount, cancellationToken);
+            }
         }
 
         private static string BuildDescription(long orderCode)

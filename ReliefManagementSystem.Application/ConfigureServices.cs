@@ -42,6 +42,7 @@ namespace ReliefManagementSystem.Application
             // Priority Criteria CRUD
             services.AddScoped<IPriorityCriteriaService, PriorityCriteriaService>();
             services.AddScoped<IDonationService, DonationService>();
+            services.AddScoped<ICampaignService, CampaignService>();
 
             services.AddValidatorsFromAssemblyContaining<UpdateUserProfileRequest>();
             return services;
