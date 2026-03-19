@@ -486,7 +486,7 @@ namespace ReliefManagementSystem.Infrastructure.Data
 
             builder.Entity<ReliefStationTeam>()
                 .HasOne(rst => rst.Team)
-                .WithMany()
+                .WithMany(rst => rst.ReliefStationTeams)
                 .HasForeignKey(rst => rst.TeamId)
                 .OnDelete(DeleteBehavior.Cascade);
 

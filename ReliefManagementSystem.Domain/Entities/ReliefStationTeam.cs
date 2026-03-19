@@ -18,8 +18,6 @@ namespace ReliefManagementSystem.Domain.Entities
         public Guid TeamId { get; set; }
         public Team Team { get; set; } = null!;
 
-         public bool IsActive { get; set; } = true;
-
          public ReliefTeamAssignmentStatus Status { get; set; }
 
          [MaxLength(1000)]
@@ -31,7 +29,5 @@ namespace ReliefManagementSystem.Domain.Entities
          public DateTime? JoinedAt { get; set; }
          public DateTime? RemovedAt{ get; set; }
 
-
-        public DateTime? TransferredAt { get; set; }
     }
 }

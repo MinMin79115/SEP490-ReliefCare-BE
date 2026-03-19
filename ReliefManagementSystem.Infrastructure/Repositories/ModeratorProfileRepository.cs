@@ -15,6 +15,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
         {
             return await _context.ModeratorProfiles
                 .Include(mp => mp.ReliefStation)
+                .ThenInclude(rs => rs.Location)
                 .FirstOrDefaultAsync(mp => mp.UserId == userId, ct);
         }
 

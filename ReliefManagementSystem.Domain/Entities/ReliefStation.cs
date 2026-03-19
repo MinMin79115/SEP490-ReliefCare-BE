@@ -25,8 +25,7 @@ namespace ReliefManagementSystem.Domain.Entities
         public double Longitude { get; set; }
         public double Latitude { get; set; }
 
-        public bool IsActive { get; set; } = true;
-        public ReliefStationStatus Status { get; set; }
+        public ReliefStationStatus ReliefStationStatus { get; set; }
 
         public Location Location { get; set; } = null!;
 
