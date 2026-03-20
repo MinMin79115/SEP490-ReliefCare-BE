@@ -31,13 +31,13 @@ namespace ReliefManagementSystem.API.Controllers
             return BadRequest("Failed to create volunteer profile.");
         }
 
-        [HttpGet("user/{userId:guid}")]
-        public async Task<ActionResult<VolunteerProfileResponse>> GetByUserId(
-    Guid userId,
-    CancellationToken cancellationToken)
+        [Authorize]
+        [HttpGet("my-profile")]
+        public async Task<ActionResult<VolunteerProfileResponse>> GetMyProfile(
+            CancellationToken cancellationToken)
         {
             var result = await _userService
-                .GetVolunteerProfileByUserIdAsync(userId, cancellationToken);
+                .GetMyVolunteerProfileAsync(cancellationToken);
 
             if (result == null)
                 return NotFound();

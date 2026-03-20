@@ -45,5 +45,15 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
         {
             return _context.Users.AsNoTracking().OrderBy(u => u.DisplayName);
         }
+
+        public async Task<ApplicationUser> GetUserById(Guid userId)
+        {
+            var user = await _context.Users.FindAsync(userId);
+
+            if (user == null)
+                throw new Exception("User not found");
+
+            return user;
+        }
     }
 }

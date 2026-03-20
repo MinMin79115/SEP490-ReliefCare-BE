@@ -18,7 +18,7 @@ namespace ReliefManagementSystem.Domain.Entities
         public string? ContactPhone { get; set; }
 
         // Moderator control team
-        public Guid ModeratorId { get; set; }
+        public Guid CreateBy { get; set; }
         public ApplicationUser Moderator { get; set; } = null!;
 
         // Team leader

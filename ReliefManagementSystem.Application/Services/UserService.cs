@@ -217,10 +217,12 @@ namespace ReliefManagementSystem.Application.Services
             return MapToResponse(profile, profile.User);
         }
 
-        public async Task<VolunteerProfileResponse?> GetVolunteerProfileByUserIdAsync(
-            Guid userId,
+        public async Task<VolunteerProfileResponse?> GetMyVolunteerProfileAsync(
             CancellationToken cancellationToken = default)
         {
+            var userId = _currentUserService.UserId
+                         ?? throw new UnauthorizedAccessException("User not authenticated");
+
             var profile = await _unitOfWork.VolunteerProfiles
                 .GetByUserIdWithSkillsAsync(userId);
 

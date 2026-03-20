@@ -37,8 +37,7 @@ namespace ReliefManagementSystem.Application.Interface
             string reason,
             CancellationToken cancellationToken = default);
 
-        Task<VolunteerProfileResponse?> GetVolunteerProfileByUserIdAsync(
-            Guid userId,
+        Task<VolunteerProfileResponse?> GetMyVolunteerProfileAsync(
             CancellationToken cancellationToken = default);
 
         Task<List<VolunteerProfileResponse>> GetAllVolunteerProfilesAsync(

@@ -300,7 +300,7 @@ namespace ReliefManagementSystem.Infrastructure.Data
             builder.Entity<Team>()
                 .HasOne(t => t.Moderator)
                 .WithMany()
-                .HasForeignKey(t => t.ModeratorId)
+                .HasForeignKey(t => t.CreateBy)
                 .OnDelete(DeleteBehavior.Restrict);
 
             //TeamJoinRequest Configuration
