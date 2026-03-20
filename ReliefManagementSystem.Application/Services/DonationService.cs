@@ -35,9 +35,30 @@ namespace ReliefManagementSystem.Application.Services
 
         public async Task<CreateDonationCheckoutResponse> CreateCheckoutAsync(CreateDonationCheckoutRequest request, CancellationToken cancellationToken = default)
         {
-            if (!await _unitOfWork.Campaigns.ExistsAsync(request.CampaignId))
+            var campaign = await _unitOfWork.Campaigns.GetWithGoalsAsync(request.CampaignId, cancellationToken);
+            if (campaign is null)
             {
                 throw new DonationCampaignNotFoundException(request.CampaignId);
+            }
+
+            if (campaign.Type != CampaignType.Fundraising)
+            {
+                throw new DonationInvalidStateException("Chỉ campaign Fundraising mới có thể nhận tiền donation.");
+            }
+
+            if (campaign.Status != CampaignStatus.Active)
+            {
+                throw new DonationInvalidStateException("Campaign không ở trạng thái Active để nhận donation.");
+            }
+
+            if (campaign.StartDate > DateTime.UtcNow || campaign.EndDate < DateTime.UtcNow)
+            {
+                throw new DonationInvalidStateException("Campaign hiện không nằm trong thời gian cho phép nhận donation.");
+            }
+
+            if (!campaign.ResourceGoals.Any(g => g.ResourceType == CampaignResourceType.Money))
+            {
+                throw new DonationInvalidStateException("Campaign không có mục tiêu Money để nhận donation.");
             }
 
             var now = DateTime.UtcNow;

@@ -8,6 +8,7 @@ namespace ReliefManagementSystem.Application.Features.Campaign.Dtos.Responses
         public string Name { get; set; } = string.Empty;
         public CampaignStatus Status { get; set; }
         public CampaignType Type { get; set; }
+        public CampaignCompletionRule CompletionRule { get; set; }
         public DateTime StartDate { get; set; }
         public DateTime EndDate { get; set; }
         public bool AllowOverTarget { get; set; }

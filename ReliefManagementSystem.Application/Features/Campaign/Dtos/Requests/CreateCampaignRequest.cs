@@ -28,6 +28,8 @@ namespace ReliefManagementSystem.Application.Features.Campaign.Dtos.Requests
         [Required]
         public CampaignType Type { get; set; }
 
+        public CampaignCompletionRule CompletionRule { get; set; } = CampaignCompletionRule.RequiredGoalsMet;
+
         public bool AllowOverTarget { get; set; } = true;
 
         /// <summary>

@@ -10,5 +10,7 @@ namespace ReliefManagementSystem.Application.Features.Campaign.Dtos.Requests
 
         [Range(0, double.MaxValue)]
         public decimal TargetAmount { get; set; }
+
+        public bool IsRequired { get; set; } = true;
     }
 }
