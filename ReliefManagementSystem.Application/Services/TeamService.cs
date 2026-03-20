@@ -37,6 +37,7 @@ namespace ReliefManagementSystem.Application.Services
             {
                 Name = request.Name,
                 Description = request.Description,
+                ContactPhone = request.ContactPhone,
                 ModeratorId = moderatorId,
                 LeaderId = null, 
                 Status = TeamStatus.Active,
@@ -45,6 +46,32 @@ namespace ReliefManagementSystem.Application.Services
 
             await _unitOfWork.Teams.AddAsync(team);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // Nếu moderator thuộc một trạm thì tự động gắn team vào trạm đó
+            var moderatorProfile = await _unitOfWork.ModeratorProfiles
+                .GetByUserIdAsync(moderatorId, cancellationToken);
+
+            if (moderatorProfile?.ReliefStationId != null)
+            {
+                var existingAssignment = await _unitOfWork.ReliefStationTeams
+                    .GetByStationAndTeamAsync(moderatorProfile.ReliefStationId.Value, team.TeamId, cancellationToken);
+
+                if (existingAssignment == null)
+                {
+                    var assignment = new ReliefStationTeam
+                    {
+                        ReliefStationTeamId = Guid.NewGuid(),
+                        ReliefStationId = moderatorProfile.ReliefStationId.Value,
+                        TeamId = team.TeamId,
+                        Status = ReliefTeamAssignmentStatus.Approved,
+                        Description = "Auto-assigned when moderator created team",
+                        JoinedAt = DateTime.UtcNow
+                    };
+
+                    await _unitOfWork.ReliefStationTeams.AddAsync(assignment);
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                }
+            }
 
             return await MapToTeamResponse(team, cancellationToken);
         }
@@ -129,6 +156,7 @@ namespace ReliefManagementSystem.Application.Services
 
             team.Name = request.Name;
             team.Description = request.Description;
+            team.ContactPhone = request.ContactPhone;
             team.Status = request.Status;
             team.UpdatedAt = DateTime.UtcNow;
 
@@ -429,6 +457,7 @@ namespace ReliefManagementSystem.Application.Services
                 TeamId = team.TeamId,
                 Name = team.Name,
                 Description = team.Description,
+                ContactPhone = team.ContactPhone,
                 Status = team.Status,
                 ModeratorId = team.ModeratorId,
                 ModeratorName = team.Moderator?.DisplayName ?? team.Moderator?.UserName ?? "Unknown",
@@ -447,6 +476,7 @@ namespace ReliefManagementSystem.Application.Services
                 TeamId = team.TeamId,
                 Name = team.Name,
                 Description = team.Description,
+                ContactPhone = team.ContactPhone,
                 Status = team.Status,
                 Moderator = new ModeratorInfo
                 {

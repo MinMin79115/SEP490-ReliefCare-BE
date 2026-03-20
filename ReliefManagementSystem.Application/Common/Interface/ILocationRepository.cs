@@ -14,5 +14,6 @@ namespace ReliefManagementSystem.Application.Common.Interface
         Task<List<Location>> GetChildrenByParentAsync(Guid parentId, LocationLevel level);
         Task<List<Location>> SearchByPathAsync(string path);
         Task<List<Location>> GetAllActiveAsync();
+        Task<string?> GetFullNameByLocationId(Guid locationId);
     }
 }

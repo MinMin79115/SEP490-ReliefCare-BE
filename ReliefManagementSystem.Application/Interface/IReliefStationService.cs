@@ -16,6 +16,8 @@ namespace ReliefManagementSystem.Application.Interface
         Task<(List<ReliefStationResponse> Items, int TotalCount)> GetProvincialStationsAsync(
             string? search, int pageIndex, int pageSize, CancellationToken cancellationToken);
 
+        Task<ReliefStationResponse> GetCurrentModeratorStationAsync(CancellationToken cancellationToken);
+
         Task<ReliefStationResponse> DisableProvincialStationAsync(Guid stationId, CancellationToken cancellationToken);
         
         Task<ReliefStationResponse> ActivateProvincialStationAsync(Guid stationId, CancellationToken cancellationToken);

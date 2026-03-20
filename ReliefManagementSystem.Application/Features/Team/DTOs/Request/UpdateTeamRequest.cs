@@ -13,6 +13,8 @@ namespace ReliefManagementSystem.Application.Features.Team.DTOs.Request
 
         public string? Description { get; set; }
 
+        public string? ContactPhone { get; set; }
+
         public TeamStatus Status { get; set; }
 
         // Moderator can change leader when update team

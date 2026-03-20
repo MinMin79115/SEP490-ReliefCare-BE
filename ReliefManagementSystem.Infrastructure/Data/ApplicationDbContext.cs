@@ -35,6 +35,7 @@ namespace ReliefManagementSystem.Infrastructure.Data
         public DbSet<TeamMember> TeamMembers { get; set; }
         public DbSet<TeamJoinRequest> TeamJoinRequests { get; set; }
         public DbSet<StationJoinRequest> StationJoinRequests { get; set; }
+        public DbSet<EmailOtp> EmailOtps { get; set; }
 
 
         // Vehicle Management
@@ -350,6 +351,20 @@ namespace ReliefManagementSystem.Infrastructure.Data
             builder.Entity<StationJoinRequest>()
                 .HasIndex(sjr => new { sjr.TeamId, sjr.ReliefStationId, sjr.Status });
 
+            builder.Entity<EmailOtp>()
+                .HasOne(x => x.User)
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<EmailOtp>()
+                .Property(x => x.CodeHash)
+                .HasMaxLength(256)
+                .IsRequired();
+
+            builder.Entity<EmailOtp>()
+                .HasIndex(x => new { x.UserId, x.Purpose, x.CreatedAt });
+
             //RefreshToken Configuration
             builder.Entity<RefreshToken>()
                 .HasOne(r => r.User)
@@ -472,7 +487,7 @@ namespace ReliefManagementSystem.Infrastructure.Data
 
             builder.Entity<ReliefStationTeam>()
                 .HasOne(rst => rst.Team)
-                .WithMany()
+                .WithMany(rst => rst.ReliefStationTeams)
                 .HasForeignKey(rst => rst.TeamId)
                 .OnDelete(DeleteBehavior.Cascade);
 

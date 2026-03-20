@@ -15,6 +15,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
         // User Management
         public IUserRepository Users { get; }
         public IRefreshTokenRepository RefreshTokens { get; }
+        public IEmailOtpRepository EmailOtps { get; }
 
         // Manager Profiles
         public IManagerProfileRepository ManagerProfiles { get; }
@@ -73,6 +74,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             _context = context;
             Users = new UserRepository(_context);
             RefreshTokens = new RefreshTokenRepository(_context);
+            EmailOtps = new EmailOtpRepository(_context);
             ManagerProfiles = new ManagerProfileRepository(_context);
             ModeratorProfiles = new ModeratorProfileRepository(_context);
 

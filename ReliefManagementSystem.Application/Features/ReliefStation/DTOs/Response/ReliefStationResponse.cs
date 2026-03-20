@@ -12,7 +12,6 @@ namespace ReliefManagementSystem.Application.Features.ReliefStation.DTOs.Respons
         public double Longitude { get; set; }
         public double Latitude { get; set; }
         public ReliefStationStatus Status { get; set; }
-        public bool IsActive { get; set; }
         public ReliefStationLevel Level { get; set; }
         public Guid LocationId { get; set; }
         public string LocationName { get; set; } = null!;
