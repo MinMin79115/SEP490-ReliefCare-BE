@@ -37,7 +37,7 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                 userManager,
                 context,
                 email: "moderator1@system.com",
-                userName: "moderator",
+                userName: "moderator1",
                 password: "Moderator@123",
                 role: Role.Moderator);
             
@@ -45,7 +45,7 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                 userManager,
                 context,
                 email: "moderator2@system.com",
-                userName: "moderator",
+                userName: "moderator2",
                 password: "Moderator@123",
                 role: Role.Moderator);
             
@@ -53,9 +53,57 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                 userManager,
                 context,
                 email: "moderator3@system.com",
-                userName: "moderator",
+                userName: "moderator3",
                 password: "Moderator@123",
                 role: Role.Moderator);
+
+            // ⭐ ACCOUNT MANAGER - CẤP VÙNG (Regional)
+            await CreateUserAsync(
+                userManager,
+                context,
+                email: "regional.manager@system.com",
+                userName: "regional.manager",
+                password: "Manager@123",
+                role: Role.Manager,
+                managerLevel: LocationLevel.Region);
+
+            await CreateUserAsync(
+                userManager,
+                context,
+                email: "regional.manager1@system.com",
+                userName: "regional.manager1",
+                password: "Manager@123",
+                role: Role.Manager,
+                managerLevel: LocationLevel.Region);
+
+            await CreateUserAsync(
+                userManager,
+                context,
+                email: "regional.manager2@system.com",
+                userName: "regional.manager2",
+                password: "Manager@123",
+                role: Role.Manager,
+                managerLevel: LocationLevel.Region);
+
+            await CreateUserAsync(
+                userManager,
+                context,
+                email: "regional.manager3@system.com",
+                userName: "regional.manager3",
+                password: "Manager@123",
+                role: Role.Manager,
+                managerLevel: LocationLevel.Region);
+
+            // ⭐ ACCOUNT MANAGER - CẤP TỈNH (Province)
+            await CreateUserAsync(
+                userManager,
+                context,
+                email: "provincial.manager@system.com",
+                userName: "provincial.manager",
+                password: "Manager@123",
+                role: Role.Manager,
+                managerLevel: LocationLevel.Province);
+
 
             await CreateUserAsync(
                 userManager,
@@ -152,7 +200,8 @@ namespace ReliefManagementSystem.Infrastructure.Seed
             string email,
             string userName,
             string password,
-            Role role)
+            Role role,
+            LocationLevel? managerLevel = null)
         {
             // ⭐ KIỂM TRA CẢ EMAIL VÀ USERNAME
             var existingUserByEmail = await userManager.FindByEmailAsync(email);
@@ -188,6 +237,46 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                     {
                         UserId = user.Id,
                         VerificationStatus = VerificationStatus.Pending
+                    });
+
+                    await context.SaveChangesAsync();
+                }
+            }
+
+            // ⭐ SEED MANAGER PROFILE
+            if (role == Role.Manager && managerLevel.HasValue)
+            {
+                var exists = await context.ManagerProfiles
+                    .AnyAsync(mp => mp.UserId == user.Id);
+
+                if (!exists)
+                {
+                    context.ManagerProfiles.Add(new ManagerProfile
+                    {
+                        UserId = user.Id,
+                        Level = (LocationLevel)managerLevel.Value,
+                        AppointedAt = DateTime.UtcNow
+                    });
+
+                    await context.SaveChangesAsync();
+                }
+            }
+
+            // ⭐ SEED MODERATOR PROFILE
+            if (role == Role.Moderator)
+            {
+                var exists = await context.ModeratorProfiles
+                    .AnyAsync(mp => mp.UserId == user.Id);
+
+                if (!exists)
+                {
+                    context.ModeratorProfiles.Add(new ModeratorProfile
+                    {
+                        UserId = user.Id,
+                        AppointedAt = DateTime.UtcNow,
+                        IsStationHead = false,
+                        Status = ModeratorStatus.Inactive,
+                        StatusReason = "Initial state"
                     });
 
                     await context.SaveChangesAsync();

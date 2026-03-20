@@ -1,10 +1,12 @@
-﻿using Microsoft.AspNetCore.Authentication.Google;
+using Microsoft.AspNetCore.Authentication.Google;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using ReliefManagementSystem.Application.Features.Auth.DTOs;
 using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Domain.Entities;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace ReliefManagementSystem.API.Controllers
 {
@@ -64,6 +66,29 @@ namespace ReliefManagementSystem.API.Controllers
             CancellationToken cancellationToken)
         {
             return Ok(await _authService.RegisterAsync(request, cancellationToken));
+        }
+
+        [HttpPost("verify-email-otp")]
+        [AllowAnonymous]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> VerifyEmailOtp(
+            [FromBody] VerifyEmailOtpRequest request,
+            CancellationToken cancellationToken)
+        {
+            await _authService.VerifyEmailOtpAsync(request, cancellationToken);
+            return Ok(new { message = "Email verified successfully." });
+        }
+
+        [HttpPost("resend-email-otp")]
+        [AllowAnonymous]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        public async Task<IActionResult> ResendEmailOtp(
+            [FromBody] ResendEmailOtpRequest request,
+            CancellationToken cancellationToken)
+        {
+            await _authService.ResendEmailOtpAsync(request, cancellationToken);
+            return NoContent();
         }
 
         /// <summary>
@@ -191,5 +216,68 @@ namespace ReliefManagementSystem.API.Controllers
 
             return Ok(new { user });
         }
+
+        [Authorize]
+        [SwaggerOperation(
+            Summary = "Change password",
+            Description = "Change password for the currently authenticated user."
+        )]
+        [SwaggerResponse(204, "Password changed successfully")]
+        [SwaggerResponse(400, "Validation error")]
+        [SwaggerResponse(401, "Unauthorized")]
+        [HttpPost("change-password")]
+        public async Task<IActionResult> ChangePassword(
+            [FromBody] ChangePasswordRequest request,
+            CancellationToken cancellationToken)
+        {
+            await _authService.ChangePasswordAsync(
+                request,
+                cancellationToken);
+
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Bước 1: Gửi OTP quên mật khẩu qua mobile/email
+        /// </summary>
+        [HttpPost("forgot-password/send-otp")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> SendForgotPasswordOtp(
+            [FromBody] SendForgotPasswordOtpRequest request,
+            CancellationToken cancellationToken)
+        {
+            await _authService.SendForgotPasswordOtpAsync(request, cancellationToken);
+            return NoContent();
+        }
+
+        /// <summary>
+        /// Bước 2: Xác thực OTP quên mật khẩu và nhận reset token
+        /// </summary>
+        [HttpPost("forgot-password/verify-otp")]
+        [ProducesResponseType(typeof(AuthResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> VerifyForgotPasswordOtp(
+            [FromBody] VerifyForgotPasswordOtpRequest request,
+            CancellationToken cancellationToken)
+        {
+            var response = await _authService.VerifyForgotPasswordOtpAsync(request, cancellationToken);
+            return Ok(response);
+        }
+
+        /// <summary>
+        /// Bước 3: Đặt lại mật khẩu bằng reset token sau khi xác thực OTP
+        /// </summary>
+        [HttpPost("forgot-password/reset")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<IActionResult> ResetPasswordByToken(
+            [FromBody] ResetPasswordByTokenRequest request,
+            CancellationToken cancellationToken)
+        {
+            await _authService.ResetPasswordByTokenAsync(request, cancellationToken);
+            return NoContent();
+        }
     }
 }
+

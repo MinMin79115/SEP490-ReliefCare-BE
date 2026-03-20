@@ -21,5 +21,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
 
         Task<TeamJoinRequest?> GetExistingPendingRequestAsync(Guid teamId, Guid volunteerId);
 
+        IQueryable<TeamJoinRequest> GetQueryableWithDetails();
+
     }
 }

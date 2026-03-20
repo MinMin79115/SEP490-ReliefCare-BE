@@ -10,7 +10,6 @@ namespace ReliefManagementSystem.Domain.Enum
         {
             Region = 1,
             Province = 2,
-            District = 3,
-            Ward
+            Commune = 3,
         }
 }

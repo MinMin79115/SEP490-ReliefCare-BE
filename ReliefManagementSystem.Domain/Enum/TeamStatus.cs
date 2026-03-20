@@ -10,6 +10,7 @@ namespace ReliefManagementSystem.Domain.Enum
     {
         Active = 1,
         Inactive = 2,
-        Completed = 3
+        Suspended = 3,
+        Archived = 4
     }
 }

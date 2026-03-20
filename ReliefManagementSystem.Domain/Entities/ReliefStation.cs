@@ -1,4 +1,5 @@
-﻿using ReliefManagementSystem.Domain.Enum;
+using ReliefManagementSystem.Domain.Enum;
+using ReliefManagementSystem.Domain.Entities.Common;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
@@ -8,7 +9,7 @@ using System.Threading.Tasks;
 
 namespace ReliefManagementSystem.Domain.Entities
 {
-    public class ReliefStation
+    public class ReliefStation : AuditableEntity
     {
         public Guid ReliefStationId { get; set; }
 
@@ -16,34 +17,36 @@ namespace ReliefManagementSystem.Domain.Entities
         [MaxLength(255)]
         public string Name { get; set; } = null!;
 
-        public Guid ManagerId { get; set; }
         public Guid LocationId { get; set; }
-        public String? Address { get; set; }
+        public string? Address { get; set; }
+        public string? ContactNumber { get; set; }
 
-        public String? ContactNumber { get; set; }
-
-        public DateTime CreatedAt { get; set; }
-            
-        public DateTime UpdatedAt { get; set; }
-
-        public Guid CreatedBy { get; set; }
-
+        public ReliefStationLevel Level { get; set; }
         public double Longitude { get; set; }
         public double Latitude { get; set; }
 
-        public bool IsActive { get; set; }
+        public ReliefStationStatus ReliefStationStatus { get; set; }
 
-        public RelifeStationStatus Status { get; set; }
-
-        public ApplicationUser Manager { get; set; } = null!;
         public Location Location { get; set; } = null!;
+
+        public ICollection<CampaignStation> CampaignStations { get; set; } = new List<CampaignStation>();
+
+        /// <summary>Danh sách Moderator được gán vào trạm này (có thể có 1 IsStationHead = true).</summary>
+        public ICollection<ModeratorProfile> Moderators { get; set; } = new List<ModeratorProfile>();
 
         public ICollection<Inventory> Inventories { get; set; } = new List<Inventory>();
 
-        public ICollection<ReliefStationTeam>  ReliefStations { get; set; } = new List<ReliefStationTeam>();
+        public ICollection<ReliefStationTeam> ReliefStationTeams { get; set; } = new List<ReliefStationTeam>();
+        public ICollection<StationJoinRequest> StationJoinRequests { get; set; } = new List<StationJoinRequest>();
 
         public ICollection<Vehicle> Vehicles { get; set; } = new List<Vehicle>();
 
+        /// <summary>Các phiếu vận chuyển hàng MÀ trạm này xuất đi</summary>
+        public ICollection<SupplyTransfer> OutboundTransfers { get; set; } = new List<SupplyTransfer>();
 
+        /// <summary>Các phiếu vận chuyển hàng MÀ trạm này nhận vào</summary>
+        public ICollection<SupplyTransfer> InboundTransfers { get; set; } = new List<SupplyTransfer>();
+
+        public ICollection<InKindDonation> ReceivedInKindDonations { get; set; } = new List<InKindDonation>();
     }
 }

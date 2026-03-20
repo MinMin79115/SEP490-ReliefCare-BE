@@ -1,4 +1,4 @@
-﻿using ReliefManagementSystem.Application.Features.Auth.DTOs;
+using ReliefManagementSystem.Application.Features.Auth.DTOs;
 using ReliefManagementSystem.Domain.Entities;
 using System;
 using System.Collections.Generic;
@@ -26,5 +26,22 @@ namespace ReliefManagementSystem.Application.Interface
 
         Task<ApplicationUser?> ValidateByGoogleAsync(
     CancellationToken cancellationToken);
+
+        Task ChangePasswordAsync(
+            string currentPassword,
+            string newPassword,
+            CancellationToken cancellationToken);
+
+        Task SendEmailOtpAsync(ApplicationUser user, CancellationToken cancellationToken);
+
+        Task VerifyEmailOtpAsync(string email, string code, CancellationToken cancellationToken);
+
+        Task ResendEmailOtpAsync(string email, CancellationToken cancellationToken);
+
+        Task SendForgotPasswordOtpAsync(string email, CancellationToken cancellationToken);
+
+        Task<string> VerifyForgotPasswordOtpAsync(string email, string otpCode, CancellationToken cancellationToken);
+
+        Task ResetPasswordByTokenAsync(string email, string resetToken, string newPassword, CancellationToken cancellationToken);
     }
 }

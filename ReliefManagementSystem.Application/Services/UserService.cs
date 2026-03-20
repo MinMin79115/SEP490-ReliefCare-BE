@@ -1,5 +1,9 @@
 ﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using ReliefManagementSystem.Application.Common.Exceptions.Auth;
 using ReliefManagementSystem.Application.Common.Interface;
+using ReliefManagementSystem.Application.Common.Models;
+using ReliefManagementSystem.Application.Features.User;
 using ReliefManagementSystem.Application.Features.VolunteerRequest.Request;
 using ReliefManagementSystem.Application.Features.VolunteerRequest.Response;
 using ReliefManagementSystem.Application.Interface;
@@ -20,18 +24,87 @@ namespace ReliefManagementSystem.Application.Services
         private readonly ICurrentUserService _currentUserService;
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<IdentityRole<Guid>> _roleManager;
+        private readonly IImageService _imageService;
 
 
-        public UserService(IUnitOfWork unitOfWork, ICurrentUserService currentUserService, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole<Guid>> roleManager)
+        public UserService(IUnitOfWork unitOfWork, ICurrentUserService currentUserService, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole<Guid>> roleManager, IImageService imageService)
         {
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
             _userManager = userManager;
             _roleManager = roleManager;
+            _imageService = imageService;
         }
+
+        /// <summary>
+        /// Lấy profile của user đang đăng nhập.
+        /// Throw UserNotFoundException nếu user không tồn tại.
+        /// </summary>
+        public async Task<UserProfileResponse> GetProfileAsync(CancellationToken cancellationToken = default)
+        {
+            var userId = _currentUserService.UserId
+                         ?? throw new UnauthorizedAccessException("User not authenticated"); 
+            var user = await _unitOfWork.Users.GetByIdAsync(userId);
+
+            if (user == null)
+                throw new UserNotFoundException(userId.ToString());
+
+            var roles = await _userManager.GetRolesAsync(user);
+
+            return new UserProfileResponse
+            {
+                Id = user.Id,
+                DisplayName = user.DisplayName,
+                Email = user.Email,
+                PhoneNumber = user.PhoneNumber,
+                DateOfBirth = user.DateOfBirth,
+                Gender = user.Gender,
+                PictureUrl = user.PictureUrl,
+                Roles = roles.ToList()
+            };
+        }
+
+        /// <summary>
+        /// Lấy danh sách tất cả users có phân trang (dành cho Admin).
+        /// Trả về Pagination&lt;UserProfileResponse&gt; với thông tin phân trang.
+        /// </summary>
+        public async Task<Pagination<UserProfileResponse>> GetAllProfilesAsync(
+            GetAllUsersRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var query = _unitOfWork.Users.GetAllUsersQueryable();
+
+            var pagedUsers = await Pagination<ApplicationUser>.ToPagedList(
+                query, request.PageIndex, request.PageSize);
+
+            var userResponses = new List<UserProfileResponse>();
+            foreach (var user in pagedUsers.Items!)
+            {
+                var roles = await _userManager.GetRolesAsync(user);
+                userResponses.Add(new UserProfileResponse
+                {
+                    Id = user.Id,
+                    DisplayName = user.DisplayName,
+                    Email = user.Email,
+                    PhoneNumber = user.PhoneNumber,
+                    DateOfBirth = user.DateOfBirth,
+                    Gender = user.Gender,
+                    PictureUrl = user.PictureUrl,
+                    Roles = roles.ToList()
+                });
+            }
+
+            return new Pagination<UserProfileResponse>(
+                userResponses,
+                pagedUsers.TotalCount,
+                pagedUsers.CurrentPage,
+                pagedUsers.PageSize);
+        }
+
         public async Task<VolunteerProfileResponse> CreateVolunteerProfileAsync(CreateVolunteerRequest request, CancellationToken cancellationToken = default)
         {
-            var userId = _currentUserService.UserId;
+            var userId = _currentUserService.UserId
+                         ?? throw new UnauthorizedAccessException("User not authenticated"); 
             var user = await _unitOfWork.Users.GetByIdWithVolunteerProfileAsync(userId);
 
             if (user == null || user.VolunteerProfile != null)
@@ -46,9 +119,19 @@ namespace ReliefManagementSystem.Application.Services
                 VerifiedAt = null,
                 VerifiedBy = null,
                 Descriptions = request.Descriptions,
+                YearsOfExperience = request.YearsOfExperience,
+                Status = VolunteerStatus.Inactive,
                 VolunteerSkills = request.SkillIds.Select(skillId => new VolunteerSkill
                 {
                     SkillId = skillId
+                }).ToList(),
+                Certificates = request.Certificates.Select(c => new VolunteerCertificate
+                {
+                    Name = c.Name,
+                    IssuedBy = c.IssuedBy,
+                    IssuedDate = c.IssuedDate,
+                    ExpiryDate = c.ExpiryDate,
+                    FileUrl = c.FileUrl
                 }).ToList()
             };
             await _unitOfWork.VolunteerProfiles.AddAsync(volunteerProfile);
@@ -61,7 +144,18 @@ namespace ReliefManagementSystem.Application.Services
                 PhoneNumber = user.PhoneNumber,
                 Descriptions = volunteerProfile.Descriptions,
                 VerificationStatus = volunteerProfile.VerificationStatus,
-                Skills = volunteerProfile.VolunteerSkills.Select(vs => vs.SkillId).ToList()
+                YearsOfExperience = volunteerProfile.YearsOfExperience,
+                Skills = volunteerProfile.VolunteerSkills.Select(vs => vs.SkillId).ToList(),
+                Certificates = volunteerProfile.Certificates
+                    .Select(c => new VolunteerCertificateResponse
+                    {
+                        Name = c.Name,
+                        IssuedBy = c.IssuedBy,
+                        IssuedDate = c.IssuedDate,
+                        ExpiryDate = c.ExpiryDate,
+                        FileUrl = c.FileUrl
+                    }).ToList()
+                    
             };
         }
 
@@ -80,6 +174,7 @@ namespace ReliefManagementSystem.Application.Services
             profile.VerificationStatus = VerificationStatus.Approved;
             profile.VerifiedAt = DateTime.UtcNow;
             profile.VerifiedBy = _currentUserService.UserId;
+            profile.Status = VolunteerStatus.Active; 
 
             var currentRoles = await _userManager.GetRolesAsync(user);
 
@@ -115,6 +210,7 @@ namespace ReliefManagementSystem.Application.Services
             profile.VerifiedAt = DateTime.UtcNow;
             profile.VerifiedBy = _currentUserService.UserId;
             profile.Reason = reason;
+            profile.Status = VolunteerStatus.Inactive;
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -147,8 +243,8 @@ namespace ReliefManagementSystem.Application.Services
 
         public async Task<VolunteerProfileResponse> AddNewSkillVolunteer(AddVolunteerRequest request,    CancellationToken cancellationToken)
         {
-            var userId = _currentUserService.UserId;
-
+            var userId = _currentUserService.UserId
+                         ?? throw new UnauthorizedAccessException("User not authenticated");
             var user = await _unitOfWork.VolunteerProfiles
                 .GetByIdWithVolunteerProfileAsync(userId);
 
@@ -197,8 +293,8 @@ namespace ReliefManagementSystem.Application.Services
 
         public async Task<VolunteerProfileResponse> RemoveSkillVolunteer(RemoveVolunteerSkillRequest request, CancellationToken cancellationToken)
         {
-            var userId = _currentUserService.UserId;
-
+            var userId = _currentUserService.UserId
+                         ?? throw new UnauthorizedAccessException("User not authenticated");
             var user = await _unitOfWork.VolunteerProfiles
                 .GetByIdWithVolunteerProfileAsync(userId);
 
@@ -238,8 +334,8 @@ namespace ReliefManagementSystem.Application.Services
 
         public async Task<List<VolunteerSkillResponse>> GetAllSkillsOfVolunteerAsync(CancellationToken cancellationToken)
         {
-            var userId = _currentUserService.UserId;
-
+            var userId = _currentUserService.UserId
+                         ?? throw new UnauthorizedAccessException("User not authenticated");
             var user = await _unitOfWork.VolunteerProfiles
                 .GetByIdWithVolunteerProfileAsync(userId);
 
@@ -258,6 +354,66 @@ namespace ReliefManagementSystem.Application.Services
                 .ToList();
 
             return skills;
+        }
+
+
+        /// <summary>
+        /// Cập nhật profile user đang đăng nhập (partial update).
+        /// Throw UserNotFoundException nếu user không tồn tại.
+        /// </summary>
+        public async Task<UserProfileResponse> UpdateUserProfileAsync(
+            UpdateUserProfileRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var userId = _currentUserService.UserId
+                         ?? throw new UnauthorizedAccessException("User not authenticated");
+            var user = await _unitOfWork.Users.GetByIdAsync(userId);
+
+            if (user == null)
+                throw new UserNotFoundException(userId.ToString());
+
+            // Update only non-null fields (partial update)
+            if (request.DisplayName != null)
+                user.DisplayName = request.DisplayName;
+
+            if (request.PhoneNumber != null)
+                user.PhoneNumber = request.PhoneNumber;
+
+            if (request.DateOfBirth.HasValue)
+                user.DateOfBirth = request.DateOfBirth.Value;
+
+            if (request.Gender != null)
+                user.Gender = request.Gender;
+
+            // Handle avatar upload
+            if (request.PictureUrl != null)
+            {
+                if (!string.IsNullOrEmpty(user.PicturePublicId) &&
+                    !string.IsNullOrEmpty(request.PicturePublicId))
+                {
+                    await _imageService.DeleteImageAsync(user.PicturePublicId);
+                }
+
+                user.PictureUrl = request.PictureUrl;
+                user.PicturePublicId = request.PicturePublicId;
+            }
+
+            await _unitOfWork.Users.UpdateAsync(user);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            var roles = await _userManager.GetRolesAsync(user);
+
+            return new UserProfileResponse
+            {
+                Id = user.Id,
+                DisplayName = user.DisplayName,
+                Email = user.Email,
+                PhoneNumber = user.PhoneNumber,
+                DateOfBirth = user.DateOfBirth,
+                Gender = user.Gender,
+                PictureUrl = user.PictureUrl,
+                Roles = roles.ToList()
+            };
         }
 
 

@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 using ReliefManagementSystem.Application.Features.Auth.DTOs;
 using ReliefManagementSystem.Application.Interface;
 using System;
@@ -26,21 +26,15 @@ namespace ReliefManagementSystem.Application.Services
             RegisterRequest request,
             CancellationToken cancellationToken)
         {
-            var user = await _identityAuthService.RegisterAsync(
+            // Tạo user và gửi OTP xác thực email
+            await _identityAuthService.RegisterAsync(
                 request,
                 cancellationToken);
 
-            var token = await _tokenService.GenerateTokenAsync(
-                user,
-                new[] { "api" },
-                cancellationToken);
-
+            // Không cấp JWT ngay — user phải xác thực email trước
             return new AuthResponse
             {
-                UserId = user.Id,
-                AccessToken = token.AccessToken,
-                RefreshToken = token.RefreshToken,
-                AccessTokenExpires = token.AccessTokenExpires
+                Message = "Registration successful. Please check your email for 6-digit verification code."
             };
         }
 
@@ -104,6 +98,63 @@ namespace ReliefManagementSystem.Application.Services
                 RefreshToken = token.RefreshToken,
                 AccessTokenExpires = token.AccessTokenExpires
             };
+        }
+
+        public async Task ChangePasswordAsync(
+            ChangePasswordRequest request,
+            CancellationToken cancellationToken)
+        {
+            await _identityAuthService.ChangePasswordAsync(
+                request.CurrentPassword,
+                request.NewPassword,
+                cancellationToken
+            );
+        }
+
+        public async Task SendForgotPasswordOtpAsync(
+            SendForgotPasswordOtpRequest request,
+            CancellationToken cancellationToken)
+        {
+            await _identityAuthService.SendForgotPasswordOtpAsync(
+                request.Email,
+                cancellationToken);
+        }
+
+        public async Task<AuthResponse> VerifyForgotPasswordOtpAsync(
+            VerifyForgotPasswordOtpRequest request,
+            CancellationToken cancellationToken)
+        {
+            var resetToken = await _identityAuthService.VerifyForgotPasswordOtpAsync(
+                request.Email,
+                request.OtpCode,
+                cancellationToken);
+
+            return new AuthResponse
+            {
+                Message = "OTP verified. You can reset password now.",
+                ResetToken = resetToken
+            };
+        }
+
+        public async Task ResetPasswordByTokenAsync(
+            ResetPasswordByTokenRequest request,
+            CancellationToken cancellationToken)
+        {
+            await _identityAuthService.ResetPasswordByTokenAsync(
+                request.Email,
+                request.ResetToken,
+                request.NewPassword,
+                cancellationToken);
+        }
+
+        public async Task VerifyEmailOtpAsync(VerifyEmailOtpRequest request, CancellationToken cancellationToken)
+        {
+            await _identityAuthService.VerifyEmailOtpAsync(request.Email, request.Code, cancellationToken);
+        }
+
+        public async Task ResendEmailOtpAsync(ResendEmailOtpRequest request, CancellationToken cancellationToken)
+        {
+            await _identityAuthService.ResendEmailOtpAsync(request.Email, cancellationToken);
         }
     }
 }

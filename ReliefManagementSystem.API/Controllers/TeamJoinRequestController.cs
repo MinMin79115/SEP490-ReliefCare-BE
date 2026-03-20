@@ -42,11 +42,14 @@ namespace ReliefManagementSystem.API.Controllers
         // GET /api/team-join-request/my-requests
         [HttpGet("my-requests")]
         [Authorize(Roles = "Volunteer")]
-        [SwaggerOperation(OperationId = "GetMyTeamJoinRequests", Description = "Volunteer xem danh sách yêu cầu của mình và trạng thái")]
-        public async Task<IActionResult> GetMyRequests(CancellationToken cancellationToken)
+        [SwaggerOperation(OperationId = "GetMyTeamJoinRequests", Description = "Volunteer xem danh sách yêu cầu của mình và trạng thái có phân trang")]
+        public async Task<IActionResult> GetMyRequests(
+            [FromQuery] int pageIndex = 1,
+            [FromQuery] int pageSize = 10,
+            CancellationToken cancellationToken = default)
         {
             var volunteerId = GetCurrentUserId();
-            var result = await _service.GetMyRequestsAsync(volunteerId, cancellationToken);
+            var result = await _service.GetMyRequestsAsync(volunteerId, pageIndex, pageSize, cancellationToken);
             return Ok(result);
         }
 
@@ -102,11 +105,15 @@ namespace ReliefManagementSystem.API.Controllers
         // GET /api/team-join-request/team/{teamId}
         [HttpGet("team/{teamId:guid}")]
         [Authorize(Roles = "Moderator")]
-        [SwaggerOperation(OperationId = "GetTeamJoinRequestsByTeam", Description = "Moderator xem yêu cầu tham gia của volunteers có skills xin vào team của mình")]
-        public async Task<IActionResult> GetRequestsByTeam(Guid teamId, CancellationToken cancellationToken)
+        [SwaggerOperation(OperationId = "GetTeamJoinRequestsByTeam", Description = "Moderator xem yêu cầu tham gia của volunteers có skills xin vào team của mình có phân trang")]
+        public async Task<IActionResult> GetRequestsByTeam(
+            Guid teamId,
+            [FromQuery] int pageIndex = 1,
+            [FromQuery] int pageSize = 10,
+            CancellationToken cancellationToken = default)
         {
             var moderatorId = GetCurrentUserId();
-            var result = await _service.GetRequestsByTeamAsync(teamId, moderatorId, cancellationToken);
+            var result = await _service.GetRequestsByTeamAsync(teamId, moderatorId, pageIndex, pageSize, cancellationToken);
             return Ok(result);
         }
 

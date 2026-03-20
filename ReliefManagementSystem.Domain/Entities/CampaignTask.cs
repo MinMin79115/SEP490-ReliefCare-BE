@@ -1,4 +1,4 @@
-﻿using ReliefManagementSystem.Domain.Enum;
+using ReliefManagementSystem.Domain.Enum;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -18,6 +18,7 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public DateTime StartDate { get; set; }
         public DateTime? DueDate { get; set; }
+        public Guid CreatedBy { get; set; }
 
         public CampaignTaskStatus Status { get; set; }
         public TaskPriority Priority { get; set; }
@@ -25,5 +26,6 @@ namespace ReliefManagementSystem.Domain.Entities
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
         public CampaignTeam CampaignTeam { get; set; } = default!;
         public ICollection<MemberTask> MemberTasks { get; set; } = new List<MemberTask>();
+        public ICollection<CampaignTaskItem> CampaignTaskItems { get; set; } = new List<CampaignTaskItem>();
     }
 }

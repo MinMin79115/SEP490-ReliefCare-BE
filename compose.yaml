@@ -1,133 +1,161 @@
-﻿services:
+﻿# =============================================================
+# ReliefCare - Local Development Docker Compose
+# =============================================================
+# Dùng để chạy và test trên máy local.
+# Dùng biến môi trường qua file .env (không commit secret)
+#
+# Cách dùng:
+#   docker compose up --build
+#   docker compose up --build -d   (chạy background)
+#   docker compose down            (dừng)
+#   docker compose down -v         (dừng + xóa volume)
+#   docker compose logs -f         (xem log)
+#
+# Swagger UI: http://localhost:8080/swagger
+# API:        http://localhost:8080
+# PostgreSQL: localhost:5432
+# pgAdmin:    http://localhost:5050  (admin@reliefcare.local / admin123)
+# =============================================================
+
+services:
+  # -----------------------------------------------------------
+  # PostgreSQL Database
+  # -----------------------------------------------------------
   postgres:
     image: postgres:16-alpine
-    container_name: reliefcare-postgres
+    container_name: reliefcare-local-postgres
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-relief_db}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres123}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
       - "5432:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - postgres_local_data:/var/lib/postgresql/data
     networks:
-      - reliefcare-network
+      - reliefcare-local
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-relief_db}"]
+      test: ["CMD-SHELL", "pg_isready -U postgres -d relief_db"]
       interval: 10s
       timeout: 5s
       retries: 5
-    profiles:
-      - production
-      - development
-      - reliefcare-api
+      start_period: 15s
+
+  # -----------------------------------------------------------
+  # ReliefCare API - Build từ source code local
+  # -----------------------------------------------------------
   reliefcare-api:
-    image: ${REGISTRY:-reliefcare-api}:latest
-    container_name: reliefcare-api
+    container_name: reliefcare-local-api
     restart: unless-stopped
     build:
       context: .
       dockerfile: ReliefManagementSystem.API/Dockerfile
+      args:
+        BUILD_CONFIGURATION: Debug
     depends_on:
       postgres:
         condition: service_healthy
+    env_file:
+      - .env
     environment:
-      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-relief_db};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres123}"
-      
-      Jwt__Key: ${JWT_KEY:-docker-dev-reliefcare-secret-key-change-this-in-production-min-32-chars}
-      Jwt__Issuer: ${JWT_ISSUER:-ReliefSystem}
-      Jwt__Audience: ${JWT_AUDIENCE:-ReliefClient}
-      Jwt__AccessTokenMinutes: "15"
+      # Database
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-relief_db};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD}"
+
+      # JWT - chỉ dùng cho local, KHÔNG dùng key này cho production
+      Jwt__Key: ${JWT_KEY}
+      Jwt__Issuer: "ReliefSystem"
+      Jwt__Audience: "ReliefClient"
+      Jwt__AccessTokenMinutes: "60"
       Jwt__RefreshTokenDays: "7"
-      
+
+      # Google OAuth - để trống, không test Google login trên local docker
       AuthenticationGoogle__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
       AuthenticationGoogle__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
-      
-      # CORS - Add your frontend URLs
+
+      # Email (Brevo SMTP) - để test gửi email local
+      EmailSettings__Host: ${EMAIL_HOST:-smtp-relay.brevo.com}
+      EmailSettings__Port: ${EMAIL_PORT:-587}
+      EmailSettings__Username: ${EMAIL_USERNAME:-}
+      EmailSettings__Password: ${EMAIL_PASSWORD:-}
+      EmailSettings__SenderEmail: ${EMAIL_SENDER_EMAIL:-noreply@reliefhub.info.vn}
+      EmailSettings__SenderName: ${EMAIL_SENDER_NAME:-Relief Hub}
+
+      # Cloudinary - để test upload ảnh local
+      CloudinarySettings__CloudName: ${CLOUDINARY_CLOUD_NAME:-}
+      CloudinarySettings__ApiKey: ${CLOUDINARY_API_KEY:-}
+      CloudinarySettings__ApiSecret: ${CLOUDINARY_API_SECRET:-}
+
+      # PayOS
+      PayOs__ClientId: ${PAYOS_CLIENT_ID:-}
+      PayOs__ApiKey: ${PAYOS_API_KEY:-}
+      PayOs__ChecksumKey: ${PAYOS_CHECKSUM_KEY:-}
+      PayOs__ReturnUrl: ${PAYOS_RETURN_URL:-http://localhost:5173/donation/return}
+      PayOs__CancelUrl: ${PAYOS_CANCEL_URL:-http://localhost:5173/donation/cancel}
+      PayOs__ExpiredMinutes: ${PAYOS_EXPIRED_MINUTES:-15}
+
+      # CORS - cho phép các frontend local phổ biến
       CorsSettings__AllowedOrigins__0: "http://localhost:3000"
       CorsSettings__AllowedOrigins__1: "http://localhost:5173"
       CorsSettings__AllowedOrigins__2: "http://localhost:4200"
-      CorsSettings__AllowedOrigins__3: "https://reliefhub.info.vn"
-      CorsSettings__AllowedOrigins__4: "https://api.reliefhub.info.vn"
-      CorsSettings__AllowedOrigins__5: ${CORS_ORIGINS:-}
-      
-      # ASP.NET Core
-      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Development}
+      CorsSettings__AllowedOrigins__3: "http://localhost:8080"
+
+      # ASP.NET Core - Development mode bật Swagger
+      ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: "http://+:8080"
-      
-      # Logging
+
+      # Logging - verbose hơn để dễ debug
       Logging__LogLevel__Default: "Information"
-      Logging__LogLevel__Microsoft__AspNetCore: "Warning"
+      Logging__LogLevel__Microsoft__AspNetCore: "Information"
       Logging__LogLevel__Microsoft__EntityFrameworkCore: "Information"
     ports:
       - "8080:8080"
     networks:
-      - reliefcare-network
+      - reliefcare-local
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 60s
-    profiles:
-      - production
-      - development
-      - reliefcare-api
+      start_period: 90s
 
-  # ===========================================
-  # ReliefCare Crawler - Web Scraping Service
-  # ===========================================
-  reliefcare-crawler:
-    image: ${REGISTRY:-reliefcare-crawler}:latest
-    container_name: reliefcare-crawler
-    build:
-      context: ./RelieftManagement.Crawler
-      dockerfile: Dockerfile
+  # -----------------------------------------------------------
+  # pgAdmin 4 - Giao diện quản lý PostgreSQL
+  # -----------------------------------------------------------
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: reliefcare-local-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "admin@reliefcare.com"
+      PGADMIN_DEFAULT_PASSWORD: "admin123"
+      PGADMIN_CONFIG_SERVER_MODE: "False"              # Desktop mode - không cần login lần 2
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_local_data:/var/lib/pgadmin
+      - ./pgadmin-servers.json:/pgadmin4/servers.json:ro  # Auto-register server
     depends_on:
       postgres:
         condition: service_healthy
-    environment:
-      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-relief_db};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD:-postgres123}"
-      PUPPETEER_EXECUTABLE_PATH: "/usr/bin/chromium"
-    volumes:
-      - ./crawler-output:/app/output
     networks:
-      - reliefcare-network
-    restart: "no"
-    profiles:
-      - crawler
-      - reliefcare-crawler
+      - reliefcare-local
 
-  # ===========================================
-  # Cloudflare Tunnel - Expose to Internet
-  # ===========================================
-  cloudflared:
-    image: cloudflare/cloudflared:latest
-    container_name: reliefcare-cloudflared
-    restart: unless-stopped
-    command: tunnel run
-    environment:
-      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
-    depends_on:
-      reliefcare-api:
-        condition: service_healthy
-    networks:
-      - reliefcare-network
-    profiles:
-      - production
-
-# ===========================================
+# -----------------------------------------------------------
 # Volumes
-# ===========================================
+# -----------------------------------------------------------
 volumes:
-  postgres_data:
-    name: reliefcare-postgres-data
+  postgres_local_data:
+    name: reliefcare-local-postgres-data
+  pgadmin_local_data:
+    external: true
+    name: reliefcare-local-pgadmin-data
 
-# ===========================================
+# -----------------------------------------------------------
 # Networks
-# ===========================================
+# -----------------------------------------------------------
 networks:
-  reliefcare-network:
-    name: reliefcare-network
+  reliefcare-local:
+    name: reliefcare-local-network
     driver: bridge

@@ -10,6 +10,7 @@ using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Infrastructure;
 using ReliefManagementSystem.Infrastructure.Data;
+using ReliefManagementSystem.Infrastructure.Security;
 using ReliefManagementSystem.Infrastructure.Seed;
 using Swashbuckle.AspNetCore.Annotations;
 using System;
@@ -75,8 +76,19 @@ builder.Services.Configure<JwtSettings>(
 builder.Services.Configure<GoogleSetting>(
     builder.Configuration.GetSection("AuthenticationGoogle"));
 
+builder.Services.Configure<CloudinarySettings>(
+    builder.Configuration.GetSection("CloudinarySettings"));
+
+builder.Services.Configure<EmailSettings>(
+    builder.Configuration.GetSection("EmailSettings"));
+
+builder.Services.Configure<PayOsSettings>(
+    builder.Configuration.GetSection("PayOs"));
+
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>();
 var googleSettings = builder.Configuration.GetSection("AuthenticationGoogle").Get<GoogleSetting>();
+var cloudSetting = builder.Configuration.GetSection("CloudinarySettings").Get<CloudinarySettings>();
+var brevoEmailSetting = builder.Configuration.GetSection("EmailSettings").Get<EmailSettings>();
 builder.Services.AddAuthentication(options =>
 {
     options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -84,34 +96,92 @@ builder.Services.AddAuthentication(options =>
     options.DefaultSignInScheme = IdentityConstants.ExternalScheme;
 })
 .AddJwtBearer(options =>
-{
-    options.TokenValidationParameters = new TokenValidationParameters
     {
-        ValidateIssuer = true,
-        ValidateAudience = true,
-        ValidateLifetime = true,
-        ValidateIssuerSigningKey = true,
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidateAudience = true,
+            ValidateLifetime = true,
+            ValidateIssuerSigningKey = true,
 
-        ValidIssuer = jwtSettings!.Issuer,
-        ValidAudience = jwtSettings.Audience,
+            ValidIssuer = jwtSettings!.Issuer,
+            ValidAudience = jwtSettings.Audience,
 
-        IssuerSigningKey = new SymmetricSecurityKey(
-            Encoding.UTF8.GetBytes(jwtSettings.Key)
-        )
-    };
-})
-.AddGoogle(options =>
+            IssuerSigningKey = new SymmetricSecurityKey(
+                Encoding.UTF8.GetBytes(jwtSettings.Key)
+            )
+        };
+
+        options.Events = new JwtBearerEvents
+        {
+            OnChallenge = async context =>
+            {
+                context.HandleResponse();
+                context.Response.StatusCode = 401;
+                context.Response.ContentType = "application/json";
+
+                var traceId = context.HttpContext.TraceIdentifier;
+
+                var result = new
+                {
+                    message = "You are not authenticated.",
+                    code = "AUTH_UNAUTHORIZED",
+                    traceId = traceId,
+                    statusCode = 401
+                };
+
+                await context.Response.WriteAsJsonAsync(result);
+            },
+            OnForbidden = async context =>
+            {
+                context.Response.StatusCode = 403;
+                context.Response.ContentType = "application/json";
+
+                var traceId = context.HttpContext.TraceIdentifier;
+
+                var result = new
+                {
+                    message = "You do not have permission to perform this action.",
+                    code = "AUTH_FORBIDDEN",
+                    traceId = traceId,
+                    statusCode = 403
+                };
+
+                await context.Response.WriteAsJsonAsync(result);
+            }
+        };
+
+
+    })
+    .AddGoogle(options =>
 {
     options.ClientId =
-         builder.Configuration["AuthenticationGoogle:Google:ClientId"];
+         builder.Configuration["AuthenticationGoogle:Google:ClientId"]!;
 
     options.ClientSecret =
-        builder.Configuration["AuthenticationGoogle:Google:ClientSecret"];
+        builder.Configuration["AuthenticationGoogle:Google:ClientSecret"]!;
 });
 
 
 builder.Services.AddApplication();
 builder.Services.AddInfrastructure(builder.Configuration);
+
+// CORS
+var allowedOrigins = builder.Configuration
+    .GetSection("CorsSettings:AllowedOrigins")
+    .Get<string[]>() ?? [];
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("CorsPolicy", policy =>
+    {
+        policy
+            .AllowAnyOrigin()
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+        //.AllowCredentials();
+    });
+});
 
 var app = builder.Build();
 
@@ -143,9 +213,11 @@ using (var scope = app.Services.CreateScope())
     await RoleSeeder.SeedAsync(roleManager);
     await UserSeeder.SeedAsync(userManager, context);
     await SkillSeeder.SeedAsync(context);
-    //await LocationExcelSeeder.SeedAsync(context);
     await TeamSeeder.SeedAsync(context);
-    
+    await LocationExcelSeeder.SeedAsync(context);
+    await ReliefStationSeeder.SeedAsync(context);
+    await ManagerProfileSeeder.SeedAsync(context);
+    await PriorityCriteriaSeeder.SeedAsync(context);
     logger.LogInformation("Database seeding completed.");
 }
 
@@ -158,9 +230,11 @@ if (app.Environment.IsDevelopment() || app.Environment.IsStaging())
 }
 
 app.UseHttpsRedirection();
+app.UseCors("CorsPolicy");
 app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<ExceptionMiddleware>();
 app.MapControllers();
+app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();

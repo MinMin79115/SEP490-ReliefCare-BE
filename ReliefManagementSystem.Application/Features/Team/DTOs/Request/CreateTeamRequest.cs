@@ -12,6 +12,8 @@ namespace ReliefManagementSystem.Application.Features.Team.DTOs.Request
 
         public string? Description { get; set; }
 
+        public string? ContactPhone { get; set; }
+
         // LeaderId removed - teams are created without leaders
         // Leader is assigned later via UpdateTeam by Moderator
     }

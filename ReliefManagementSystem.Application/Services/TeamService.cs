@@ -12,6 +12,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using ReliefManagementSystem.Application.Common.Exceptions.Team;
+using ReliefManagementSystem.Application.Common.Exceptions.TeamMember;
+using ReliefManagementSystem.Application.Common.Exceptions.Volunteer;
 
 namespace ReliefManagementSystem.Application.Services
 {
@@ -24,6 +27,7 @@ namespace ReliefManagementSystem.Application.Services
             _unitOfWork = unitOfWork;
         }
 
+        //Create a team
         public async Task<TeamResponse> CreateTeamAsync(
             CreateTeamRequest request,
             Guid moderatorId,
@@ -33,6 +37,7 @@ namespace ReliefManagementSystem.Application.Services
             {
                 Name = request.Name,
                 Description = request.Description,
+                ContactPhone = request.ContactPhone,
                 ModeratorId = moderatorId,
                 LeaderId = null, 
                 Status = TeamStatus.Active,
@@ -42,9 +47,36 @@ namespace ReliefManagementSystem.Application.Services
             await _unitOfWork.Teams.AddAsync(team);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+            // Nếu moderator thuộc một trạm thì tự động gắn team vào trạm đó
+            var moderatorProfile = await _unitOfWork.ModeratorProfiles
+                .GetByUserIdAsync(moderatorId, cancellationToken);
+
+            if (moderatorProfile?.ReliefStationId != null)
+            {
+                var existingAssignment = await _unitOfWork.ReliefStationTeams
+                    .GetByStationAndTeamAsync(moderatorProfile.ReliefStationId.Value, team.TeamId, cancellationToken);
+
+                if (existingAssignment == null)
+                {
+                    var assignment = new ReliefStationTeam
+                    {
+                        ReliefStationTeamId = Guid.NewGuid(),
+                        ReliefStationId = moderatorProfile.ReliefStationId.Value,
+                        TeamId = team.TeamId,
+                        Status = ReliefTeamAssignmentStatus.Approved,
+                        Description = "Auto-assigned when moderator created team",
+                        JoinedAt = DateTime.UtcNow
+                    };
+
+                    await _unitOfWork.ReliefStationTeams.AddAsync(assignment);
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                }
+            }
+
             return await MapToTeamResponse(team, cancellationToken);
         }
 
+        //Get team with team ID
         public async Task<TeamDetailResponse> GetTeamByIdAsync(
             Guid teamId,
             CancellationToken cancellationToken)
@@ -52,11 +84,12 @@ namespace ReliefManagementSystem.Application.Services
             var team = await _unitOfWork.Teams.GetByIdWithDetailsAsync(teamId);
 
             if (team == null)
-                throw new Exception("Không tìm thấy đội");
+                throw new TeamNotFoundException();
 
             return MapToTeamDetailResponse(team);
         }
 
+        //Update team
         public async Task<TeamResponse> UpdateTeamAsync(
             Guid teamId,
             UpdateTeamRequest request,
@@ -66,10 +99,10 @@ namespace ReliefManagementSystem.Application.Services
             var team = await _unitOfWork.Teams.GetByIdAsync(teamId);
 
             if (team == null)
-                throw new Exception("Không tìm thấy đội");
+                throw new TeamNotFoundException();
 
             if (team.ModeratorId != moderatorId)
-                throw new Exception("Chỉ có người điều phối team mới có thể chỉnh sửa");
+                throw new UnauthorizedTeamActionException("chỉnh sửa");
 
             if (request.LeaderId != team.LeaderId)
             {
@@ -79,10 +112,10 @@ namespace ReliefManagementSystem.Application.Services
                         request.LeaderId.Value, cancellationToken);
 
                     if (newLeader == null)
-                        throw new Exception("Không tìm thấy trưởng nhóm mới");
+                        throw new VolunteerNotFoundException();
 
                     if (newLeader.VolunteerProfile?.VerificationStatus != VerificationStatus.Approved)
-                        throw new Exception("Trưởng nhóm mới phải là tình nguyện viên đã được xác minh");
+                        throw new VolunteerNotVerifiedException("Trưởng nhóm phải là tình nguyện viên đã được xác minh");
 
                     var isNewLeaderMember = await _unitOfWork.TeamMembers.IsMemberAsync(teamId, request.LeaderId.Value);
 
@@ -123,6 +156,7 @@ namespace ReliefManagementSystem.Application.Services
 
             team.Name = request.Name;
             team.Description = request.Description;
+            team.ContactPhone = request.ContactPhone;
             team.Status = request.Status;
             team.UpdatedAt = DateTime.UtcNow;
 
@@ -132,6 +166,7 @@ namespace ReliefManagementSystem.Application.Services
             return await MapToTeamResponse(team, cancellationToken);
         }
 
+        //Delete a team
         public async Task<bool> DeleteTeamAsync(
             Guid teamId,
             Guid moderatorId,
@@ -140,29 +175,35 @@ namespace ReliefManagementSystem.Application.Services
             var team = await _unitOfWork.Teams.GetByIdAsync(teamId);
 
             if (team == null)
-                throw new Exception("Không tìm thấy đội");
+                throw new TeamNotFoundException();
 
             if (team.ModeratorId != moderatorId)
-                throw new Exception("Chỉ người điều phối đội mới được xoá");
+                throw new UnauthorizedTeamActionException("xoá");
 
             await _unitOfWork.Teams.DeleteAsync(team);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return true;
         }
-        public async Task<List<TeamResponse>> GetAllTeamsAsync(CancellationToken cancellationToken)
+        
+        //Get team list
+        public async Task<Pagination<TeamResponse>> GetAllTeamsAsync(int pageIndex, int pageSize, CancellationToken cancellationToken)
         {
-            var teams = await _unitOfWork.Teams.GetAllAsync();
+            var query = _unitOfWork.Teams.GetQueryable()
+                .OrderByDescending(t => t.CreatedAt);
 
-            var responses = new List<TeamResponse>();
-            foreach (var team in teams)
+            var pagedTeams = await Pagination<Team>.ToPagedList(query, pageIndex, pageSize);
+
+            var responseItems = new List<TeamResponse>();
+            foreach (var team in pagedTeams.Items!)
             {
-                responses.Add(await MapToTeamResponse(team, cancellationToken));
+                responseItems.Add(await MapToTeamResponse(team, cancellationToken));
             }
 
-            return responses;
+            return new Pagination<TeamResponse>(responseItems, pagedTeams.TotalCount, pagedTeams.CurrentPage, pagedTeams.PageSize);
         }
 
+        //Search team
         public async Task<Pagination<TeamResponse>> SearchTeamsAsync(
             SearchTeamRequest request,
             CancellationToken cancellationToken)
@@ -202,6 +243,7 @@ namespace ReliefManagementSystem.Application.Services
             );
         }
 
+        //Get team that moderator manage
         public async Task<List<TeamResponse>> GetMyTeamsAsync(
             Guid moderatorId,
             CancellationToken cancellationToken)
@@ -217,6 +259,7 @@ namespace ReliefManagementSystem.Application.Services
             return responses;
         }
 
+        //Get team member infomation
         public async Task<List<TeamMemberInfo>> GetTeamMembersAsync(
             Guid teamId,
             CancellationToken cancellationToken)
@@ -240,6 +283,7 @@ namespace ReliefManagementSystem.Application.Services
             }).ToList();
         }
 
+        //Remove team member 
         public async Task<bool> RemoveMemberAsync(
             Guid teamId,
             Guid userId,
@@ -248,17 +292,17 @@ namespace ReliefManagementSystem.Application.Services
         {
             var team = await _unitOfWork.Teams.GetByIdAsync(teamId);
             if (team == null)
-                throw new Exception("Không tìm thấy đội");
+                throw new TeamNotFoundException();
 
             if (team.ModeratorId != moderatorId)
-                throw new Exception("Chỉ điều phối đội mới có thể xoá thành viên");
+                throw new UnauthorizedTeamActionException("xoá thành viên");
 
             if (team.LeaderId == userId)
-                throw new Exception("Không thể xoá trưởng nhóm hiện tại. Phải đổi trưởng nhóm trước.");
+                throw new CannotRemoveLeaderException();
 
             var member = await _unitOfWork.TeamMembers.GetByTeamAndUserAsync(teamId, userId);
             if (member == null)
-                throw new Exception("Thành viên không tồn tại trong đội");
+                throw new TeamMemberNotFoundException();
 
             await _unitOfWork.TeamMembers.DeleteAsync(member);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -266,6 +310,7 @@ namespace ReliefManagementSystem.Application.Services
             return true;
         }
 
+        //Get volunteer team have join in
         public async Task<TeamDetailResponse> GetVolunteerTeamAsync(
             Guid userId,
             CancellationToken cancellationToken)
@@ -274,16 +319,17 @@ namespace ReliefManagementSystem.Application.Services
             var teamMember = await _unitOfWork.TeamMembers.GetTeamByUserIdAsync(userId);
             
             if (teamMember == null)
-                throw new Exception("Bạn chưa tham gia team nào");
+                throw new NotTeamMemberException();
 
             var team = await _unitOfWork.Teams.GetByIdWithDetailsAsync(teamMember.TeamId);
             
             if (team == null)
-                throw new Exception("Không tìm thấy team");
+                throw new TeamNotFoundException();
 
             return MapToTeamDetailResponse(team);
         }
 
+        //Moderator add volunteer into team
         public async Task<TeamMemberResponse> AddMemberDirectlyAsync(
             Guid teamId,
             AddMemberRequest request,
@@ -293,23 +339,23 @@ namespace ReliefManagementSystem.Application.Services
             var team = await _unitOfWork.Teams.GetByIdAsync(teamId);
             
             if (team == null)
-                throw new Exception("Không tìm thấy team");
+                throw new TeamNotFoundException();
 
             if (team.ModeratorId != moderatorId)
-                throw new Exception("Chỉ có điều phối viên của team mới có thể thêm thành viên");
+                throw new UnauthorizedTeamActionException("thêm thành viên");
 
             var volunteer = await _unitOfWork.Users.GetByIdWithVolunteerProfileAndSkillsAsync(
                 request.VolunteerId, cancellationToken);
             
             if (volunteer == null)
-                throw new Exception("Không tìm thấy tình nguyện viên");
+                throw new VolunteerNotFoundException();
 
             if (volunteer.VolunteerProfile?.VerificationStatus != VerificationStatus.Approved)
-                throw new Exception("Tình nguyện viên phải được xác minh");
+                throw new VolunteerNotVerifiedException();
 
             var isMember = await _unitOfWork.TeamMembers.IsMemberAsync(teamId, request.VolunteerId);
             if (isMember)
-                throw new Exception("Tình nguyện viên đã là thành viên của team");
+                throw new DuplicateTeamMemberException();
 
             var teamMember = new TeamMember
             {
@@ -339,6 +385,7 @@ namespace ReliefManagementSystem.Application.Services
             };
         }
 
+        //Update role for member role to leader role
         public async Task<TeamMemberResponse> PromoteMemberToLeaderAsync(
             Guid teamId,
             Guid userId,
@@ -348,19 +395,19 @@ namespace ReliefManagementSystem.Application.Services
             var team = await _unitOfWork.Teams.GetByIdWithDetailsAsync(teamId);
             
             if (team == null)
-                throw new Exception("Không tìm thấy team");
+                throw new TeamNotFoundException();
 
             if (team.ModeratorId != moderatorId)
-                throw new Exception("Chỉ có điều phối viên của team mới có thể cập nhật role");
+                throw new UnauthorizedTeamActionException("cập nhật role");
 
             var teamMember = await _unitOfWork.TeamMembers.GetByTeamAndUserWithSkillsAsync(
                 teamId, userId);
             
             if (teamMember == null)
-                throw new Exception("Người dùng không phải là thành viên của team");
+                throw new TeamMemberNotFoundException("Người dùng không phải là thành viên team");
 
             if (teamMember.RoleTeam == TeamRole.Leader)
-                throw new Exception("Thành viên đã là Leader rồi");
+                throw new TeamMemberAlreadyLeaderException();
 
             if (team.LeaderId.HasValue && team.LeaderId.Value != userId)
             {
@@ -410,6 +457,7 @@ namespace ReliefManagementSystem.Application.Services
                 TeamId = team.TeamId,
                 Name = team.Name,
                 Description = team.Description,
+                ContactPhone = team.ContactPhone,
                 Status = team.Status,
                 ModeratorId = team.ModeratorId,
                 ModeratorName = team.Moderator?.DisplayName ?? team.Moderator?.UserName ?? "Unknown",
@@ -428,6 +476,7 @@ namespace ReliefManagementSystem.Application.Services
                 TeamId = team.TeamId,
                 Name = team.Name,
                 Description = team.Description,
+                ContactPhone = team.ContactPhone,
                 Status = team.Status,
                 Moderator = new ModeratorInfo
                 {
@@ -474,5 +523,6 @@ namespace ReliefManagementSystem.Application.Services
     
             return teams.Select(team => MapToTeamDetailResponse(team)).ToList();
         }
+
     }
 }

@@ -1,4 +1,7 @@
 services:
+  # -----------------------------------------------------------
+  # PostgreSQL Database
+  # -----------------------------------------------------------
   postgres:
     image: postgres:16-alpine
     container_name: reliefcare-postgres
@@ -7,25 +10,25 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-relief_db}
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-    ports:
-      - "5432:5432"
+    # Không expose port ra ngoài host - API kết nối qua internal network
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres}"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-relief_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 15s
     networks:
       - reliefcare-staging
 
+  # -----------------------------------------------------------
+  # ReliefCare API - Pull image từ GHCR (không build tại đây)
+  # -----------------------------------------------------------
   reliefcare-api:
     image: ${REGISTRY:-ghcr.io/minmin79115/sep490-reliefcare-be}/reliefcare-api:latest
     container_name: reliefcare-api
     restart: unless-stopped
-    build:
-      context: .
-      dockerfile: ReliefManagementSystem.API/Dockerfile
     depends_on:
       postgres:
         condition: service_healthy
@@ -38,11 +41,19 @@ services:
       Jwt__RefreshTokenDays: "7"
       AuthenticationGoogle__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
       AuthenticationGoogle__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
-      CorsSettings__AllowedOrigins__0: "http://localhost:3000"
-      CorsSettings__AllowedOrigins__1: "http://localhost:5173"
-      CorsSettings__AllowedOrigins__2: "http://localhost:4200"
-      CorsSettings__AllowedOrigins__3: "https://staging.reliefhub.info.vn"
-      CorsSettings__AllowedOrigins__4: "https://reliefhub.info.vn"
+      PayOs__ClientId: ${PAYOS_CLIENT_ID:-}
+      PayOs__ApiKey: ${PAYOS_API_KEY:-}
+      PayOs__ChecksumKey: ${PAYOS_CHECKSUM_KEY:-}
+      PayOs__ReturnUrl: ${PAYOS_RETURN_URL:-https://staging.reliefhub.info.vn/donation/return}
+      PayOs__CancelUrl: ${PAYOS_CANCEL_URL:-https://staging.reliefhub.info.vn/donation/cancel}
+      PayOs__ExpiredMinutes: ${PAYOS_EXPIRED_MINUTES:-15}
+      # CORS - domain thật + localhost để FE dev test local gọi lên staging API
+      CorsSettings__AllowedOrigins__0: "https://staging.reliefhub.info.vn"
+      CorsSettings__AllowedOrigins__1: "https://reliefhub.info.vn"
+      CorsSettings__AllowedOrigins__2: "https://relief-carevn.vercel.app"
+      CorsSettings__AllowedOrigins__3: "http://localhost:3000"
+      CorsSettings__AllowedOrigins__4: "http://localhost:5173"
+      CorsSettings__AllowedOrigins__5: "http://localhost:4200"
       ASPNETCORE_ENVIRONMENT: "Staging"
       ASPNETCORE_URLS: "http://+:8080"
       Logging__LogLevel__Default: "Information"
@@ -59,6 +70,35 @@ services:
     networks:
       - reliefcare-staging
 
+  # -----------------------------------------------------------
+  # pgAdmin 4 - Quản lý database staging
+  # Truy cập: http://<server-ip>:5050
+  # Khuyến nghị: dùng SSH tunnel để truy cập an toàn
+  #   ssh -L 5050:localhost:5050 user@server
+  # -----------------------------------------------------------
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: reliefcare-pgadmin
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+      PGADMIN_CONFIG_SERVER_MODE: "True"               # Staging: bắt buộc đăng nhập
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "True"
+    ports:
+      - "5050:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+      - ./pgadmin-servers.json:/pgadmin4/servers.json:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - reliefcare-staging
+
+  # -----------------------------------------------------------
+  # Cloudflare Tunnel - Expose API ra internet
+  # -----------------------------------------------------------
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: reliefcare-cloudflared
@@ -75,6 +115,8 @@ services:
 volumes:
   postgres_data:
     name: reliefcare-staging-postgres-data
+  pgadmin_data:
+    name: reliefcare-staging-pgadmin-data
 
 networks:
   reliefcare-staging:
