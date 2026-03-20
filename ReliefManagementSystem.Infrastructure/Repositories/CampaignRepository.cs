@@ -31,6 +31,17 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .FirstOrDefaultAsync(c => c.CampaignId == campaignId, cancellationToken);
         }
 
+        public async Task<Campaign?> GetWithDetailsAsync(Guid campaignId, CancellationToken cancellationToken = default)
+        {
+            return await _context.Campaigns
+                .Include(c => c.ResourceGoals)
+                .Include(c => c.CampaignStations)
+                    .ThenInclude(cs => cs.ReliefStation)
+                .Include(c => c.CampaignTeams)
+                    .ThenInclude(ct => ct.Team)
+                .FirstOrDefaultAsync(c => c.CampaignId == campaignId, cancellationToken);
+        }
+
         public async Task<(List<Campaign> Items, int TotalCount)> GetPagedAsync(
             int pageIndex,
             int pageSize,
@@ -95,6 +106,13 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             await _context.CampaignStations.AddAsync(campaignStation, cancellationToken);
         }
 
+        public async Task<CampaignStation?> GetStationAsync(Guid campaignId, Guid reliefStationId, CancellationToken cancellationToken = default)
+        {
+            return await _context.CampaignStations
+                .Include(cs => cs.ReliefStation)
+                .FirstOrDefaultAsync(cs => cs.CampaignId == campaignId && cs.ReliefStationId == reliefStationId, cancellationToken);
+        }
+
         public async Task<CampaignResourceGoal?> GetGoalAsync(Guid campaignId, CampaignResourceType resourceType, CancellationToken cancellationToken = default)
         {
             return await _context.CampaignResourceGoals
@@ -116,6 +134,33 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
         public Task UpdateGoalAsync(CampaignResourceGoal goal, CancellationToken cancellationToken = default)
         {
             _context.CampaignResourceGoals.Update(goal);
+            return Task.CompletedTask;
+        }
+
+        public async Task<CampaignTeam?> GetCampaignTeamAsync(Guid campaignId, Guid teamId, CancellationToken cancellationToken = default)
+        {
+            return await _context.Set<CampaignTeam>()
+                .Include(ct => ct.Team)
+                .FirstOrDefaultAsync(ct => ct.CampaignId == campaignId && ct.TeamId == teamId && !ct.IsDelete, cancellationToken);
+        }
+
+        public async Task<List<CampaignTeam>> GetCampaignTeamsAsync(Guid campaignId, CancellationToken cancellationToken = default)
+        {
+            return await _context.Set<CampaignTeam>()
+                .Include(ct => ct.Team)
+                .Where(ct => ct.CampaignId == campaignId && !ct.IsDelete)
+                .OrderBy(ct => ct.AssignedAt)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task AddCampaignTeamAsync(CampaignTeam campaignTeam, CancellationToken cancellationToken = default)
+        {
+            await _context.Set<CampaignTeam>().AddAsync(campaignTeam, cancellationToken);
+        }
+
+        public Task UpdateCampaignTeamAsync(CampaignTeam campaignTeam, CancellationToken cancellationToken = default)
+        {
+            _context.Set<CampaignTeam>().Update(campaignTeam);
             return Task.CompletedTask;
         }
     }

@@ -54,6 +54,7 @@ namespace ReliefManagementSystem.Application.Services
                 AreaRadiusKm = request.AreaRadiusKm,
                 AddressDetail = request.AddressDetail,
                 Type = request.Type,
+                CompletionRule = request.CompletionRule,
                 Status = CampaignStatus.Draft,
                 AllowOverTarget = request.AllowOverTarget,
                 BudgetTotal = 0,
@@ -78,6 +79,7 @@ namespace ReliefManagementSystem.Application.Services
                     ResourceType = goalReq.ResourceType,
                     TargetAmount = target,
                     ReceivedAmount = 0,
+                    IsRequired = goalReq.IsRequired,
                     IsMet = target == 0,
                     UpdatedAt = DateTime.UtcNow
                 };
@@ -96,6 +98,38 @@ namespace ReliefManagementSystem.Application.Services
                 ?? throw new KeyNotFoundException($"Campaign '{campaign.CampaignId}' was not found after creation.");
 
             return await BuildCampaignResponseAsync(saved, cancellationToken);
+        }
+
+        public async Task<CampaignResponse> UpdateAsync(Guid campaignId, UpdateCampaignRequest request, CancellationToken cancellationToken = default)
+        {
+            if (request.EndDate < request.StartDate)
+            {
+                throw new InvalidOperationException("EndDate phải lớn hơn hoặc bằng StartDate.");
+            }
+
+            var campaign = await _unitOfWork.Campaigns.GetWithDetailsAsync(campaignId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
+
+            if (campaign.Status is not CampaignStatus.Draft and not CampaignStatus.Active and not CampaignStatus.Suspended)
+            {
+                throw new InvalidOperationException("Chỉ có thể cập nhật campaign ở trạng thái Draft, Active hoặc Suspended.");
+            }
+
+            campaign.Name = request.Name.Trim();
+            campaign.Description = request.Description;
+            campaign.StartDate = request.StartDate;
+            campaign.EndDate = request.EndDate;
+            campaign.Latitude = request.Latitude;
+            campaign.Longitude = request.Longitude;
+            campaign.AreaRadiusKm = request.AreaRadiusKm;
+            campaign.AddressDetail = request.AddressDetail;
+            campaign.AllowOverTarget = request.AllowOverTarget;
+            campaign.CompletionRule = request.CompletionRule;
+
+            await _unitOfWork.Campaigns.UpdateAsync(campaign);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return await BuildCampaignResponseAsync(campaign, cancellationToken);
         }
 
         public async Task<CampaignResponse> GetByIdAsync(Guid campaignId, CancellationToken cancellationToken = default)
@@ -123,7 +157,7 @@ namespace ReliefManagementSystem.Application.Services
 
         public async Task<CampaignResponse> ChangeStatusAsync(Guid campaignId, ChangeCampaignStatusRequest request, CancellationToken cancellationToken = default)
         {
-            var campaign = await _unitOfWork.Campaigns.GetWithStationsAsync(campaignId, cancellationToken)
+            var campaign = await _unitOfWork.Campaigns.GetWithDetailsAsync(campaignId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
 
             ValidateStatusTransition(campaign, request.Status);
@@ -147,6 +181,164 @@ namespace ReliefManagementSystem.Application.Services
                 ?? throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
 
             return await BuildCampaignResponseAsync(updated, cancellationToken);
+        }
+
+        public async Task<CampaignResponse> DetachStationAsync(Guid campaignId, Guid reliefStationId, CancellationToken cancellationToken = default)
+        {
+            var campaign = await _unitOfWork.Campaigns.GetWithDetailsAsync(campaignId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
+
+            var station = await _unitOfWork.Campaigns.GetStationAsync(campaignId, reliefStationId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Station '{reliefStationId}' is not attached to campaign '{campaignId}'.");
+
+            station.IsActive = false;
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return await BuildCampaignResponseAsync(campaign, cancellationToken);
+        }
+
+        public async Task<CampaignTeamResponse> AssignTeamAsync(Guid campaignId, AssignCampaignTeamRequest request, CancellationToken cancellationToken = default)
+        {
+            var campaign = await _unitOfWork.Campaigns.GetWithGoalsAsync(campaignId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
+
+            var team = await _unitOfWork.Teams.GetByIdWithDetailsAsync(request.TeamId)
+                ?? throw new KeyNotFoundException($"Team '{request.TeamId}' was not found.");
+
+            var existing = await _unitOfWork.Campaigns.GetCampaignTeamAsync(campaignId, request.TeamId, cancellationToken);
+            if (existing != null)
+            {
+                throw new InvalidOperationException("Team này đã được gán vào campaign.");
+            }
+
+            var campaignTeam = new CampaignTeam
+            {
+                CampaignTeamId = Guid.NewGuid(),
+                CampaignId = campaignId,
+                TeamId = request.TeamId,
+                Role = request.Role,
+                Status = request.InitialStatus,
+                AssignedAt = DateTime.UtcNow,
+                IsDelete = false
+            };
+
+            await _unitOfWork.Campaigns.AddCampaignTeamAsync(campaignTeam, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            var memberCount = await _unitOfWork.Teams.GetTeamMemberCountAsync(request.TeamId, cancellationToken);
+            if (request.InitialStatus is CampaignTeamStatus.Accepted or CampaignTeamStatus.Active)
+            {
+                await UpdateProgressAsync(campaignId, CampaignResourceType.People, memberCount, cancellationToken);
+            }
+
+            return new CampaignTeamResponse
+            {
+                CampaignTeamId = campaignTeam.CampaignTeamId,
+                CampaignId = campaignId,
+                TeamId = request.TeamId,
+                TeamName = team.Name,
+                Role = campaignTeam.Role,
+                Status = campaignTeam.Status,
+                AssignedAt = campaignTeam.AssignedAt,
+                MemberCount = memberCount
+            };
+        }
+
+        public async Task<IReadOnlyList<CampaignTeamResponse>> GetTeamsAsync(Guid campaignId, CancellationToken cancellationToken = default)
+        {
+            if (!await _unitOfWork.Campaigns.ExistsAsync(campaignId))
+            {
+                throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
+            }
+
+            var items = await _unitOfWork.Campaigns.GetCampaignTeamsAsync(campaignId, cancellationToken);
+            var results = new List<CampaignTeamResponse>();
+            foreach (var item in items)
+            {
+                var memberCount = await _unitOfWork.Teams.GetTeamMemberCountAsync(item.TeamId, cancellationToken);
+                results.Add(new CampaignTeamResponse
+                {
+                    CampaignTeamId = item.CampaignTeamId,
+                    CampaignId = item.CampaignId,
+                    TeamId = item.TeamId,
+                    TeamName = item.Team?.Name ?? string.Empty,
+                    Role = item.Role,
+                    Status = item.Status,
+                    AssignedAt = item.AssignedAt,
+                    MemberCount = memberCount
+                });
+            }
+
+            return results;
+        }
+
+        public async Task<CampaignTeamResponse> UpdateTeamStatusAsync(Guid campaignId, Guid teamId, UpdateCampaignTeamStatusRequest request, CancellationToken cancellationToken = default)
+        {
+            var campaignTeam = await _unitOfWork.Campaigns.GetCampaignTeamAsync(campaignId, teamId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Team '{teamId}' is not assigned to campaign '{campaignId}'.");
+
+            var previousStatus = campaignTeam.Status;
+            if (previousStatus == request.Status)
+            {
+                var sameCount = await _unitOfWork.Teams.GetTeamMemberCountAsync(teamId, cancellationToken);
+                return new CampaignTeamResponse
+                {
+                    CampaignTeamId = campaignTeam.CampaignTeamId,
+                    CampaignId = campaignId,
+                    TeamId = teamId,
+                    TeamName = campaignTeam.Team?.Name ?? string.Empty,
+                    Role = campaignTeam.Role,
+                    Status = campaignTeam.Status,
+                    AssignedAt = campaignTeam.AssignedAt,
+                    MemberCount = sameCount
+                };
+            }
+
+            campaignTeam.Status = request.Status;
+            await _unitOfWork.Campaigns.UpdateCampaignTeamAsync(campaignTeam, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            var memberCount = await _unitOfWork.Teams.GetTeamMemberCountAsync(teamId, cancellationToken);
+            var wasCounted = previousStatus is CampaignTeamStatus.Accepted or CampaignTeamStatus.Active;
+            var isCounted = request.Status is CampaignTeamStatus.Accepted or CampaignTeamStatus.Active;
+
+            if (!wasCounted && isCounted)
+            {
+                await UpdateProgressAsync(campaignId, CampaignResourceType.People, memberCount, cancellationToken);
+            }
+            else if (wasCounted && !isCounted)
+            {
+                await UpdateProgressAsync(campaignId, CampaignResourceType.People, -memberCount, cancellationToken);
+            }
+
+            return new CampaignTeamResponse
+            {
+                CampaignTeamId = campaignTeam.CampaignTeamId,
+                CampaignId = campaignId,
+                TeamId = teamId,
+                TeamName = campaignTeam.Team?.Name ?? string.Empty,
+                Role = campaignTeam.Role,
+                Status = campaignTeam.Status,
+                AssignedAt = campaignTeam.AssignedAt,
+                MemberCount = memberCount
+            };
+        }
+
+        public async Task RemoveTeamAsync(Guid campaignId, Guid teamId, CancellationToken cancellationToken = default)
+        {
+            var campaignTeam = await _unitOfWork.Campaigns.GetCampaignTeamAsync(campaignId, teamId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Team '{teamId}' is not assigned to campaign '{campaignId}'.");
+
+            var memberCount = await _unitOfWork.Teams.GetTeamMemberCountAsync(teamId, cancellationToken);
+            if (campaignTeam.Status is CampaignTeamStatus.Accepted or CampaignTeamStatus.Active)
+            {
+                await UpdateProgressAsync(campaignId, CampaignResourceType.People, -memberCount, cancellationToken);
+            }
+
+            campaignTeam.IsDelete = true;
+            campaignTeam.Status = CampaignTeamStatus.Cancelled;
+            await _unitOfWork.Campaigns.UpdateCampaignTeamAsync(campaignTeam, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
         public async Task UpdateProgressAsync(Guid campaignId, CampaignResourceType resourceType, decimal amountDelta, CancellationToken cancellationToken = default)
@@ -173,11 +365,10 @@ namespace ReliefManagementSystem.Application.Services
 
             await _unitOfWork.Campaigns.UpdateGoalAsync(goal, cancellationToken);
 
-            // Auto-close fundraising campaign when all active goals met.
+            // Auto-close fundraising campaign according to completion rule.
             if (campaign.Type == CampaignType.Fundraising && campaign.Status == CampaignStatus.Active)
             {
-                var allMet = campaign.ResourceGoals.Count != 0 && campaign.ResourceGoals.All(g => g.IsMet);
-                if (allMet)
+                if (ShouldMarkGoalsMet(campaign))
                 {
                     campaign.Status = CampaignStatus.GoalsMet;
                     await _unitOfWork.Campaigns.UpdateAsync(campaign);
@@ -233,6 +424,11 @@ namespace ReliefManagementSystem.Application.Services
         private static void ValidateStatusTransition(Domain.Entities.Campaign campaign, CampaignStatus next)
         {
             if (campaign.Status == next) return;
+
+            if (campaign.Type == CampaignType.Fundraising && next == CampaignStatus.GoalsMet && !ShouldMarkGoalsMet(campaign))
+            {
+                throw new InvalidOperationException("Campaign chưa đạt điều kiện để chuyển sang GoalsMet.");
+            }
 
             bool valid = campaign.Type switch
             {
@@ -312,6 +508,7 @@ namespace ReliefManagementSystem.Application.Services
                 AddressDetail = campaign.AddressDetail,
                 Status = campaign.Status,
                 Type = campaign.Type,
+                CompletionRule = campaign.CompletionRule,
                 AllowOverTarget = campaign.AllowOverTarget,
                 CreatedAt = campaign.CreatedAt,
                 Goals = goals.Select(MapGoal).ToList(),
@@ -341,6 +538,7 @@ namespace ReliefManagementSystem.Application.Services
                 Name = campaign.Name,
                 Status = campaign.Status,
                 Type = campaign.Type,
+                CompletionRule = campaign.CompletionRule,
                 StartDate = campaign.StartDate,
                 EndDate = campaign.EndDate,
                 AllowOverTarget = campaign.AllowOverTarget,
@@ -360,8 +558,27 @@ namespace ReliefManagementSystem.Application.Services
                 ResourceType = goal.ResourceType,
                 TargetAmount = goal.TargetAmount,
                 ReceivedAmount = goal.ReceivedAmount,
+                IsRequired = goal.IsRequired,
                 IsMet = goal.IsMet,
                 ProgressPercent = Math.Round(progress, 2)
+            };
+        }
+
+        private static bool ShouldMarkGoalsMet(Domain.Entities.Campaign campaign)
+        {
+            if (!campaign.ResourceGoals.Any())
+            {
+                return false;
+            }
+
+            return campaign.CompletionRule switch
+            {
+                CampaignCompletionRule.AllGoalsMet => campaign.ResourceGoals.All(g => g.IsMet),
+                CampaignCompletionRule.RequiredGoalsMet =>
+                    campaign.ResourceGoals.Where(g => g.IsRequired).Any()
+                    && campaign.ResourceGoals.Where(g => g.IsRequired).All(g => g.IsMet),
+                CampaignCompletionRule.ManualOnly => false,
+                _ => false
             };
         }
     }

@@ -22,6 +22,8 @@ namespace ReliefManagementSystem.Domain.Entities
         /// </summary>
         public decimal ReceivedAmount { get; set; }
 
+        public bool IsRequired { get; set; } = true;
+
         public bool IsMet { get; set; }
 
         public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;

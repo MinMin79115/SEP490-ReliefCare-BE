@@ -30,6 +30,8 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public CampaignType Type { get; set; }
 
+        public CampaignCompletionRule CompletionRule { get; set; } = CampaignCompletionRule.RequiredGoalsMet;
+
         /// <summary>
         /// Cho phép vượt mục tiêu kêu gọi (over-target).
         /// </summary>

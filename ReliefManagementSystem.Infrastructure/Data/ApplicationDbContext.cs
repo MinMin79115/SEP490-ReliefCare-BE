@@ -525,6 +525,11 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .IsRequired();
 
             builder.Entity<Campaign>()
+                .Property(c => c.CompletionRule)
+                .HasConversion<string>()
+                .IsRequired();
+
+            builder.Entity<Campaign>()
                 .Property(c => c.Status)
                 .HasConversion<string>()
                 .IsRequired();
@@ -541,6 +546,10 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .Property(g => g.ResourceType)
                 .HasConversion<string>()
                 .IsRequired();
+
+            builder.Entity<CampaignResourceGoal>()
+                .Property(g => g.IsRequired)
+                .HasDefaultValue(true);
 
             builder.Entity<CampaignResourceGoal>()
                 .HasOne(g => g.Campaign)

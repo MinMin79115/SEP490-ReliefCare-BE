@@ -11,6 +11,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
     {
         Task<Campaign?> GetWithGoalsAsync(Guid campaignId, CancellationToken cancellationToken = default);
         Task<Campaign?> GetWithStationsAsync(Guid campaignId, CancellationToken cancellationToken = default);
+        Task<Campaign?> GetWithDetailsAsync(Guid campaignId, CancellationToken cancellationToken = default);
         Task<(List<Campaign> Items, int TotalCount)> GetPagedAsync(
             int pageIndex,
             int pageSize,
@@ -23,10 +24,16 @@ namespace ReliefManagementSystem.Application.Common.Interface
         Task<bool> HasAnyActiveStationAsync(Guid campaignId, CancellationToken cancellationToken = default);
         Task<bool> IsStationAlreadyAttachedAsync(Guid campaignId, Guid reliefStationId, CancellationToken cancellationToken = default);
         Task AddStationAsync(CampaignStation campaignStation, CancellationToken cancellationToken = default);
+        Task<CampaignStation?> GetStationAsync(Guid campaignId, Guid reliefStationId, CancellationToken cancellationToken = default);
 
         Task<CampaignResourceGoal?> GetGoalAsync(Guid campaignId, CampaignResourceType resourceType, CancellationToken cancellationToken = default);
         Task<List<CampaignResourceGoal>> GetGoalsAsync(Guid campaignId, CancellationToken cancellationToken = default);
         Task AddGoalAsync(CampaignResourceGoal goal, CancellationToken cancellationToken = default);
         Task UpdateGoalAsync(CampaignResourceGoal goal, CancellationToken cancellationToken = default);
+
+        Task<CampaignTeam?> GetCampaignTeamAsync(Guid campaignId, Guid teamId, CancellationToken cancellationToken = default);
+        Task<List<CampaignTeam>> GetCampaignTeamsAsync(Guid campaignId, CancellationToken cancellationToken = default);
+        Task AddCampaignTeamAsync(CampaignTeam campaignTeam, CancellationToken cancellationToken = default);
+        Task UpdateCampaignTeamAsync(CampaignTeam campaignTeam, CancellationToken cancellationToken = default);
     }
 }
