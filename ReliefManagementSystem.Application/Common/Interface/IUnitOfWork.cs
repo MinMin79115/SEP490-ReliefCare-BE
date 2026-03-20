@@ -36,6 +36,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
         IInventoryRepository Inventories { get; }
         IInventoryStockRepository InventoryStocks { get; }
         IInventoryTransactionRepository InventoryTransactions { get; }
+        IProcurementOrderRepository ProcurementOrders { get; }
 
         // Relief Station Management
         IReliefStationTeamRepository ReliefStationTeams { get; }

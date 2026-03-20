@@ -5,6 +5,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace ReliefManagementSystem.Domain.Entities
 {
+    [Obsolete("Public in-kind donations are deprecated. Use procurement workflow instead.")]
     public class InKindDonation
     {
         [Key]

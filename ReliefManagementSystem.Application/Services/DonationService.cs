@@ -401,15 +401,29 @@ namespace ReliefManagementSystem.Application.Services
                 return;
             }
 
+            var campaign = await _unitOfWork.Campaigns.GetWithGoalsAsync(campaignId, cancellationToken)
+                ?? throw new DonationCampaignNotFoundException(campaignId);
+
             if (previousStatus != DonationStatus.Completed && newStatus == DonationStatus.Completed)
             {
                 // Transition into Completed: add the donated amount
                 await _campaignService.UpdateProgressAsync(campaignId, CampaignResourceType.Money, amount, cancellationToken);
+                campaign.BudgetTotal += amount;
+                await _unitOfWork.Campaigns.UpdateAsync(campaign);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
             }
             else if (previousStatus == DonationStatus.Completed && newStatus != DonationStatus.Completed)
             {
                 // Transition out of Completed (refund, correction, cancel): subtract the donated amount
+                if (campaign.BudgetTotal - amount < campaign.BudgetSpent)
+                {
+                    throw new DonationInvalidStateException("Không thể giảm BudgetTotal xuống thấp hơn BudgetSpent của campaign.");
+                }
+
                 await _campaignService.UpdateProgressAsync(campaignId, CampaignResourceType.Money, -amount, cancellationToken);
+                campaign.BudgetTotal -= amount;
+                await _unitOfWork.Campaigns.UpdateAsync(campaign);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
             }
         }
 

@@ -45,6 +45,8 @@ namespace ReliefManagementSystem.Infrastructure.Data
         public DbSet<Inventory> Inventories { get; set; }
         public DbSet<InventoryStock> InventoryStocks { get; set; }
         public DbSet<InventoryTransaction> InventoryTransactions { get; set; }
+        public DbSet<ProcurementOrder> ProcurementOrders { get; set; }
+        public DbSet<ProcurementOrderItem> ProcurementOrderItems { get; set; }
         public DbSet<InventoryTransactionItem> InventoryTransactionItems { get; set; }
         public DbSet<SupplyItem> SupplyItems { get; set; }
         public DbSet<ReliefStation> ReliefStations { get; set; }
@@ -560,6 +562,47 @@ namespace ReliefManagementSystem.Infrastructure.Data
             builder.Entity<CampaignResourceGoal>()
                 .HasIndex(g => new { g.CampaignId, g.ResourceType })
                 .IsUnique();
+
+            builder.Entity<ProcurementOrder>()
+                .HasKey(p => p.ProcurementOrderId);
+
+            builder.Entity<ProcurementOrder>()
+                .Property(p => p.Status)
+                .HasConversion<string>()
+                .IsRequired();
+
+            builder.Entity<ProcurementOrder>()
+                .HasOne(p => p.Campaign)
+                .WithMany()
+                .HasForeignKey(p => p.CampaignId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<ProcurementOrder>()
+                .HasOne(p => p.DestinationInventory)
+                .WithMany()
+                .HasForeignKey(p => p.DestinationInventoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<ProcurementOrder>()
+                .HasOne(p => p.InventoryTransaction)
+                .WithMany()
+                .HasForeignKey(p => p.InventoryTransactionId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<ProcurementOrderItem>()
+                .HasKey(i => i.ProcurementOrderItemId);
+
+            builder.Entity<ProcurementOrderItem>()
+                .HasOne(i => i.ProcurementOrder)
+                .WithMany(p => p.Items)
+                .HasForeignKey(i => i.ProcurementOrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<ProcurementOrderItem>()
+                .HasOne(i => i.SupplyItem)
+                .WithMany()
+                .HasForeignKey(i => i.SupplyItemId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             // CampaignStation Configuration
             builder.Entity<CampaignStation>()

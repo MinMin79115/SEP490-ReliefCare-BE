@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using ReliefManagementSystem.Application.Features.Campaign.Dtos.Requests;
 using ReliefManagementSystem.Application.Interface;
 
@@ -37,6 +38,14 @@ namespace ReliefManagementSystem.API.Controllers
         public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
         {
             var result = await _campaignService.GetByIdAsync(id, cancellationToken);
+            return Ok(result);
+        }
+
+        [AllowAnonymous]
+        [HttpGet("{id:guid}/summary")]
+        public async Task<IActionResult> GetPublicSummary(Guid id, CancellationToken cancellationToken)
+        {
+            var result = await _campaignService.GetPublicSummaryAsync(id, cancellationToken);
             return Ok(result);
         }
 
