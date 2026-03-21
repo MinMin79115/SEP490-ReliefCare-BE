@@ -120,6 +120,7 @@ namespace ReliefManagementSystem.Application.Services
                 VerifiedBy = null,
                 Descriptions = request.Descriptions,
                 YearsOfExperience = request.YearsOfExperience,
+                PreferredTeamRole = request.PreferredTeamRole,
                 Status = VolunteerStatus.Inactive,
                 VolunteerSkills = request.SkillIds.Select(skillId => new VolunteerSkill
                 {
@@ -145,6 +146,7 @@ namespace ReliefManagementSystem.Application.Services
                 Descriptions = volunteerProfile.Descriptions,
                 VerificationStatus = volunteerProfile.VerificationStatus,
                 YearsOfExperience = volunteerProfile.YearsOfExperience,
+                PreferredTeamRole = volunteerProfile.PreferredTeamRole,
                 Skills = volunteerProfile.VolunteerSkills.Select(vs => vs.SkillId).ToList(),
                 Certificates = volunteerProfile.Certificates
                     .Select(c => new VolunteerCertificateResponse
@@ -243,6 +245,80 @@ namespace ReliefManagementSystem.Application.Services
                 .ToList();
         }
 
+        public async Task<Pagination<VolunteerApplicationReviewResponse>> GetPendingVolunteerApplicationsAsync(
+            GetPendingVolunteerApplicationsRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var query = _unitOfWork.VolunteerProfiles.GetQueryableForReview()
+                .AsQueryable();
+
+            if (request.VerificationStatus.HasValue)
+            {
+                query = query.Where(vp => vp.VerificationStatus == request.VerificationStatus.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var keyword = request.Search.Trim();
+                query = query.Where(vp =>
+                    (vp.User != null && (
+                        (vp.User.DisplayName ?? string.Empty).Contains(keyword) ||
+                        (vp.User.Email ?? string.Empty).Contains(keyword) ||
+                        (vp.User.PhoneNumber ?? string.Empty).Contains(keyword)
+                    )));
+            }
+
+            query = query.OrderByDescending(vp => vp.CreatedAt);
+
+            var paged = await Pagination<VolunteerProfile>.ToPagedList(
+                query,
+                request.PageIndex,
+                request.PageSize);
+
+            var items = paged.Items!.Select(vp => new VolunteerApplicationReviewResponse
+            {
+                VolunteerProfileId = vp.VolunteerProfileId,
+                UserId = vp.UserId,
+                FullName = vp.User?.DisplayName,
+                Email = vp.User?.Email,
+                PhoneNumber = vp.User?.PhoneNumber,
+                Address = vp.User?.Address,
+                DateOfBirth = vp.User?.DateOfBirth,
+                Gender = vp.User?.Gender,
+                AppliedAt = vp.CreatedAt,
+                VerificationStatus = vp.VerificationStatus,
+                Status = vp.Status,
+                VerifiedBy = vp.VerifiedBy,
+                VerifiedAt = vp.VerifiedAt,
+                Reason = vp.Reason,
+                Descriptions = vp.Descriptions,
+                YearsOfExperience = vp.YearsOfExperience,
+                PreferredTeamRole = vp.PreferredTeamRole,
+                VolunteerType = vp.VolunteerType,
+                Skills = vp.VolunteerSkills.Select(vs => new VolunteerSkillResponse
+                {
+                    SkillId = vs.SkillId,
+                    Code = vs.Skill?.Code ?? string.Empty,
+                    Name = vs.Skill?.Name ?? string.Empty,
+                    Description = vs.Skill?.Description
+                }).ToList(),
+                Certificates = vp.Certificates.Select(c => new VolunteerCertificateResponse
+                {
+                    Name = c.Name,
+                    IssuedBy = c.IssuedBy,
+                    IssuedDate = c.IssuedDate,
+                    ExpiryDate = c.ExpiryDate,
+                    FileUrl = c.FileUrl
+                }).ToList()
+            }).ToList();
+
+            return new Pagination<VolunteerApplicationReviewResponse>(
+                items,
+                paged.TotalCount,
+                paged.CurrentPage,
+                paged.PageSize);
+        }
+
         public async Task<VolunteerProfileResponse> AddNewSkillVolunteer(AddVolunteerRequest request,    CancellationToken cancellationToken)
         {
             var userId = _currentUserService.UserId
@@ -287,6 +363,7 @@ namespace ReliefManagementSystem.Application.Services
                 PhoneNumber = user.PhoneNumber,
                 Descriptions = profile.Descriptions,
                 VerificationStatus = profile.VerificationStatus,
+                PreferredTeamRole = profile.PreferredTeamRole,
                 Skills = profile.VolunteerSkills
                     .Select(vs => vs.SkillId)
                     .ToList()
@@ -328,6 +405,7 @@ namespace ReliefManagementSystem.Application.Services
                 PhoneNumber = user.PhoneNumber,
                 Descriptions = profile.Descriptions,
                 VerificationStatus = profile.VerificationStatus,
+                PreferredTeamRole = profile.PreferredTeamRole,
                 Skills = profile.VolunteerSkills
                     .Select(vs => vs.SkillId)
                     .ToList()
@@ -381,6 +459,9 @@ namespace ReliefManagementSystem.Application.Services
             if (request.PhoneNumber != null)
                 user.PhoneNumber = request.PhoneNumber;
 
+            if (request.Address != null)
+                user.Address = request.Address;
+
             if (request.DateOfBirth.HasValue)
                 user.DateOfBirth = request.DateOfBirth.Value;
 
@@ -411,6 +492,7 @@ namespace ReliefManagementSystem.Application.Services
                 DisplayName = user.DisplayName,
                 Email = user.Email,
                 PhoneNumber = user.PhoneNumber,
+                Address = user.Address,
                 DateOfBirth = user.DateOfBirth,
                 Gender = user.Gender,
                 PictureUrl = user.PictureUrl,
@@ -431,6 +513,7 @@ namespace ReliefManagementSystem.Application.Services
                 PhoneNumber = user?.PhoneNumber,
                 Descriptions = profile.Descriptions,
                 VerificationStatus = profile.VerificationStatus,
+                PreferredTeamRole = profile.PreferredTeamRole,
                 Skills = profile.VolunteerSkills
                     .Select(vs => vs.SkillId)
                     .ToList()

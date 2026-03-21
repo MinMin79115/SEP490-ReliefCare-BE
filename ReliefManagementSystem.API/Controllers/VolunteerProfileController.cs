@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Application.Features.VolunteerRequest.Request;
 using ReliefManagementSystem.Application.Features.VolunteerRequest.Response;
 using ReliefManagementSystem.Application.Interface;
@@ -51,6 +52,26 @@ namespace ReliefManagementSystem.API.Controllers
             var result = await _userService
                 .GetAllVolunteerProfilesAsync(cancellationToken);
 
+            return Ok(result);
+        }
+
+        [Authorize(Roles = "Moderator")]
+        [HttpGet("pending-applications")]
+        public async Task<ActionResult<Pagination<VolunteerApplicationReviewResponse>>> GetPendingApplications(
+            [FromQuery] GetPendingVolunteerApplicationsRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _userService.GetPendingVolunteerApplicationsAsync(request, cancellationToken);
+            return Ok(result);
+        }
+
+        [Authorize(Roles = "Moderator")]
+        [HttpGet("review-applications")]
+        public async Task<ActionResult<Pagination<VolunteerApplicationReviewResponse>>> GetApplicationsForReview(
+            [FromQuery] GetPendingVolunteerApplicationsRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _userService.GetPendingVolunteerApplicationsAsync(request, cancellationToken);
             return Ok(result);
         }
 
