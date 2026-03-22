@@ -172,6 +172,19 @@ namespace ReliefManagementSystem.Application.Services
             return new Pagination<TransactionSummaryResponse>(items, paged.TotalCount, paged.CurrentPage, paged.PageSize);
         }
 
+        private string GetCreatedByNameFallback() =>
+            _currentUser.DisplayName
+            ?? _currentUser.Email
+            ?? string.Empty;
+
+        private string ResolveCreatedByName(Domain.Entities.InventoryTransaction transaction)
+        {
+            return transaction.CreatedByUser?.DisplayName
+                ?? transaction.CreatedByUser?.UserName
+                ?? transaction.CreatedByUser?.Email
+                ?? GetCreatedByNameFallback();
+        }
+
         /// <inheritdoc/>
         public async Task<Pagination<TransactionSummaryResponse>> GetTransactionsByTypeAsync(
             TransactionType type,
@@ -211,7 +224,7 @@ namespace ReliefManagementSystem.Application.Services
             return $"{prefix}-{date}-{(count + 1):D3}";
         }
 
-        private static TransactionResponse MapToResponse(Domain.Entities.InventoryTransaction t) => new()
+        private TransactionResponse MapToResponse(Domain.Entities.InventoryTransaction t) => new()
         {
             TransactionId = t.TransactionId,
             InventoryId = t.InventoryId,
@@ -221,7 +234,7 @@ namespace ReliefManagementSystem.Application.Services
             Reason = t.Reason,
             CreatedAt = t.CreatedAt,
             CreatedBy = t.CreatedBy,
-            CreatedByName = t.CreatedByUser?.DisplayName ?? string.Empty,
+            CreatedByName = ResolveCreatedByName(t),
             Notes = t.Notes,
             Items = t.Items.Select(i => new TransactionItemResponse
             {
@@ -234,7 +247,7 @@ namespace ReliefManagementSystem.Application.Services
             }).ToList()
         };
 
-        private static TransactionSummaryResponse MapToSummary(Domain.Entities.InventoryTransaction t) => new()
+        private TransactionSummaryResponse MapToSummary(Domain.Entities.InventoryTransaction t) => new()
         {
             TransactionId = t.TransactionId,
             InventoryId = t.InventoryId,
@@ -243,7 +256,7 @@ namespace ReliefManagementSystem.Application.Services
             Reason = t.Reason,
             TotalItems = t.Items.Count,
             CreatedAt = t.CreatedAt,
-            CreatedByName = t.CreatedByUser?.DisplayName ?? string.Empty,
+            CreatedByName = ResolveCreatedByName(t),
             Notes = t.Notes
         };
     }

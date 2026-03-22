@@ -113,11 +113,11 @@ services:
     networks:
       - reliefcare-local
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      test: ["CMD-SHELL", "curl -fsSL http://localhost:8080/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 90s
+      start_period: 240s
 
   # -----------------------------------------------------------
   # pgAdmin 4 - Giao diện quản lý PostgreSQL

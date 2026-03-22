@@ -21,6 +21,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddControllers();
+builder.Services.AddHealthChecks();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {
@@ -235,6 +236,8 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.UseMiddleware<ExceptionMiddleware>();
 app.MapControllers();
+app.MapGet("/health", () => Results.Ok(new { status = "Healthy" })).AllowAnonymous();
+app.MapHealthChecks("/healthz");
 app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();
