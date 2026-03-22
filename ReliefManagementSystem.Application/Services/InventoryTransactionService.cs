@@ -55,7 +55,7 @@ namespace ReliefManagementSystem.Application.Services
 
             // 4. Load all stocks for this inventory in ONE query (avoid N+1)
             var inventoryStocks = await _unitOfWork.InventoryStocks
-                .GetByInventoryIdAsync(request.InventoryId, cancellationToken);
+                .GetByInventoryIdForUpdateAsync(request.InventoryId, cancellationToken);
 
             // 5. Validate each item and pre-compute new quantities
             var stockUpdates = new List<(Domain.Entities.InventoryStock Stock, int NewQty)>();

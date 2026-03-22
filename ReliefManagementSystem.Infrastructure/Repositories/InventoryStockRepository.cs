@@ -28,6 +28,16 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .ToListAsync(cancellationToken);
         }
 
+        public async Task<List<InventoryStock>> GetByInventoryIdForUpdateAsync(
+            Guid inventoryId,
+            CancellationToken cancellationToken = default)
+        {
+            return await _dbSet
+                .Where(s => s.InventoryId == inventoryId)
+                .OrderBy(s => s.SupplyItemId)
+                .ToListAsync(cancellationToken);
+        }
+
         /// <inheritdoc/>
         public async Task<InventoryStock?> GetByInventoryAndSupplyItemAsync(
             Guid inventoryId,

@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using ReliefManagementSystem.Application.Features.Procurement.Dtos.Requests;
 using ReliefManagementSystem.Application.Interface;
@@ -6,6 +7,7 @@ namespace ReliefManagementSystem.API.Controllers
 {
     [Route("api/procurements")]
     [ApiController]
+    [Authorize]
     public class ProcurementController : ControllerBase
     {
         private readonly IProcurementService _procurementService;
