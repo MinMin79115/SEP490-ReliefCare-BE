@@ -204,6 +204,7 @@ namespace ReliefManagementSystem.Application.Services
             var campaign = await _unitOfWork.Campaigns.GetWithDetailsAsync(campaignId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
 
+            await ValidateReliefReadinessAsync(campaign, request.Status, cancellationToken);
             ValidateStatusTransition(campaign, request.Status);
 
             campaign.Status = request.Status;
@@ -611,6 +612,64 @@ namespace ReliefManagementSystem.Application.Services
                 IsMet = goal.IsMet,
                 ProgressPercent = Math.Round(progress, 2)
             };
+        }
+
+        private async Task ValidateReliefReadinessAsync(Domain.Entities.Campaign campaign, CampaignStatus next, CancellationToken cancellationToken)
+        {
+            if (campaign.Type != CampaignType.Relief)
+            {
+                return;
+            }
+
+            var station = campaign.CampaignStations.FirstOrDefault(s => s.IsActive);
+            var activeTeams = campaign.CampaignTeams.Where(t => !t.IsDelete && (t.Status == CampaignTeamStatus.Accepted || t.Status == CampaignTeamStatus.Active)).ToList();
+
+            if (next == CampaignStatus.ReadyToExecute)
+            {
+                if (activeTeams.Count == 0)
+                {
+                    throw new InvalidOperationException("Relief campaign cần ít nhất 1 team Accepted/Active trước khi chuyển sang ReadyToExecute.");
+                }
+
+                if (station is null)
+                {
+                    throw new InvalidOperationException("Relief campaign cần gắn 1 relief station active trước khi chuyển sang ReadyToExecute.");
+                }
+
+                var inventory = await _unitOfWork.Inventories.GetActiveByReliefStationAsync(station.ReliefStationId, cancellationToken);
+                if (inventory is null)
+                {
+                    throw new InvalidOperationException("Relief station của campaign chưa có inventory active để vận hành.");
+                }
+
+                var hasStock = inventory.InventoryItems.Any(i => i.CurrentQuantity > 0);
+                var allocations = await _unitOfWork.SupplyAllocations.GetByCampaignIdAsync(campaign.CampaignId, cancellationToken);
+                var hasUsableAllocation = allocations.Any(a => a.Status == SupplyAllocationStatus.Pending || a.Status == SupplyAllocationStatus.Approved || a.Status == SupplyAllocationStatus.Delivered);
+
+                if (!hasStock && !hasUsableAllocation && campaign.BudgetTotal <= campaign.BudgetSpent)
+                {
+                    throw new InvalidOperationException("Relief campaign cần có nguồn lực khả dụng (stock, allocation hoặc budget còn lại) trước khi sẵn sàng thực thi.");
+                }
+            }
+
+            if (next == CampaignStatus.InProgress)
+            {
+                if (activeTeams.Count == 0)
+                {
+                    throw new InvalidOperationException("Relief campaign cần ít nhất 1 team Accepted/Active trước khi bắt đầu InProgress.");
+                }
+
+                if (station is null)
+                {
+                    throw new InvalidOperationException("Relief campaign cần có relief station active trước khi bắt đầu InProgress.");
+                }
+
+                var inventory = await _unitOfWork.Inventories.GetActiveByReliefStationAsync(station.ReliefStationId, cancellationToken);
+                if (inventory is null)
+                {
+                    throw new InvalidOperationException("Relief station của campaign chưa có inventory active.");
+                }
+            }
         }
 
         private static bool ShouldMarkGoalsMet(Domain.Entities.Campaign campaign)

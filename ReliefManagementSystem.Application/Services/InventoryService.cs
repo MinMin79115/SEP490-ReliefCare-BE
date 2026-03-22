@@ -30,6 +30,12 @@ namespace ReliefManagementSystem.Application.Services
             CreateInventoryRequest request,
             CancellationToken cancellationToken = default)
         {
+            var station = await _unitOfWork.ReliefStations.GetByIdAsync(request.ReliefStationId);
+            if (station is null || station.IsDeleted)
+            {
+                throw new KeyNotFoundException($"Relief station '{request.ReliefStationId}' was not found.");
+            }
+
             // A relief station can only have one inventory per level
             if (await _unitOfWork.Inventories.IsLevelExistsForStationAsync(
                     request.ReliefStationId, request.Level, cancellationToken: cancellationToken))
@@ -86,19 +92,10 @@ namespace ReliefManagementSystem.Application.Services
 
             query = query.OrderBy(i => i.Level);
 
-            // Project to response DTO before paging to avoid EF tracking issues with computed props
-            var projectedQuery = query.Select(i => new InventoryResponse
-            {
-                InventoryId = i.InventoryId,
-                ReliefStationId = i.ReliefStationId,
-                ReliefStationName = i.ReliefStation != null ? i.ReliefStation.Name : string.Empty,
-                Level = i.Level,
-                Status = i.Status,
-                TotalStockSlots = i.InventoryItems.Count(),
-                CriticalCount = i.InventoryItems.Count(s => s.InventoryStatus == InventoryStatus.Critical)
-            });
+            var paged = await Pagination<Inventory>.ToPagedList(query, pageIndex, pageSize);
+            var items = paged.Items!.Select(MapToResponse).ToList();
 
-            return await Pagination<InventoryResponse>.ToPagedList(projectedQuery, pageIndex, pageSize);
+            return new Pagination<InventoryResponse>(items, paged.TotalCount, paged.CurrentPage, paged.PageSize);
         }
 
         /// <inheritdoc/>
@@ -193,6 +190,16 @@ namespace ReliefManagementSystem.Application.Services
                 throw new InvalidOperationException("MinimumStockLevel cannot exceed MaximumStockLevel.");
             }
 
+            if (request.CurrentQuantity < 0)
+            {
+                throw new InvalidOperationException("CurrentQuantity cannot be negative.");
+            }
+
+            if (request.MaximumStockLevel > 0 && request.CurrentQuantity > request.MaximumStockLevel)
+            {
+                throw new InvalidOperationException("CurrentQuantity cannot exceed MaximumStockLevel.");
+            }
+
             var stock = new InventoryStock
             {
                 InventoryStockId = Guid.NewGuid(),
@@ -227,21 +234,10 @@ namespace ReliefManagementSystem.Application.Services
                 .Where(s => s.InventoryId == inventoryId)
                 .OrderBy(s => s.SupplyItem!.Name);
 
-            var projectedQuery = query.Select(s => new InventoryStockResponse
-            {
-                InventoryStockId = s.InventoryStockId,
-                InventoryId = s.InventoryId,
-                SupplyItemId = s.SupplyItemId,
-                SupplyItemName = s.SupplyItem != null ? s.SupplyItem.Name : string.Empty,
-                SupplyItemUnit = s.SupplyItem != null ? s.SupplyItem.Unit : string.Empty,
-                SupplyItemCategory = s.SupplyItem != null ? s.SupplyItem.Category : SupplyCategory.Khac,
-                CurrentQuantity = s.CurrentQuantity,
-                MinimumStockLevel = s.MinimumStockLevel,
-                MaximumStockLevel = s.MaximumStockLevel,
-                StockStatus = s.InventoryStatus
-            });
+            var paged = await Pagination<InventoryStock>.ToPagedList(query, pageIndex, pageSize);
+            var items = paged.Items!.Select(MapToStockResponse).ToList();
 
-            return await Pagination<InventoryStockResponse>.ToPagedList(projectedQuery, pageIndex, pageSize);
+            return new Pagination<InventoryStockResponse>(items, paged.TotalCount, paged.CurrentPage, paged.PageSize);
         }
 
         /// <inheritdoc/>
@@ -259,6 +255,11 @@ namespace ReliefManagementSystem.Application.Services
             if (request.MinimumStockLevel > request.MaximumStockLevel)
             {
                 throw new InvalidOperationException("MinimumStockLevel cannot exceed MaximumStockLevel.");
+            }
+
+            if (request.MaximumStockLevel > 0 && stock.CurrentQuantity > request.MaximumStockLevel)
+            {
+                throw new InvalidOperationException("Current stock quantity cannot exceed MaximumStockLevel.");
             }
 
             stock.MinimumStockLevel = request.MinimumStockLevel;
@@ -279,6 +280,11 @@ namespace ReliefManagementSystem.Application.Services
             if (stock is null)
             {
                 throw new KeyNotFoundException($"Stock entry '{stockId}' was not found.");
+            }
+
+            if (stock.CurrentQuantity > 0)
+            {
+                throw new InvalidOperationException("Cannot remove a stock item that still has quantity on hand.");
             }
 
             await _unitOfWork.InventoryStocks.DeleteAsync(stock);

@@ -27,6 +27,7 @@ namespace ReliefManagementSystem.Application.Services
         /// <inheritdoc/>
         public async Task<TransactionResponse> CreateTransactionAsync(
             CreateTransactionRequest request,
+            bool autoSave = true,
             CancellationToken cancellationToken = default)
         {
             // 1. Validate inventory exists and is usable
@@ -76,6 +77,15 @@ namespace ReliefManagementSystem.Application.Services
                     ? stock.CurrentQuantity + itemReq.Quantity
                     : stock.CurrentQuantity - itemReq.Quantity;
 
+                if (request.Type == TransactionType.Import &&
+                    stock.MaximumStockLevel > 0 &&
+                    newQty > stock.MaximumStockLevel)
+                {
+                    throw new InvalidOperationException(
+                        $"Import quantity exceeds maximum stock level for '{stock.SupplyItem?.Name ?? itemReq.SupplyItemId.ToString()}'. " +
+                        $"Maximum: {stock.MaximumStockLevel}, After import: {newQty}.");
+                }
+
                 stockUpdates.Add((stock, newQty));
             }
 
@@ -112,14 +122,19 @@ namespace ReliefManagementSystem.Application.Services
                 await _unitOfWork.InventoryStocks.UpdateAsync(stock);
             }
 
-            // 9. Single SaveChanges — atomic commit
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            if (autoSave)
+            {
+                // 9. Single SaveChanges — atomic commit
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // 10. Reload with navigation properties for full response
-            var saved = await _unitOfWork.InventoryTransactions
-                .GetByIdWithItemsAsync(transaction.TransactionId, cancellationToken);
+                // 10. Reload with navigation properties for full response
+                var saved = await _unitOfWork.InventoryTransactions
+                    .GetByIdWithItemsAsync(transaction.TransactionId, cancellationToken);
 
-            return MapToResponse(saved!);
+                return MapToResponse(saved!);
+            }
+
+            return MapToResponse(transaction);
         }
 
         /// <inheritdoc/>

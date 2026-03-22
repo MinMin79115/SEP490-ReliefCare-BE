@@ -20,17 +20,20 @@ namespace ReliefManagementSystem.Application.Services
         private readonly ICurrentUserService _currentUserService;
         private readonly IPayOsGateway _payOsGateway;
         private readonly ICampaignService _campaignService;
+        private readonly IFundService _fundService;
 
         public DonationService(
             IUnitOfWork unitOfWork,
             ICurrentUserService currentUserService,
             IPayOsGateway payOsGateway,
-            ICampaignService campaignService)
+            ICampaignService campaignService,
+            IFundService fundService)
         {
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
             _payOsGateway = payOsGateway;
             _campaignService = campaignService;
+            _fundService = fundService;
         }
 
         public async Task<CreateDonationCheckoutResponse> CreateCheckoutAsync(CreateDonationCheckoutRequest request, CancellationToken cancellationToken = default)
@@ -198,7 +201,7 @@ namespace ReliefManagementSystem.Application.Services
             await _unitOfWork.Donations.UpdateAsync(donation);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            await AdjustCampaignProgressAsync(donation.CampaignId, donation.Amount, previousStatus, donation.Status, cancellationToken);
+            await AdjustCampaignProgressAsync(donation, previousStatus, donation.Status, cancellationToken);
         }
 
         public async Task<Pagination<AdminDonationItemResponse>> GetAdminDonationsAsync(AdminDonationQueryRequest request, CancellationToken cancellationToken = default)
@@ -306,7 +309,7 @@ namespace ReliefManagementSystem.Application.Services
             await _unitOfWork.Donations.UpdateAsync(donation);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            await AdjustCampaignProgressAsync(donation.CampaignId, donation.Amount, previousStatus, donation.Status, cancellationToken);
+            await AdjustCampaignProgressAsync(donation, previousStatus, donation.Status, cancellationToken);
 
             return MapStatus(donation);
         }
@@ -337,7 +340,7 @@ namespace ReliefManagementSystem.Application.Services
             await _unitOfWork.Donations.UpdateAsync(donation);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            await AdjustCampaignProgressAsync(donation.CampaignId, donation.Amount, previousStatus, donation.Status, cancellationToken);
+            await AdjustCampaignProgressAsync(donation, previousStatus, donation.Status, cancellationToken);
 
             return MapStatus(donation);
         }
@@ -390,8 +393,7 @@ namespace ReliefManagementSystem.Application.Services
         }
 
         private async Task AdjustCampaignProgressAsync(
-            Guid campaignId,
-            decimal amount,
+            Domain.Entities.Donation donation,
             DonationStatus previousStatus,
             DonationStatus newStatus,
             CancellationToken cancellationToken)
@@ -401,29 +403,31 @@ namespace ReliefManagementSystem.Application.Services
                 return;
             }
 
-            var campaign = await _unitOfWork.Campaigns.GetWithGoalsAsync(campaignId, cancellationToken)
-                ?? throw new DonationCampaignNotFoundException(campaignId);
+            var campaign = await _unitOfWork.Campaigns.GetWithGoalsAsync(donation.CampaignId, cancellationToken)
+                ?? throw new DonationCampaignNotFoundException(donation.CampaignId);
 
             if (previousStatus != DonationStatus.Completed && newStatus == DonationStatus.Completed)
             {
                 // Transition into Completed: add the donated amount
-                await _campaignService.UpdateProgressAsync(campaignId, CampaignResourceType.Money, amount, cancellationToken);
-                campaign.BudgetTotal += amount;
+                await _campaignService.UpdateProgressAsync(donation.CampaignId, CampaignResourceType.Money, donation.Amount, cancellationToken);
+                campaign.BudgetTotal += donation.Amount;
                 await _unitOfWork.Campaigns.UpdateAsync(campaign);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _fundService.EnsureContributionForCompletedDonationAsync(donation, cancellationToken);
             }
             else if (previousStatus == DonationStatus.Completed && newStatus != DonationStatus.Completed)
             {
                 // Transition out of Completed (refund, correction, cancel): subtract the donated amount
-                if (campaign.BudgetTotal - amount < campaign.BudgetSpent)
+                if (campaign.BudgetTotal - donation.Amount < campaign.BudgetSpent)
                 {
                     throw new DonationInvalidStateException("Không thể giảm BudgetTotal xuống thấp hơn BudgetSpent của campaign.");
                 }
 
-                await _campaignService.UpdateProgressAsync(campaignId, CampaignResourceType.Money, -amount, cancellationToken);
-                campaign.BudgetTotal -= amount;
+                await _campaignService.UpdateProgressAsync(donation.CampaignId, CampaignResourceType.Money, -donation.Amount, cancellationToken);
+                campaign.BudgetTotal -= donation.Amount;
                 await _unitOfWork.Campaigns.UpdateAsync(campaign);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _fundService.ReverseContributionForDonationAsync(donation, cancellationToken);
             }
         }
 

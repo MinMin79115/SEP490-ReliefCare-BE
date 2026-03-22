@@ -27,6 +27,9 @@ namespace ReliefManagementSystem.Infrastructure.Data
         public DbSet<InKindDonationDetail> InKindDonationDetails { get; set; }
         public DbSet<PaymentTransaction> PaymentTransactions { get; set; }
         public DbSet<PaymentTransactionDetail> PaymentTransactionDetails { get; set; }
+        public DbSet<Fund> Funds { get; set; }
+        public DbSet<FundContribution> FundContributions { get; set; }
+        public DbSet<FundTransaction> FundTransactions { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<Skill> Skills { get; set; }
         public DbSet<VolunteerSkill> VolunteerSkills { get; set; }
@@ -215,6 +218,59 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .Property(mp => mp.Level)
                 .HasConversion<string>()
                 .IsRequired();
+
+            // Fund configuration
+            builder.Entity<Fund>()
+                .HasKey(f => f.FundId);
+
+            builder.Entity<Fund>()
+                .HasIndex(f => f.IsDefault)
+                .HasFilter("\"IsDefault\" = true");
+
+            builder.Entity<FundContribution>()
+                .HasKey(fc => fc.FundContributionId);
+
+            builder.Entity<FundContribution>()
+                .HasOne(fc => fc.Fund)
+                .WithMany(f => f.Contributions)
+                .HasForeignKey(fc => fc.FundId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<FundContribution>()
+                .HasOne(fc => fc.Donation)
+                .WithMany(d => d.FundContributions)
+                .HasForeignKey(fc => fc.DonationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<FundContribution>()
+                .HasOne(fc => fc.Campaign)
+                .WithMany()
+                .HasForeignKey(fc => fc.CampaignId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<FundContribution>()
+                .HasIndex(fc => fc.DonationId)
+                .IsUnique();
+
+            builder.Entity<FundTransaction>()
+                .HasKey(ft => ft.FundTransactionId);
+
+            builder.Entity<FundTransaction>()
+                .Property(ft => ft.Type)
+                .HasConversion<string>()
+                .IsRequired();
+
+            builder.Entity<FundTransaction>()
+                .HasOne(ft => ft.Fund)
+                .WithMany(f => f.Transactions)
+                .HasForeignKey(ft => ft.FundId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<FundTransaction>()
+                .HasOne(ft => ft.FundContribution)
+                .WithMany()
+                .HasForeignKey(ft => ft.FundContributionId)
+                .OnDelete(DeleteBehavior.SetNull);
 
 
             // ModeratorProfile configuration (1:1 với ApplicationUser)
@@ -407,6 +463,13 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .HasKey(i => i.InventoryStockId);
 
             builder.Entity<InventoryStock>()
+                .Property(i => i.RowVersion)
+                .IsRowVersion();
+
+            builder.Entity<InventoryStock>()
+                .ToTable(t => t.HasCheckConstraint("CK_InventoryStocks_CurrentQuantity_NonNegative", "\"CurrentQuantity\" >= 0"));
+
+            builder.Entity<InventoryStock>()
                 .HasIndex(i => new { i.InventoryId, i.SupplyItemId })
                 .IsUnique();
 
@@ -439,6 +502,10 @@ namespace ReliefManagementSystem.Infrastructure.Data
             // InventoryTransaction Configuration
             builder.Entity<InventoryTransaction>()
                 .HasKey(it => it.TransactionId);
+
+            builder.Entity<InventoryTransaction>()
+                .HasIndex(it => it.TransactionCode)
+                .IsUnique();
 
             builder.Entity<InventoryTransaction>()
                 .HasOne(it => it.Inventory)

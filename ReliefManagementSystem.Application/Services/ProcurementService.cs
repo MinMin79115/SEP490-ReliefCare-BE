@@ -127,10 +127,24 @@ namespace ReliefManagementSystem.Application.Services
             var campaign = await _unitOfWork.Campaigns.GetWithGoalsAsync(order.CampaignId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Campaign '{order.CampaignId}' was not found.");
 
-            foreach (var receiveItem in request.Items)
+            var requestedItemsBySupply = request.Items.ToDictionary(i => i.SupplyItemId);
+
+            if (requestedItemsBySupply.Count != order.Items.Count)
             {
-                var orderItem = order.Items.FirstOrDefault(i => i.SupplyItemId == receiveItem.SupplyItemId)
-                    ?? throw new InvalidOperationException($"Supply item '{receiveItem.SupplyItemId}' không có trong procurement order.");
+                throw new InvalidOperationException("Receive request phải khai báo đầy đủ tất cả items của procurement order.");
+            }
+
+            foreach (var orderItem in order.Items)
+            {
+                if (!requestedItemsBySupply.TryGetValue(orderItem.SupplyItemId, out var receiveItem))
+                {
+                    throw new InvalidOperationException($"Supply item '{orderItem.SupplyItemId}' chưa được khai báo trong receive request.");
+                }
+
+                if (receiveItem.ReceivedQuantity > orderItem.Quantity)
+                {
+                    throw new InvalidOperationException($"ReceivedQuantity của supply item '{orderItem.SupplyItemId}' không được vượt quá số lượng đặt mua.");
+                }
 
                 orderItem.ReceivedQuantity = receiveItem.ReceivedQuantity;
                 orderItem.ActualUnitCost = receiveItem.ActualUnitCost;
@@ -145,31 +159,41 @@ namespace ReliefManagementSystem.Application.Services
                 throw new InvalidOperationException("Không thể nhận hàng vì chi tiêu vượt quá BudgetTotal của campaign.");
             }
 
-            var transaction = await _inventoryTransactionService.CreateTransactionAsync(new CreateTransactionRequest
+            await _unitOfWork.BeginTransactionAsync(cancellationToken);
+            try
             {
-                InventoryId = order.DestinationInventoryId,
-                Type = TransactionType.Import,
-                Reason = TransactionReason.Procurement,
-                Notes = $"Procurement receive: {order.OrderCode}",
-                Items = order.Items.Select(i => new TransactionItemRequest
+                var transaction = await _inventoryTransactionService.CreateTransactionAsync(new CreateTransactionRequest
                 {
-                    SupplyItemId = i.SupplyItemId,
-                    Quantity = i.ReceivedQuantity ?? i.Quantity,
-                    Notes = $"Procurement order {order.OrderCode}"
-                }).ToList()
-            }, cancellationToken);
+                    InventoryId = order.DestinationInventoryId,
+                    Type = TransactionType.Import,
+                    Reason = TransactionReason.Procurement,
+                    Notes = $"Procurement receive: {order.OrderCode}",
+                    Items = order.Items.Select(i => new TransactionItemRequest
+                    {
+                        SupplyItemId = i.SupplyItemId,
+                        Quantity = i.ReceivedQuantity ?? 0,
+                        Notes = $"Procurement order {order.OrderCode}"
+                    }).Where(i => i.Quantity > 0).ToList()
+                }, autoSave: false, cancellationToken);
 
-            order.InventoryTransactionId = transaction.TransactionId;
-            order.TotalActualCost = actualCost;
-            order.Status = ProcurementStatus.Received;
-            order.ReceivedBy = _currentUserService.UserId;
-            order.ReceivedAt = DateTime.UtcNow;
-            order.ReceiveNote = request.ReceiveNote;
+                order.InventoryTransactionId = transaction.TransactionId;
+                order.TotalActualCost = actualCost;
+                order.Status = ProcurementStatus.Received;
+                order.ReceivedBy = _currentUserService.UserId;
+                order.ReceivedAt = DateTime.UtcNow;
+                order.ReceiveNote = request.ReceiveNote;
 
-            campaign.BudgetSpent = nextBudgetSpent;
+                campaign.BudgetSpent = nextBudgetSpent;
 
-            await _unitOfWork.Campaigns.UpdateAsync(campaign);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.Campaigns.UpdateAsync(campaign);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                throw;
+            }
 
             return Map(order);
         }
@@ -211,8 +235,6 @@ namespace ReliefManagementSystem.Application.Services
                 MinimumStockLevel = 0,
                 MaximumStockLevel = int.MaxValue
             });
-
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
         private async Task<string> GenerateOrderCodeAsync(CancellationToken cancellationToken)
