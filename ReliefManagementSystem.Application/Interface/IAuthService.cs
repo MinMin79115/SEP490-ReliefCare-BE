@@ -28,16 +28,21 @@ namespace ReliefManagementSystem.Application.Interface
                  ChangePasswordRequest request,
                  CancellationToken cancellationToken);
 
-             Task ForgotPasswordAsync(
-                 ForgotPasswordRequest request,
+             Task SendForgotPasswordOtpAsync(
+                 SendForgotPasswordOtpRequest request,
                  CancellationToken cancellationToken);
 
-             Task ResetPasswordAsync(
-                 ResetPasswordRequest request,
+             Task<AuthResponse> VerifyForgotPasswordOtpAsync(
+                 VerifyForgotPasswordOtpRequest request,
                  CancellationToken cancellationToken);
 
-             /// <summary>Xác nhận email từ link được gửi sau khi đăng ký.</summary>
-             Task ConfirmEmailAsync(string email, string token, CancellationToken cancellationToken);
+             Task ResetPasswordByTokenAsync(
+                 ResetPasswordByTokenRequest request,
+                 CancellationToken cancellationToken);
+
+             Task VerifyEmailOtpAsync(VerifyEmailOtpRequest request, CancellationToken cancellationToken);
+
+             Task ResendEmailOtpAsync(ResendEmailOtpRequest request, CancellationToken cancellationToken);
     }
 
 }

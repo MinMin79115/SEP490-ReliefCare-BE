@@ -15,5 +15,8 @@ namespace ReliefManagementSystem.Application.Features.Auth.DTOs
 
         /// <summary>Thông báo phụ, ví dụ: yêu cầu xác thực email.</summary>
         public string? Message { get; set; }
+
+        /// <summary>Token tạm cho flow reset mật khẩu sau khi OTP đã xác thực.</summary>
+        public string? ResetToken { get; set; }
     }
 }

@@ -26,7 +26,7 @@ namespace ReliefManagementSystem.Application.Services
             RegisterRequest request,
             CancellationToken cancellationToken)
         {
-            // Tạo user và gửi email xác thực
+            // Tạo user và gửi OTP xác thực email
             await _identityAuthService.RegisterAsync(
                 request,
                 cancellationToken);
@@ -34,7 +34,7 @@ namespace ReliefManagementSystem.Application.Services
             // Không cấp JWT ngay — user phải xác thực email trước
             return new AuthResponse
             {
-                Message = "Registration successful. Please check your email to confirm your account."
+                Message = "Registration successful. Please check your email for 6-digit verification code."
             };
         }
 
@@ -111,29 +111,50 @@ namespace ReliefManagementSystem.Application.Services
             );
         }
 
-        public async Task ForgotPasswordAsync(
-            ForgotPasswordRequest request,
+        public async Task SendForgotPasswordOtpAsync(
+            SendForgotPasswordOtpRequest request,
             CancellationToken cancellationToken)
         {
-            await _identityAuthService.ForgotPasswordAsync(
+            await _identityAuthService.SendForgotPasswordOtpAsync(
                 request.Email,
                 cancellationToken);
         }
 
-        public async Task ResetPasswordAsync(
-            ResetPasswordRequest request,
+        public async Task<AuthResponse> VerifyForgotPasswordOtpAsync(
+            VerifyForgotPasswordOtpRequest request,
             CancellationToken cancellationToken)
         {
-            await _identityAuthService.ResetPasswordAsync(
+            var resetToken = await _identityAuthService.VerifyForgotPasswordOtpAsync(
                 request.Email,
-                request.Token,
+                request.OtpCode,
+                cancellationToken);
+
+            return new AuthResponse
+            {
+                Message = "OTP verified. You can reset password now.",
+                ResetToken = resetToken
+            };
+        }
+
+        public async Task ResetPasswordByTokenAsync(
+            ResetPasswordByTokenRequest request,
+            CancellationToken cancellationToken)
+        {
+            await _identityAuthService.ResetPasswordByTokenAsync(
+                request.Email,
+                request.ResetToken,
                 request.NewPassword,
                 cancellationToken);
         }
 
-        public async Task ConfirmEmailAsync(string email, string token, CancellationToken cancellationToken)
+        public async Task VerifyEmailOtpAsync(VerifyEmailOtpRequest request, CancellationToken cancellationToken)
         {
-            await _identityAuthService.ConfirmEmailAsync(email, token, cancellationToken);
+            await _identityAuthService.VerifyEmailOtpAsync(request.Email, request.Code, cancellationToken);
+        }
+
+        public async Task ResendEmailOtpAsync(ResendEmailOtpRequest request, CancellationToken cancellationToken)
+        {
+            await _identityAuthService.ResendEmailOtpAsync(request.Email, cancellationToken);
         }
     }
 }

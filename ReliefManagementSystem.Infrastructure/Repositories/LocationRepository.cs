@@ -53,5 +53,13 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .OrderBy(x => x.Path)
                 .ToListAsync();
         }
+
+        public async Task<string?> GetFullNameByLocationId(Guid locationId)
+        {
+            return await _context.Locations
+                .Where(l => l.LocationId == locationId)
+                .Select(l => l.FullName)
+                .FirstOrDefaultAsync();
+        }
     }
 }

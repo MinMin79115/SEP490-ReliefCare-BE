@@ -52,7 +52,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             return await _dbSet
                 .Include(t => t.Moderator)
                 .Include(t => t.Leader)
-                .Where(t => t.ModeratorId == moderatorId)
+                .Where(t => t.CreateBy == moderatorId)
                 .OrderByDescending(t => t.CreatedAt)
                 .ToListAsync();
         }
@@ -68,7 +68,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
         public async Task<bool> IsModeratorOfTeamAsync(Guid teamId, Guid userId)
         {
             return await _dbSet
-                .AnyAsync(t => t.TeamId == teamId && t.ModeratorId == userId);
+                .AnyAsync(t => t.TeamId == teamId && t.CreateBy == userId);
         }
 
         public async Task<int> GetTeamMemberCountAsync(Guid teamId, CancellationToken cancellationToken = default)
@@ -123,7 +123,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                         .ThenInclude(u => u.VolunteerProfile)
                             .ThenInclude(vp => vp.VolunteerSkills)
                                 .ThenInclude(vs => vs.Skill)
-                .Where(t => t.ModeratorId == moderatorId)
+                .Where(t => t.CreateBy == moderatorId)
                 .OrderByDescending(t => t.CreatedAt)
                 .ToListAsync();
         }

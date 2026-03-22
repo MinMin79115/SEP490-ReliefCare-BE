@@ -1552,9 +1552,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Property<Guid?>("CreatedBy")
                         .HasColumnType("uuid");
 
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
                     b.Property<bool>("IsDeleted")
                         .HasColumnType("boolean");
 
@@ -1575,7 +1572,7 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
-                    b.Property<int>("Status")
+                    b.Property<int>("ReliefStationStatus")
                         .HasColumnType("integer");
 
                     b.Property<DateTime?>("UpdatedAt")
@@ -1601,9 +1598,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
-                    b.Property<bool>("IsActive")
-                        .HasColumnType("boolean");
-
                     b.Property<DateTime?>("JoinedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1622,9 +1616,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
                     b.Property<Guid>("TeamId")
                         .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("TransferredAt")
-                        .HasColumnType("timestamp with time zone");
 
                     b.HasKey("ReliefStationTeamId");
 
@@ -2074,6 +2065,12 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
+                    b.Property<string>("ContactPhone")
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("CreateBy")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -2081,9 +2078,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<Guid?>("LeaderId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("ModeratorId")
                         .HasColumnType("uuid");
 
                     b.Property<string>("Name")
@@ -2098,9 +2092,9 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
                     b.HasKey("TeamId");
 
-                    b.HasIndex("LeaderId");
+                    b.HasIndex("CreateBy");
 
-                    b.HasIndex("ModeratorId");
+                    b.HasIndex("LeaderId");
 
                     b.ToTable("Teams");
                 });
@@ -2268,8 +2262,8 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
 
-                    b.Property<DateTime?>("ExpiryDate")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<DateOnly?>("ExpiryDate")
+                        .HasColumnType("date");
 
                     b.Property<string>("FileUrl")
                         .HasColumnType("text");
@@ -2277,8 +2271,8 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Property<string>("IssuedBy")
                         .HasColumnType("text");
 
-                    b.Property<DateTime?>("IssuedDate")
-                        .HasColumnType("timestamp with time zone");
+                    b.Property<DateOnly?>("IssuedDate")
+                        .HasColumnType("date");
 
                     b.Property<string>("Name")
                         .IsRequired()
@@ -2307,6 +2301,9 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Property<string>("Descriptions")
                         .HasColumnType("text");
 
+                    b.Property<int>("PreferredTeamRole")
+                        .HasColumnType("integer");
+
                     b.Property<string>("Reason")
                         .HasColumnType("text");
 
@@ -2324,6 +2321,9 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
                     b.Property<Guid?>("VerifiedBy")
                         .HasColumnType("uuid");
+
+                    b.Property<int>("VolunteerType")
+                        .HasColumnType("integer");
 
                     b.Property<int?>("YearsOfExperience")
                         .HasColumnType("integer");
@@ -2996,7 +2996,7 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         .IsRequired();
 
                     b.HasOne("ReliefManagementSystem.Domain.Entities.Team", "Team")
-                        .WithMany()
+                        .WithMany("ReliefStationTeams")
                         .HasForeignKey("TeamId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
@@ -3233,16 +3233,16 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Team", b =>
                 {
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.ApplicationUser", "Moderator")
+                        .WithMany()
+                        .HasForeignKey("CreateBy")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("ReliefManagementSystem.Domain.Entities.ApplicationUser", "Leader")
                         .WithMany()
                         .HasForeignKey("LeaderId")
                         .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("ReliefManagementSystem.Domain.Entities.ApplicationUser", "Moderator")
-                        .WithMany()
-                        .HasForeignKey("ModeratorId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
 
                     b.Navigation("Leader");
 
@@ -3547,6 +3547,8 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Team", b =>
                 {
                     b.Navigation("CampaignTeams");
+
+                    b.Navigation("ReliefStationTeams");
 
                     b.Navigation("StationJoinRequests");
 

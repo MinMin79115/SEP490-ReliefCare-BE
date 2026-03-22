@@ -42,7 +42,7 @@ namespace ReliefManagementSystem.Application.Services
             if (station.Level != ReliefStationLevel.Provincial)
                 throw new InvalidLocationForProvincialStationException();
 
-            if (station.Status != ReliefStationStatus.Active || !station.IsActive)
+            if (station.ReliefStationStatus != ReliefStationStatus.Active)
                 throw new ReliefStationInactiveException();
 
             var existingPending = await _unitOfWork.StationJoinRequests
@@ -141,8 +141,7 @@ namespace ReliefManagementSystem.Application.Services
                     ReliefStationTeamId = Guid.NewGuid(),
                     ReliefStationId = joinRequest.ReliefStationId,
                     TeamId = joinRequest.TeamId,
-                    Status = ReliefTeamAssignmentStatus.Active,
-                    IsActive = true,
+                    Status = ReliefTeamAssignmentStatus.Approved,
                     Description = joinRequest.Description,
                     JoinedAt = DateTime.UtcNow
                 };
@@ -150,8 +149,7 @@ namespace ReliefManagementSystem.Application.Services
             }
             else
             {
-                assignment.Status = ReliefTeamAssignmentStatus.Active;
-                assignment.IsActive = true;
+                assignment.Status = ReliefTeamAssignmentStatus.Approved;
                 assignment.Description = joinRequest.Description ?? assignment.Description;
                 assignment.RejectionReason = null;
                 assignment.JoinedAt ??= DateTime.UtcNow;

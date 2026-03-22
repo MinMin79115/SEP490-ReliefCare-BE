@@ -101,5 +101,14 @@ namespace ReliefManagementSystem.API.Controllers
             var result = await _userService.UpdateUserProfileAsync(request, cancellationToken);
             return Ok(result);
         }
+
+        [HttpGet("my-volunteer-profile")]
+        [Authorize]
+        [SwaggerOperation(OperationId = "GetMyVolunteerProfile", Description = "Lấy hồ sơ volunteer của user đang đăng nhập")]
+        public async Task<IActionResult> GetMyVolunteerProfile(CancellationToken cancellationToken)
+        {
+            var result = await _userService.GetMyVolunteerProfileAsync(cancellationToken);
+            return Ok(result);
+        }
     }
 }

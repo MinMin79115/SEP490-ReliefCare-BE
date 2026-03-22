@@ -13,6 +13,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
         // User Management
         IUserRepository Users { get; }
         IRefreshTokenRepository RefreshTokens { get; }
+        IEmailOtpRepository EmailOtps { get; }
 
         // Manager Profiles
         IManagerProfileRepository ManagerProfiles { get; }

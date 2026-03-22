@@ -31,7 +31,7 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                     TeamId = Guid.NewGuid(),
                     Name = "Đội Cứu Trợ Khẩn Cấp A",
                     Description = "Đội chuyên xử lý các tình huống khẩn cấp và cứu hộ",
-                    ModeratorId = moderator.Id,
+                    CreateBy = moderator.Id,
                     LeaderId = user1?.Id, 
                     Status = TeamStatus.Active,
                     CreatedAt = DateTime.UtcNow
@@ -41,7 +41,7 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                     TeamId = Guid.NewGuid(),
                     Name = "Đội Hỗ Trợ Y Tế B",
                     Description = "Đội hỗ trợ y tế và sơ cứu người dân vùng thiên tai",
-                    ModeratorId = moderator.Id,
+                    CreateBy = moderator.Id,
                     LeaderId = user2?.Id,
                     Status = TeamStatus.Active,
                     CreatedAt = DateTime.UtcNow
@@ -51,7 +51,7 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                     TeamId = Guid.NewGuid(),
                     Name = "Đội Logistics C",
                     Description = "Đội quản lý và phân phối vật tư cứu trợ",
-                    ModeratorId = moderator.Id,
+                    CreateBy = moderator.Id,
                     LeaderId = null, 
                     Status = TeamStatus.Active,
                     CreatedAt = DateTime.UtcNow

@@ -83,6 +83,15 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(result);
         }
 
+        // GET /api/team/in-station
+        [HttpGet("in-station")]
+        [SwaggerOperation(OperationId = "GetTeamsInStation", Description = "Lấy danh sách team trong trạm, hỗ trợ phân trang + tìm theo tên team/leader")]
+        public async Task<IActionResult> GetTeamsInStation([FromQuery] GetTeamsInStationRequest request, CancellationToken cancellationToken)
+        {
+            var result = await _teamService.GetTeamsInStationAsync(request, cancellationToken);
+            return Ok(result);
+        }
+
        // GET /api/team/my-teams
         [HttpGet("my-teams")]
         [Authorize(Roles = "Moderator")]
@@ -137,8 +146,7 @@ namespace ReliefManagementSystem.API.Controllers
             Guid userId, 
             CancellationToken cancellationToken)
         {
-            var moderatorId = GetCurrentUserId();
-            var result = await _teamService.PromoteMemberToLeaderAsync(id, userId, moderatorId, cancellationToken);
+            var result = await _teamService.PromoteMemberToLeaderAsync(id, userId, cancellationToken);
             return Ok(result);
         }
 

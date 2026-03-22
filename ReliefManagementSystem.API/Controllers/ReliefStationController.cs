@@ -64,6 +64,15 @@ namespace ReliefManagementSystem.API.Controllers
             });
         }
 
+        [Authorize(Roles = "Moderator")]
+        [SwaggerOperation(OperationId = "GetCurrentModeratorStation", Description = "Lấy thông tin trạm hiện tại Moderator đang quản lý")]
+        [HttpGet("my-station")]
+        public async Task<IActionResult> GetCurrentModeratorStation(CancellationToken cancellationToken)
+        {
+            var result = await _stationService.GetCurrentModeratorStationAsync(cancellationToken);
+            return Ok(result);
+        }
+
         [Authorize(Roles = "Manager")]
         [SwaggerOperation(OperationId = "DisableProvincialStation", Description = "Manager huỷ (vô hiệu hoá) trạm cấp Tỉnh và các kho liên quan")]
         [HttpPut("provincial/{stationId:guid}/disable")]

@@ -61,5 +61,16 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .Include(rst => rst.ReliefStation)
                 .FirstOrDefaultAsync(rst => rst.ReliefStationTeamId == assignmentId, cancellationToken);
         }
+
+        public IQueryable<ReliefStationTeam> GetQueryableWithTeamDetails()
+        {
+            return _dbSet
+                .AsNoTracking()
+                .Include(rst => rst.Team)
+                    .ThenInclude(t => t.Leader)
+                .Include(rst => rst.Team)
+                    .ThenInclude(t => t.Moderator)
+                .AsQueryable();
+        }
     }
 }
