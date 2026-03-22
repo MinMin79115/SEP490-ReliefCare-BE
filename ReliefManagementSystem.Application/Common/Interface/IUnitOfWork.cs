@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using System.Data;
+
 namespace ReliefManagementSystem.Application.Common.Interface
 {
     public interface IUnitOfWork : IDisposable
@@ -37,6 +39,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
         IInventoryRepository Inventories { get; }
         IInventoryStockRepository InventoryStocks { get; }
         IInventoryTransactionRepository InventoryTransactions { get; }
+        IProcurementOrderRepository ProcurementOrders { get; }
 
         // Relief Station Management
         IReliefStationTeamRepository ReliefStationTeams { get; }
@@ -47,6 +50,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
         // Campaign (stub for validation — full module TBD)
         ICampaignRepository Campaigns { get; }
         IDonationRepository Donations { get; }
+        IFundRepository Funds { get; }
         IPaymentTransactionRepository PaymentTransactions { get; }
 
         // Relief Station Management
@@ -63,6 +67,14 @@ namespace ReliefManagementSystem.Application.Common.Interface
         INotificationRepository Notifications { get; }
         Task<int> SaveChangesAsync(
         CancellationToken cancellationToken = default);
+
+        Task BeginTransactionAsync(
+            CancellationToken cancellationToken = default,
+            IsolationLevel isolationLevel = IsolationLevel.ReadCommitted);
+
+        Task CommitTransactionAsync(CancellationToken cancellationToken = default);
+
+        Task RollbackTransactionAsync(CancellationToken cancellationToken = default);
 
     }
 }

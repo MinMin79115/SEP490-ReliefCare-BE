@@ -20,6 +20,8 @@ namespace ReliefManagementSystem.Domain.Entities
         public int MinimumStockLevel { get; set; }
         public int MaximumStockLevel { get; set; }
 
+        public byte[] RowVersion { get; set; } = [];
+
         // Computed – KHÔNG map DB
         [NotMapped]
         public InventoryStatus InventoryStatus

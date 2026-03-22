@@ -22,6 +22,8 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public string Unit { get; set; } = null!; 
 
+        public decimal? EstimatedUnitCost { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public DateTime? UpdatedAt { get; set; }

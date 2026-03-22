@@ -10,6 +10,7 @@ namespace ReliefManagementSystem.Application.Interface
         Task<CampaignResponse> CreateAsync(CreateCampaignRequest request, CancellationToken cancellationToken = default);
         Task<CampaignResponse> GetByIdAsync(Guid campaignId, CancellationToken cancellationToken = default);
         Task<Pagination<CampaignSummaryResponse>> GetPagedAsync(CampaignListQueryRequest request, CancellationToken cancellationToken = default);
+        Task<PublicCampaignSummaryResponse> GetPublicSummaryAsync(Guid campaignId, CancellationToken cancellationToken = default);
         Task<CampaignResponse> UpdateAsync(Guid campaignId, UpdateCampaignRequest request, CancellationToken cancellationToken = default);
         Task<CampaignResponse> ChangeStatusAsync(Guid campaignId, ChangeCampaignStatusRequest request, CancellationToken cancellationToken = default);
         Task<CampaignResponse> AttachStationAsync(Guid campaignId, AttachCampaignStationRequest request, CancellationToken cancellationToken = default);

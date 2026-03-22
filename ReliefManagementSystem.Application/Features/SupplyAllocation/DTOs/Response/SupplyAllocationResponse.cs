@@ -10,6 +10,7 @@ namespace ReliefManagementSystem.Application.Features.SupplyAllocation.DTOs.Resp
         public Guid SourceInventoryId { get; set; }
         public string SourceInventoryName { get; set; } = null!;
         public string ReliefStationName { get; set; } = null!;
+        public Guid? InventoryTransactionId { get; set; }
         public SupplyAllocationStatus Status { get; set; }
         public string StatusName => Status.ToString();
         public DateTime AllocatedAt { get; set; }

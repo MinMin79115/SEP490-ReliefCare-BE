@@ -1,6 +1,8 @@
-﻿using ReliefManagementSystem.Application.Common.Interface;
+using ReliefManagementSystem.Application.Common.Interface;
 using ReliefManagementSystem.Infrastructure.Data;
 using ReliefManagementSystem.Infrastructure.Repositories;
+using Microsoft.EntityFrameworkCore.Storage;
+using System.Data;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,6 +14,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
     public class UnitOfWork : IUnitOfWork
     {
         private readonly ApplicationDbContext _context;
+        private IDbContextTransaction? _currentTransaction;
         // User Management
         public IUserRepository Users { get; }
         public IRefreshTokenRepository RefreshTokens { get; }
@@ -43,6 +46,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
         public IInventoryRepository Inventories { get; }
         public IInventoryStockRepository InventoryStocks { get; }
         public IInventoryTransactionRepository InventoryTransactions { get; }
+        public IProcurementOrderRepository ProcurementOrders { get; }
 
         // Relief Station Management
         public IReliefStationRepository ReliefStations { get; }
@@ -54,6 +58,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
         // Campaign (stub for validation — full module TBD)
         public ICampaignRepository Campaigns { get; }
         public IDonationRepository Donations { get; }
+        public IFundRepository Funds { get; }
         public IPaymentTransactionRepository PaymentTransactions { get; }
 
 
@@ -91,10 +96,12 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             Inventories = new InventoryRepository(_context);
             InventoryStocks = new InventoryStockRepository(_context);
             InventoryTransactions = new InventoryTransactionRepository(_context);
+            ProcurementOrders = new ProcurementOrderRepository(_context);
             ReliefStationTeams = new ReliefStationTeamRepository(_context);
             SupplyAllocations = new SupplyAllocationRepository(_context);
             Campaigns = new CampaignRepository(_context);
             Donations = new DonationRepository(_context);
+            Funds = new FundRepository(_context);
             PaymentTransactions = new PaymentTransactionRepository(_context);
             ReliefStations = new ReliefStationRepository(_context);
             Locations = new LocationRepository(_context);
@@ -111,8 +118,45 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             return await _context.SaveChangesAsync(cancellationToken);
         }
 
+        public async Task BeginTransactionAsync(
+            CancellationToken cancellationToken = default,
+            IsolationLevel isolationLevel = IsolationLevel.ReadCommitted)
+        {
+            if (_currentTransaction != null)
+            {
+                return;
+            }
+
+            _currentTransaction = await _context.Database.BeginTransactionAsync(cancellationToken);
+        }
+
+        public async Task CommitTransactionAsync(CancellationToken cancellationToken = default)
+        {
+            if (_currentTransaction == null)
+            {
+                return;
+            }
+
+            await _currentTransaction.CommitAsync(cancellationToken);
+            await _currentTransaction.DisposeAsync();
+            _currentTransaction = null;
+        }
+
+        public async Task RollbackTransactionAsync(CancellationToken cancellationToken = default)
+        {
+            if (_currentTransaction == null)
+            {
+                return;
+            }
+
+            await _currentTransaction.RollbackAsync(cancellationToken);
+            await _currentTransaction.DisposeAsync();
+            _currentTransaction = null;
+        }
+
         public void Dispose()
         {
+            _currentTransaction?.Dispose();
             _context.Dispose();
         }
     }

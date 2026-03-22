@@ -35,7 +35,7 @@ namespace ReliefManagementSystem.API.Controllers
         {
             try
             {
-                var result = await _transactionService.CreateTransactionAsync(request, cancellationToken);
+                var result = await _transactionService.CreateTransactionAsync(request, cancellationToken: cancellationToken);
                 return Ok(result);
             }
             catch (KeyNotFoundException ex)

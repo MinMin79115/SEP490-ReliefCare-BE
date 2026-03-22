@@ -58,5 +58,7 @@ namespace ReliefManagementSystem.Domain.Entities
 
         /// <summary>Thời điểm cổng thanh toán confirm xong (UTC). Null nếu chưa xử lý.</summary>
         public DateTime? ProcessedAt { get; set; }
+
+        public ICollection<FundContribution> FundContributions { get; set; } = new List<FundContribution>();
     }
 }
