@@ -6,12 +6,9 @@ using System.Threading.Tasks;
 
 namespace ReliefManagementSystem.Domain.Enum
 {
-    public enum TeamStatus
+    public  enum VolunteerType
     {
-        Draft = 0,
-        Active = 1,
-        Inactive = 2,
-        Suspended = 3,
-        Archived = 4
+        Permanent = 1,   // Team thường trực
+        Campaign = 2     // Team kêu gọi
     }
 }

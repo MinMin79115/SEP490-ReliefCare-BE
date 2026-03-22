@@ -27,5 +27,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
         /// Gets a specific assignment by ID with Team info.
         /// </summary>
         Task<ReliefStationTeam?> GetByIdWithDetailsAsync(Guid assignmentId, CancellationToken cancellationToken = default);
+
+        IQueryable<ReliefStationTeam> GetQueryableWithTeamDetails();
     }
 }

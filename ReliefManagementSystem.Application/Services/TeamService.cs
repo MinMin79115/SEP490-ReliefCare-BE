@@ -15,16 +15,19 @@ using System.Threading.Tasks;
 using ReliefManagementSystem.Application.Common.Exceptions.Team;
 using ReliefManagementSystem.Application.Common.Exceptions.TeamMember;
 using ReliefManagementSystem.Application.Common.Exceptions.Volunteer;
+using ReliefManagementSystem.Application.Common.Exceptions.ReliefStationExceptions;
 
 namespace ReliefManagementSystem.Application.Services
 {
     public class TeamService : ITeamService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly ICurrentUserService _currentUserService;
 
-        public TeamService(IUnitOfWork unitOfWork)
+        public TeamService(IUnitOfWork unitOfWork, ICurrentUserService currentUserService)
         {
             _unitOfWork = unitOfWork;
+            _currentUserService = currentUserService;
         }
 
         //Create a team
@@ -33,14 +36,26 @@ namespace ReliefManagementSystem.Application.Services
             Guid moderatorId,
             CancellationToken cancellationToken)
         {
+            var normalizedName = request.Name?.Trim();
+            if (string.IsNullOrWhiteSpace(normalizedName))
+                throw new TeamValidationException("Tên đội là bắt buộc");
+
+            var normalizedDescription = string.IsNullOrWhiteSpace(request.Description)
+                ? null
+                : request.Description.Trim();
+
+            var normalizedPhone = string.IsNullOrWhiteSpace(request.ContactPhone)
+                ? null
+                : request.ContactPhone.Trim();
+
             var team = new Team
-            {
-                Name = request.Name,
-                Description = request.Description,
-                ContactPhone = request.ContactPhone,
-                ModeratorId = moderatorId,
+            { 
+                Name = normalizedName,
+                Description = normalizedDescription,
+                ContactPhone = normalizedPhone,
+                CreateBy = moderatorId,
                 LeaderId = null, 
-                Status = TeamStatus.Active,
+                Status = TeamStatus.Draft,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -96,12 +111,24 @@ namespace ReliefManagementSystem.Application.Services
             Guid moderatorId,
             CancellationToken cancellationToken)
         {
+            var normalizedName = request.Name?.Trim();
+            if (string.IsNullOrWhiteSpace(normalizedName))
+                throw new TeamValidationException("Tên đội là bắt buộc");
+
+            var normalizedDescription = string.IsNullOrWhiteSpace(request.Description)
+                ? null
+                : request.Description.Trim();
+
+            var normalizedPhone = string.IsNullOrWhiteSpace(request.ContactPhone)
+                ? null
+                : request.ContactPhone.Trim();
+
             var team = await _unitOfWork.Teams.GetByIdAsync(teamId);
 
             if (team == null)
                 throw new TeamNotFoundException();
 
-            if (team.ModeratorId != moderatorId)
+            if (team.CreateBy != moderatorId)
                 throw new UnauthorizedTeamActionException("chỉnh sửa");
 
             if (request.LeaderId != team.LeaderId)
@@ -154,9 +181,9 @@ namespace ReliefManagementSystem.Application.Services
                 team.LeaderId = request.LeaderId;
             }
 
-            team.Name = request.Name;
-            team.Description = request.Description;
-            team.ContactPhone = request.ContactPhone;
+            team.Name = normalizedName;
+            team.Description = normalizedDescription;
+            team.ContactPhone = normalizedPhone;
             team.Status = request.Status;
             team.UpdatedAt = DateTime.UtcNow;
 
@@ -177,7 +204,7 @@ namespace ReliefManagementSystem.Application.Services
             if (team == null)
                 throw new TeamNotFoundException();
 
-            if (team.ModeratorId != moderatorId)
+            if (team.CreateBy != moderatorId)
                 throw new UnauthorizedTeamActionException("xoá");
 
             await _unitOfWork.Teams.DeleteAsync(team);
@@ -222,7 +249,7 @@ namespace ReliefManagementSystem.Application.Services
 
             if (request.ModeratorId.HasValue)
             {
-                query = query.Where(t => t.ModeratorId == request.ModeratorId.Value);
+                query = query.Where(t => t.CreateBy == request.ModeratorId.Value);
             }
 
             query = query.OrderByDescending(t => t.CreatedAt);
@@ -241,6 +268,47 @@ namespace ReliefManagementSystem.Application.Services
                 pagedTeams.CurrentPage,
                 pagedTeams.PageSize
             );
+        }
+
+        public async Task<Pagination<TeamResponse>> GetTeamsInStationAsync(
+            GetTeamsInStationRequest request,
+            CancellationToken cancellationToken)
+        {
+            var station = await _unitOfWork.ReliefStations.GetByIdAsync(request.ReliefStationId);
+            if (station == null)
+                throw new ReliefStationNotFoundException(request.ReliefStationId);
+
+            var query = _unitOfWork.ReliefStationTeams.GetQueryableWithTeamDetails()
+                .Where(x => x.ReliefStationId == request.ReliefStationId)
+                .Where(x => x.Status == ReliefTeamAssignmentStatus.Approved)
+                .Select(x => x.Team)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var keyword = request.Search.Trim();
+                query = query.Where(t =>
+                    t.Name.Contains(keyword) ||
+                    ((t.Leader != null) &&
+                     (((t.Leader.DisplayName ?? string.Empty).Contains(keyword)) ||
+                      ((t.Leader.UserName ?? string.Empty).Contains(keyword)))));
+            }
+
+            query = query.OrderByDescending(t => t.CreatedAt);
+
+            var pagedTeams = await Pagination<Team>.ToPagedList(query, request.PageIndex, request.PageSize);
+
+            var responseItems = new List<TeamResponse>();
+            foreach (var team in pagedTeams.Items!)
+            {
+                responseItems.Add(await MapToTeamResponse(team, cancellationToken));
+            }
+
+            return new Pagination<TeamResponse>(
+                responseItems,
+                pagedTeams.TotalCount,
+                pagedTeams.CurrentPage,
+                pagedTeams.PageSize);
         }
 
         //Get team that moderator manage
@@ -294,7 +362,7 @@ namespace ReliefManagementSystem.Application.Services
             if (team == null)
                 throw new TeamNotFoundException();
 
-            if (team.ModeratorId != moderatorId)
+            if (team.CreateBy != moderatorId)
                 throw new UnauthorizedTeamActionException("xoá thành viên");
 
             if (team.LeaderId == userId)
@@ -341,7 +409,7 @@ namespace ReliefManagementSystem.Application.Services
             if (team == null)
                 throw new TeamNotFoundException();
 
-            if (team.ModeratorId != moderatorId)
+            if (team.CreateBy != moderatorId)
                 throw new UnauthorizedTeamActionException("thêm thành viên");
 
             var volunteer = await _unitOfWork.Users.GetByIdWithVolunteerProfileAndSkillsAsync(
@@ -389,15 +457,17 @@ namespace ReliefManagementSystem.Application.Services
         public async Task<TeamMemberResponse> PromoteMemberToLeaderAsync(
             Guid teamId,
             Guid userId,
-            Guid moderatorId,
             CancellationToken cancellationToken)
         {
+            var currentUserId = _currentUserService.UserId
+                ?? throw new UnauthorizedTeamActionException("cập nhật role");
+
             var team = await _unitOfWork.Teams.GetByIdWithDetailsAsync(teamId);
             
             if (team == null)
                 throw new TeamNotFoundException();
 
-            if (team.ModeratorId != moderatorId)
+            if (team.CreateBy != currentUserId)
                 throw new UnauthorizedTeamActionException("cập nhật role");
 
             var teamMember = await _unitOfWork.TeamMembers.GetByTeamAndUserWithSkillsAsync(
@@ -459,7 +529,7 @@ namespace ReliefManagementSystem.Application.Services
                 Description = team.Description,
                 ContactPhone = team.ContactPhone,
                 Status = team.Status,
-                ModeratorId = team.ModeratorId,
+                ModeratorId = team.CreateBy,
                 ModeratorName = team.Moderator?.DisplayName ?? team.Moderator?.UserName ?? "Unknown",
                 LeaderId = team.LeaderId,
                 LeaderName = team.Leader?.DisplayName ?? team.Leader?.UserName,
@@ -480,7 +550,7 @@ namespace ReliefManagementSystem.Application.Services
                 Status = team.Status,
                 Moderator = new ModeratorInfo
                 {
-                    UserId = team.ModeratorId,
+                    UserId = team.CreateBy,
                     DisplayName = team.Moderator?.DisplayName ?? team.Moderator?.UserName ?? "Unknown",
                     Email = team.Moderator?.Email ?? ""
                 },

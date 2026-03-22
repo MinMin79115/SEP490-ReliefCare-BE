@@ -197,6 +197,7 @@ namespace ReliefManagementSystem.Application.Services
             {
                 throw new ModeratorProfileNotFoundException();
             }
+            var currentUser = await _unitOfWork.Users.GetUserById(currentUserId.Value);
 
             var moderatorProfile = await _unitOfWork.ModeratorProfiles
                 .GetByUserIdAsync(currentUserId.Value, cancellationToken);
@@ -218,6 +219,7 @@ namespace ReliefManagementSystem.Application.Services
             {
                 ReliefStationId = station.ReliefStationId,
                 Name = station.Name,
+                ModeratorName = currentUser?.DisplayName ?? string.Empty,
                 Address = station.Address,
                 ContactNumber = station.ContactNumber,
                 Longitude = station.Longitude,

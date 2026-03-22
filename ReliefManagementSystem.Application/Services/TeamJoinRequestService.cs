@@ -88,7 +88,7 @@ namespace ReliefManagementSystem.Application.Services
                 Id = joinRequest.Id,
                     TeamId = team.TeamId,
                     TeamName = team.Name,
-                    ModeratorId = team.ModeratorId,
+                    ModeratorId = team.CreateBy,
                     ModeratorName = team.Moderator.DisplayName ?? team.Moderator.UserName ?? "Unknown",
                     VolunteerId = volunteerId,
                     VolunteerName = volunteer.DisplayName ?? volunteer.UserName ?? "Unknown",
@@ -157,7 +157,7 @@ namespace ReliefManagementSystem.Application.Services
                 throw new Exception("Không tìm thấy yêu cầu");
 
             // 2. Validate moderator
-            if (joinRequest.Team.ModeratorId != moderatorId)
+            if (joinRequest.Team.CreateBy != moderatorId)
                 throw new Exception("Chỉ có điều phối team mới có thể duyệt yêu cầu");
 
             if (joinRequest.Status != TeamJoinRequestStatus.Pending)
@@ -203,7 +203,7 @@ namespace ReliefManagementSystem.Application.Services
                 throw new Exception("Không tìm thấy yêu cầu");
 
             // 2. Validate moderator
-            if (joinRequest.Team.ModeratorId != moderatorId)
+            if (joinRequest.Team.CreateBy != moderatorId)
                 throw new Exception("Chỉ có điều phối team mới có thể từ chối yêu cầu");
 
             if (joinRequest.Status != TeamJoinRequestStatus.Pending)
@@ -269,7 +269,7 @@ namespace ReliefManagementSystem.Application.Services
                 Id = request.Id,
                 TeamId = request.TeamId,
                 TeamName = request.Team.Name,
-                ModeratorId = request.Team.ModeratorId,
+                ModeratorId = request.Team.CreateBy,
                 ModeratorName = request.Team.Moderator.DisplayName ?? request.Team.Moderator.UserName ?? "Unknown",
                 VolunteerId = request.VolunteerId,
                 VolunteerName = request.Volunteer.DisplayName ?? request.Volunteer.UserName ?? "Unknown",
