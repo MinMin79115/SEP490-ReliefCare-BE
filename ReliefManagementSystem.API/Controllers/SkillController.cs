@@ -1,9 +1,11 @@
-﻿using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Application.Features.Skill.Dtos;
 using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Application.Services;
 using ReliefManagementSystem.Domain.Entities;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace ReliefManagementSystem.API.Controllers
 {
@@ -19,10 +21,12 @@ namespace ReliefManagementSystem.API.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<IReadOnlyList<SkillResponse>>> GetAllSkills(
+        [SwaggerOperation(OperationId = "GetAllSkills", Description = "Lấy danh sách kỹ năng có phân trang và tìm kiếm theo Code, Name, Description")]
+        public async Task<ActionResult<Pagination<SkillResponse>>> GetAllSkills(
+           [FromQuery] SearchSkillRequest request,
            CancellationToken cancellationToken)
         {
-            var skills = await _skillService.GetAllSkillsAsync(cancellationToken);
+            var skills = await _skillService.GetAllSkillsAsync(request, cancellationToken);
             return Ok(skills);
         }
 

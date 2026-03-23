@@ -15,5 +15,10 @@ namespace ReliefManagementSystem.Application.Features.User
         /// Số lượng items mỗi trang (mặc định = 10)
         /// </summary>
         public int PageSize { get; set; } = 10;
+
+        /// <summary>
+        /// Từ khóa tìm kiếm (DisplayName, Email, PhoneNumber)
+        /// </summary>
+        public string? Search { get; set; }
     }
 }

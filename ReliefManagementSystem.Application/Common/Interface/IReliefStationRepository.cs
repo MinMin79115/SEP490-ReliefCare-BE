@@ -5,6 +5,8 @@ using System.Text;
 using System.Threading.Tasks;
 using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Domain.Enum;
+using ReliefManagementSystem.Application.Features.ReliefStation.DTOs.Request;
+using ReliefManagementSystem.Application.Common.Models;
 
 namespace ReliefManagementSystem.Application.Common.Interface
 {
@@ -17,8 +19,9 @@ namespace ReliefManagementSystem.Application.Common.Interface
         /// <summary>Kiểm tra tồn tại trạm cùng tên, ngoại trừ trạm đang cập nhật (dùng khi update).</summary>
         Task<bool> ExistsByNameExcludingIdAsync(string name, Guid excludeStationId);
 
-        /// <summary>Lấy danh sách trạm cấp Tỉnh (Provincial), có hỗ trợ tìm kiếm theo tên và phân trang.</summary>
-        Task<(List<ReliefStation> Items, int TotalCount)> GetProvincialStationsAsync(
-            string? search, int pageIndex, int pageSize, CancellationToken cancellationToken);
+        /// <summary>Lấy danh sách trạm cấp Tỉnh (Provincial), có hỗ trợ tìm kiếm và phân trang.</summary>
+        Task<Pagination<ReliefStation>> GetProvincialStationsAsync(
+            GetAllStationsRequest request,
+            CancellationToken cancellationToken);
     }
 }

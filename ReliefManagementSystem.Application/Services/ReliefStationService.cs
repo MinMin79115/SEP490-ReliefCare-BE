@@ -165,13 +165,14 @@ namespace ReliefManagementSystem.Application.Services
                 UpdatedAt = station.UpdatedAt
             };
         }
-        public async Task<(List<ReliefStationResponse> Items, int TotalCount)> GetProvincialStationsAsync(
-            string? search, int pageIndex, int pageSize, CancellationToken cancellationToken)
+        public async Task<Pagination<ReliefStationResponse>> GetProvincialStationsAsync(
+            GetAllStationsRequest request,
+            CancellationToken cancellationToken)
         {
-            var (stations, totalCount) = await _unitOfWork.ReliefStations
-                .GetProvincialStationsAsync(search, pageIndex, pageSize, cancellationToken);
+            var pagedStations = await _unitOfWork.ReliefStations
+                .GetProvincialStationsAsync(request, cancellationToken);
 
-            var items = stations.Select(s => new ReliefStationResponse
+            var items = pagedStations.Items!.Select(s => new ReliefStationResponse
             {
                 ReliefStationId = s.ReliefStationId,
                 Name = s.Name,
@@ -187,7 +188,11 @@ namespace ReliefManagementSystem.Application.Services
                 UpdatedAt = s.UpdatedAt
             }).ToList();
 
-            return (items, totalCount);
+            return new Pagination<ReliefStationResponse>(
+                items,
+                pagedStations.TotalCount,
+                pagedStations.CurrentPage,
+                pagedStations.PageSize);
         }
 
         public async Task<ReliefStationResponse> GetCurrentModeratorStationAsync(CancellationToken cancellationToken)

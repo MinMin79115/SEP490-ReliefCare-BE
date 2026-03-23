@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Application.Features.VehicleType.DTOs.Request;
+using ReliefManagementSystem.Application.Features.VehicleType.DTOs.Response;
 using ReliefManagementSystem.Application.Interface;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace ReliefManagementSystem.API.Controllers
 {
@@ -36,11 +39,14 @@ namespace ReliefManagementSystem.API.Controllers
 
         // GET /api/vehicletype
         [HttpGet]
-        public async Task<IActionResult> GetAllVehicleTypes(CancellationToken cancellationToken)
+        [SwaggerOperation(OperationId = "GetAllVehicleTypes", Description = "Lấy danh sách loại phương tiện có phân trang và tìm kiếm theo TypeName, Description")]
+        public async Task<ActionResult<Pagination<VehicleTypeResponse>>> GetAllVehicleTypes(
+            [FromQuery] SearchVehicleTypeRequest request,
+            CancellationToken cancellationToken)
         {
             try
             {
-                var result = await _vehicleTypeService.GetAllVehicleTypesAsync(cancellationToken);
+                var result = await _vehicleTypeService.GetAllVehicleTypesAsync(request, cancellationToken);
                 return Ok(result);
             }
             catch (Exception ex)

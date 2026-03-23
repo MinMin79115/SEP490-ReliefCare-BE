@@ -57,9 +57,13 @@ namespace ReliefManagementSystem.Application.Services
                 DisplayName = user.DisplayName,
                 Email = user.Email,
                 PhoneNumber = user.PhoneNumber,
+                Address = user.Address,
                 DateOfBirth = user.DateOfBirth,
                 Gender = user.Gender,
                 PictureUrl = user.PictureUrl,
+                BanReason = user.BanReason,
+                IsBanned = user.LockoutEnabled && user.LockoutEnd.HasValue && user.LockoutEnd > DateTimeOffset.UtcNow,
+                LockoutEnd = user.LockoutEnd,
                 Roles = roles.ToList()
             };
         }
@@ -74,6 +78,15 @@ namespace ReliefManagementSystem.Application.Services
         {
             var query = _unitOfWork.Users.GetAllUsersQueryable();
 
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var keyword = request.Search.Trim();
+                query = query.Where(u =>
+                    (u.DisplayName ?? string.Empty).Contains(keyword) ||
+                    (u.Email ?? string.Empty).Contains(keyword) ||
+                    (u.PhoneNumber ?? string.Empty).Contains(keyword));
+            }
+
             var pagedUsers = await Pagination<ApplicationUser>.ToPagedList(
                 query, request.PageIndex, request.PageSize);
 
@@ -87,9 +100,13 @@ namespace ReliefManagementSystem.Application.Services
                     DisplayName = user.DisplayName,
                     Email = user.Email,
                     PhoneNumber = user.PhoneNumber,
+                    Address = user.Address,
                     DateOfBirth = user.DateOfBirth,
                     Gender = user.Gender,
                     PictureUrl = user.PictureUrl,
+                    BanReason = user.BanReason,
+                    IsBanned = user.LockoutEnabled && user.LockoutEnd.HasValue && user.LockoutEnd > DateTimeOffset.UtcNow,
+                    LockoutEnd = user.LockoutEnd,
                     Roles = roles.ToList()
                 });
             }
@@ -234,15 +251,37 @@ namespace ReliefManagementSystem.Application.Services
             return MapToResponse(profile, profile.User);
         }
 
-        public async Task<List<VolunteerProfileResponse>> GetAllVolunteerProfilesAsync(
+        public async Task<Pagination<VolunteerProfileResponse>> GetAllVolunteerProfilesAsync(
+            SearchVolunteerProfilesRequest request,
             CancellationToken cancellationToken = default)
         {
-            var profiles = await _unitOfWork.VolunteerProfiles
-                .GetAllWithSkillsAsync();
+            var query = _unitOfWork.Users.GetQueryableWithVolunteerProfile()
+                .Where(u => u.VolunteerProfile != null)
+                .AsQueryable();
 
-            return profiles
-                .Select(profile => MapToResponse(profile, profile.User))
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var keyword = request.Search.Trim();
+                query = query.Where(u =>
+                    (u.DisplayName ?? string.Empty).Contains(keyword) ||
+                    (u.Email ?? string.Empty).Contains(keyword) ||
+                    (u.PhoneNumber ?? string.Empty).Contains(keyword));
+            }
+
+            query = query.OrderBy(u => u.DisplayName ?? u.Email ?? string.Empty);
+
+            var pagedUsers = await Pagination<ApplicationUser>.ToPagedList(query, request.PageIndex, request.PageSize);
+
+            var items = pagedUsers.Items!
+                .Where(u => u.VolunteerProfile != null)
+                .Select(u => MapToResponse(u.VolunteerProfile!, u))
                 .ToList();
+
+            return new Pagination<VolunteerProfileResponse>(
+                items,
+                pagedUsers.TotalCount,
+                pagedUsers.CurrentPage,
+                pagedUsers.PageSize);
         }
 
         public async Task<Pagination<VolunteerApplicationReviewResponse>> GetPendingVolunteerApplicationsAsync(
@@ -496,6 +535,88 @@ namespace ReliefManagementSystem.Application.Services
                 DateOfBirth = user.DateOfBirth,
                 Gender = user.Gender,
                 PictureUrl = user.PictureUrl,
+                BanReason = user.BanReason,
+                IsBanned = user.LockoutEnabled && user.LockoutEnd.HasValue && user.LockoutEnd > DateTimeOffset.UtcNow,
+                LockoutEnd = user.LockoutEnd,
+                Roles = roles.ToList()
+            };
+        }
+
+        public async Task<UserProfileResponse> BanUserAsync(
+            Guid userId,
+            BanUserRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var user = await _userManager.FindByIdAsync(userId.ToString())
+                       ?? throw new UserNotFoundException(userId.ToString());
+
+            user.BanReason = request.Reason.Trim();
+            user.LockoutEnabled = true;
+
+            var lockResult = await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
+            if (!lockResult.Succeeded)
+            {
+                var errors = lockResult.Errors
+                    .GroupBy(e => e.Code)
+                    .ToDictionary(g => g.Key, g => g.Select(e => e.Description).ToArray());
+                throw new ReliefManagementSystem.Application.Common.Exceptions.ValidationException(errors);
+            }
+
+            await _userManager.UpdateSecurityStampAsync(user);
+
+            var roles = await _userManager.GetRolesAsync(user);
+            return new UserProfileResponse
+            {
+                Id = user.Id,
+                DisplayName = user.DisplayName,
+                Email = user.Email,
+                PhoneNumber = user.PhoneNumber,
+                Address = user.Address,
+                DateOfBirth = user.DateOfBirth,
+                Gender = user.Gender,
+                PictureUrl = user.PictureUrl,
+                BanReason = user.BanReason,
+                IsBanned = true,
+                LockoutEnd = user.LockoutEnd,
+                Roles = roles.ToList()
+            };
+        }
+
+        public async Task<UserProfileResponse> UnbanUserAsync(
+            Guid userId,
+            UnbanUserRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var user = await _userManager.FindByIdAsync(userId.ToString())
+                       ?? throw new UserNotFoundException(userId.ToString());
+
+            user.BanReason = request.Note;
+
+            var unlockResult = await _userManager.SetLockoutEndDateAsync(user, null);
+            if (!unlockResult.Succeeded)
+            {
+                var errors = unlockResult.Errors
+                    .GroupBy(e => e.Code)
+                    .ToDictionary(g => g.Key, g => g.Select(e => e.Description).ToArray());
+                throw new ReliefManagementSystem.Application.Common.Exceptions.ValidationException(errors);
+            }
+
+            await _userManager.UpdateSecurityStampAsync(user);
+
+            var roles = await _userManager.GetRolesAsync(user);
+            return new UserProfileResponse
+            {
+                Id = user.Id,
+                DisplayName = user.DisplayName,
+                Email = user.Email,
+                PhoneNumber = user.PhoneNumber,
+                Address = user.Address,
+                DateOfBirth = user.DateOfBirth,
+                Gender = user.Gender,
+                PictureUrl = user.PictureUrl,
+                BanReason = user.BanReason,
+                IsBanned = false,
+                LockoutEnd = user.LockoutEnd,
                 Roles = roles.ToList()
             };
         }

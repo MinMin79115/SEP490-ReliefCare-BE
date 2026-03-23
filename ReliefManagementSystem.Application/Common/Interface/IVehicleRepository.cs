@@ -10,6 +10,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
 {
     public interface IVehicleRepository : IGenericRepository<Vehicle>
     {
+        IQueryable<Vehicle> GetQueryable();
         Task<IReadOnlyList<Vehicle>> GetAllActiveAsync();
         Task<Vehicle?> GetByIdWithDetailsAsync(Guid id);
         Task<IReadOnlyList<Vehicle>> GetByStatusAsync(VehicleStatus status);

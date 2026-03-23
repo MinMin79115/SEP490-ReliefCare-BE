@@ -21,6 +21,8 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public string? Address { get; set; }
 
+        public string? BanReason { get; set; }
+
         /// <summary>
         /// Profile quản lý (chỉ có nếu user có role Manager).
         /// Chứa cấp quản lý (Regional/Province/Local) và địa phương phụ trách.
