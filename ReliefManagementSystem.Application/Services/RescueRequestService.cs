@@ -400,7 +400,7 @@ namespace ReliefManagementSystem.Application.Services
             var priorityLevel = rescueRequest.RescuePriorityLevel;
 
             var allStations = await _unitOfWork.ReliefStations.GetAllAsync();
-            var activeStations = allStations.Where(s => s.IsActive).ToList();
+            var activeStations = allStations.Where(s => s.ReliefStationStatus == ReliefStationStatus.Active).ToList();
 
             if (!activeStations.Any())
                 throw new InvalidOperationException("No active relief stations available");

@@ -1,4 +1,4 @@
-﻿using ReliefManagementSystem.Domain.Enum;
+using ReliefManagementSystem.Domain.Enum;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -29,6 +29,14 @@ namespace ReliefManagementSystem.Domain.Entities
         public CampaignStatus Status { get; set; }
 
         public CampaignType Type { get; set; }
+
+        public CampaignCompletionRule CompletionRule { get; set; } = CampaignCompletionRule.RequiredGoalsMet;
+
+        /// <summary>
+        /// Cho phép vượt mục tiêu kêu gọi (over-target).
+        /// </summary>
+        public bool AllowOverTarget { get; set; } = true;
+
         public decimal BudgetTotal { get; set; }
         public decimal BudgetSpent { get; set; }
         public Location Location { get; set; } = default!;
@@ -38,6 +46,7 @@ namespace ReliefManagementSystem.Domain.Entities
         public ICollection<ReliefRequest> ReliefRequests { get; set; } = new List<ReliefRequest>();
         public ICollection<Donation> Donations { get; set; } = new List<Donation>();
         public ICollection<InKindDonation> InKindDonations { get; set; } = new List<InKindDonation>();
+        public ICollection<CampaignResourceGoal> ResourceGoals { get; set; } = new List<CampaignResourceGoal>();
         
         public ICollection<CampaignStation> CampaignStations { get; set; } = new List<CampaignStation>();
     }

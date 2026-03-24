@@ -31,5 +31,10 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .Where(p => p.Code == code)
                 .FirstOrDefaultAsync(cancellationToken);
         }
+
+        public IQueryable<PriorityCriteria> GetQueryable()
+        {
+            return _context.Set<PriorityCriteria>().AsNoTracking().AsQueryable();
+        }
     }
 }

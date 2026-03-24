@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Application.Features.PriorityCriteria.DTOs.Request;
 using ReliefManagementSystem.Application.Features.PriorityCriteria.DTOs.Response;
 using ReliefManagementSystem.Application.Interface;
@@ -26,11 +27,11 @@ namespace ReliefManagementSystem.API.Controllers
 
         [HttpGet]
         [AllowAnonymous]
-        [SwaggerOperation(Summary = "Get all priority criteria")]
-        [ProducesResponseType(typeof(List<PriorityCriteriaResponse>), StatusCodes.Status200OK)]
-        public async Task<IActionResult> GetAll(CancellationToken cancellationToken)
+        [SwaggerOperation(Summary = "Get all priority criteria (pagination + search by Name, Code, Description)")]
+        [ProducesResponseType(typeof(Pagination<PriorityCriteriaResponse>), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetAll([FromQuery] SearchPriorityCriteriaRequest request, CancellationToken cancellationToken)
         {
-            var result = await _priorityCriteriaService.GetAllAsync(cancellationToken);
+            var result = await _priorityCriteriaService.GetAllAsync(request, cancellationToken);
             return Ok(result);
         }
 

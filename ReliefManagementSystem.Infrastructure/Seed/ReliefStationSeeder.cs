@@ -48,12 +48,12 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                     ReliefStationId    = Guid.NewGuid(),
                     Name               = "Trạm Cấp Phát Trung Tâm Miền Trung",
                     Level              = ReliefStationLevel.Regional,
-                    LocationId         = await GetLocationId("mien-trung", LocationLevel.Region),
+                    LocationId         = await GetLocationId("phuoc-chanh", LocationLevel.Commune),
                     Address            = "Đà Nẵng, Việt Nam",
                     ContactNumber      = "0236-3823-0002",
                     Longitude          = 108.2208,
                     Latitude           = 16.0544,
-                    Status             = ReliefStationStatus.Active,
+                    ReliefStationStatus= ReliefStationStatus.Active,
                     CreatedAt          = DateTime.UtcNow,
                     UpdatedAt          = DateTime.UtcNow
                 }

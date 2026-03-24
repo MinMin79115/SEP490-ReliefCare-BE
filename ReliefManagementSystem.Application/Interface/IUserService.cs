@@ -37,11 +37,15 @@ namespace ReliefManagementSystem.Application.Interface
             string reason,
             CancellationToken cancellationToken = default);
 
-        Task<VolunteerProfileResponse?> GetVolunteerProfileByUserIdAsync(
-            Guid userId,
+        Task<VolunteerProfileResponse?> GetMyVolunteerProfileAsync(
             CancellationToken cancellationToken = default);
 
-        Task<List<VolunteerProfileResponse>> GetAllVolunteerProfilesAsync(
+        Task<Pagination<VolunteerProfileResponse>> GetAllVolunteerProfilesAsync(
+            SearchVolunteerProfilesRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<Pagination<VolunteerApplicationReviewResponse>> GetPendingVolunteerApplicationsAsync(
+            GetPendingVolunteerApplicationsRequest request,
             CancellationToken cancellationToken = default);
 
         Task<VolunteerProfileResponse> AddNewSkillVolunteer(AddVolunteerRequest request, CancellationToken cancellationToken);
@@ -52,6 +56,16 @@ namespace ReliefManagementSystem.Application.Interface
 
         Task<UserProfileResponse> UpdateUserProfileAsync(
             UpdateUserProfileRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<UserProfileResponse> BanUserAsync(
+            Guid userId,
+            BanUserRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<UserProfileResponse> UnbanUserAsync(
+            Guid userId,
+            UnbanUserRequest request,
             CancellationToken cancellationToken = default);
     }
 }

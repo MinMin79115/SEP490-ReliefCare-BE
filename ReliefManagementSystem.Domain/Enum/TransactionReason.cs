@@ -12,6 +12,7 @@ namespace ReliefManagementSystem.Domain.Enum
         SupplyTransferIn = 2,   // Nhập kho từ một trạm khác chuyển đến
         SupplyTransferOut = 3,  // Xuất kho để chuyển đến trạm khác
         CampaignAllocation = 4, // Xuất kho để cấp phát cho chiến dịch
-        Other = 5               // Các lý do khác (VD: kiểm kê, hư hỏng, v.v.)
+        Other = 5,              // Các lý do khác (VD: kiểm kê, hư hỏng, v.v.)
+        Procurement = 6         // Nhập kho từ mua sắm nội bộ bằng ngân sách campaign
     }
 }

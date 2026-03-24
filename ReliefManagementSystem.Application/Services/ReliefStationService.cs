@@ -78,8 +78,7 @@ namespace ReliefManagementSystem.Application.Services
                     Latitude = request.Latitude,
 
                     Level = ReliefStationLevel.Provincial,
-                    Status = ReliefStationStatus.Active,
-                    IsActive = true
+                    ReliefStationStatus = ReliefStationStatus.Active,
                 };
 
                 var inventory = new Inventory
@@ -159,21 +158,21 @@ namespace ReliefManagementSystem.Application.Services
                 ContactNumber = station.ContactNumber,
                 Longitude = station.Longitude,
                 Latitude = station.Latitude,
-                Status = station.Status,
-                IsActive = station.IsActive,
+                Status = station.ReliefStationStatus,
                 Level = station.Level,
                 LocationId = station.LocationId,
                 LocationName = station.Location?.Name ?? string.Empty,
                 UpdatedAt = station.UpdatedAt
             };
         }
-        public async Task<(List<ReliefStationResponse> Items, int TotalCount)> GetProvincialStationsAsync(
-            string? search, int pageIndex, int pageSize, CancellationToken cancellationToken)
+        public async Task<Pagination<ReliefStationResponse>> GetProvincialStationsAsync(
+            GetAllStationsRequest request,
+            CancellationToken cancellationToken)
         {
-            var (stations, totalCount) = await _unitOfWork.ReliefStations
-                .GetProvincialStationsAsync(search, pageIndex, pageSize, cancellationToken);
+            var pagedStations = await _unitOfWork.ReliefStations
+                .GetProvincialStationsAsync(request, cancellationToken);
 
-            var items = stations.Select(s => new ReliefStationResponse
+            var items = pagedStations.Items!.Select(s => new ReliefStationResponse
             {
                 ReliefStationId = s.ReliefStationId,
                 Name = s.Name,
@@ -181,8 +180,7 @@ namespace ReliefManagementSystem.Application.Services
                 ContactNumber = s.ContactNumber,
                 Longitude = s.Longitude,
                 Latitude = s.Latitude,
-                Status = s.Status,
-                IsActive = s.IsActive,
+                Status = s.ReliefStationStatus,
                 Level = s.Level,
                 LocationId = s.LocationId,
                 LocationName = s.Location?.Name ?? string.Empty,
@@ -190,7 +188,54 @@ namespace ReliefManagementSystem.Application.Services
                 UpdatedAt = s.UpdatedAt
             }).ToList();
 
-            return (items, totalCount);
+            return new Pagination<ReliefStationResponse>(
+                items,
+                pagedStations.TotalCount,
+                pagedStations.CurrentPage,
+                pagedStations.PageSize);
+        }
+
+        public async Task<ReliefStationResponse> GetCurrentModeratorStationAsync(CancellationToken cancellationToken)
+        {
+            var currentUserId = _currentUser.UserId;
+            if (!currentUserId.HasValue)
+            {
+                throw new ModeratorProfileNotFoundException();
+            }
+            var currentUser = await _unitOfWork.Users.GetUserById(currentUserId.Value);
+
+            var moderatorProfile = await _unitOfWork.ModeratorProfiles
+                .GetByUserIdAsync(currentUserId.Value, cancellationToken);
+
+            var locationName = await _unitOfWork.Locations.GetFullNameByLocationId(moderatorProfile.ReliefStation.LocationId);
+            if (moderatorProfile == null)
+            {
+                throw new ModeratorProfileNotFoundException(currentUserId.Value);
+            }
+
+            if (!moderatorProfile.ReliefStationId.HasValue || moderatorProfile.ReliefStation == null)
+            {
+                throw new ModeratorStationNotAssignedException();
+            }
+
+            var station = moderatorProfile.ReliefStation;
+
+            return new ReliefStationResponse
+            {
+                ReliefStationId = station.ReliefStationId,
+                Name = station.Name,
+                ModeratorName = currentUser?.DisplayName ?? string.Empty,
+                Address = station.Address,
+                ContactNumber = station.ContactNumber,
+                Longitude = station.Longitude,
+                Latitude = station.Latitude,
+                Status = station.ReliefStationStatus,
+                Level = station.Level,
+                LocationId = station.LocationId,
+                LocationName = locationName,
+                CreatedAt = station.CreatedAt,
+                UpdatedAt = station.UpdatedAt
+            };
         }
 
         public async Task<ReliefStationResponse> DisableProvincialStationAsync(Guid stationId, CancellationToken cancellationToken)
@@ -209,8 +254,7 @@ namespace ReliefManagementSystem.Application.Services
             }
 
             // 3️⃣ Cập nhật trạng thái trạm
-            station.Status = ReliefStationStatus.Inactive;
-            station.IsActive = false;
+            station.ReliefStationStatus = ReliefStationStatus.Inactive;
 
             // 4️⃣ Cập nhật Data Inventory thuộc về trạm này
             var inventories = await _unitOfWork.Inventories.GetByReliefStationAsync(stationId, cancellationToken);
@@ -230,8 +274,7 @@ namespace ReliefManagementSystem.Application.Services
                 ContactNumber = station.ContactNumber,
                 Longitude = station.Longitude,
                 Latitude = station.Latitude,
-                Status = station.Status,
-                IsActive = station.IsActive,
+                Status = station.ReliefStationStatus,
                 Level = station.Level,
                 LocationId = station.LocationId,
                 LocationName = station.Location?.Name ?? string.Empty,
@@ -255,8 +298,7 @@ namespace ReliefManagementSystem.Application.Services
             }
 
             // 3️⃣ Cập nhật trạng thái trạm
-            station.Status = ReliefStationStatus.Active;
-            station.IsActive = true;
+            station.ReliefStationStatus = ReliefStationStatus.Active;
 
             // 4️⃣ Cập nhật Data Inventory thuộc về trạm này
             // Lưu ý: với GetByReliefStationAsync hiện tại trong repository thường chỉ lấy Active, 
@@ -280,8 +322,7 @@ namespace ReliefManagementSystem.Application.Services
                 ContactNumber = station.ContactNumber,
                 Longitude = station.Longitude,
                 Latitude = station.Latitude,
-                Status = station.Status,
-                IsActive = station.IsActive,
+                Status = station.ReliefStationStatus,
                 Level = station.Level,
                 LocationId = station.LocationId,
                 LocationName = station.Location?.Name ?? string.Empty,
@@ -369,8 +410,7 @@ namespace ReliefManagementSystem.Application.Services
             {
                 if (existing.Status == ReliefTeamAssignmentStatus.Pending)
                 {
-                    existing.Status = ReliefTeamAssignmentStatus.Active;
-                    existing.IsActive = true;
+                    existing.Status = ReliefTeamAssignmentStatus.Approved;
                     existing.Description = request.Description ?? existing.Description;
                     existing.RejectionReason = null;
                     existing.JoinedAt ??= DateTime.UtcNow;
@@ -383,11 +423,9 @@ namespace ReliefManagementSystem.Application.Services
                         TeamId = existing.TeamId,
                         TeamName = existing.Team?.Name ?? team.Name,
                         Status = existing.Status,
-                        IsActive = existing.IsActive,
                         Description = existing.Description,
                         RejectionReason = existing.RejectionReason,
                         JoinedAt = existing.JoinedAt,
-                        TransferredAt = existing.TransferredAt
                     };
                 }
 
@@ -399,8 +437,7 @@ namespace ReliefManagementSystem.Application.Services
                 ReliefStationTeamId = Guid.NewGuid(),
                 ReliefStationId = stationId,
                 TeamId = request.TeamId,
-                Status = ReliefTeamAssignmentStatus.Active,
-                IsActive = true,
+                Status = ReliefTeamAssignmentStatus.Approved,
                 Description = request.Description,
                 JoinedAt = DateTime.UtcNow
             };
@@ -414,11 +451,9 @@ namespace ReliefManagementSystem.Application.Services
                 TeamId = assignment.TeamId,
                 TeamName = team.Name,
                 Status = assignment.Status,
-                IsActive = assignment.IsActive,
                 Description = assignment.Description,
                 RejectionReason = assignment.RejectionReason,
                 JoinedAt = assignment.JoinedAt,
-                TransferredAt = assignment.TransferredAt
             };
         }
 
@@ -451,7 +486,7 @@ namespace ReliefManagementSystem.Application.Services
             assignment.Status = request.Status;
             assignment.Description = request.Description ?? assignment.Description;
 
-            if (request.Status == ReliefTeamAssignmentStatus.Cancelled)
+            if (request.Status == ReliefTeamAssignmentStatus.Rejected)
             {
                 if (string.IsNullOrWhiteSpace(request.RejectionReason))
                 {
@@ -459,23 +494,11 @@ namespace ReliefManagementSystem.Application.Services
                 }
 
                 assignment.RejectionReason = request.RejectionReason;
-                assignment.IsActive = false;
             }
-            else if (request.Status == ReliefTeamAssignmentStatus.Active)
+            else if (request.Status == ReliefTeamAssignmentStatus.Approved)
             {
                 assignment.RejectionReason = null;
-                assignment.IsActive = true;
                 assignment.JoinedAt ??= DateTime.UtcNow;
-            }
-            else if (request.Status == ReliefTeamAssignmentStatus.Transferred)
-            {
-                assignment.IsActive = false;
-                assignment.TransferredAt = DateTime.UtcNow;
-            }
-            else if (request.Status == ReliefTeamAssignmentStatus.Suspended
-                  || request.Status == ReliefTeamAssignmentStatus.Completed)
-            {
-                assignment.IsActive = false;
             }
 
             await _unitOfWork.ReliefStationTeams.UpdateAsync(assignment);
@@ -487,11 +510,9 @@ namespace ReliefManagementSystem.Application.Services
                 TeamId = assignment.TeamId,
                 TeamName = assignment.Team?.Name ?? string.Empty,
                 Status = assignment.Status,
-                IsActive = assignment.IsActive,
                 Description = assignment.Description,
                 RejectionReason = assignment.RejectionReason,
                 JoinedAt = assignment.JoinedAt,
-                TransferredAt = assignment.TransferredAt
             };
         }
 

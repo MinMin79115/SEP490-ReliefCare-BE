@@ -86,6 +86,14 @@ services:
       CloudinarySettings__ApiKey: ${CLOUDINARY_API_KEY:-}
       CloudinarySettings__ApiSecret: ${CLOUDINARY_API_SECRET:-}
 
+      # PayOS
+      PayOs__ClientId: ${PAYOS_CLIENT_ID:-}
+      PayOs__ApiKey: ${PAYOS_API_KEY:-}
+      PayOs__ChecksumKey: ${PAYOS_CHECKSUM_KEY:-}
+      PayOs__ReturnUrl: ${PAYOS_RETURN_URL:-http://localhost:5173/donation/return}
+      PayOs__CancelUrl: ${PAYOS_CANCEL_URL:-http://localhost:5173/donation/cancel}
+      PayOs__ExpiredMinutes: ${PAYOS_EXPIRED_MINUTES:-15}
+
       # CORS - cho phép các frontend local phổ biến
       CorsSettings__AllowedOrigins__0: "http://localhost:3000"
       CorsSettings__AllowedOrigins__1: "http://localhost:5173"
@@ -105,11 +113,11 @@ services:
     networks:
       - reliefcare-local
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      test: ["CMD-SHELL", "curl -fsSL http://localhost:8080/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 90s
+      start_period: 240s
 
   # -----------------------------------------------------------
   # pgAdmin 4 - Giao diện quản lý PostgreSQL
@@ -139,6 +147,7 @@ services:
 # -----------------------------------------------------------
 volumes:
   postgres_local_data:
+    external: true
     name: reliefcare-local-postgres-data
   pgadmin_local_data:
     external: true

@@ -1,5 +1,6 @@
 using ReliefManagementSystem.Application.Common.Exceptions.PriorityCriteriaExceptions;
 using ReliefManagementSystem.Application.Common.Interface;
+using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Application.Features.PriorityCriteria.DTOs.Request;
 using ReliefManagementSystem.Application.Features.PriorityCriteria.DTOs.Response;
 using ReliefManagementSystem.Application.Interface;
@@ -87,10 +88,36 @@ namespace ReliefManagementSystem.Application.Services
             return MapToResponse(entity);
         }
 
-        public async Task<List<PriorityCriteriaResponse>> GetAllAsync(CancellationToken cancellationToken)
+        public async Task<Pagination<PriorityCriteriaResponse>> GetAllAsync(
+            SearchPriorityCriteriaRequest request,
+            CancellationToken cancellationToken)
         {
-            var entities = await _unitOfWork.PriorityCriterias.GetAllAsync();
-            return entities.Select(MapToResponse).ToList();
+            var query = _unitOfWork.PriorityCriterias.GetQueryable();
+
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var keyword = request.Search.Trim();
+                query = query.Where(x =>
+                    x.Name.Contains(keyword) ||
+                    x.Code.Contains(keyword) ||
+                    x.Description.Contains(keyword));
+            }
+
+            query = query.OrderByDescending(x => x.Point)
+                         .ThenBy(x => x.Name);
+
+            var paged = await Pagination<PriorityCriteria>.ToPagedList(
+                query,
+                request.PageIndex,
+                request.PageSize);
+
+            var items = paged.Items!.Select(MapToResponse).ToList();
+
+            return new Pagination<PriorityCriteriaResponse>(
+                items,
+                paged.TotalCount,
+                paged.CurrentPage,
+                paged.PageSize);
         }
 
         public async Task DeleteAsync(Guid id, CancellationToken cancellationToken)

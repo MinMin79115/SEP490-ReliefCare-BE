@@ -1,4 +1,5 @@
-﻿using ReliefManagementSystem.Application.Features.Vehicle.DTOs.Request;
+using ReliefManagementSystem.Application.Features.Vehicle.DTOs.Request;
+using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Application.Features.Vehicle.DTOs.Response;
 using System;
 using System.Collections.Generic;
@@ -12,7 +13,7 @@ namespace ReliefManagementSystem.Application.Interface
     {
         Task<VehicleResponse> CreateVehicleAsync(CreateVehicleRequest request, Guid userId, CancellationToken cancellationToken = default);
         Task<VehicleResponse> GetVehicleByIdAsync(Guid id, CancellationToken cancellationToken = default);
-        Task<IReadOnlyList<VehicleResponse>> GetAllVehiclesAsync(CancellationToken cancellationToken = default);
+        Task<Pagination<VehicleResponse>> GetAllVehiclesAsync(SearchVehicleRequest request, CancellationToken cancellationToken = default);
         Task<IReadOnlyList<VehicleResponse>> GetVehiclesByStatusAsync(int status, CancellationToken cancellationToken = default);
         Task<IReadOnlyList<VehicleResponse>> GetMyVehiclesAsync(Guid userId, CancellationToken cancellationToken = default);
         Task<VehicleResponse> UpdateVehicleAsync(Guid id, UpdateVehicleRequest request, Guid userId, CancellationToken cancellationToken = default);

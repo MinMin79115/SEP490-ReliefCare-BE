@@ -24,6 +24,11 @@ namespace ReliefManagementSystem.Application.Common.Interface
         Task<IReadOnlyList<Inventory>> GetByReliefStationAsync(Guid reliefStationId, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Gets the first active inventory of a relief station for campaign runtime usage.
+        /// </summary>
+        Task<Inventory?> GetActiveByReliefStationAsync(Guid reliefStationId, CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Checks whether a relief station already has an inventory of the given level.
         /// </summary>
         Task<bool> IsLevelExistsForStationAsync(Guid reliefStationId, InventoryLevel level, Guid? excludeId = null, CancellationToken cancellationToken = default);

@@ -46,22 +46,23 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(result);
         }
 
-        [SwaggerOperation(OperationId = "GetProvincialStations", Description = "Lấy danh sách trạm cấp Tỉnh, có hỗ trợ tìm kiếm và phân trang")]
+        [SwaggerOperation(OperationId = "GetProvincialStations", Description = "Lấy danh sách trạm cấp Tỉnh có phân trang và tìm kiếm theo Name, Address, ContactNumber")]
         [HttpGet("provincial")]
         public async Task<IActionResult> GetProvincialStations(
-            [FromQuery] string? search,
-            [FromQuery] int pageIndex = 1,
-            [FromQuery] int pageSize = 10,
+            [FromQuery] GetAllStationsRequest request,
             CancellationToken cancellationToken = default)
         {
-            var (items, totalCount) = await _stationService.GetProvincialStationsAsync(search, pageIndex, pageSize, cancellationToken);
-            return Ok(new
-            {
-                TotalCount = totalCount,
-                PageIndex = pageIndex,
-                PageSize = pageSize,
-                Items = items
-            });
+            var result = await _stationService.GetProvincialStationsAsync(request, cancellationToken);
+            return Ok(result);
+        }
+
+        [Authorize(Roles = "Moderator")]
+        [SwaggerOperation(OperationId = "GetCurrentModeratorStation", Description = "Lấy thông tin trạm hiện tại Moderator đang quản lý")]
+        [HttpGet("my-station")]
+        public async Task<IActionResult> GetCurrentModeratorStation(CancellationToken cancellationToken)
+        {
+            var result = await _stationService.GetCurrentModeratorStationAsync(cancellationToken);
+            return Ok(result);
         }
 
         [Authorize(Roles = "Manager")]

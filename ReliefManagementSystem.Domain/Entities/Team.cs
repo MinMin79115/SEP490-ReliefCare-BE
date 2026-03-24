@@ -15,8 +15,10 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public string? Description { get; set; }
 
+        public string? ContactPhone { get; set; }
+
         // Moderator control team
-        public Guid ModeratorId { get; set; }
+        public Guid CreateBy { get; set; }
         public ApplicationUser Moderator { get; set; } = null!;
 
         // Team leader
@@ -32,6 +34,7 @@ namespace ReliefManagementSystem.Domain.Entities
         public ICollection<TeamJoinRequest> TeamJoinRequests { get; set; } = new List<TeamJoinRequest>();
         public ICollection<StationJoinRequest> StationJoinRequests { get; set; } = new List<StationJoinRequest>();
         public ICollection<CampaignTeam> CampaignTeams { get; set; } = new List<CampaignTeam>();
+        public ICollection<ReliefStationTeam> ReliefStationTeams { get; set; } = new List<ReliefStationTeam>();
 
     }
 }

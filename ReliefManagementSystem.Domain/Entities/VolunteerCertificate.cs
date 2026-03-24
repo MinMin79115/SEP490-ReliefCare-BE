@@ -22,10 +22,10 @@ namespace ReliefManagementSystem.Domain.Entities
         public string? IssuedBy { get; set; }
 
         /// <summary>Ngày cấp chứng chỉ.</summary>
-        public DateTime? IssuedDate { get; set; }
+        public DateOnly? IssuedDate { get; set; }
 
         /// <summary>Ngày hết hạn (null = không giới hạn thời gian).</summary>
-        public DateTime? ExpiryDate { get; set; }
+        public DateOnly? ExpiryDate { get; set; }
 
         /// <summary>URL ảnh / file chứng chỉ (Cloudinary hoặc storage khác).</summary>
         public string? FileUrl { get; set; }

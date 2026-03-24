@@ -63,23 +63,31 @@ namespace ReliefManagementSystem.API.Controllers
 
         // GET /api/team
         [HttpGet]
-        [SwaggerOperation(OperationId = "GetAllTeams", Description = "Lấy danh sách tất cả teams có phân trang")]
+        [SwaggerOperation(OperationId = "GetAllTeams", Description = "Lấy danh sách tất cả teams có phân trang và tìm kiếm theo Name, Description, ContactPhone")]
         public async Task<IActionResult> GetAllTeams(
-            [FromQuery] int pageIndex = 1,
-            [FromQuery] int pageSize = 10,
+            [FromQuery] SearchTeamRequest request,
             CancellationToken cancellationToken = default)
         {
-            var result = await _teamService.GetAllTeamsAsync(pageIndex, pageSize, cancellationToken);
+            var result = await _teamService.GetAllTeamsAsync(request, cancellationToken);
             return Ok(result);
         }
 
 
         // GET /api/team/search
         [HttpGet("search")]
-        [SwaggerOperation(OperationId = "SearchTeams", Description = "Tìm kiếm teams theo tên, status với phân trang")]
+        [SwaggerOperation(OperationId = "SearchTeams", Description = "Tìm kiếm teams có phân trang theo Search (Name, Description, ContactPhone), Name, Status, ModeratorId")]
         public async Task<IActionResult> SearchTeams([FromQuery] SearchTeamRequest request, CancellationToken cancellationToken)
         {
             var result = await _teamService.SearchTeamsAsync(request, cancellationToken);
+            return Ok(result);
+        }
+
+        // GET /api/team/in-station
+        [HttpGet("in-station")]
+        [SwaggerOperation(OperationId = "GetTeamsInStation", Description = "Lấy danh sách team trong trạm, hỗ trợ phân trang + tìm theo tên team/leader")]
+        public async Task<IActionResult> GetTeamsInStation([FromQuery] GetTeamsInStationRequest request, CancellationToken cancellationToken)
+        {
+            var result = await _teamService.GetTeamsInStationAsync(request, cancellationToken);
             return Ok(result);
         }
 
@@ -128,6 +136,20 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(result);
         }
 
+        // POST /api/team/{id}/members/bulk (Moderator add nhiều volunteer trực tiếp)
+        [HttpPost("{id:guid}/members/bulk")]
+        [Authorize(Roles = "Moderator")]
+        [SwaggerOperation(OperationId = "AddMembersDirectly", Description = "Moderator thêm 1 hoặc nhiều volunteer vào team trong một request")]
+        public async Task<IActionResult> AddMembersDirectly(
+            Guid id,
+            [FromBody] AddMembersRequest request,
+            CancellationToken cancellationToken)
+        {
+            var moderatorId = GetCurrentUserId();
+            var result = await _teamService.AddMembersDirectlyAsync(id, request, moderatorId, cancellationToken);
+            return Ok(result);
+        }
+
         // PATCH /api/team/{id}/members/{userId}/promote-to-leader
         [HttpPatch("{id:guid}/members/{userId:guid}/promote-to-leader")]
         [Authorize(Roles = "Moderator")]
@@ -137,8 +159,7 @@ namespace ReliefManagementSystem.API.Controllers
             Guid userId, 
             CancellationToken cancellationToken)
         {
-            var moderatorId = GetCurrentUserId();
-            var result = await _teamService.PromoteMemberToLeaderAsync(id, userId, moderatorId, cancellationToken);
+            var result = await _teamService.PromoteMemberToLeaderAsync(id, userId, cancellationToken);
             return Ok(result);
         }
 

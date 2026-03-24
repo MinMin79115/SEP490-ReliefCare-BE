@@ -10,8 +10,8 @@ namespace ReliefManagementSystem.Application.Features.VolunteerRequest.Request
     {
         public string Name { get; set; } = string.Empty;
         public string? IssuedBy { get; set; }
-        public DateTime? IssuedDate { get; set; }
-        public DateTime? ExpiryDate { get; set; }
+        public DateOnly? IssuedDate { get; set; }
+        public DateOnly? ExpiryDate { get; set; }
         public string? FileUrl { get; set; }
     }
 }
