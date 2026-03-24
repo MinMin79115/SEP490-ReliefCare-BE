@@ -1,4 +1,5 @@
-﻿using ReliefManagementSystem.Application.Common.Interface;
+using ReliefManagementSystem.Application.Common.Interface;
+using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Application.Features.Vehicle.DTOs.Request;
 using ReliefManagementSystem.Application.Features.Vehicle.DTOs.Response;
 using ReliefManagementSystem.Application.Interface;
@@ -72,11 +73,27 @@ namespace ReliefManagementSystem.Application.Services
         }
 
         // Get all active Vehicles
-        public async Task<IReadOnlyList<VehicleResponse>> GetAllVehiclesAsync(
+        public async Task<Pagination<VehicleResponse>> GetAllVehiclesAsync(
+            SearchVehicleRequest request,
             CancellationToken cancellationToken = default)
         {
-            var vehicles = await _unitOfWork.Vehicles.GetAllActiveAsync();
-            return vehicles.Select(MapToResponse).ToList();
+            var query = _unitOfWork.Vehicles.GetQueryable();
+
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var keyword = request.Search.Trim();
+                query = query.Where(v =>
+                    (v.LicensePlate ?? string.Empty).Contains(keyword) ||
+                    (v.TeamUsed ?? string.Empty).Contains(keyword) ||
+                    (v.VehicleType != null && (v.VehicleType.TypeName ?? string.Empty).Contains(keyword)));
+            }
+
+            query = query.OrderByDescending(v => v.CreatedAt);
+
+            var pagedVehicles = await Pagination<Vehicle>.ToPagedList(query, request.PageIndex, request.PageSize);
+            var items = pagedVehicles.Items!.Select(MapToResponse).ToList();
+
+            return new Pagination<VehicleResponse>(items, pagedVehicles.TotalCount, pagedVehicles.CurrentPage, pagedVehicles.PageSize);
         }
 
         // Get Vehicles by Status

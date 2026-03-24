@@ -23,6 +23,8 @@ namespace ReliefManagementSystem.Application.Common.Interface
         /// </summary>
         IQueryable<ApplicationUser> GetAllUsersQueryable();
 
+        IQueryable<ApplicationUser> GetQueryableWithVolunteerProfile();
+
         Task<ApplicationUser> GetUserById(Guid userId);
     }
 }

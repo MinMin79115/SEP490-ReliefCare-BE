@@ -16,5 +16,10 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
 
         }
 
+        public IQueryable<Skill> GetQueryable()
+        {
+            return _dbSet.AsQueryable();
+        }
+
     }
 }

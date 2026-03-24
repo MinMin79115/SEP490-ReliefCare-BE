@@ -9,6 +9,8 @@ namespace ReliefManagementSystem.Application.Features.Team.DTOs.Request
 {
     public class SearchTeamRequest
     {
+        public string? Search { get; set; }
+
         public string? Name { get; set; }
 
         public TeamStatus? Status { get; set; }

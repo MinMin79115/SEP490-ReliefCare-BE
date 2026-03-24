@@ -46,6 +46,16 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             return _context.Users.AsNoTracking().OrderBy(u => u.DisplayName);
         }
 
+        public IQueryable<ApplicationUser> GetQueryableWithVolunteerProfile()
+        {
+            return _context.Users
+                .AsNoTracking()
+                .Include(u => u.VolunteerProfile)
+                    .ThenInclude(vp => vp.VolunteerSkills)
+                        .ThenInclude(vs => vs.Skill)
+                .AsQueryable();
+        }
+
         public async Task<ApplicationUser> GetUserById(Guid userId)
         {
             var user = await _context.Users.FindAsync(userId);

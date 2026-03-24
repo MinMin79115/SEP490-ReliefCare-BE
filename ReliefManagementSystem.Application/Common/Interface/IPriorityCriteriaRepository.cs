@@ -13,5 +13,6 @@ namespace ReliefManagementSystem.Application.Common.Interface
         Task<List<PriorityCriteria>> GetByDisasterTypeAsync(DisasterType disasterType,
             CancellationToken cancellationToken = default);
         Task<PriorityCriteria?> GetByCodeAsync(string code, CancellationToken cancellationToken = default);
+        IQueryable<PriorityCriteria> GetQueryable();
     }
 }

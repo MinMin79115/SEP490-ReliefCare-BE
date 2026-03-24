@@ -7,6 +7,7 @@ using ReliefManagementSystem.Application.Features.VolunteerRequest.Response;
 using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Application.Services;
 using ReliefManagementSystem.Domain.Entities;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace ReliefManagementSystem.API.Controllers
 {
@@ -47,10 +48,13 @@ namespace ReliefManagementSystem.API.Controllers
         }
 
         [HttpGet]
-        public async Task<ActionResult<List<VolunteerProfileResponse>>> GetAll(CancellationToken cancellationToken)
+        [SwaggerOperation(OperationId = "GetAllVolunteerProfiles", Description = "Lấy danh sách hồ sơ volunteer có phân trang và tìm kiếm theo FullName(DisplayName), Email, PhoneNumber")]
+        public async Task<ActionResult<Pagination<VolunteerProfileResponse>>> GetAll(
+            [FromQuery] SearchVolunteerProfilesRequest request,
+            CancellationToken cancellationToken)
         {
             var result = await _userService
-                .GetAllVolunteerProfilesAsync(cancellationToken);
+                .GetAllVolunteerProfilesAsync(request, cancellationToken);
 
             return Ok(result);
         }

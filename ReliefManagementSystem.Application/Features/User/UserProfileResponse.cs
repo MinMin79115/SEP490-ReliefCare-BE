@@ -16,6 +16,9 @@ namespace ReliefManagementSystem.Application.Features.User
         public DateTime? DateOfBirth { get; set; }
         public string? Gender { get; set; }
         public string? PictureUrl { get; set; }
+        public string? BanReason { get; set; }
+        public bool IsBanned { get; set; }
+        public DateTimeOffset? LockoutEnd { get; set; }
         public List<string>? Roles { get; set; }
     }
 }

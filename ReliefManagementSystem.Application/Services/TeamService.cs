@@ -214,12 +214,32 @@ namespace ReliefManagementSystem.Application.Services
         }
         
         //Get team list
-        public async Task<Pagination<TeamResponse>> GetAllTeamsAsync(int pageIndex, int pageSize, CancellationToken cancellationToken)
+        public async Task<Pagination<TeamResponse>> GetAllTeamsAsync(SearchTeamRequest request, CancellationToken cancellationToken)
         {
-            var query = _unitOfWork.Teams.GetQueryable()
-                .OrderByDescending(t => t.CreatedAt);
+            var query = _unitOfWork.Teams.GetQueryable();
 
-            var pagedTeams = await Pagination<Team>.ToPagedList(query, pageIndex, pageSize);
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var keyword = request.Search.Trim();
+                query = query.Where(t =>
+                    (t.Name ?? string.Empty).Contains(keyword) ||
+                    (t.Description ?? string.Empty).Contains(keyword) ||
+                    (t.ContactPhone ?? string.Empty).Contains(keyword));
+            }
+
+            if (request.Status.HasValue)
+            {
+                query = query.Where(t => t.Status == request.Status.Value);
+            }
+
+            if (request.ModeratorId.HasValue)
+            {
+                query = query.Where(t => t.CreateBy == request.ModeratorId.Value);
+            }
+
+            query = query.OrderByDescending(t => t.CreatedAt);
+
+            var pagedTeams = await Pagination<Team>.ToPagedList(query, request.PageIndex, request.PageSize);
 
             var responseItems = new List<TeamResponse>();
             foreach (var team in pagedTeams.Items!)
@@ -236,6 +256,15 @@ namespace ReliefManagementSystem.Application.Services
             CancellationToken cancellationToken)
         {
             var query = _unitOfWork.Teams.GetQueryable();
+
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var keyword = request.Search.Trim();
+                query = query.Where(t =>
+                    (t.Name ?? string.Empty).Contains(keyword) ||
+                    (t.Description ?? string.Empty).Contains(keyword) ||
+                    (t.ContactPhone ?? string.Empty).Contains(keyword));
+            }
 
             if (!string.IsNullOrWhiteSpace(request.Name))
             {
@@ -451,6 +480,65 @@ namespace ReliefManagementSystem.Application.Services
                     Description = vs.Skill.Description
                 }).ToList()
             };
+        }
+
+        public async Task<AddMembersResponse> AddMembersDirectlyAsync(
+            Guid teamId,
+            AddMembersRequest request,
+            Guid moderatorId,
+            CancellationToken cancellationToken)
+        {
+            var result = new AddMembersResponse
+            {
+                TeamId = teamId,
+                TotalRequested = request.VolunteerIds?.Count ?? 0
+            };
+
+            if (request.VolunteerIds == null || request.VolunteerIds.Count == 0)
+            {
+                result.FailedCount = 0;
+                result.SuccessCount = 0;
+                return result;
+            }
+
+            var distinctVolunteerIds = request.VolunteerIds
+                .Where(x => x != Guid.Empty)
+                .Distinct()
+                .ToList();
+
+            var team = await _unitOfWork.Teams.GetByIdAsync(teamId);
+            if (team == null)
+                throw new TeamNotFoundException();
+
+            if (team.CreateBy != moderatorId)
+                throw new UnauthorizedTeamActionException("thêm thành viên");
+
+            foreach (var volunteerId in distinctVolunteerIds)
+            {
+                try
+                {
+                    var singleResult = await AddMemberDirectlyAsync(
+                        teamId,
+                        new AddMemberRequest { VolunteerId = volunteerId },
+                        moderatorId,
+                        cancellationToken);
+
+                    result.AddedMembers.Add(singleResult);
+                }
+                catch (Exception ex)
+                {
+                    result.FailedMembers.Add(new AddMemberFailureItem
+                    {
+                        VolunteerId = volunteerId,
+                        Reason = ex.Message
+                    });
+                }
+            }
+
+            result.SuccessCount = result.AddedMembers.Count;
+            result.FailedCount = result.FailedMembers.Count;
+
+            return result;
         }
 
         //Update role for member role to leader role

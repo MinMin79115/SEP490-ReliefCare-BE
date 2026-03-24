@@ -16,6 +16,13 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
         {
         }
 
+        public IQueryable<VehicleType> GetQueryable()
+        {
+            return _dbSet
+                .Where(vt => !vt.IsDeleted)
+                .AsQueryable();
+        }
+
         public async Task<IReadOnlyList<VehicleType>> GetAllActiveAsync()
         {
             return await _dbSet
