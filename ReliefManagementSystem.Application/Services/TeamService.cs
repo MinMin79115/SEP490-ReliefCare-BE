@@ -605,6 +605,64 @@ namespace ReliefManagementSystem.Application.Services
             };
         }
 
+        public async Task<TeamTrackingPointResponse> TrackTeamHeartbeatAsync(
+            Guid teamId,
+            TeamTrackingHeartbeatRequest request,
+            CancellationToken cancellationToken)
+        {
+            var currentUserId = _currentUserService.UserId
+                ?? throw new UnauthorizedTeamActionException("gửi vị trí");
+
+            var team = await _unitOfWork.Teams.GetByIdAsync(teamId);
+            if (team == null)
+                throw new TeamNotFoundException();
+
+            var isMember = await _unitOfWork.TeamMembers.IsMemberAsync(teamId, currentUserId);
+            if (!isMember)
+                throw new UnauthorizedTeamActionException("gửi vị trí");
+
+            var capturedAtUtc = request.CapturedAtUtc == default || request.CapturedAtUtc == DateTime.MinValue
+                ? DateTime.UtcNow
+                : request.CapturedAtUtc;
+
+            var trackingPoint = new TeamTrackingPoint
+            {
+                TeamTrackingPointId = Guid.NewGuid(),
+                TeamId = teamId,
+                RescueBatchId = request.RescueBatchId,
+                RescueOperationId = request.RescueOperationId,
+                Latitude = request.Latitude,
+                Longitude = request.Longitude,
+                AccuracyMeters = request.AccuracyMeters,
+                SpeedKph = request.SpeedKph,
+                HeadingDegree = request.HeadingDegree,
+                Source = request.Source,
+                CapturedAtUtc = capturedAtUtc,
+                CreatedAtUtc = DateTime.UtcNow,
+                Note = request.Note
+            };
+
+            await _unitOfWork.TeamTrackingPoints.AddAsync(trackingPoint);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return new TeamTrackingPointResponse
+            {
+                TeamTrackingPointId = trackingPoint.TeamTrackingPointId,
+                TeamId = trackingPoint.TeamId,
+                RescueBatchId = trackingPoint.RescueBatchId,
+                RescueOperationId = trackingPoint.RescueOperationId,
+                Latitude = trackingPoint.Latitude,
+                Longitude = trackingPoint.Longitude,
+                AccuracyMeters = trackingPoint.AccuracyMeters,
+                SpeedKph = trackingPoint.SpeedKph,
+                HeadingDegree = trackingPoint.HeadingDegree,
+                Source = trackingPoint.Source,
+                CapturedAtUtc = trackingPoint.CapturedAtUtc,
+                CreatedAtUtc = trackingPoint.CreatedAtUtc,
+                Note = trackingPoint.Note
+            };
+        }
+
         // Helper Methods
         private async Task<TeamResponse> MapToTeamResponse(Team team, CancellationToken cancellationToken)
         {

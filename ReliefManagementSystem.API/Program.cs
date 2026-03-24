@@ -86,6 +86,12 @@ builder.Services.Configure<EmailSettings>(
 builder.Services.Configure<PayOsSettings>(
     builder.Configuration.GetSection("PayOs"));
 
+builder.Services.Configure<GoongSettings>(
+    builder.Configuration.GetSection("Goong"));
+
+builder.Services.Configure<WeatherApiSettings>(
+    builder.Configuration.GetSection("WeatherApi"));
+
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>();
 var googleSettings = builder.Configuration.GetSection("AuthenticationGoogle").Get<GoogleSetting>();
 var cloudSetting = builder.Configuration.GetSection("CloudinarySettings").Get<CloudinarySettings>();
@@ -217,6 +223,7 @@ using (var scope = app.Services.CreateScope())
     await TeamSeeder.SeedAsync(context);
     await LocationExcelSeeder.SeedAsync(context);
     await ReliefStationSeeder.SeedAsync(context);
+    await CampaignSeeder.SeedAsync(context);
     await ManagerProfileSeeder.SeedAsync(context);
     await PriorityCriteriaSeeder.SeedAsync(context);
     logger.LogInformation("Database seeding completed.");

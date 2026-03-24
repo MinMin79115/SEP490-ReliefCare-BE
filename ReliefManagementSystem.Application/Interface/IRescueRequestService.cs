@@ -32,38 +32,56 @@ namespace ReliefManagementSystem.Application.Interface
             int? statusFilter = null,
             CancellationToken cancellationToken = default);
 
+        Task<PaginatedRescueRequestResponseDto> SearchRescueRequestsAsync(
+            SearchRescueRequestDto request,
+            CancellationToken cancellationToken = default);
+
+        Task<RescueRequestResponseDto> VerifyRescueRequestAsync(
+            Guid requestId,
+            VerifyRescueRequestDto dto,
+            CancellationToken cancellationToken = default);
+
+        Task<RescueRequestResponseDto> AssignTeamToRescueAsync(
+            Guid requestId,
+            AssignRescueTeamRequestDto dto,
+            CancellationToken cancellationToken = default);
+
+        Task<BulkAssignRescueTeamResponseDto> AssignTeamToMultipleRescueRequestsAsync(
+            AssignRescueTeamBulkRequestDto dto,
+            CancellationToken cancellationToken = default);
+
+        Task<RescueRequestResponseDto> CompleteRescueOperationAsync(
+            Guid requestId,
+            Guid operationId,
+            CompleteRescueOperationRequestDto dto,
+            CancellationToken cancellationToken = default);
+
+        Task<RescueRequestResponseDto> UpdateRescueOperationStatusAsync(
+            Guid requestId,
+            Guid operationId,
+            UpdateRescueOperationStatusRequestDto dto,
+            CancellationToken cancellationToken = default);
+
+        Task<RescueBatchQueueResponseDto?> GetActiveBatchByTeamAsync(
+            Guid teamId,
+            CancellationToken cancellationToken = default);
+
+        Task<RescueBatchQueueResponseDto> ReorderBatchQueueAsync(
+            Guid teamId,
+            ReorderRescueBatchRequestDto dto,
+            CancellationToken cancellationToken = default);
+
         /// <summary>
         /// Xác minh yêu cầu cứu hộ (Admin/Manager)
         /// - Nếu Approved: tính toán dispatch mode và gửi tới trạm cứu hộ
         /// - Nếu Rejected: cập nhật status thành Cancelled
         /// </summary>
-        Task<RescueRequestResponseDto> VerifyRescueRequestAsync(
-            Guid requestId,
-            VerifyRescueRequestDto request,
+        Task<DistanceMatrixProbeResponse> ProbeDistanceMatrixAsync(
+            double originLat,
+            double originLng,
+            List<double> destinationLats,
+            List<double> destinationLngs,
             CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Tính toán priority score dựa trên các tiêu chí
-        /// - Số lượng attachments, loại file, mức độ thảm họa, vv.
-        /// </summary>
-        //Task<int> CalculatePriorityAsync(
-        //    Guid requestId,
-        //    CancellationToken cancellationToken = default);
-
-        /// <summary>
-        /// Dispatch yêu cầu cứu hộ tới các trạm cứu trợ dựa trên priority level
-        /// - Low: 1 trạm gần nhất
-        /// - Medium: 2 trạm gần nhất
-        /// - High/Critical: tất cả trạm trong vùng
-        /// </summary>
-        Task DispatchToStationsAsync(
-            Guid requestId,
-            CancellationToken cancellationToken = default);
-
-        /// <summary>Cập nhật trạng thái yêu cầu cứu hộ</summary>
-        Task UpdateRescueRequestStatusAsync(
-            Guid requestId,
-            int newStatus,
-            CancellationToken cancellationToken = default);
     }
 }

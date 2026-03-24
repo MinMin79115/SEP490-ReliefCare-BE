@@ -25,5 +25,6 @@ namespace ReliefManagementSystem.Application.Interface
         Task<TeamMemberResponse> AddMemberDirectlyAsync(Guid teamId, AddMemberRequest request, Guid moderatorId, CancellationToken cancellationToken);
         Task<AddMembersResponse> AddMembersDirectlyAsync(Guid teamId, AddMembersRequest request, Guid moderatorId, CancellationToken cancellationToken);
         Task<TeamMemberResponse> PromoteMemberToLeaderAsync(Guid teamId, Guid userId, CancellationToken cancellationToken);
+        Task<TeamTrackingPointResponse> TrackTeamHeartbeatAsync(Guid teamId, TeamTrackingHeartbeatRequest request, CancellationToken cancellationToken);
     }
 }

@@ -5,6 +5,14 @@ using ReliefManagementSystem.Domain.Enum;
 
 namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Request
 {
+    public class SearchRescueRequestDto
+    {
+        public string? Search { get; set; }
+        public int? StatusFilter { get; set; }
+        public int PageNumber { get; set; } = 1;
+        public int PageSize { get; set; } = 10;
+    }
+
     /// <summary>DTO để gửi yêu cầu cứu hộ mới với attachments</summary>
     public class CreateRescueRequestDto
     {
@@ -39,9 +47,6 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Request
         /// <summary>Địa chỉ cụ thể</summary>
         [MaxLength(500, ErrorMessage = "Address cannot exceed 500 characters")]
         public string? Address { get; set; }
-
-        /// <summary>ID địa điểm liên quan (tuỳ chọn)</summary>
-        public Guid? LocationId { get; set; }
 
         /// <summary>Ghi chú bổ sung (tuỳ chọn)</summary>
         [MaxLength(500, ErrorMessage = "Note cannot exceed 500 characters")]

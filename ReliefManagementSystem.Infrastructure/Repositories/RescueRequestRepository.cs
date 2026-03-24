@@ -54,6 +54,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .Include(r => r.Attachments)
                 .Include(r => r.RescueRequestPriorities)
                     .ThenInclude(rp => rp.PriorityCriteria)
+                .Include(r => r.Campaign)
                 .Include(r => r.RescueOperations)
                     .ThenInclude(ro => ro.ReliefStation)
                 .FirstOrDefaultAsync(cancellationToken);
@@ -64,6 +65,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             return await _context.Set<RescueRequest>()
                 .Include(r => r.Attachments)
                 .Include(r => r.RescueRequestPriorities)
+                .Include(r => r.Campaign)
                 .Include(r => r.RescueOperations)
                 .ToListAsync(cancellationToken);
         }

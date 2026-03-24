@@ -22,6 +22,9 @@ namespace ReliefManagementSystem.Application.Features.ReliefStation.DTOs.Request
         public double Longitude { get; set; }
         public double Latitude { get; set; }
 
+        [Range(0.1, 1000, ErrorMessage = "CoverageRadiusKm must be between 0.1 and 1000 km")]
+        public double CoverageRadiusKm { get; set; } = 30;
+
         public ReliefStationStatus Status { get; set; } = ReliefStationStatus.Draft;
     }
 
@@ -63,6 +66,9 @@ namespace ReliefManagementSystem.Application.Features.ReliefStation.DTOs.Request
 
         /// <summary>Vĩ độ (latitude) vị trí trạm.</summary>
         public double Latitude { get; set; }
+
+        [Range(0.1, 1000, ErrorMessage = "CoverageRadiusKm must be between 0.1 and 1000 km")]
+        public double CoverageRadiusKm { get; set; } = 30;
     }
 
     /// <summary>
@@ -127,6 +133,9 @@ namespace ReliefManagementSystem.Application.Features.ReliefStation.DTOs.Request
         public double Longitude { get; set; }
         public double Latitude { get; set; }
 
+        [Range(0.1, 1000, ErrorMessage = "CoverageRadiusKm must be between 0.1 and 1000 km")]
+        public double CoverageRadiusKm { get; set; } = 30;
+
         public ReliefStationStatus Status { get; set; }
     }
 
@@ -160,6 +169,9 @@ namespace ReliefManagementSystem.Application.Features.ReliefStation.DTOs.Request
 
         /// <summary>Vĩ độ (latitude) vị trí trạm.</summary>
         public double Latitude { get; set; }
+
+        [Range(0.1, 1000, ErrorMessage = "CoverageRadiusKm must be between 0.1 and 1000 km")]
+        public double CoverageRadiusKm { get; set; } = 30;
     }
 
     /// <summary>Request model to assign a team to a relief station.</summary>

@@ -31,6 +31,19 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Respons
 
         public string? Note { get; set; }
 
+        public string? WeatherCondition { get; set; }
+        public double? WeatherTempC { get; set; }
+        public double? WeatherWindKph { get; set; }
+        public double? WeatherPrecipMm { get; set; }
+        public double? WeatherVisibilityKm { get; set; }
+        public int? WeatherRiskScore { get; set; }
+        public string? WeatherRiskLevel { get; set; }
+        public DateTime? WeatherObservedAt { get; set; }
+
+        public Guid? CampaignId { get; set; }
+
+        public string? CampaignName { get; set; }
+
         public DateTime CreatedAt { get; set; }
 
         public DateTime? UpdatedAt { get; set; }
@@ -40,6 +53,8 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Respons
         public List<RescueRequestPriorityDto> PriorityDetails { get; set; } = new();
 
         public List<RescueOperationDto> RescueOperations { get; set; } = new();
+
+        public List<RequestVerificationDto> Verifications { get; set; } = new();
     }
 
     /// <summary>DTO cho attachment</summary>
