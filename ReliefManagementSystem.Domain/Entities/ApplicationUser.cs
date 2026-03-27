@@ -36,6 +36,7 @@ namespace ReliefManagementSystem.Domain.Entities
         public ModeratorProfile? ModeratorProfile { get; set; }
 
         public VolunteerProfile VolunteerProfile { get; set; }
+        public ICollection<CampaignVolunteerRegistration> CampaignVolunteerRegistrations { get; set; } = new List<CampaignVolunteerRegistration>();
         public ICollection<TeamMember> TeamMembers { get; set; }
 
         /// <summary>

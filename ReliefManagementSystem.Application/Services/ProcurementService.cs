@@ -29,9 +29,14 @@ namespace ReliefManagementSystem.Application.Services
             var campaign = await _unitOfWork.Campaigns.GetWithGoalsAsync(request.CampaignId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Campaign '{request.CampaignId}' was not found.");
 
-            if (campaign.Type != CampaignType.Fundraising && campaign.Type != CampaignType.Relief)
+            if (campaign.Type == CampaignType.Fundraising)
             {
-                throw new InvalidOperationException("Chỉ Fundraising hoặc Relief campaign mới có thể tạo procurement order.");
+                throw new InvalidOperationException("Fundraising campaign chỉ dùng để huy động nguồn lực và chưa được phép tạo procurement order.");
+            }
+
+            if (campaign.Type != CampaignType.Relief)
+            {
+                throw new InvalidOperationException("Chỉ Relief campaign mới có thể tạo procurement order ở phase hiện tại.");
             }
 
             var inventory = await _unitOfWork.Inventories.GetByIdAsync(request.DestinationInventoryId)
