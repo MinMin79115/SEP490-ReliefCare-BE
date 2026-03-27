@@ -23,11 +23,13 @@ namespace ReliefManagementSystem.Application.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserService _currentUserService;
+        private readonly IRescueRequestService _rescueRequestService;
 
-        public TeamService(IUnitOfWork unitOfWork, ICurrentUserService currentUserService)
+        public TeamService(IUnitOfWork unitOfWork, ICurrentUserService currentUserService, IRescueRequestService rescueRequestService)
         {
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
+            _rescueRequestService = rescueRequestService;
         }
 
         //Create a team
@@ -603,6 +605,106 @@ namespace ReliefManagementSystem.Application.Services
                     Description = vs.Skill.Description
                 }).ToList()
             };
+        }
+
+        public async Task<TeamTrackingPointResponse> TrackTeamHeartbeatAsync(
+            Guid teamId,
+            TeamTrackingHeartbeatRequest request,
+            CancellationToken cancellationToken)
+        {
+            var currentUserId = _currentUserService.UserId
+                ?? throw new UnauthorizedTeamActionException("gửi vị trí");
+
+            var team = await _unitOfWork.Teams.GetByIdAsync(teamId);
+            if (team == null)
+                throw new TeamNotFoundException();
+
+            var isMember = await _unitOfWork.TeamMembers.IsMemberAsync(teamId, currentUserId);
+            if (!isMember)
+                throw new UnauthorizedTeamActionException("gửi vị trí");
+
+            var capturedAtUtc = request.CapturedAtUtc == default || request.CapturedAtUtc == DateTime.MinValue
+                ? DateTime.UtcNow
+                : request.CapturedAtUtc;
+
+            capturedAtUtc = capturedAtUtc.Kind switch
+            {
+                DateTimeKind.Utc => capturedAtUtc,
+                DateTimeKind.Local => capturedAtUtc.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(capturedAtUtc, DateTimeKind.Utc)
+            };
+
+            var trackingPoint = new TeamTrackingPoint
+            {
+                TeamTrackingPointId = Guid.NewGuid(),
+                TeamId = teamId,
+                RescueBatchId = request.RescueBatchId,
+                RescueOperationId = request.RescueOperationId,
+                Latitude = request.Latitude,
+                Longitude = request.Longitude,
+                AccuracyMeters = request.AccuracyMeters,
+                SpeedKph = request.SpeedKph,
+                HeadingDegree = request.HeadingDegree,
+                Source = request.Source,
+                CapturedAtUtc = capturedAtUtc,
+                CreatedAtUtc = DateTime.UtcNow,
+                Note = request.Note
+            };
+
+            await _unitOfWork.TeamTrackingPoints.AddAsync(trackingPoint);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            await _rescueRequestService.RecalculateActiveBatchEtaAsync(teamId, cancellationToken);
+
+            return new TeamTrackingPointResponse
+            {
+                TeamTrackingPointId = trackingPoint.TeamTrackingPointId,
+                TeamId = trackingPoint.TeamId,
+                RescueBatchId = trackingPoint.RescueBatchId,
+                RescueOperationId = trackingPoint.RescueOperationId,
+                Latitude = trackingPoint.Latitude,
+                Longitude = trackingPoint.Longitude,
+                AccuracyMeters = trackingPoint.AccuracyMeters,
+                SpeedKph = trackingPoint.SpeedKph,
+                HeadingDegree = trackingPoint.HeadingDegree,
+                Source = trackingPoint.Source,
+                CapturedAtUtc = trackingPoint.CapturedAtUtc,
+                CreatedAtUtc = trackingPoint.CreatedAtUtc,
+                Note = trackingPoint.Note
+            };
+        }
+
+        public async Task<List<TeamTrackingPointResponse>> GetLatestTrackingPointsAsync(
+            Guid teamId,
+            int limit,
+            CancellationToken cancellationToken)
+        {
+            var safeLimit = limit <= 0 ? 50 : Math.Min(limit, 500);
+
+            var points = await _unitOfWork.TeamTrackingPoints.GetLatestByTeamAsync(
+                teamId,
+                safeLimit,
+                cancellationToken);
+
+            return points
+                .OrderByDescending(x => x.CapturedAtUtc)
+                .Select(x => new TeamTrackingPointResponse
+                {
+                    TeamTrackingPointId = x.TeamTrackingPointId,
+                    TeamId = x.TeamId,
+                    RescueBatchId = x.RescueBatchId,
+                    RescueOperationId = x.RescueOperationId,
+                    Latitude = x.Latitude,
+                    Longitude = x.Longitude,
+                    AccuracyMeters = x.AccuracyMeters,
+                    SpeedKph = x.SpeedKph,
+                    HeadingDegree = x.HeadingDegree,
+                    Source = x.Source,
+                    CapturedAtUtc = x.CapturedAtUtc,
+                    CreatedAtUtc = x.CreatedAtUtc,
+                    Note = x.Note
+                })
+                .ToList();
         }
 
         // Helper Methods

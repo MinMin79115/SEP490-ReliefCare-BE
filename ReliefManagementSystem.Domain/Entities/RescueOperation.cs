@@ -26,5 +26,6 @@ namespace ReliefManagementSystem.Domain.Entities
         public RescueRequest RescueRequest { get; set; } = default!;
         public Team? Team { get; set; }
         public ReliefStation? ReliefStation { get; set; }
+        public ICollection<TeamTrackingPoint> TrackingPoints { get; set; } = new List<TeamTrackingPoint>();
     }
 }

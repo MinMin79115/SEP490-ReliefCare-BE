@@ -25,6 +25,9 @@ namespace ReliefManagementSystem.Domain.Entities
         public double Longitude { get; set; }
         public double Latitude { get; set; }
 
+        /// <summary>Bán kính phục vụ mặc định của trạm (km) dùng để gán rescue request.</summary>
+        public double CoverageRadiusKm { get; set; } = 30;
+
         public ReliefStationStatus ReliefStationStatus { get; set; }
 
         public Location Location { get; set; } = null!;

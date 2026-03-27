@@ -174,6 +174,32 @@ namespace ReliefManagementSystem.API.Controllers
             return NoContent();
         }
 
+        // POST /api/team/{id}/tracking-heartbeat
+        [HttpPost("{id:guid}/tracking-heartbeat")]
+        [Authorize(Roles = "Volunteer")]
+        [SwaggerOperation(OperationId = "TrackTeamHeartbeat", Description = "Volunteer gửi heartbeat vị trí team với đầy đủ trường tracking: tọa độ, độ chính xác, tốc độ, hướng, nguồn, thời điểm ghi nhận, rescue batch/operation và ghi chú")]
+        public async Task<IActionResult> TrackTeamHeartbeat(
+            Guid id,
+            [FromBody] TeamTrackingHeartbeatRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _teamService.TrackTeamHeartbeatAsync(id, request, cancellationToken);
+            return Ok(result);
+        }
+
+        // GET /api/team/{id}/tracking/latest
+        [HttpGet("{id:guid}/tracking/latest")]
+        [Authorize]
+        [SwaggerOperation(OperationId = "GetLatestTeamTracking", Description = "Lấy danh sách điểm tracking mới nhất của team để hiển thị realtime/replay trên bản đồ")]
+        public async Task<IActionResult> GetLatestTeamTracking(
+            Guid id,
+            [FromQuery] int limit = 100,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _teamService.GetLatestTrackingPointsAsync(id, limit, cancellationToken);
+            return Ok(result);
+        }
+
         private Guid GetCurrentUserId()
         {
             return Guid.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value!);
