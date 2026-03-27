@@ -442,18 +442,20 @@ namespace ReliefManagementSystem.Application.Services
 
             var userId = _currentUserService.UserId ?? throw new UnauthorizedAccessException("User not authenticated");
 
-            var user = await _unitOfWork.Users.GetByIdWithVolunteerProfileAsync(userId)
-                ?? throw new KeyNotFoundException($"User '{userId}' was not found.");
+            var volunteerProfile = await _unitOfWork.VolunteerProfiles.GetByUserIdAsync(userId);
 
-            if (user.VolunteerProfile is null)
+            if (volunteerProfile is null)
             {
                 throw new InvalidOperationException("Bạn cần tạo volunteer profile trước khi đăng ký campaign fundraising.");
             }
 
-            if (user.VolunteerProfile.VerificationStatus != VerificationStatus.Approved || user.VolunteerProfile.Status != VolunteerStatus.Active)
+            if (volunteerProfile.VerificationStatus != VerificationStatus.Approved || volunteerProfile.Status != VolunteerStatus.Active)
             {
                 throw new InvalidOperationException("Volunteer profile phải được approved và active trước khi đăng ký campaign fundraising.");
             }
+
+            var user = volunteerProfile.User
+                ?? await _unitOfWork.Users.GetUserById(userId);
 
             var existing = await _unitOfWork.CampaignVolunteerRegistrations.GetActiveAsync(campaignId, userId, cancellationToken);
             if (existing != null)
