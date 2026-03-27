@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using ReliefManagementSystem.Application.Common.Interface;
 using ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Request;
 using ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Response;
@@ -37,6 +38,7 @@ namespace ReliefManagementSystem.API.Controllers
         /// </summary>
         [HttpPost]
         [AllowAnonymous]
+        [EnableRateLimiting("rescue-create")]
         [SwaggerOperation(
             OperationId = "CreateRescueRequest",
             Summary = "Tạo yêu cầu cứu hộ mới",
@@ -96,6 +98,7 @@ namespace ReliefManagementSystem.API.Controllers
         public async Task<IActionResult> SearchRescueRequests(
             [FromQuery] string? search,
             [FromQuery] int? statusFilter,
+            [FromQuery] int? verificationStatus,
             [FromQuery] int pageNumber = 1,
             [FromQuery] int pageSize = 10,
             CancellationToken cancellationToken = default)
@@ -105,6 +108,7 @@ namespace ReliefManagementSystem.API.Controllers
                 {
                     Search = search,
                     StatusFilter = statusFilter,
+                    VerificationStatus = verificationStatus,
                     PageNumber = pageNumber,
                     PageSize = pageSize
                 },
@@ -308,6 +312,21 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(result);
         }
 
+        [HttpPost("teams/{teamId}/active-batch/recalculate-eta")]
+        [Authorize(Roles = "Moderator,Manager,Admin")]
+        [SwaggerOperation(
+            OperationId = "RecalculateActiveBatchEta",
+            Summary = "Tính lại ETA queue theo vị trí team mới nhất",
+            Description = "Lấy TeamTrackingPoint mới nhất của team, gọi Goong matrix tới các request Pending/InProgress trong batch active và cập nhật DistanceKm/EstimatedMinutes cho từng item.")]
+        [ProducesResponseType(StatusCodes.Status204NoContent)]
+        public async Task<IActionResult> RecalculateActiveBatchEta(
+            Guid teamId,
+            CancellationToken cancellationToken = default)
+        {
+            await _rescueRequestService.RecalculateActiveBatchEtaAsync(teamId, cancellationToken);
+            return NoContent();
+        }
+
         [HttpPatch("{id}/operations/{operationId}/status")]
         [Authorize(Roles = "Volunteer,Moderator,Manager,Admin")]
         [SwaggerOperation(
@@ -326,5 +345,129 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(result);
         }
 
+
+        // ─── Extended Endpoints ────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Lay danh sach yeu cau cuu ho cua nguoi dung dang dang nhap
+        /// - GET /api/rescuerequest/my-requests
+        /// </summary>
+        [HttpGet("my-requests")]
+        [Authorize]
+        [SwaggerOperation(
+            OperationId = "GetMyRescueRequests",
+            Summary = "Lay lich su yeu cau cuu ho cua toi",
+            Description = "Nguoi dung da dang nhap xem danh sach cac yeu cau cuu ho ho da gui (phan trang). Co the loc theo statusFilter (int ma enum RescueRequestStatus). Dung cho man hinh 'Lich su yeu cau' tren mobile app.")]
+        [ProducesResponseType(typeof(PaginatedRescueRequestResponseDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetMyRescueRequests(
+            [FromQuery] MyRescueRequestQueryDto query,
+            CancellationToken cancellationToken = default)
+        {
+            var userId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value!);
+            var result = await _rescueRequestService.GetMyRequestsAsync(userId, query, cancellationToken);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Nguoi dan tu huy yeu cau cuu ho da gui
+        /// - PATCH /api/rescuerequest/{id}/cancel
+        /// </summary>
+        [HttpPatch("{id}/cancel")]
+        [Authorize]
+        [SwaggerOperation(
+            OperationId = "CancelMyRescueRequest",
+            Summary = "Nguoi dan tu huy yeu cau cuu ho",
+            Description = "Cho phep chinh chu yeu cau huy khi request con o trang thai Pending (chua duoc gan team). Can cung cap ly do huy. Sau khi huy, mot RequestVerification ghi lu ly do se duoc tao.")]
+        [ProducesResponseType(typeof(RescueRequestResponseDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> CancelMyRescueRequest(
+            Guid id,
+            [FromBody] CancelRescueRequestDto request,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var userId = Guid.Parse(User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value!);
+                var result = await _rescueRequestService.CancelRescueRequestAsync(id, userId, request, cancellationToken);
+                return Ok(result);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new { statusCode = 401, message = ex.Message, traceId = HttpContext.TraceIdentifier });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { statusCode = 400, message = ex.Message, traceId = HttpContext.TraceIdentifier });
+            }
+        }
+
+        /// <summary>
+        /// Lay vi tri realtime cua doi cuu ho dang xu ly yeu cau
+        /// - GET /api/rescuerequest/{id}/team-location
+        /// </summary>
+        [HttpGet("{id}/team-location")]
+        [AllowAnonymous]
+        [SwaggerOperation(
+            OperationId = "GetTeamLocationForRequest",
+            Summary = "Xem vi tri realtime cua doi cuu ho (khong can dang nhap)",
+            Description = "Nguoi dan truy cap bang RequestId de xem to do moi nhat cua doi cuu ho dang tren duong den. Tra ve null neu chua co team nao duoc gan hoac team chua bat dau di chuyen. Khong bao gom thong tin ca nhan cua thanh vien team.")]
+        [ProducesResponseType(typeof(TeamLocationForRequestDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetTeamLocationForRequest(
+            Guid id,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var result = await _rescueRequestService.GetTeamLocationForRequestAsync(id, cancellationToken);
+                if (result == null)
+                    return NotFound(new { statusCode = 404, message = "Chua co doi cuu ho nao duoc gan cho yeu cau nay hoac doi chua bat dau di chuyen.", traceId = HttpContext.TraceIdentifier });
+                return Ok(result);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(new { statusCode = 404, message = ex.Message, traceId = HttpContext.TraceIdentifier });
+            }
+        }
+
+        /// <summary>
+        /// Dashboard thong ke so luong rescue request theo tung trang thai
+        /// - GET /api/rescuerequest/stats
+        /// </summary>
+        [HttpGet("stats")]
+        [Authorize(Roles = "Moderator,Manager,Admin")]
+        [SwaggerOperation(
+            OperationId = "GetRescueRequestStats",
+            Summary = "Thong ke tong hop rescue request theo trang thai",
+            Description = "Tra ve so luong tong va so luong chi tiet theo tung trang thai (Pending, Verified, Assigned, InProgress, Completed, Cancelled). Dung de ve bieu do dashboard cho Moderator/Admin.")]
+        [ProducesResponseType(typeof(RescueRequestStatsDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetRescueRequestStats(CancellationToken cancellationToken = default)
+        {
+            var result = await _rescueRequestService.GetRescueStatsAsync(cancellationToken);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lay lich su cac ca cuu ho da hoan thanh cua mot team
+        /// - GET /api/rescuerequest/teams/{teamId}/history
+        /// </summary>
+        [HttpGet("teams/{teamId}/history")]
+        [Authorize]
+        [SwaggerOperation(
+            OperationId = "GetTeamRescueHistory",
+            Summary = "Lich su ca cuu ho (batch) da hoan thanh cua team",
+            Description = "Lay danh sach cac ca truc (RescueBatch) da ket thuc cua team, sap xep moi nhat truoc, co phan trang. Moi batch bao gom danh sach cac rescue request da xu ly trong ca do. Dung cho man hinh 'Lich su ca truc' cua tinh nguyen vien va moderator.")]
+        [ProducesResponseType(typeof(RescueTeamHistoryResponseDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetTeamRescueHistory(
+            Guid teamId,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _rescueRequestService.GetTeamRescueHistoryAsync(teamId, pageNumber, pageSize, cancellationToken);
+            return Ok(result);
+        }
     }
 }
+

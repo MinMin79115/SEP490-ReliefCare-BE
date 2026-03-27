@@ -71,6 +71,10 @@ namespace ReliefManagementSystem.Application.Interface
             ReorderRescueBatchRequestDto dto,
             CancellationToken cancellationToken = default);
 
+        Task RecalculateActiveBatchEtaAsync(
+            Guid teamId,
+            CancellationToken cancellationToken = default);
+
         /// <summary>
         /// Xác minh yêu cầu cứu hộ (Admin/Manager)
         /// - Nếu Approved: tính toán dispatch mode và gửi tới trạm cứu hộ
@@ -83,5 +87,53 @@ namespace ReliefManagementSystem.Application.Interface
             List<double> destinationLngs,
             CancellationToken cancellationToken = default);
 
+
+        // Extended APIs ────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Lay danh sach yeu cau cuu ho do chinh nguoi dung hien tai gui.
+        /// Phan trang va loc theo status.
+        /// Dung cho man hinh "Lich su yeu cau cua toi" tren mobile app.
+        /// </summary>
+        Task<PaginatedRescueRequestResponseDto> GetMyRequestsAsync(
+            Guid userId,
+            MyRescueRequestQueryDto query,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Nguoi dung tu huy yeu cau cuu ho da gui.
+        /// Chi cho phep huy khi request dang o trang thai Pending (chua duoc gan team).
+        /// Chi chu cua yeu cau moi duoc thuc hien hanh dong nay.
+        /// </summary>
+        Task<RescueRequestResponseDto> CancelRescueRequestAsync(
+            Guid requestId,
+            Guid userId,
+            CancelRescueRequestDto dto,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Lay vi tri realtime (toa do moi nhat) cua doi cuu ho dang xu ly yeu cau.
+        /// Khong yeu cau dang nhap (Anonymous) — nguoi dan truy cap qua RequestId.
+        /// </summary>
+        Task<TeamLocationForRequestDto?> GetTeamLocationForRequestAsync(
+            Guid requestId,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Thong ke so luong rescue request theo tung trang thai trong he thong.
+        /// Dung cho Admin/Moderator dashboard.
+        /// </summary>
+        Task<RescueRequestStatsDto> GetRescueStatsAsync(CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Lay lich su cac ca cuu ho (batch) da hoan thanh cua mot team, sap xep moi nhat truoc.
+        /// Dung cho man hinh "Lich su ca truc" cua tinh nguyen vien/moderator.
+        /// </summary>
+        Task<RescueTeamHistoryResponseDto> GetTeamRescueHistoryAsync(
+            Guid teamId,
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default);
     }
 }
+

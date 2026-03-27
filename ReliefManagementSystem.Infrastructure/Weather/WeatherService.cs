@@ -27,7 +27,13 @@ namespace ReliefManagementSystem.Infrastructure.Weather
             CancellationToken cancellationToken = default)
         {
             var q = $"{latitude},{longitude}";
-            var url = $"/current.json?key={Uri.EscapeDataString(_settings.ApiKey)}&q={Uri.EscapeDataString(q)}&aqi=no";
+            var normalizedBaseUrl = (_settings.BaseUrl ?? "https://api.weatherapi.com/v1").TrimEnd('/');
+            if (!normalizedBaseUrl.EndsWith("/v1", StringComparison.OrdinalIgnoreCase))
+            {
+                normalizedBaseUrl += "/v1";
+            }
+
+            var url = $"{normalizedBaseUrl}/current.json?key={Uri.EscapeDataString(_settings.ApiKey)}&q={Uri.EscapeDataString(q)}&aqi=no";
 
             using var response = await _httpClient.GetAsync(url, cancellationToken);
             response.EnsureSuccessStatusCode();
@@ -40,6 +46,13 @@ namespace ReliefManagementSystem.Infrastructure.Weather
                 && DateTime.TryParse(lu.GetString(), out var parsed)
                 ? parsed
                 : DateTime.UtcNow;
+
+            observedAt = observedAt.Kind switch
+            {
+                DateTimeKind.Utc => observedAt,
+                DateTimeKind.Local => observedAt.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(observedAt, DateTimeKind.Utc)
+            };
 
             var condition = current.GetProperty("condition").GetProperty("text").GetString() ?? string.Empty;
             var tempC = current.TryGetProperty("temp_c", out var tc) ? tc.GetDouble() : 0;

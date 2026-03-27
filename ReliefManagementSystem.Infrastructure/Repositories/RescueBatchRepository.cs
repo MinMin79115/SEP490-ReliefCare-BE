@@ -16,6 +16,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             return await _context.Set<RescueBatch>()
                 .Where(b => b.TeamId == teamId && b.IsActive)
                 .Include(b => b.Items)
+                    .ThenInclude(i => i.RescueRequest)
                 .OrderByDescending(b => b.CreatedAt)
                 .FirstOrDefaultAsync(ct);
         }
@@ -25,7 +26,30 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             return await _context.Set<RescueBatch>()
                 .Where(b => b.RescueBatchId == batchId)
                 .Include(b => b.Items)
+                    .ThenInclude(i => i.RescueRequest)
                 .FirstOrDefaultAsync(ct);
+        }
+
+        public async Task<(List<RescueBatch> Items, int TotalCount)> GetCompletedByTeamIdAsync(
+            Guid teamId,
+            int pageNumber,
+            int pageSize,
+            CancellationToken ct = default)
+        {
+            var query = _context.Set<RescueBatch>()
+                .Where(b => b.TeamId == teamId && !b.IsActive);
+
+            var totalCount = await query.CountAsync(ct);
+
+            var items = await query
+                .OrderByDescending(b => b.ClosedAt)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .Include(b => b.Items)
+                    .ThenInclude(i => i.RescueRequest)
+                .ToListAsync(ct);
+
+            return (items, totalCount);
         }
     }
 }

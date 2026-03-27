@@ -11,6 +11,8 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Respons
 
         public string DisasterType { get; set; } = null!;
 
+        public string RescueRequestType { get; set; } = null!;
+
         public string Description { get; set; } = null!;
 
         public double Latitude { get; set; }
@@ -43,6 +45,14 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Respons
         public Guid? CampaignId { get; set; }
 
         public string? CampaignName { get; set; }
+
+        public double? StationToRequestDistanceKm { get; set; }
+
+        public int? StationToRequestDurationMinutes { get; set; }
+
+        public int? StationToRequestDistanceMeters { get; set; }
+
+        public int? StationToRequestDurationSeconds { get; set; }
 
         public DateTime CreatedAt { get; set; }
 

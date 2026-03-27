@@ -29,6 +29,11 @@ namespace ReliefManagementSystem.Domain.Entities
         public string? WeatherRiskLevel { get; set; }
         public DateTime? WeatherObservedAt { get; set; }
 
+        public double? StationToRequestDistanceKm { get; set; }
+        public int? StationToRequestDurationMinutes { get; set; }
+        public int? StationToRequestDistanceMeters { get; set; }
+        public int? StationToRequestDurationSeconds { get; set; }
+
         public RescueRequestStatus RescueRequestStatus { get; set; }
         public DispatchMode DispatchMode { get; set; }
         public ICollection<RescueRequestPriority> RescueRequestPriorities { get; set; } = new List<RescueRequestPriority>();

@@ -10,5 +10,12 @@ namespace ReliefManagementSystem.Application.Common.Interface
         Task<RescueBatch?> GetActiveByTeamIdAsync(Guid teamId, CancellationToken ct = default);
 
         Task<RescueBatch?> GetByIdWithItemsAsync(Guid batchId, CancellationToken ct = default);
+
+        /// <summary>Lấy danh sách batch đã hoàn thành (Completed) của team theo phân trang — dùng cho màn hình lịch sử</summary>
+        Task<(List<RescueBatch> Items, int TotalCount)> GetCompletedByTeamIdAsync(
+            Guid teamId,
+            int pageNumber,
+            int pageSize,
+            CancellationToken ct = default);
     }
 }

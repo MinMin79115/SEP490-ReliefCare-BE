@@ -166,11 +166,23 @@ namespace ReliefManagementSystem.Application.Services
                         ? RequestVerificationStatus.Approved
                         : RequestVerificationStatus.Pending;
                 }
-                catch (Exception) when (!cancellationToken.IsCancellationRequested)
+                catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
                 {
                     verificationStatus = RequestVerificationStatus.Pending;
                     verificationMethod = VerificationMethod.SystemAutoCheck;
-                    verificationNote = "Weather lookup failed; pending manual verification.";
+
+                    var errorDetail = ex switch
+                    {
+                        HttpRequestException httpEx when httpEx.StatusCode.HasValue
+                            => $"HTTP {(int)httpEx.StatusCode.Value} ({httpEx.StatusCode.Value}): {httpEx.Message}",
+                        HttpRequestException httpEx
+                            => $"HTTP request error: {httpEx.Message}",
+                        TaskCanceledException tce
+                            => $"Timeout/Canceled: {tce.Message}",
+                        _ => ex.Message
+                    };
+
+                    verificationNote = $"Weather lookup failed; pending manual verification. Detail: {errorDetail}";
                     rescueRequest.WeatherCondition = "Unknown";
                     rescueRequest.WeatherRiskLevel = "Unknown";
                 }
@@ -187,13 +199,21 @@ namespace ReliefManagementSystem.Application.Services
 
             rescueRequest.Verifications.Add(verification);
 
+            // Validate business rule before persist:
+            // Normal request must provide selected priority criteria.
+            if (request.RescueType == RescueRequestType.Normal &&
+                (request.SelectedPriorityCriteriaIds == null || request.SelectedPriorityCriteriaIds.Count == 0))
+            {
+                throw new InvalidOperationException("Normal rescue request requires selectedPriorityCriteriaIds.");
+            }
+
 
             // 4. Lưu RescueRequest vào database (before priorities so RescueRequestId exists)
             await _unitOfWork.RescueRequests.AddAsync(rescueRequest);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             // 5. Nếu user gửi Normal request và có SelectedPriorityCriteriaIds -> tính điểm từ các mục user chọn
-            if (request.RescueType == RescueRequestType.Normal && request.SelectedPriorityCriteriaIds != null && request.SelectedPriorityCriteriaIds.Count > 0)
+            if (request.RescueType == RescueRequestType.Normal)
             {
                 // Load priority criteria for the disaster type and filter by selected ids
                 var allCriteriaForDisaster = await _unitOfWork.PriorityCriterias.GetByDisasterTypeAsync(
@@ -234,6 +254,18 @@ namespace ReliefManagementSystem.Application.Services
                 rescueRequest.Longitude,
                 cancellationToken);
 
+            var routeSnapshot = await BuildRouteSnapshotAsync(
+                selectedStation.Latitude,
+                selectedStation.Longitude,
+                rescueRequest.Latitude,
+                rescueRequest.Longitude,
+                cancellationToken);
+
+            rescueRequest.StationToRequestDistanceKm = routeSnapshot.DistanceKm;
+            rescueRequest.StationToRequestDurationMinutes = routeSnapshot.DurationMinutes;
+            rescueRequest.StationToRequestDistanceMeters = routeSnapshot.DistanceMeters;
+            rescueRequest.StationToRequestDurationSeconds = routeSnapshot.DurationSeconds;
+
             var operation = new RescueOperation
             {
                 RescueOperationId = Guid.NewGuid(),
@@ -250,12 +282,12 @@ namespace ReliefManagementSystem.Application.Services
             if (request.RescueType == RescueRequestType.Emergency)
             {
                 rescueRequest.RescueRequestStatus = verification.Status == RequestVerificationStatus.Approved && operation.ReliefStationId.HasValue
-                    ? RescueRequestStatus.Assigned
+                    ? RescueRequestStatus.Verified
                     : RescueRequestStatus.Pending;
             }
             else
             {
-                rescueRequest.RescueRequestStatus = RescueRequestStatus.Assigned;
+                rescueRequest.RescueRequestStatus = RescueRequestStatus.Pending;
             }
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -290,10 +322,7 @@ namespace ReliefManagementSystem.Application.Services
 
             if (dto.Status == RequestVerificationStatus.Approved)
             {
-                var hasDispatchedOperation = request.RescueOperations.Any(o => o.ReliefStationId.HasValue);
-                request.RescueRequestStatus = hasDispatchedOperation
-                    ? RescueRequestStatus.Assigned
-                    : RescueRequestStatus.Verified;
+                request.RescueRequestStatus = RescueRequestStatus.Verified;
             }
             else if (dto.Status == RequestVerificationStatus.Rejected)
             {
@@ -339,6 +368,7 @@ namespace ReliefManagementSystem.Application.Services
             request.UpdatedAt = DateTime.UtcNow;
 
             await EnsureActiveBatchAndAppendRequestAsync(dto.TeamId, request.RequestId, cancellationToken);
+            await RecalculateBatchEtaFromLatestTrackingAsync(dto.TeamId, cancellationToken);
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             return await GetRescueRequestByIdAsync(requestId, cancellationToken);
@@ -649,6 +679,11 @@ namespace ReliefManagementSystem.Application.Services
             var query = (request.Search ?? string.Empty).Trim();
             IEnumerable<RescueRequestResponseDto> filtered = allData.Data;
 
+            if (request.VerificationStatus.HasValue)
+            {
+                filtered = filtered.Where(r => r.Verifications.Any(v => (int)v.Status == request.VerificationStatus.Value));
+            }
+
             if (!string.IsNullOrWhiteSpace(query))
             {
                 filtered = filtered.Where(r =>
@@ -747,8 +782,18 @@ namespace ReliefManagementSystem.Application.Services
                     : RescueBatchItemStatus.Pending;
             }
 
+            await RecalculateBatchEtaFromLatestTrackingAsync(teamId, cancellationToken);
+
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             return MapToBatchQueueResponseDto(activeBatch);
+        }
+
+        public async Task RecalculateActiveBatchEtaAsync(
+            Guid teamId,
+            CancellationToken cancellationToken = default)
+        {
+            await RecalculateBatchEtaFromLatestTrackingAsync(teamId, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
         public async Task<RescueRequestResponseDto> UpdateRescueOperationStatusAsync(
@@ -953,12 +998,15 @@ namespace ReliefManagementSystem.Application.Services
             }
         }
 
-        private RescueRequestResponseDto MapToResponseDto(Domain.Entities.RescueRequest request)
+        private RescueRequestResponseDto MapToResponseDto(
+            Domain.Entities.RescueRequest request,
+            RescueRouteSnapshot? routeSnapshot = null)
         {
             return new RescueRequestResponseDto
             {
                 RequestId = request.RequestId,
                 DisasterType = request.DisasterType.ToString(),
+                RescueRequestType = request.RescueRequestType.ToString(),
                 Description = request.Description,
                 Latitude = request.Latitude,
                 Longitude = request.Longitude,
@@ -979,6 +1027,10 @@ namespace ReliefManagementSystem.Application.Services
                 WeatherObservedAt = request.WeatherObservedAt,
                 CampaignId = request.CampaignId,
                 CampaignName = request.Campaign?.Name,
+                StationToRequestDistanceKm = routeSnapshot?.DistanceKm ?? request.StationToRequestDistanceKm,
+                StationToRequestDurationMinutes = routeSnapshot?.DurationMinutes ?? request.StationToRequestDurationMinutes,
+                StationToRequestDistanceMeters = routeSnapshot?.DistanceMeters ?? request.StationToRequestDistanceMeters,
+                StationToRequestDurationSeconds = routeSnapshot?.DurationSeconds ?? request.StationToRequestDurationSeconds,
                 CreatedAt = request.CreatedAt,
                 UpdatedAt = request.UpdatedAt,
                 Attachments = request.Attachments.Select(a => new AttachmentResponseDto
@@ -1010,8 +1062,65 @@ namespace ReliefManagementSystem.Application.Services
                     Reason = v.Reason,
                     VerifiedBy = v.VerifiedBy,
                     VerifiedAt = v.VerifiedAt
-                }).ToList()
+                    }).ToList()
             };
+        }
+
+        private async Task<RescueRouteSnapshot> BuildRouteSnapshotAsync(
+            double originLat,
+            double originLng,
+            double destinationLat,
+            double destinationLng,
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                var matrix = await _goongDistanceService.GetDistanceMatrixAsync(
+                    originLat,
+                    originLng,
+                    new List<(double lat, double lng)> { (destinationLat, destinationLng) },
+                    cancellationToken: cancellationToken);
+
+                var element = matrix.Elements.FirstOrDefault();
+                var hasValidDistance = element != null
+                    && string.Equals(element.Status, "OK", StringComparison.OrdinalIgnoreCase)
+                    && element.DistanceMeters.HasValue;
+
+                if (hasValidDistance)
+                {
+                    return new RescueRouteSnapshot
+                    {
+                        DistanceMeters = element!.DistanceMeters,
+                        DistanceKm = element.DistanceMeters!.Value / 1000d,
+                        DurationSeconds = element.DurationSeconds,
+                        DurationMinutes = element.DurationSeconds.HasValue
+                            ? Math.Max(1, (int)Math.Ceiling(element.DurationSeconds.Value / 60d))
+                            : null
+                    };
+                }
+            }
+            catch (Exception) when (!cancellationToken.IsCancellationRequested)
+            {
+            }
+
+            var fallbackKm = CalculateDistance(originLat, originLng, destinationLat, destinationLng);
+            var fallbackMinutes = Math.Max(1, (int)Math.Ceiling((fallbackKm / 30d) * 60d));
+
+            return new RescueRouteSnapshot
+            {
+                DistanceKm = fallbackKm,
+                DistanceMeters = (int)Math.Round(fallbackKm * 1000d),
+                DurationMinutes = fallbackMinutes,
+                DurationSeconds = fallbackMinutes * 60
+            };
+        }
+
+        private sealed class RescueRouteSnapshot
+        {
+            public double? DistanceKm { get; set; }
+            public int? DurationMinutes { get; set; }
+            public int? DistanceMeters { get; set; }
+            public int? DurationSeconds { get; set; }
         }
 
         private static RescueBatchQueueResponseDto MapToBatchQueueResponseDto(RescueBatch batch)
@@ -1033,6 +1142,15 @@ namespace ReliefManagementSystem.Application.Services
                     {
                         RescueBatchItemId = i.RescueBatchItemId,
                         RescueRequestId = i.RescueRequestId,
+                        DisasterType = i.RescueRequest?.DisasterType.ToString(),
+                        RescueRequestType = i.RescueRequest?.RescueRequestType.ToString(),
+                        RescueRequestStatus = i.RescueRequest?.RescueRequestStatus.ToString(),
+                        Description = i.RescueRequest?.Description,
+                        Address = i.RescueRequest?.Address,
+                        Latitude = i.RescueRequest?.Latitude,
+                        Longitude = i.RescueRequest?.Longitude,
+                        ReporterFullName = i.RescueRequest?.ReporterFullName,
+                        ReporterPhone = i.RescueRequest?.ReporterPhone,
                         SequenceOrder = i.SequenceOrder,
                         IsAutoAssigned = i.IsAutoAssigned,
                         DistanceKm = i.DistanceKm,
@@ -1044,6 +1162,291 @@ namespace ReliefManagementSystem.Application.Services
             };
         }
 
+        private async Task RecalculateBatchEtaFromLatestTrackingAsync(
+            Guid teamId,
+            CancellationToken cancellationToken)
+        {
+            var activeBatch = await _unitOfWork.RescueBatches.GetActiveByTeamIdAsync(teamId, cancellationToken);
+            if (activeBatch == null)
+                return;
+
+            var trackingPoint = await _unitOfWork.TeamTrackingPoints.GetLatestPointAsync(teamId, cancellationToken);
+            if (trackingPoint == null)
+                return;
+
+            var candidateItems = activeBatch.Items
+                .Where(i => i.Status == RescueBatchItemStatus.Pending || i.Status == RescueBatchItemStatus.InProgress)
+                .OrderBy(i => i.SequenceOrder)
+                .ToList();
+
+            if (!candidateItems.Any())
+                return;
+
+            var requestIds = candidateItems.Select(i => i.RescueRequestId).Distinct().ToHashSet();
+            var requests = await _unitOfWork.RescueRequests.GetAllAsync(cancellationToken);
+            var requestMap = requests
+                .Where(r => requestIds.Contains(r.RequestId))
+                .ToDictionary(r => r.RequestId, r => r);
+
+            var mappedItems = new List<RescueBatchItem>();
+            var destinations = new List<(double lat, double lng)>();
+
+            foreach (var item in candidateItems)
+            {
+                if (!requestMap.TryGetValue(item.RescueRequestId, out var rr))
+                    continue;
+
+                mappedItems.Add(item);
+                destinations.Add((rr.Latitude, rr.Longitude));
+            }
+
+            if (!mappedItems.Any())
+                return;
+
+            try
+            {
+                var matrix = await _goongDistanceService.GetDistanceMatrixAsync(
+                    trackingPoint.Latitude,
+                    trackingPoint.Longitude,
+                    destinations,
+                    cancellationToken: cancellationToken);
+
+                for (var i = 0; i < mappedItems.Count; i++)
+                {
+                    var item = mappedItems[i];
+                    var element = i < matrix.Elements.Count ? matrix.Elements[i] : null;
+
+                    var hasValidDistance = element != null
+                        && string.Equals(element.Status, "OK", StringComparison.OrdinalIgnoreCase)
+                        && element.DistanceMeters.HasValue;
+
+                    if (hasValidDistance)
+                    {
+                        item.DistanceKm = element!.DistanceMeters!.Value / 1000d;
+                        item.EstimatedMinutes = element.DurationSeconds.HasValue
+                            ? Math.Max(1, (int)Math.Ceiling(element.DurationSeconds.Value / 60d))
+                            : null;
+                    }
+                    else if (requestMap.TryGetValue(item.RescueRequestId, out var req))
+                    {
+                        var fallbackKm = CalculateDistance(
+                            trackingPoint.Latitude,
+                            trackingPoint.Longitude,
+                            req.Latitude,
+                            req.Longitude);
+
+                        item.DistanceKm = fallbackKm;
+                        item.EstimatedMinutes = Math.Max(1, (int)Math.Ceiling((fallbackKm / 30d) * 60d));
+                    }
+                }
+            }
+            catch (Exception) when (!cancellationToken.IsCancellationRequested)
+            {
+                foreach (var item in mappedItems)
+                {
+                    if (!requestMap.TryGetValue(item.RescueRequestId, out var req))
+                        continue;
+
+                    var fallbackKm = CalculateDistance(
+                        trackingPoint.Latitude,
+                        trackingPoint.Longitude,
+                        req.Latitude,
+                        req.Longitude);
+
+                    item.DistanceKm = fallbackKm;
+                    item.EstimatedMinutes = Math.Max(1, (int)Math.Ceiling((fallbackKm / 30d) * 60d));
+                }
+            }
+        }
+
+
+        // ─── Extended API Implementations ──────────────────────────────────────
+
+        public async Task<PaginatedRescueRequestResponseDto> GetMyRequestsAsync(
+            Guid userId,
+            MyRescueRequestQueryDto query,
+            CancellationToken cancellationToken = default)
+        {
+            query ??= new MyRescueRequestQueryDto();
+            var pageNumber = query.PageNumber <= 0 ? 1 : query.PageNumber;
+            var pageSize = query.PageSize <= 0 ? 10 : query.PageSize;
+
+            var (items, totalCount) = await _unitOfWork.RescueRequests.GetByReporterUserIdAsync(
+                userId, pageNumber, pageSize, query.StatusFilter, cancellationToken);
+
+            return new PaginatedRescueRequestResponseDto
+            {
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                Data = items.Select(r => MapToResponseDto(r)).ToList()
+            };
+        }
+
+        public async Task<RescueRequestResponseDto> CancelRescueRequestAsync(
+            Guid requestId,
+            Guid userId,
+            CancelRescueRequestDto dto,
+            CancellationToken cancellationToken = default)
+        {
+            var request = await _unitOfWork.RescueRequests.GetByIdAsync(requestId, cancellationToken);
+            if (request == null)
+                throw new InvalidOperationException($"Rescue request {requestId} not found.");
+
+            if (request.ReporterUserId == null || request.ReporterUserId.Value != userId)
+                throw new UnauthorizedAccessException("Chi chu cua yeu cau moi duoc huy.");
+
+            if (request.RescueRequestStatus != RescueRequestStatus.Pending)
+                throw new InvalidOperationException(
+                    $"Khong the huy yeu cau o trang thai '{request.RescueRequestStatus}'. Chi huy duoc khi dang Pending.");
+
+            if (string.IsNullOrWhiteSpace(dto?.Reason))
+                throw new InvalidOperationException("Vui long cung cap ly do huy.");
+
+            request.RescueRequestStatus = RescueRequestStatus.Cancelled;
+            request.UpdatedAt = DateTime.UtcNow;
+
+            var cancelVerification = new RequestVerification
+            {
+                RequestVerificationId = Guid.NewGuid(),
+                RequestId = request.RequestId,
+                Status = RequestVerificationStatus.Rejected,
+                Method = VerificationMethod.None,
+                Reason = dto.Reason,
+                Note = "Nguoi dan tu huy yeu cau.",
+                VerifiedBy = userId,
+                VerifiedAt = DateTime.UtcNow
+            };
+            request.Verifications.Add(cancelVerification);
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            return await GetRescueRequestByIdAsync(requestId, cancellationToken);
+        }
+
+        public async Task<TeamLocationForRequestDto?> GetTeamLocationForRequestAsync(
+            Guid requestId,
+            CancellationToken cancellationToken = default)
+        {
+            var request = await _unitOfWork.RescueRequests.GetByIdAsync(requestId, cancellationToken);
+            if (request == null)
+                throw new InvalidOperationException($"Rescue request {requestId} not found.");
+
+            var activeOperation = request.RescueOperations
+                .Where(o => o.TeamId.HasValue
+                    && o.Status != RescueOperationStatus.Cancelled
+                    && o.Status != RescueOperationStatus.Closed)
+                .OrderByDescending(o => o.StartedAt)
+                .FirstOrDefault();
+
+            if (activeOperation == null || !activeOperation.TeamId.HasValue)
+                return null;
+
+            var team = await _unitOfWork.Teams.GetByIdAsync(activeOperation.TeamId.Value);
+            if (team == null)
+                return null;
+
+            var latestTracking = await _unitOfWork.TeamTrackingPoints.GetLatestPointAsync(
+                activeOperation.TeamId.Value, cancellationToken);
+
+            var activeBatch = await _unitOfWork.RescueBatches.GetActiveByTeamIdAsync(
+                activeOperation.TeamId.Value, cancellationToken);
+
+            var batchItem = activeBatch?.Items
+                .FirstOrDefault(i => i.RescueRequestId == requestId);
+
+            return new TeamLocationForRequestDto
+            {
+                RescueOperationId = activeOperation.RescueOperationId,
+                TeamId = activeOperation.TeamId.Value,
+                TeamName = team.Name,
+                OperationStatus = activeOperation.Status.ToString(),
+                CurrentLatitude = latestTracking?.Latitude,
+                CurrentLongitude = latestTracking?.Longitude,
+                LastTrackedAt = latestTracking?.CapturedAtUtc,
+                EstimatedMinutesToArrival = batchItem?.EstimatedMinutes,
+                DistanceKmToVictim = batchItem?.DistanceKm
+            };
+        }
+
+        public async Task<RescueRequestStatsDto> GetRescueStatsAsync(CancellationToken cancellationToken = default)
+        {
+            var counts = await _unitOfWork.RescueRequests.GetStatusCountsAsync(cancellationToken);
+
+            static int Get(Dictionary<int, int> d, RescueRequestStatus s)
+                => d.TryGetValue((int)s, out var v) ? v : 0;
+
+            var total = counts.Values.Sum();
+
+            return new RescueRequestStatsDto
+            {
+                Total = total,
+                Pending = Get(counts, RescueRequestStatus.Pending),
+                Verified = Get(counts, RescueRequestStatus.Verified),
+                Assigned = Get(counts, RescueRequestStatus.Assigned),
+                InProgress = Get(counts, RescueRequestStatus.InProgress),
+                Completed = Get(counts, RescueRequestStatus.Completed),
+                Cancelled = Get(counts, RescueRequestStatus.Cancelled)
+            };
+        }
+
+        public async Task<RescueTeamHistoryResponseDto> GetTeamRescueHistoryAsync(
+            Guid teamId,
+            int pageNumber,
+            int pageSize,
+            CancellationToken cancellationToken = default)
+        {
+            pageNumber = pageNumber <= 0 ? 1 : pageNumber;
+            pageSize = pageSize <= 0 ? 10 : pageSize;
+
+            var (batches, totalCount) = await _unitOfWork.RescueBatches.GetCompletedByTeamIdAsync(
+                teamId, pageNumber, pageSize, cancellationToken);
+
+            var requestIds = batches
+                .SelectMany(b => b.Items.Select(i => i.RescueRequestId))
+                .Distinct()
+                .ToHashSet();
+
+            var allRequests = await _unitOfWork.RescueRequests.GetAllAsync(cancellationToken);
+            var requestMap = allRequests
+                .Where(r => requestIds.Contains(r.RequestId))
+                .ToDictionary(r => r.RequestId);
+
+            var data = batches.Select(b => new RescueBatchHistoryItemDto
+            {
+                RescueBatchId = b.RescueBatchId,
+                CreatedAt = b.CreatedAt,
+                ClosedAt = b.ClosedAt,
+                TotalRequests = b.Items.Count,
+                CompletedRequests = b.Items.Count(i => i.Status == RescueBatchItemStatus.Done),
+                Requests = b.Items
+                    .OrderBy(i => i.SequenceOrder)
+                    .Select(i =>
+                    {
+                        requestMap.TryGetValue(i.RescueRequestId, out var rr);
+                        return new RescueCompletedRequestSummaryDto
+                        {
+                            RequestId = i.RescueRequestId,
+                            Address = rr?.Address,
+                            DisasterType = rr?.DisasterType.ToString() ?? "-",
+                            RescueRequestStatus = rr?.RescueRequestStatus.ToString() ?? "-",
+                            ReporterFullName = rr?.ReporterFullName ?? "-",
+                            ReporterPhone = rr?.ReporterPhone ?? "-",
+                            CreatedAt = rr?.CreatedAt ?? b.CreatedAt,
+                            UpdatedAt = rr?.UpdatedAt,
+                            SequenceOrder = i.SequenceOrder,
+                            BatchItemStatus = i.Status.ToString()
+                        };
+                    }).ToList()
+            }).ToList();
+
+            return new RescueTeamHistoryResponseDto
+            {
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                Data = data
+            };
+        }
         private sealed class StationDistanceScore
         {
             public required ReliefStation Station { get; set; }
@@ -1051,3 +1454,6 @@ namespace ReliefManagementSystem.Application.Services
         }
     }
 }
+
+
+

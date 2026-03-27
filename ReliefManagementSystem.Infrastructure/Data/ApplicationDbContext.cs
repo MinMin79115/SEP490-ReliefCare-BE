@@ -113,6 +113,8 @@ namespace ReliefManagementSystem.Infrastructure.Data
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
+            NormalizeDateTimeKindsToUtc();
+
             var userId = _currentUserService?.UserId;
             var auditLogs = new List<AuditLog>();
 
@@ -196,6 +198,37 @@ namespace ReliefManagementSystem.Infrastructure.Data
             }
 
             return await base.SaveChangesAsync(cancellationToken);
+        }
+
+        private void NormalizeDateTimeKindsToUtc()
+        {
+            foreach (var entry in ChangeTracker.Entries())
+            {
+                if (entry.State != EntityState.Added && entry.State != EntityState.Modified)
+                    continue;
+
+                foreach (var property in entry.Properties)
+                {
+                    if (property.Metadata.ClrType == typeof(DateTime) && property.CurrentValue is DateTime dt)
+                    {
+                        property.CurrentValue = EnsureUtc(dt);
+                    }
+                    else if (property.Metadata.ClrType == typeof(DateTime?) && property.CurrentValue is DateTime ndt)
+                    {
+                        property.CurrentValue = EnsureUtc(ndt);
+                    }
+                }
+            }
+        }
+
+        private static DateTime EnsureUtc(DateTime value)
+        {
+            return value.Kind switch
+            {
+                DateTimeKind.Utc => value,
+                DateTimeKind.Local => value.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+            };
         }
 
         protected override void OnModelCreating(ModelBuilder builder)

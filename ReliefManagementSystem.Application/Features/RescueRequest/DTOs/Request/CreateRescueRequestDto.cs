@@ -5,14 +5,6 @@ using ReliefManagementSystem.Domain.Enum;
 
 namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Request
 {
-    public class SearchRescueRequestDto
-    {
-        public string? Search { get; set; }
-        public int? StatusFilter { get; set; }
-        public int PageNumber { get; set; } = 1;
-        public int PageSize { get; set; } = 10;
-    }
-
     /// <summary>DTO để gửi yêu cầu cứu hộ mới với attachments</summary>
     public class CreateRescueRequestDto
     {
@@ -24,11 +16,7 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Request
         [Required(ErrorMessage = "Disaster type is required")]
         public int DisasterType { get; set; }
 
-        /// <summary>Mô tả chi tiết vụ cứu hộ</summary>
-        [Required(ErrorMessage = "Description is required")]
-        [MinLength(10, ErrorMessage = "Description must be at least 10 characters")]
-        [MaxLength(1000, ErrorMessage = "Description cannot exceed 1000 characters")]
-        public string Description { get; set; } = null!;
+        public string? Description { get; set; } = null!;
 
         /// <summary>Vĩ độ vị trí cần cứu hộ</summary>
         [Required(ErrorMessage = "Latitude is required")]
@@ -57,6 +45,7 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Request
         public string? ReporterFullName { get; set; }
 
         /// <summary>Số điện thoại người báo (nếu người dùng không đăng nhập)</summary>
+        [Required]
         [MaxLength(50)]
         public string? ReporterPhone { get; set; }
 
