@@ -11,8 +11,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReliefManagementSystem.Infr
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ReliefManagementSystem.Application", "ReliefManagementSystem.Application\ReliefManagementSystem.Application.csproj", "{B1E6A138-393C-40F5-8F35-95621BD5A950}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RelieftManagement.Crawler", "RelieftManagement.Crawler\RelieftManagement.Crawler.csproj", "{6BB7028A-DB34-438E-BBE7-1E617938734B}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{ECE2F207-C8AD-42F5-92B1-95D97B9C0260}"
 	ProjectSection(SolutionItems) = preProject
 		compose.yaml = compose.yaml
