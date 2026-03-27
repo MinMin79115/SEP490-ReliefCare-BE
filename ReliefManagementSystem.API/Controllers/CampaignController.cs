@@ -123,5 +123,28 @@ namespace ReliefManagementSystem.API.Controllers
             await _campaignService.RemoveTeamAsync(id, teamId, cancellationToken);
             return NoContent();
         }
+
+        [Authorize]
+        [HttpPost("{id:guid}/volunteer-registrations")]
+        public async Task<IActionResult> RegisterVolunteer(Guid id, CancellationToken cancellationToken)
+        {
+            var result = await _campaignService.RegisterVolunteerAsync(id, cancellationToken);
+            return Ok(result);
+        }
+
+        [Authorize]
+        [HttpDelete("{id:guid}/volunteer-registrations/me")]
+        public async Task<IActionResult> CancelVolunteerRegistration(Guid id, CancellationToken cancellationToken)
+        {
+            await _campaignService.CancelVolunteerRegistrationAsync(id, cancellationToken);
+            return NoContent();
+        }
+
+        [HttpGet("{id:guid}/volunteer-registrations")]
+        public async Task<IActionResult> GetVolunteerRegistrations(Guid id, CancellationToken cancellationToken)
+        {
+            var result = await _campaignService.GetVolunteerRegistrationsAsync(id, cancellationToken);
+            return Ok(result);
+        }
     }
 }

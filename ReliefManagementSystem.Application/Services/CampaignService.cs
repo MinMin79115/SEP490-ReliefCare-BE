@@ -33,14 +33,22 @@ namespace ReliefManagementSystem.Application.Services
 
             ValidateGoalDuplicates(request.Goals);
 
-            if (request.Type == CampaignType.Fundraising && request.Goals.Count == 0)
+            if (request.Type == CampaignType.Fundraising)
             {
-                throw new InvalidOperationException("Campaign Fundraising phải có ít nhất 1 mục tiêu tài nguyên.");
-            }
+                if (request.Goals.Count == 0)
+                {
+                    throw new InvalidOperationException("Campaign Fundraising phải có ít nhất 1 mục tiêu Money hoặc People.");
+                }
 
-            if (request.Type == CampaignType.Fundraising && request.Goals.Any(g => g.ResourceType == CampaignResourceType.Supplies))
-            {
-                throw new InvalidOperationException("Campaign Fundraising không còn nhận mục tiêu Supplies. Hãy dùng procurement sau khi kêu gọi tiền.");
+                if (request.Goals.Any(g => g.ResourceType == CampaignResourceType.Supplies))
+                {
+                    throw new InvalidOperationException("Campaign Fundraising không được dùng mục tiêu Supplies ở phase hiện tại.");
+                }
+
+                if (!request.Goals.Any(g => g.ResourceType is CampaignResourceType.Money or CampaignResourceType.People))
+                {
+                    throw new InvalidOperationException("Campaign Fundraising phải có ít nhất 1 mục tiêu Money hoặc People.");
+                }
             }
 
             var creatorId = _currentUserService.UserId ?? Guid.Empty;
@@ -72,7 +80,7 @@ namespace ReliefManagementSystem.Application.Services
             foreach (var goalReq in request.Goals)
             {
                 var target = goalReq.TargetAmount;
-                if (goalReq.ResourceType == CampaignResourceType.People)
+                if (goalReq.ResourceType == CampaignResourceType.People && request.Type != CampaignType.Fundraising)
                 {
                     // People target = số người còn thiếu = max(0, target - available team members in system)
                     target = Math.Max(0, goalReq.TargetAmount - availablePeopleCount);
@@ -170,8 +178,13 @@ namespace ReliefManagementSystem.Application.Services
                 ? campaign.ResourceGoals.ToList()
                 : await _unitOfWork.Campaigns.GetGoalsAsync(campaignId, cancellationToken);
 
-            var procurementOrders = await _unitOfWork.ProcurementOrders.GetByCampaignAsync(campaignId, cancellationToken);
-            var supplyAllocations = await _unitOfWork.SupplyAllocations.GetByCampaignIdAsync(campaignId, cancellationToken);
+            var procurementOrders = campaign.Type == CampaignType.Fundraising
+                ? []
+                : await _unitOfWork.ProcurementOrders.GetByCampaignAsync(campaignId, cancellationToken);
+
+            var supplyAllocations = campaign.Type == CampaignType.Fundraising
+                ? []
+                : await _unitOfWork.SupplyAllocations.GetByCampaignIdAsync(campaignId, cancellationToken);
 
             var peopleGoal = goals.FirstOrDefault(g => g.ResourceType == CampaignResourceType.People);
 
@@ -219,6 +232,11 @@ namespace ReliefManagementSystem.Application.Services
             var campaign = await _unitOfWork.Campaigns.GetWithStationsAsync(campaignId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
 
+            if (campaign.Type == CampaignType.Fundraising)
+            {
+                throw new InvalidOperationException("Fundraising campaign không gắn relief station.");
+            }
+
             await AttachStationInternalAsync(campaignId, request.ReliefStationId, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -232,6 +250,11 @@ namespace ReliefManagementSystem.Application.Services
         {
             var campaign = await _unitOfWork.Campaigns.GetWithDetailsAsync(campaignId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
+
+            if (campaign.Type == CampaignType.Fundraising)
+            {
+                throw new InvalidOperationException("Fundraising campaign không dùng relief station.");
+            }
 
             var station = await _unitOfWork.Campaigns.GetStationAsync(campaignId, reliefStationId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Station '{reliefStationId}' is not attached to campaign '{campaignId}'.");
@@ -271,7 +294,8 @@ namespace ReliefManagementSystem.Application.Services
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             var memberCount = await _unitOfWork.Teams.GetAvailablePeopleCountByTeamAsync(request.TeamId, cancellationToken);
-            if (request.InitialStatus is CampaignTeamStatus.Accepted or CampaignTeamStatus.Active)
+            if (campaign.Type != CampaignType.Fundraising &&
+                request.InitialStatus is CampaignTeamStatus.Accepted or CampaignTeamStatus.Active)
             {
                 await UpdateProgressAsync(campaignId, CampaignResourceType.People, memberCount, cancellationToken);
             }
@@ -319,6 +343,9 @@ namespace ReliefManagementSystem.Application.Services
 
         public async Task<CampaignTeamResponse> UpdateTeamStatusAsync(Guid campaignId, Guid teamId, UpdateCampaignTeamStatusRequest request, CancellationToken cancellationToken = default)
         {
+            var campaign = await _unitOfWork.Campaigns.GetWithGoalsAsync(campaignId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
+
             var campaignTeam = await _unitOfWork.Campaigns.GetCampaignTeamAsync(campaignId, teamId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Team '{teamId}' is not assigned to campaign '{campaignId}'.");
 
@@ -347,11 +374,13 @@ namespace ReliefManagementSystem.Application.Services
             var wasCounted = previousStatus is CampaignTeamStatus.Accepted or CampaignTeamStatus.Active;
             var isCounted = request.Status is CampaignTeamStatus.Accepted or CampaignTeamStatus.Active;
 
-            if (!wasCounted && isCounted)
+            var shouldTrackPeopleByTeam = campaign.Type != CampaignType.Fundraising;
+
+            if (shouldTrackPeopleByTeam && !wasCounted && isCounted)
             {
                 await UpdateProgressAsync(campaignId, CampaignResourceType.People, memberCount, cancellationToken);
             }
-            else if (wasCounted && !isCounted)
+            else if (shouldTrackPeopleByTeam && wasCounted && !isCounted)
             {
                 await UpdateProgressAsync(campaignId, CampaignResourceType.People, -memberCount, cancellationToken);
             }
@@ -371,11 +400,15 @@ namespace ReliefManagementSystem.Application.Services
 
         public async Task RemoveTeamAsync(Guid campaignId, Guid teamId, CancellationToken cancellationToken = default)
         {
+            var campaign = await _unitOfWork.Campaigns.GetWithGoalsAsync(campaignId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
+
             var campaignTeam = await _unitOfWork.Campaigns.GetCampaignTeamAsync(campaignId, teamId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Team '{teamId}' is not assigned to campaign '{campaignId}'.");
 
             var memberCount = await _unitOfWork.Teams.GetAvailablePeopleCountByTeamAsync(teamId, cancellationToken);
-            if (campaignTeam.Status is CampaignTeamStatus.Accepted or CampaignTeamStatus.Active)
+            if (campaign.Type != CampaignType.Fundraising &&
+                campaignTeam.Status is CampaignTeamStatus.Accepted or CampaignTeamStatus.Active)
             {
                 await UpdateProgressAsync(campaignId, CampaignResourceType.People, -memberCount, cancellationToken);
             }
@@ -384,6 +417,101 @@ namespace ReliefManagementSystem.Application.Services
             campaignTeam.Status = CampaignTeamStatus.Cancelled;
             await _unitOfWork.Campaigns.UpdateCampaignTeamAsync(campaignTeam, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
+        public async Task<CampaignVolunteerRegistrationResponse> RegisterVolunteerAsync(Guid campaignId, CancellationToken cancellationToken = default)
+        {
+            var campaign = await _unitOfWork.Campaigns.GetWithGoalsAsync(campaignId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
+
+            if (campaign.Type != CampaignType.Fundraising)
+            {
+                throw new InvalidOperationException("Chỉ fundraising campaign mới cho phép đăng ký volunteer theo campaign.");
+            }
+
+            if (campaign.Status != CampaignStatus.Active)
+            {
+                throw new InvalidOperationException("Chỉ fundraising campaign đang Active mới cho phép đăng ký volunteer.");
+            }
+
+            var peopleGoal = campaign.ResourceGoals.FirstOrDefault(g => g.ResourceType == CampaignResourceType.People);
+            if (peopleGoal is null)
+            {
+                throw new InvalidOperationException("Campaign này không có mục tiêu People để đăng ký volunteer.");
+            }
+
+            var userId = _currentUserService.UserId ?? throw new UnauthorizedAccessException("User not authenticated");
+
+            var volunteerProfile = await _unitOfWork.VolunteerProfiles.GetByUserIdAsync(userId);
+
+            if (volunteerProfile is null)
+            {
+                throw new InvalidOperationException("Bạn cần tạo volunteer profile trước khi đăng ký campaign fundraising.");
+            }
+
+            if (volunteerProfile.VerificationStatus != VerificationStatus.Approved || volunteerProfile.Status != VolunteerStatus.Active)
+            {
+                throw new InvalidOperationException("Volunteer profile phải được approved và active trước khi đăng ký campaign fundraising.");
+            }
+
+            var user = volunteerProfile.User
+                ?? await _unitOfWork.Users.GetUserById(userId);
+
+            var existing = await _unitOfWork.CampaignVolunteerRegistrations.GetActiveAsync(campaignId, userId, cancellationToken);
+            if (existing != null)
+            {
+                throw new InvalidOperationException("Bạn đã đăng ký volunteer cho campaign này rồi.");
+            }
+
+            var registration = new CampaignVolunteerRegistration
+            {
+                CampaignVolunteerRegistrationId = Guid.NewGuid(),
+                CampaignId = campaignId,
+                UserId = userId,
+                Status = CampaignVolunteerRegistrationStatus.Registered,
+                RegisteredAt = DateTime.UtcNow,
+                User = user
+            };
+
+            await _unitOfWork.CampaignVolunteerRegistrations.AddAsync(registration, cancellationToken);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await UpdateProgressAsync(campaignId, CampaignResourceType.People, 1, cancellationToken);
+
+            return MapVolunteerRegistration(registration);
+        }
+
+        public async Task CancelVolunteerRegistrationAsync(Guid campaignId, CancellationToken cancellationToken = default)
+        {
+            var campaign = await _unitOfWork.Campaigns.GetWithGoalsAsync(campaignId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
+
+            if (campaign.Type != CampaignType.Fundraising)
+            {
+                throw new InvalidOperationException("Chỉ fundraising campaign mới có đăng ký volunteer theo campaign.");
+            }
+
+            var userId = _currentUserService.UserId ?? throw new UnauthorizedAccessException("User not authenticated");
+            var registration = await _unitOfWork.CampaignVolunteerRegistrations.GetActiveAsync(campaignId, userId, cancellationToken)
+                ?? throw new KeyNotFoundException("Không tìm thấy đăng ký volunteer active cho campaign này.");
+
+            registration.Status = CampaignVolunteerRegistrationStatus.Cancelled;
+            registration.CancelledAt = DateTime.UtcNow;
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await UpdateProgressAsync(campaignId, CampaignResourceType.People, -1, cancellationToken);
+        }
+
+        public async Task<IReadOnlyList<CampaignVolunteerRegistrationResponse>> GetVolunteerRegistrationsAsync(Guid campaignId, CancellationToken cancellationToken = default)
+        {
+            var campaign = await _unitOfWork.Campaigns.GetWithGoalsAsync(campaignId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
+
+            if (campaign.Type != CampaignType.Fundraising)
+            {
+                throw new InvalidOperationException("Chỉ fundraising campaign mới có danh sách đăng ký volunteer theo campaign.");
+            }
+
+            var registrations = await _unitOfWork.CampaignVolunteerRegistrations.GetByCampaignAsync(campaignId, cancellationToken);
+            return registrations.Select(MapVolunteerRegistration).ToList();
         }
 
         public async Task UpdateProgressAsync(Guid campaignId, CampaignResourceType resourceType, decimal amountDelta, CancellationToken cancellationToken = default)
@@ -415,7 +543,7 @@ namespace ReliefManagementSystem.Application.Services
             {
                 if (ShouldMarkGoalsMet(campaign))
                 {
-                    campaign.Status = CampaignStatus.GoalsMet;
+                    campaign.Status = CampaignStatus.Completed;
                     await _unitOfWork.Campaigns.UpdateAsync(campaign);
                 }
             }
@@ -487,8 +615,10 @@ namespace ReliefManagementSystem.Application.Services
                     (CampaignStatus.Draft, CampaignStatus.Active) => true,
                     (CampaignStatus.Active, CampaignStatus.Suspended) => true,
                     (CampaignStatus.Active, CampaignStatus.GoalsMet) => true,
+                    (CampaignStatus.Active, CampaignStatus.Completed) => true,
                     (CampaignStatus.Active, CampaignStatus.Cancelled) => true,
                     (CampaignStatus.Suspended, CampaignStatus.Active) => true,
+                    (CampaignStatus.Suspended, CampaignStatus.Completed) => true,
                     (CampaignStatus.Suspended, CampaignStatus.Cancelled) => true,
                     (CampaignStatus.GoalsMet, CampaignStatus.Completed) => true,
                     _ => false
@@ -611,6 +741,21 @@ namespace ReliefManagementSystem.Application.Services
                 IsRequired = goal.IsRequired,
                 IsMet = goal.IsMet,
                 ProgressPercent = Math.Round(progress, 2)
+            };
+        }
+
+        private static CampaignVolunteerRegistrationResponse MapVolunteerRegistration(CampaignVolunteerRegistration registration)
+        {
+            return new CampaignVolunteerRegistrationResponse
+            {
+                CampaignVolunteerRegistrationId = registration.CampaignVolunteerRegistrationId,
+                CampaignId = registration.CampaignId,
+                UserId = registration.UserId,
+                UserDisplayName = registration.User?.DisplayName ?? registration.User?.UserName ?? registration.User?.Email ?? string.Empty,
+                UserEmail = registration.User?.Email,
+                Status = registration.Status,
+                RegisteredAt = registration.RegisteredAt,
+                CancelledAt = registration.CancelledAt
             };
         }
 

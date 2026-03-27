@@ -152,7 +152,6 @@ services:
 # -----------------------------------------------------------
 volumes:
   postgres_local_data:
-    external: true
     name: reliefcare-local-postgres-data
   pgadmin_local_data:
     external: true

@@ -19,6 +19,9 @@ namespace ReliefManagementSystem.Application.Interface
         Task<IReadOnlyList<CampaignTeamResponse>> GetTeamsAsync(Guid campaignId, CancellationToken cancellationToken = default);
         Task<CampaignTeamResponse> UpdateTeamStatusAsync(Guid campaignId, Guid teamId, UpdateCampaignTeamStatusRequest request, CancellationToken cancellationToken = default);
         Task RemoveTeamAsync(Guid campaignId, Guid teamId, CancellationToken cancellationToken = default);
+        Task<CampaignVolunteerRegistrationResponse> RegisterVolunteerAsync(Guid campaignId, CancellationToken cancellationToken = default);
+        Task CancelVolunteerRegistrationAsync(Guid campaignId, CancellationToken cancellationToken = default);
+        Task<IReadOnlyList<CampaignVolunteerRegistrationResponse>> GetVolunteerRegistrationsAsync(Guid campaignId, CancellationToken cancellationToken = default);
         Task UpdateProgressAsync(Guid campaignId, CampaignResourceType resourceType, decimal amountDelta, CancellationToken cancellationToken = default);
     }
 }

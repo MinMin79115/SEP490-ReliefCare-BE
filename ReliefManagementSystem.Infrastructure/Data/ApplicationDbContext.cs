@@ -64,6 +64,7 @@ namespace ReliefManagementSystem.Infrastructure.Data
         public DbSet<CampaignResourceGoal> CampaignResourceGoals { get; set; }
         public DbSet<CampaignStation> CampaignStations { get; set; }
         public DbSet<CampaignTeam> CampaignTeams { get; set; }
+        public DbSet<CampaignVolunteerRegistration> CampaignVolunteerRegistrations { get; set; }
         public DbSet<CampaignTask> CampaignTasks { get; set; }
         public DbSet<CampaignVehicle> CampaignVehicles { get; set; }
         public DbSet<MemberTask> MemberTasks { get; set; }
@@ -296,6 +297,29 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .Property(ft => ft.Type)
                 .HasConversion<string>()
                 .IsRequired();
+
+            builder.Entity<CampaignVolunteerRegistration>()
+                .HasKey(x => x.CampaignVolunteerRegistrationId);
+
+            builder.Entity<CampaignVolunteerRegistration>()
+                .Property(x => x.Status)
+                .HasConversion<string>()
+                .IsRequired();
+
+            builder.Entity<CampaignVolunteerRegistration>()
+                .HasOne(x => x.Campaign)
+                .WithMany(c => c.VolunteerRegistrations)
+                .HasForeignKey(x => x.CampaignId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<CampaignVolunteerRegistration>()
+                .HasOne(x => x.User)
+                .WithMany(u => u.CampaignVolunteerRegistrations)
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<CampaignVolunteerRegistration>()
+                .HasIndex(x => new { x.CampaignId, x.UserId, x.Status });
 
             builder.Entity<FundTransaction>()
                 .HasOne(ft => ft.Fund)

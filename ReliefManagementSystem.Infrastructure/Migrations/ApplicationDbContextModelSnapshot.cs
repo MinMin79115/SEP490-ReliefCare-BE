@@ -580,6 +580,37 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.ToTable("CampaignVehicles");
                 });
 
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.CampaignVolunteerRegistration", b =>
+                {
+                    b.Property<Guid>("CampaignVolunteerRegistrationId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("CampaignId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("RegisteredAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("UserId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("CampaignVolunteerRegistrationId");
+
+                    b.HasIndex("UserId");
+
+                    b.HasIndex("CampaignId", "UserId", "Status");
+
+                    b.ToTable("CampaignVolunteerRegistrations");
+                });
+
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Donation", b =>
                 {
                     b.Property<Guid>("DonationId")
@@ -2809,6 +2840,25 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Navigation("Vehicle");
                 });
 
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.CampaignVolunteerRegistration", b =>
+                {
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.Campaign", "Campaign")
+                        .WithMany("VolunteerRegistrations")
+                        .HasForeignKey("CampaignId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.ApplicationUser", "User")
+                        .WithMany("CampaignVolunteerRegistrations")
+                        .HasForeignKey("UserId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Campaign");
+
+                    b.Navigation("User");
+                });
+
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Donation", b =>
                 {
                     b.HasOne("ReliefManagementSystem.Domain.Entities.Campaign", "Campaign")
@@ -3674,6 +3724,8 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.ApplicationUser", b =>
                 {
+                    b.Navigation("CampaignVolunteerRegistrations");
+
                     b.Navigation("ManagerProfile");
 
                     b.Navigation("ModeratorProfile");
@@ -3701,6 +3753,8 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Navigation("RescueRequests");
 
                     b.Navigation("ResourceGoals");
+
+                    b.Navigation("VolunteerRegistrations");
                 });
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.CampaignTask", b =>
