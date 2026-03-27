@@ -23,6 +23,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
         
         ITeamRepository Teams { get; }
         ITeamMemberRepository TeamMembers { get; }
+        ITeamTrackingPointRepository TeamTrackingPoints { get; }
         ITeamJoinRequestRepository TeamJoinRequests { get; }
         IStationJoinRequestRepository StationJoinRequests { get; }
 
@@ -62,6 +63,8 @@ namespace ReliefManagementSystem.Application.Common.Interface
 
         IRescueOperationRepository RescueOperations { get; }
         IRescueRequestRepository RescueRequests { get; }
+        IRescueBatchRepository RescueBatches { get; }
+        IRescueBatchItemRepository RescueBatchItems { get; }
         IRescueRequestPriorityRepository RescueRequestPriorities { get; }
         IPriorityCriteriaRepository PriorityCriterias { get; }
 

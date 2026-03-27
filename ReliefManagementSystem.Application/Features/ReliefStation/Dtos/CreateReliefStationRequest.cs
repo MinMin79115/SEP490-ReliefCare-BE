@@ -20,5 +20,7 @@ namespace ReliefManagementSystem.Application.Features.ReliefStation.Dtos
         public double Longitude { get; set; }
 
         public double Latitude { get; set; }
+
+        public double CoverageRadiusKm { get; set; } = 30;
     }
 }

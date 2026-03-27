@@ -29,6 +29,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
         
         public ITeamRepository Teams { get; }
         public ITeamMemberRepository TeamMembers { get; }
+        public ITeamTrackingPointRepository TeamTrackingPoints { get; }
         public ITeamJoinRequestRepository TeamJoinRequests { get; }
         public IStationJoinRequestRepository StationJoinRequests { get; }
 
@@ -67,6 +68,8 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
         public ILocationRepository Locations { get; }
 
         public IRescueRequestRepository RescueRequests { get; }
+        public IRescueBatchRepository RescueBatches { get; }
+        public IRescueBatchItemRepository RescueBatchItems { get; }
         public IPriorityCriteriaRepository PriorityCriterias { get; }
         public IRescueRequestPriorityRepository RescueRequestPriorities { get; }
 
@@ -87,6 +90,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
 
             Teams = new TeamRepository(_context);
             TeamMembers = new TeamMemberRepository(_context);
+            TeamTrackingPoints = new TeamTrackingPointRepository(_context);
             TeamJoinRequests = new TeamJoinRequestRepository(_context);
             StationJoinRequests = new StationJoinRequestRepository(_context);
             VolunteerProfiles = new VolunteerProfileRepository(_context);
@@ -108,6 +112,8 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             ReliefStations = new ReliefStationRepository(_context);
             Locations = new LocationRepository(_context);
             RescueRequests = new RescueRequestRepository(_context);
+            RescueBatches = new RescueBatchRepository(_context);
+            RescueBatchItems = new RescueBatchItemRepository(_context);
             PriorityCriterias = new PriorityCriteriaRepository(_context);
             RescueRequestPriorities = new RescueRequestPriorityRepository(_context);
             RescueOperations = new RescueOperationRepository(_context);

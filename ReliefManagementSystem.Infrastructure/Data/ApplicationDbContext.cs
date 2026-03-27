@@ -93,6 +93,9 @@ namespace ReliefManagementSystem.Infrastructure.Data
         public DbSet<ReliefNeedItem> ReliefNeedItems { get; set; }
         public DbSet<RescueOperation> RescueOperations { get; set; }
         public DbSet<RescueRequestPriority> RescueRequestPriorities { get; set; }
+        public DbSet<RescueBatch> RescueBatches { get; set; }
+        public DbSet<RescueBatchItem> RescueBatchItems { get; set; }
+        public DbSet<TeamTrackingPoint> TeamTrackingPoints { get; set; }
 
         public ApplicationDbContext(
             DbContextOptions<ApplicationDbContext> options,
@@ -111,6 +114,8 @@ namespace ReliefManagementSystem.Infrastructure.Data
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
+            NormalizeDateTimeKindsToUtc();
+
             var userId = _currentUserService?.UserId;
             var auditLogs = new List<AuditLog>();
 
@@ -194,6 +199,37 @@ namespace ReliefManagementSystem.Infrastructure.Data
             }
 
             return await base.SaveChangesAsync(cancellationToken);
+        }
+
+        private void NormalizeDateTimeKindsToUtc()
+        {
+            foreach (var entry in ChangeTracker.Entries())
+            {
+                if (entry.State != EntityState.Added && entry.State != EntityState.Modified)
+                    continue;
+
+                foreach (var property in entry.Properties)
+                {
+                    if (property.Metadata.ClrType == typeof(DateTime) && property.CurrentValue is DateTime dt)
+                    {
+                        property.CurrentValue = EnsureUtc(dt);
+                    }
+                    else if (property.Metadata.ClrType == typeof(DateTime?) && property.CurrentValue is DateTime ndt)
+                    {
+                        property.CurrentValue = EnsureUtc(ndt);
+                    }
+                }
+            }
+        }
+
+        private static DateTime EnsureUtc(DateTime value)
+        {
+            return value.Kind switch
+            {
+                DateTimeKind.Utc => value,
+                DateTimeKind.Local => value.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+            };
         }
 
         protected override void OnModelCreating(ModelBuilder builder)
@@ -935,6 +971,11 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 entity.Property(r => r.DisasterType)
                     .HasConversion<string>()
                     .IsRequired();
+
+                entity.HasOne(r => r.Campaign)
+                    .WithMany(c => c.RescueRequests)
+                    .HasForeignKey(r => r.CampaignId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
 
             // =========================
@@ -1045,6 +1086,80 @@ namespace ReliefManagementSystem.Infrastructure.Data
                     .WithMany()
                     .HasForeignKey(ro => ro.ReliefStationId)
                     .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // =========================
+            // RescueBatch
+            // =========================
+            builder.Entity<RescueBatch>(entity =>
+            {
+                entity.HasKey(rb => rb.RescueBatchId);
+
+                entity.Property(rb => rb.Status)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                entity.HasIndex(rb => new { rb.TeamId, rb.IsActive });
+
+                entity.HasOne(rb => rb.Team)
+                    .WithMany(t => t.RescueBatches)
+                    .HasForeignKey(rb => rb.TeamId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // =========================
+            // RescueBatchItem
+            // =========================
+            builder.Entity<RescueBatchItem>(entity =>
+            {
+                entity.HasKey(rbi => rbi.RescueBatchItemId);
+
+                entity.Property(rbi => rbi.Status)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                entity.HasIndex(rbi => new { rbi.RescueBatchId, rbi.SequenceOrder });
+
+                entity.HasOne(rbi => rbi.RescueBatch)
+                    .WithMany(rb => rb.Items)
+                    .HasForeignKey(rbi => rbi.RescueBatchId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(rbi => rbi.RescueRequest)
+                    .WithMany(rr => rr.RescueBatchItems)
+                    .HasForeignKey(rbi => rbi.RescueRequestId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // =========================
+            // TeamTrackingPoint
+            // =========================
+            builder.Entity<TeamTrackingPoint>(entity =>
+            {
+                entity.HasKey(ttp => ttp.TeamTrackingPointId);
+
+                entity.Property(ttp => ttp.Source)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                entity.HasOne(ttp => ttp.Team)
+                    .WithMany(t => t.TrackingPoints)
+                    .HasForeignKey(ttp => ttp.TeamId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(ttp => ttp.RescueBatch)
+                    .WithMany(rb => rb.TrackingPoints)
+                    .HasForeignKey(ttp => ttp.RescueBatchId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(ttp => ttp.RescueOperation)
+                    .WithMany(ro => ro.TrackingPoints)
+                    .HasForeignKey(ttp => ttp.RescueOperationId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasIndex(ttp => new { ttp.TeamId, ttp.CapturedAtUtc });
+                entity.HasIndex(ttp => new { ttp.RescueOperationId, ttp.CapturedAtUtc });
+                entity.HasIndex(ttp => new { ttp.RescueBatchId, ttp.CapturedAtUtc });
             });
 
             // =========================

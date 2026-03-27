@@ -16,11 +16,7 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Request
         [Required(ErrorMessage = "Disaster type is required")]
         public int DisasterType { get; set; }
 
-        /// <summary>Mô tả chi tiết vụ cứu hộ</summary>
-        [Required(ErrorMessage = "Description is required")]
-        [MinLength(10, ErrorMessage = "Description must be at least 10 characters")]
-        [MaxLength(1000, ErrorMessage = "Description cannot exceed 1000 characters")]
-        public string Description { get; set; } = null!;
+        public string? Description { get; set; } = null!;
 
         /// <summary>Vĩ độ vị trí cần cứu hộ</summary>
         [Required(ErrorMessage = "Latitude is required")]
@@ -40,9 +36,6 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Request
         [MaxLength(500, ErrorMessage = "Address cannot exceed 500 characters")]
         public string? Address { get; set; }
 
-        /// <summary>ID địa điểm liên quan (tuỳ chọn)</summary>
-        public Guid? LocationId { get; set; }
-
         /// <summary>Ghi chú bổ sung (tuỳ chọn)</summary>
         [MaxLength(500, ErrorMessage = "Note cannot exceed 500 characters")]
         public string? Note { get; set; }
@@ -52,6 +45,7 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Request
         public string? ReporterFullName { get; set; }
 
         /// <summary>Số điện thoại người báo (nếu người dùng không đăng nhập)</summary>
+        [Required]
         [MaxLength(50)]
         public string? ReporterPhone { get; set; }
 
