@@ -1613,6 +1613,9 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Property<string>("ContactNumber")
                         .HasColumnType("text");
 
+                    b.Property<double>("CoverageRadiusKm")
+                        .HasColumnType("double precision");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1786,6 +1789,84 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.HasIndex("VerifiedBy");
 
                     b.ToTable("RequestVerifications");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.RescueBatch", b =>
+                {
+                    b.Property<Guid>("RescueBatchId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ClosedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("EstimatedMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("RoutePolyline")
+                        .HasColumnType("text");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("TeamId")
+                        .HasColumnType("uuid");
+
+                    b.Property<double?>("TotalDistanceKm")
+                        .HasColumnType("double precision");
+
+                    b.HasKey("RescueBatchId");
+
+                    b.HasIndex("TeamId", "IsActive");
+
+                    b.ToTable("RescueBatches");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.RescueBatchItem", b =>
+                {
+                    b.Property<Guid>("RescueBatchItemId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double?>("DistanceKm")
+                        .HasColumnType("double precision");
+
+                    b.Property<int?>("EstimatedMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsAutoAssigned")
+                        .HasColumnType("boolean");
+
+                    b.Property<Guid>("RescueBatchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("RescueRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("SequenceOrder")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("RescueBatchItemId");
+
+                    b.HasIndex("RescueRequestId");
+
+                    b.HasIndex("RescueBatchId", "SequenceOrder");
+
+                    b.ToTable("RescueBatchItems");
                 });
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.RescueOperation", b =>
@@ -2240,6 +2321,60 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.ToTable("TeamMembers");
                 });
 
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.TeamTrackingPoint", b =>
+                {
+                    b.Property<Guid>("TeamTrackingPointId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<double?>("AccuracyMeters")
+                        .HasColumnType("double precision");
+
+                    b.Property<DateTime>("CapturedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAtUtc")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double?>("HeadingDegree")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("RescueBatchId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("RescueOperationId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Source")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<double?>("SpeedKph")
+                        .HasColumnType("double precision");
+
+                    b.Property<Guid>("TeamId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("TeamTrackingPointId");
+
+                    b.HasIndex("RescueBatchId", "CapturedAtUtc");
+
+                    b.HasIndex("RescueOperationId", "CapturedAtUtc");
+
+                    b.HasIndex("TeamId", "CapturedAtUtc");
+
+                    b.ToTable("TeamTrackingPoints");
+                });
+
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Vehicle", b =>
                 {
                     b.Property<Guid>("VehicleId")
@@ -2441,6 +2576,9 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 {
                     b.HasBaseType("ReliefManagementSystem.Domain.Entities.Request");
 
+                    b.Property<Guid?>("CampaignId")
+                        .HasColumnType("uuid");
+
                     b.Property<string>("DisasterType")
                         .IsRequired()
                         .HasColumnType("text");
@@ -2463,6 +2601,44 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
                     b.Property<int>("RescueRequestType")
                         .HasColumnType("integer");
+
+                    b.Property<double?>("StationToRequestDistanceKm")
+                        .HasColumnType("double precision");
+
+                    b.Property<int?>("StationToRequestDistanceMeters")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("StationToRequestDurationMinutes")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("StationToRequestDurationSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("WeatherCondition")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("WeatherObservedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<double?>("WeatherPrecipMm")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("WeatherRiskLevel")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("WeatherRiskScore")
+                        .HasColumnType("integer");
+
+                    b.Property<double?>("WeatherTempC")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("WeatherVisibilityKm")
+                        .HasColumnType("double precision");
+
+                    b.Property<double?>("WeatherWindKph")
+                        .HasColumnType("double precision");
+
+                    b.HasIndex("CampaignId");
 
                     b.ToTable("RescueRequests", (string)null);
                 });
@@ -3138,6 +3314,36 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Navigation("Verifier");
                 });
 
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.RescueBatch", b =>
+                {
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.Team", "Team")
+                        .WithMany("RescueBatches")
+                        .HasForeignKey("TeamId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Team");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.RescueBatchItem", b =>
+                {
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.RescueBatch", "RescueBatch")
+                        .WithMany("Items")
+                        .HasForeignKey("RescueBatchId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.RescueRequest", "RescueRequest")
+                        .WithMany("RescueBatchItems")
+                        .HasForeignKey("RescueRequestId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RescueBatch");
+
+                    b.Navigation("RescueRequest");
+                });
+
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.RescueOperation", b =>
                 {
                     b.HasOne("ReliefManagementSystem.Domain.Entities.ReliefStation", "ReliefStation")
@@ -3391,6 +3597,31 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.TeamTrackingPoint", b =>
+                {
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.RescueBatch", "RescueBatch")
+                        .WithMany("TrackingPoints")
+                        .HasForeignKey("RescueBatchId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.RescueOperation", "RescueOperation")
+                        .WithMany("TrackingPoints")
+                        .HasForeignKey("RescueOperationId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.Team", "Team")
+                        .WithMany("TrackingPoints")
+                        .HasForeignKey("TeamId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("RescueBatch");
+
+                    b.Navigation("RescueOperation");
+
+                    b.Navigation("Team");
+                });
+
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Vehicle", b =>
                 {
                     b.HasOne("ReliefManagementSystem.Domain.Entities.ApplicationUser", "Creator")
@@ -3477,11 +3708,18 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.RescueRequest", b =>
                 {
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.Campaign", "Campaign")
+                        .WithMany("RescueRequests")
+                        .HasForeignKey("CampaignId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("ReliefManagementSystem.Domain.Entities.Request", null)
                         .WithOne()
                         .HasForeignKey("ReliefManagementSystem.Domain.Entities.RescueRequest", "RequestId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Campaign");
                 });
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.ApplicationUser", b =>
@@ -3511,6 +3749,8 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Navigation("InKindDonations");
 
                     b.Navigation("ReliefRequests");
+
+                    b.Navigation("RescueRequests");
 
                     b.Navigation("ResourceGoals");
 
@@ -3612,6 +3852,18 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Navigation("Verifications");
                 });
 
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.RescueBatch", b =>
+                {
+                    b.Navigation("Items");
+
+                    b.Navigation("TrackingPoints");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.RescueOperation", b =>
+                {
+                    b.Navigation("TrackingPoints");
+                });
+
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Skill", b =>
                 {
                     b.Navigation("VolunteerSkills");
@@ -3651,11 +3903,15 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
                     b.Navigation("ReliefStationTeams");
 
+                    b.Navigation("RescueBatches");
+
                     b.Navigation("StationJoinRequests");
 
                     b.Navigation("TeamJoinRequests");
 
                     b.Navigation("TeamMembers");
+
+                    b.Navigation("TrackingPoints");
                 });
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Vehicle", b =>
@@ -3682,6 +3938,8 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.RescueRequest", b =>
                 {
+                    b.Navigation("RescueBatchItems");
+
                     b.Navigation("RescueOperations");
 
                     b.Navigation("RescueRequestPriorities");

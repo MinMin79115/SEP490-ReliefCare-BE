@@ -5,10 +5,12 @@ using ReliefManagementSystem.Application.Common.Interface;
 using ReliefManagementSystem.Application.Features;
 using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Infrastructure.Data;
+using ReliefManagementSystem.Infrastructure.Map;
 using ReliefManagementSystem.Infrastructure.Persistence;
 using ReliefManagementSystem.Infrastructure.Payments;
 using ReliefManagementSystem.Infrastructure.Repositories;
 using ReliefManagementSystem.Infrastructure.Security;
+using ReliefManagementSystem.Infrastructure.Weather;
 
 namespace ReliefManagementSystem.Infrastructure
 {
@@ -40,6 +42,7 @@ namespace ReliefManagementSystem.Infrastructure
             // Team repositories
             services.AddScoped<ITeamRepository, TeamRepository>();
             services.AddScoped<ITeamMemberRepository, TeamMemberRepository>();
+            services.AddScoped<ITeamTrackingPointRepository, TeamTrackingPointRepository>();
             services.AddScoped<ITeamJoinRequestRepository, TeamJoinRequestRepository>();
             services.AddScoped<IStationJoinRequestRepository, StationJoinRequestRepository>();
 
@@ -74,9 +77,13 @@ namespace ReliefManagementSystem.Infrastructure
 
 
             services.AddScoped<IRescueRequestRepository, RescueRequestRepository>();
+            services.AddScoped<IRescueBatchRepository, RescueBatchRepository>();
+            services.AddScoped<IRescueBatchItemRepository, RescueBatchItemRepository>();
             services.AddScoped<IPriorityCriteriaRepository, PriorityCriteriaRepository>();
             services.AddScoped<IRescueRequestPriorityRepository, RescueRequestPriorityRepository>();
             services.AddScoped<IRescueOperationRepository, RescueOperationRepository>();
+            services.AddHttpClient<IGoongDistanceService, GoongDistanceService>();
+            services.AddHttpClient<IWeatherService, WeatherService>();
             services.AddHttpClient<IPayOsGateway, PayOsGateway>();
             return services;
 

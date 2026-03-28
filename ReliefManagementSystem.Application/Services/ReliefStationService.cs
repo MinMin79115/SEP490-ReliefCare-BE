@@ -76,6 +76,7 @@ namespace ReliefManagementSystem.Application.Services
                     ContactNumber = request.ContactNumber,
                     Longitude = request.Longitude,
                     Latitude = request.Latitude,
+                    CoverageRadiusKm = request.CoverageRadiusKm,
 
                     Level = ReliefStationLevel.Provincial,
                     ReliefStationStatus = ReliefStationStatus.Active,
@@ -145,6 +146,7 @@ namespace ReliefManagementSystem.Application.Services
             station.ContactNumber = request.ContactNumber;
             station.Longitude = request.Longitude;
             station.Latitude = request.Latitude;
+            station.CoverageRadiusKm = request.CoverageRadiusKm;
 
             _unitOfWork.ReliefStations.UpdateAsync(station);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -158,6 +160,7 @@ namespace ReliefManagementSystem.Application.Services
                 ContactNumber = station.ContactNumber,
                 Longitude = station.Longitude,
                 Latitude = station.Latitude,
+                CoverageRadiusKm = station.CoverageRadiusKm,
                 Status = station.ReliefStationStatus,
                 Level = station.Level,
                 LocationId = station.LocationId,
@@ -180,6 +183,7 @@ namespace ReliefManagementSystem.Application.Services
                 ContactNumber = s.ContactNumber,
                 Longitude = s.Longitude,
                 Latitude = s.Latitude,
+                CoverageRadiusKm = s.CoverageRadiusKm,
                 Status = s.ReliefStationStatus,
                 Level = s.Level,
                 LocationId = s.LocationId,
@@ -229,6 +233,7 @@ namespace ReliefManagementSystem.Application.Services
                 ContactNumber = station.ContactNumber,
                 Longitude = station.Longitude,
                 Latitude = station.Latitude,
+                CoverageRadiusKm = station.CoverageRadiusKm,
                 Status = station.ReliefStationStatus,
                 Level = station.Level,
                 LocationId = station.LocationId,
@@ -274,6 +279,7 @@ namespace ReliefManagementSystem.Application.Services
                 ContactNumber = station.ContactNumber,
                 Longitude = station.Longitude,
                 Latitude = station.Latitude,
+                CoverageRadiusKm = station.CoverageRadiusKm,
                 Status = station.ReliefStationStatus,
                 Level = station.Level,
                 LocationId = station.LocationId,
@@ -322,6 +328,7 @@ namespace ReliefManagementSystem.Application.Services
                 ContactNumber = station.ContactNumber,
                 Longitude = station.Longitude,
                 Latitude = station.Latitude,
+                CoverageRadiusKm = station.CoverageRadiusKm,
                 Status = station.ReliefStationStatus,
                 Level = station.Level,
                 LocationId = station.LocationId,

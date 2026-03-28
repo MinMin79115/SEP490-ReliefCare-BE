@@ -12,7 +12,9 @@ namespace ReliefManagementSystem.Domain.Enum
         Assigned = 1,
         EnRoute = 2,
         Rescuing = 3,
-        Completed = 4,
-        Cancelled = 5
+        RescueCompleted = 4,
+        Returning = 5,
+        Closed = 6,
+        Cancelled = 7
     }
 }

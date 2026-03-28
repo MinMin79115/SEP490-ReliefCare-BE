@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using ReliefManagementSystem.Application.Features.Auth.DTOs;
 using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Domain.Entities;
@@ -17,6 +18,7 @@ namespace ReliefManagementSystem.API.Controllers
     [ApiController]
     [Produces("application/json")]
     [Tags("Authentication")]
+    [EnableRateLimiting("auth")]
     public class AuthController : ControllerBase
     {
         private readonly IAuthService _authService;
