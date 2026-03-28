@@ -47,6 +47,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
         public IInventoryRepository Inventories { get; }
         public IInventoryStockRepository InventoryStocks { get; }
         public IInventoryTransactionRepository InventoryTransactions { get; }
+        public ISupplyTransferRepository SupplyTransfers { get; }
         public IProcurementOrderRepository ProcurementOrders { get; }
 
         // Relief Station Management
@@ -101,6 +102,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             Inventories = new InventoryRepository(_context);
             InventoryStocks = new InventoryStockRepository(_context);
             InventoryTransactions = new InventoryTransactionRepository(_context);
+            SupplyTransfers = new SupplyTransferRepository(_context);
             ProcurementOrders = new ProcurementOrderRepository(_context);
             ReliefStationTeams = new ReliefStationTeamRepository(_context);
             SupplyAllocations = new SupplyAllocationRepository(_context);

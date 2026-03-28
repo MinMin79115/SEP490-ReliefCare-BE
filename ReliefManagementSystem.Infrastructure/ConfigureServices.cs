@@ -58,6 +58,7 @@ namespace ReliefManagementSystem.Infrastructure
             services.AddScoped<IInventoryRepository, InventoryRepository>();
             services.AddScoped<IInventoryStockRepository, InventoryStockRepository>();
             services.AddScoped<IInventoryTransactionRepository, InventoryTransactionRepository>();
+            services.AddScoped<ISupplyTransferRepository, SupplyTransferRepository>();
             // Relief Station repositories
             services.AddScoped<IReliefStationRepository, ReliefStationRepository>();
             services.AddScoped<IReliefStationTeamRepository, ReliefStationTeamRepository>();

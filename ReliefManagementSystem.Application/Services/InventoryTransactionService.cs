@@ -100,6 +100,7 @@ namespace ReliefManagementSystem.Application.Services
                 TransactionCode = code,
                 Type = request.Type,
                 Reason = request.Reason,
+                SupplyTransferId = request.SupplyTransferId,
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = _currentUser.UserId
                     ?? throw new UnauthorizedAccessException("User is not authenticated."),
