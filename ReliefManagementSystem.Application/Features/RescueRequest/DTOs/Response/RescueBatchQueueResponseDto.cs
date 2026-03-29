@@ -29,6 +29,8 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Respons
         public double? Longitude { get; set; }
         public string? ReporterFullName { get; set; }
         public string? ReporterPhone { get; set; }
+        public int? PriorityPoint { get; set; }
+        public RescuePriorityLevel? PriorityLevel { get; set; }
         public int SequenceOrder { get; set; }
         public bool IsAutoAssigned { get; set; }
         public double? DistanceKm { get; set; }

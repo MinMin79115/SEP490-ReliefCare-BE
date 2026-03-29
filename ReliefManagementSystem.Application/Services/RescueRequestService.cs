@@ -165,6 +165,8 @@ namespace ReliefManagementSystem.Application.Services
                     verificationStatus = weather.WeatherRiskScore >= 40
                         ? RequestVerificationStatus.Approved
                         : RequestVerificationStatus.Pending;
+                    rescueRequest.PriorityPoint = 85;
+                    rescueRequest.RescuePriorityLevel = RescuePriorityLevel.Critical;
                 }
                 catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
                 {
@@ -1151,6 +1153,8 @@ namespace ReliefManagementSystem.Application.Services
                         Longitude = i.RescueRequest?.Longitude,
                         ReporterFullName = i.RescueRequest?.ReporterFullName,
                         ReporterPhone = i.RescueRequest?.ReporterPhone,
+                        PriorityPoint = i.RescueRequest.PriorityPoint,
+                        PriorityLevel = i.RescueRequest.RescuePriorityLevel,
                         SequenceOrder = i.SequenceOrder,
                         IsAutoAssigned = i.IsAutoAssigned,
                         DistanceKm = i.DistanceKm,

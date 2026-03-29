@@ -20,5 +20,15 @@ namespace ReliefManagementSystem.Application.Features.User
         /// Từ khóa tìm kiếm (DisplayName, Email, PhoneNumber)
         /// </summary>
         public string? Search { get; set; }
+
+        /// <summary>
+        /// Lọc theo role, ví dụ: Admin, Moderator, Volunteer, User
+        /// </summary>
+        public string? Role { get; set; }
+
+        /// <summary>
+        /// Lọc trạng thái ban: true = bị ban, false = không bị ban
+        /// </summary>
+        public bool? IsBanned { get; set; }
     }
 }
