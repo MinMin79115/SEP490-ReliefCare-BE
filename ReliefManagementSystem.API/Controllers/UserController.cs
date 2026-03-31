@@ -56,7 +56,7 @@ namespace ReliefManagementSystem.API.Controllers
         /// <response code="403">User không có quyền Admin</response>
         [HttpGet("all")]
         [Authorize(Roles = "Admin")]
-        [SwaggerOperation(OperationId = "GetAllProfiles", Description = "Admin lấy danh sách tất cả users có phân trang và tìm kiếm theo DisplayName, Email, PhoneNumber")]
+        [SwaggerOperation(OperationId = "GetAllProfiles", Description = "Admin lấy danh sách tất cả users có phân trang, tìm kiếm theo DisplayName/Email/PhoneNumber, lọc theo Role và trạng thái bị ban")]
         public async Task<IActionResult> GetAllProfiles(
             [FromQuery] GetAllUsersRequest request,
             CancellationToken cancellationToken)

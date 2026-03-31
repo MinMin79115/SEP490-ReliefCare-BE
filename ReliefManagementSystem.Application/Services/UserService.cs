@@ -78,13 +78,56 @@ namespace ReliefManagementSystem.Application.Services
         {
             var query = _unitOfWork.Users.GetAllUsersQueryable();
 
+            var normalizedRole = string.IsNullOrWhiteSpace(request.Role)
+                ? null
+                : request.Role.Trim();
+
+            if (!string.IsNullOrWhiteSpace(normalizedRole))
+            {
+                var roleExists = await _roleManager.RoleExistsAsync(normalizedRole);
+                if (!roleExists)        
+                {
+                    return new Pagination<UserProfileResponse>(
+                        new List<UserProfileResponse>(),
+                        0,
+                        request.PageIndex,
+                        request.PageSize);
+                }
+
+                var usersInRole = await _userManager.GetUsersInRoleAsync(normalizedRole);
+                var userIdsInRole = usersInRole.Select(u => u.Id).ToHashSet();
+                query = query.Where(u => userIdsInRole.Contains(u.Id));
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
                 var keyword = request.Search.Trim();
+
                 query = query.Where(u =>
                     (u.DisplayName ?? string.Empty).Contains(keyword) ||
                     (u.Email ?? string.Empty).Contains(keyword) ||
-                    (u.PhoneNumber ?? string.Empty).Contains(keyword));
+                    (u.PhoneNumber ?? string.Empty).Contains(keyword)
+                );
+            }
+
+            if (request.IsBanned.HasValue)
+            {
+                var now = DateTimeOffset.UtcNow;
+
+                if (request.IsBanned.Value)
+                {
+                    query = query.Where(u =>
+                        u.LockoutEnabled &&
+                        u.LockoutEnd.HasValue &&
+                        u.LockoutEnd > now);
+                }
+                else
+                {
+                    query = query.Where(u =>
+                        !u.LockoutEnabled ||
+                        !u.LockoutEnd.HasValue ||
+                        u.LockoutEnd <= now);
+                }
             }
 
             var pagedUsers = await Pagination<ApplicationUser>.ToPagedList(
