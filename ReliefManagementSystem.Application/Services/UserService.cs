@@ -161,6 +161,78 @@ namespace ReliefManagementSystem.Application.Services
                 pagedUsers.PageSize);
         }
 
+        public async Task<Pagination<ModeratorProfileResponse>> GetModeratorsAsync(
+            GetModeratorsRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var moderators = await _userManager.GetUsersInRoleAsync(Role.Moderator.ToString());
+            var now = DateTimeOffset.UtcNow;
+            var query = moderators.AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var keyword = request.Search.Trim();
+                query = query.Where(u =>
+                    (u.DisplayName ?? string.Empty).Contains(keyword) ||
+                    (u.Email ?? string.Empty).Contains(keyword) ||
+                    (u.PhoneNumber ?? string.Empty).Contains(keyword));
+            }
+
+            if (request.IsBanned.HasValue)
+            {
+                if (request.IsBanned.Value)
+                {
+                    query = query.Where(u =>
+                        u.LockoutEnabled &&
+                        u.LockoutEnd.HasValue &&
+                        u.LockoutEnd > now);
+                }
+                else
+                {
+                    query = query.Where(u =>
+                        !u.LockoutEnabled ||
+                        !u.LockoutEnd.HasValue ||
+                        u.LockoutEnd <= now);
+                }
+            }
+
+            var pagedModerators = await Pagination<ApplicationUser>.ToPagedList(
+                query,
+                request.PageIndex,
+                request.PageSize);
+
+            var responses = new List<ModeratorProfileResponse>();
+
+            foreach (var moderator in pagedModerators.Items ?? new List<ApplicationUser>())
+            {
+                var moderatorProfile = await _unitOfWork.ModeratorProfiles
+                    .GetByUserIdAsync(moderator.Id, cancellationToken);
+
+                responses.Add(new ModeratorProfileResponse
+                {
+                    Id = moderator.Id,
+                    DisplayName = moderator.DisplayName,
+                    Email = moderator.Email,
+                    PhoneNumber = moderator.PhoneNumber,
+                    PictureUrl = moderator.PictureUrl,
+                    IsBanned = moderator.LockoutEnabled && moderator.LockoutEnd.HasValue && moderator.LockoutEnd > now,
+                    LockoutEnd = moderator.LockoutEnd,
+                    BanReason = moderator.BanReason,
+                    ModeratorStatus = moderatorProfile?.Status,
+                    IsStationHead = moderatorProfile?.IsStationHead ?? false,
+                    IsManagingStation = moderatorProfile?.ReliefStationId != null,
+                    ReliefStationId = moderatorProfile?.ReliefStationId,
+                    ReliefStationName = moderatorProfile?.ReliefStation?.Name
+                });
+            }
+
+            return new Pagination<ModeratorProfileResponse>(
+                responses,
+                pagedModerators.TotalCount,
+                pagedModerators.CurrentPage,
+                pagedModerators.PageSize);
+        }
+
         public async Task<VolunteerProfileResponse> CreateVolunteerProfileAsync(CreateVolunteerRequest request, CancellationToken cancellationToken = default)
         {
             var userId = _currentUserService.UserId

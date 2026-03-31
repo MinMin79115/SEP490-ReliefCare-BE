@@ -66,6 +66,20 @@ namespace ReliefManagementSystem.API.Controllers
         }
 
         /// <summary>
+        /// Lấy danh sách moderator có phân trang (dành cho Admin), kèm trạng thái có đang quản lý trạm hay không.
+        /// </summary>
+        [HttpGet("moderators")]
+        [Authorize(Roles = "Admin")]
+        [SwaggerOperation(OperationId = "GetModerators", Description = "Admin lấy danh sách moderator có phân trang, hỗ trợ tìm kiếm và lọc bị ban/không bị ban; kèm trường IsManagingStation")]
+        public async Task<IActionResult> GetModerators(
+            [FromQuery] GetModeratorsRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _userService.GetModeratorsAsync(request, cancellationToken);
+            return Ok(result);
+        }
+
+        /// <summary>
         /// Cập nhật thông tin profile của user đang đăng nhập (partial update).
         /// Frontend gửi form-data, chỉ cần gửi các field muốn cập nhật.
         /// Các field không gửi sẽ giữ nguyên giá trị cũ.

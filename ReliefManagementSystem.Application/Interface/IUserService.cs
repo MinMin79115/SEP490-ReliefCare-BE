@@ -25,6 +25,10 @@ namespace ReliefManagementSystem.Application.Interface
             GetAllUsersRequest request,
             CancellationToken cancellationToken = default);
 
+        Task<Pagination<ModeratorProfileResponse>> GetModeratorsAsync(
+            GetModeratorsRequest request,
+            CancellationToken cancellationToken = default);
+
         public Task<VolunteerProfileResponse> CreateVolunteerProfileAsync(
             CreateVolunteerRequest request,
             CancellationToken cancellationToken = default);
