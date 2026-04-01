@@ -26,7 +26,6 @@ namespace ReliefManagementSystem.Application.Features.SupplyItem.DTOs.Request
         /// Accepts any valid URL (https recommended) or relative path.
         /// </summary>
         [MaxLength(500, ErrorMessage = "IconUrl must not exceed 500 characters.")]
-        [Url(ErrorMessage = "IconUrl must be a valid URL.")]
         public string? IconUrl { get; set; }
 
         /// <summary>

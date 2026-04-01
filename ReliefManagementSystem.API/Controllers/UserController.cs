@@ -69,7 +69,7 @@ namespace ReliefManagementSystem.API.Controllers
         /// Lấy danh sách moderator có phân trang (dành cho Admin), kèm trạng thái có đang quản lý trạm hay không.
         /// </summary>
         [HttpGet("moderators")]
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Manager")]
         [SwaggerOperation(OperationId = "GetModerators", Description = "Admin lấy danh sách moderator có phân trang, hỗ trợ tìm kiếm và lọc bị ban/không bị ban; kèm trường IsManagingStation")]
         public async Task<IActionResult> GetModerators(
             [FromQuery] GetModeratorsRequest request,
