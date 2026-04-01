@@ -35,5 +35,6 @@ namespace ReliefManagementSystem.Application.Common.Interface
         Task<List<CampaignTeam>> GetCampaignTeamsAsync(Guid campaignId, CancellationToken cancellationToken = default);
         Task AddCampaignTeamAsync(CampaignTeam campaignTeam, CancellationToken cancellationToken = default);
         Task UpdateCampaignTeamAsync(CampaignTeam campaignTeam, CancellationToken cancellationToken = default);
+        Task<List<Campaign>> GetActiveReliefCampaignsByStationAsync(Guid reliefStationId, CancellationToken cancellationToken = default);
     }
 }
