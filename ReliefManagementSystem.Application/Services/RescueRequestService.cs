@@ -366,7 +366,7 @@ namespace ReliefManagementSystem.Application.Services
             stationOperation.Status = RescueOperationStatus.Assigned;
             stationOperation.Note = dto.Note;
 
-            request.RescueRequestStatus = RescueRequestStatus.InProgress;
+            request.RescueRequestStatus = RescueRequestStatus.Assigned;
             request.UpdatedAt = DateTime.UtcNow;
 
             await EnsureActiveBatchAndAppendRequestAsync(dto.TeamId, request.RequestId, cancellationToken);
@@ -1051,7 +1051,10 @@ namespace ReliefManagementSystem.Application.Services
                 RescueOperations = request.RescueOperations.Select(ro => new RescueOperationDto
                 {
                     RescueOperationId = ro.RescueOperationId,
+                    TeamId = ro.TeamId,
+                    TeamName = ro.Team?.Name,
                     StationName = ro.ReliefStation?.Name,
+                    Status = ro.Status.ToString(),
                     StartedAt = ro.StartedAt,
                     EndedAt = ro.EndedAt
                 }).ToList(),
@@ -1064,7 +1067,51 @@ namespace ReliefManagementSystem.Application.Services
                     Reason = v.Reason,
                     VerifiedBy = v.VerifiedBy,
                     VerifiedAt = v.VerifiedAt
-                    }).ToList()
+                }).ToList(),
+                AssignedRescueTeam = BuildAssignedRescueTeamDto(request)
+            };
+        }
+
+        private AssignedRescueTeamDto? BuildAssignedRescueTeamDto(RescueRequest request)
+        {
+            var activeOperation = request.RescueOperations
+                .Where(o => o.TeamId.HasValue
+                    && o.Team != null
+                    && o.Status != RescueOperationStatus.Cancelled
+                    && o.Status != RescueOperationStatus.Closed)
+                .OrderByDescending(o => o.StartedAt)
+                .FirstOrDefault();
+
+            if (activeOperation == null || !activeOperation.TeamId.HasValue || activeOperation.Team == null)
+            {
+                return null;
+            }
+
+            var latestTracking = activeOperation.Team.TrackingPoints
+                .OrderByDescending(t => t.CapturedAtUtc)
+                .FirstOrDefault();
+
+            var activeBatch = activeOperation.Team.RescueBatches
+                .Where(b => b.IsActive)
+                .OrderByDescending(b => b.CreatedAt)
+                .FirstOrDefault();
+
+            var batchItem = activeBatch?.Items.FirstOrDefault(i => i.RescueRequestId == request.RequestId);
+
+            return new AssignedRescueTeamDto
+            {
+                RescueOperationId = activeOperation.RescueOperationId,
+                TeamId = activeOperation.TeamId.Value,
+                TeamName = activeOperation.Team.Name,
+                OperationStatus = activeOperation.Status.ToString(),
+                CurrentLatitude = latestTracking?.Latitude,
+                CurrentLongitude = latestTracking?.Longitude,
+                LastTrackedAt = latestTracking?.CapturedAtUtc,
+                EstimatedMinutesToArrival = batchItem?.EstimatedMinutes,
+                DistanceKmToVictim = batchItem?.DistanceKm,
+                RoutePolyline = activeBatch?.RoutePolyline,
+                TotalDistanceKm = activeBatch?.TotalDistanceKm,
+                TotalEstimatedMinutes = activeBatch?.EstimatedMinutes
             };
         }
 
@@ -1316,8 +1363,10 @@ namespace ReliefManagementSystem.Application.Services
                 RequestId = request.RequestId,
                 Status = RequestVerificationStatus.Rejected,
                 Method = VerificationMethod.None,
-                Reason = dto.Reason,
-                Note = "Nguoi dan tu huy yeu cau.",
+                Reason = "Hủy bởi người gửi",
+                Note = string.IsNullOrWhiteSpace(dto.Reason)
+                    ? "Người dân tự hủy yêu cầu."
+                    : $"Người dân tự hủy yêu cầu. Lý do: {dto.Reason}",
                 VerifiedBy = userId,
                 VerifiedAt = DateTime.UtcNow
             };
