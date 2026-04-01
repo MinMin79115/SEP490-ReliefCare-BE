@@ -247,8 +247,8 @@ namespace ReliefManagementSystem.Application.Services
             if (campaign.Type != CampaignType.Relief)
                 throw new InvalidOperationException("Distribution session only supports relief campaign.");
 
-            var activeStation = campaign.CampaignStations.FirstOrDefault(cs => cs.IsActive);
-            if (activeStation == null || activeStation.ReliefStationId != reliefStationId)
+            var hasMatchingActiveStation = campaign.CampaignStations.Any(cs => cs.IsActive && cs.ReliefStationId == reliefStationId);
+            if (!hasMatchingActiveStation)
                 throw new InvalidOperationException("Campaign does not have the specified active station attached.");
         }
 

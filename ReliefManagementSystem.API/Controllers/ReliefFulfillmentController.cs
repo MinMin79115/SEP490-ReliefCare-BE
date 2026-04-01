@@ -18,6 +18,7 @@ namespace ReliefManagementSystem.API.Controllers
         }
 
         [HttpPost("/api/distributionsession/{id:guid}/fulfillments")]
+        [HttpPost("/api/distributionsessions/{id:guid}/fulfillments")]
         [Authorize(Roles = "Volunteer,Moderator,Manager,Admin")]
         public async Task<IActionResult> Create(Guid id, [FromBody] CreateReliefFulfillmentRequest request, CancellationToken cancellationToken)
         {

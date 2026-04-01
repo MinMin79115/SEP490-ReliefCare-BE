@@ -86,5 +86,15 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             return await _context.Set<DistributionSessionRequest>()
                 .AnyAsync(x => x.DistributionSessionId == distributionSessionId && x.ReliefRequestId == reliefRequestId, cancellationToken);
         }
+
+        public async Task<List<DistributionSession>> GetByCampaignAsync(Guid campaignId, CancellationToken cancellationToken = default)
+        {
+            return await _context.DistributionSessions
+                .Where(x => x.CampaignId == campaignId)
+                .Include(x => x.Items)
+                .Include(x => x.Requests)
+                .OrderByDescending(x => x.CreatedAt)
+                .ToListAsync(cancellationToken);
+        }
     }
 }

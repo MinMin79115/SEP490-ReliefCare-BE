@@ -89,7 +89,7 @@ namespace ReliefManagementSystem.Application.Services
 
             await _unitOfWork.ReliefFulfillments.AddAsync(fulfillment);
 
-            if (reliefRequest.Status == ReliefRequestStatus.Approved || reliefRequest.Status == ReliefRequestStatus.Allocated)
+            if (reliefRequest.Status == ReliefRequestStatus.Allocated)
             {
                 reliefRequest.Status = ReliefRequestStatus.Delivered;
                 reliefRequest.UpdatedAt = DateTime.UtcNow;

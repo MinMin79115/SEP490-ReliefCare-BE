@@ -21,6 +21,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .Include(r => r.Attachments)
                 .Include(r => r.Verifications)
                 .Include(r => r.ReliefNeedItems)
+                .Include(r => r.ReliefFulfillments)
                 .FirstOrDefaultAsync(cancellationToken);
         }
 
@@ -86,6 +87,38 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .Where(r => r.Status == ReliefRequestStatus.Pending)
                 .Include(r => r.AssignedReliefStation)
                 .Include(r => r.ReliefNeedItems)
+                .OrderByDescending(r => r.CreatedAt)
+                .ToListAsync(cancellationToken);
+        }
+
+        public async Task<Dictionary<int, int>> GetStatusCountsAsync(
+            Guid? campaignId = null,
+            Guid? assignedStationId = null,
+            CancellationToken cancellationToken = default)
+        {
+            var query = _context.ReliefRequests.AsQueryable();
+
+            if (campaignId.HasValue)
+            {
+                query = query.Where(r => r.CampaignId == campaignId.Value);
+            }
+
+            if (assignedStationId.HasValue)
+            {
+                query = query.Where(r => r.AssignedReliefStationId == assignedStationId.Value);
+            }
+
+            return await query
+                .GroupBy(r => (int)r.Status)
+                .Select(g => new { Status = g.Key, Count = g.Count() })
+                .ToDictionaryAsync(x => x.Status, x => x.Count, cancellationToken);
+        }
+
+        public async Task<List<ReliefRequest>> GetByCampaignAsync(Guid campaignId, CancellationToken cancellationToken = default)
+        {
+            return await _context.ReliefRequests
+                .Where(r => r.CampaignId == campaignId)
+                .Include(r => r.ReliefFulfillments)
                 .OrderByDescending(r => r.CreatedAt)
                 .ToListAsync(cancellationToken);
         }

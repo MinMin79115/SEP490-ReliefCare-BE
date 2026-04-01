@@ -169,7 +169,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             return await _context.Campaigns
                 .Include(c => c.CampaignStations)
                 .Where(c => c.Type == CampaignType.Relief
-                    && c.Status == CampaignStatus.Active
+                    && (c.Status == CampaignStatus.ReadyToExecute || c.Status == CampaignStatus.InProgress)
                     && c.CampaignStations.Any(cs => cs.ReliefStationId == reliefStationId && cs.IsActive))
                 .ToListAsync(cancellationToken);
         }

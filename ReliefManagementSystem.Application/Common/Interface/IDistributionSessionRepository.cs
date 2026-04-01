@@ -17,5 +17,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
             CancellationToken cancellationToken = default);
 
         Task<bool> ExistsRequestAssignmentAsync(Guid distributionSessionId, Guid reliefRequestId, CancellationToken cancellationToken = default);
+
+        Task<List<DistributionSession>> GetByCampaignAsync(Guid campaignId, CancellationToken cancellationToken = default);
     }
 }

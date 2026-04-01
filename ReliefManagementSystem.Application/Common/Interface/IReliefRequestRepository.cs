@@ -16,5 +16,12 @@ namespace ReliefManagementSystem.Application.Common.Interface
             CancellationToken cancellationToken = default);
 
         Task<List<ReliefRequest>> GetPendingRequestsAsync(CancellationToken cancellationToken = default);
+
+        Task<Dictionary<int, int>> GetStatusCountsAsync(
+            Guid? campaignId = null,
+            Guid? assignedStationId = null,
+            CancellationToken cancellationToken = default);
+
+        Task<List<ReliefRequest>> GetByCampaignAsync(Guid campaignId, CancellationToken cancellationToken = default);
     }
 }

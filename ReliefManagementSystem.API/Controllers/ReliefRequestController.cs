@@ -63,6 +63,18 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(result);
         }
 
+        [HttpGet("stats")]
+        [Authorize(Roles = "Moderator,Manager,Admin")]
+        [SwaggerOperation(Summary = "Lấy thống kê relief request")]
+        public async Task<IActionResult> GetStats(
+            [FromQuery] Guid? campaignId,
+            [FromQuery] Guid? assignedStationId,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _reliefRequestService.GetStatsAsync(campaignId, assignedStationId, cancellationToken);
+            return Ok(result);
+        }
+
         [HttpPost("{id}/verify")]
         [Authorize(Roles = "Moderator,Manager,Admin")]
         public async Task<IActionResult> VerifyReliefRequest(Guid id, [FromBody] VerifyReliefRequestDto request, CancellationToken cancellationToken = default)
@@ -100,6 +112,14 @@ namespace ReliefManagementSystem.API.Controllers
         public async Task<IActionResult> AssignCampaign(Guid id, [FromBody] AssignReliefRequestCampaignDto request, CancellationToken cancellationToken = default)
         {
             var result = await _reliefRequestService.AssignCampaignAsync(id, request, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpPost("{id}/complete")]
+        [Authorize(Roles = "Moderator,Manager,Admin")]
+        public async Task<IActionResult> Complete(Guid id, [FromBody] CompleteReliefRequestDto request, CancellationToken cancellationToken = default)
+        {
+            var result = await _reliefRequestService.CompleteAsync(id, request, cancellationToken);
             return Ok(result);
         }
     }

@@ -183,6 +183,11 @@ namespace ReliefManagementSystem.Application.Services
                 throw new InvalidOperationException("Rejected relief request cannot be approved.");
             }
 
+            if (request.Status != ReliefRequestStatus.Verified)
+            {
+                throw new InvalidOperationException("Only verified relief request can be approved.");
+            }
+
             request.Status = ReliefRequestStatus.Approved;
             request.ApprovedAt = DateTime.UtcNow;
             request.UpdatedAt = DateTime.UtcNow;
@@ -293,6 +298,65 @@ namespace ReliefManagementSystem.Application.Services
             return await GetReliefRequestByIdAsync(requestId, cancellationToken);
         }
 
+        public async Task<ReliefRequestResponseDto> CompleteAsync(Guid requestId, CompleteReliefRequestDto dto, CancellationToken cancellationToken = default)
+        {
+            var request = await _unitOfWork.ReliefRequests.GetByIdAsync(requestId, cancellationToken);
+            if (request == null)
+            {
+                throw new InvalidOperationException($"Relief request {requestId} not found");
+            }
+
+            if (request.Status == ReliefRequestStatus.Rejected)
+            {
+                throw new InvalidOperationException("Rejected relief request cannot be completed.");
+            }
+
+            if (!request.ReliefFulfillments.Any(f => f.Status == ReliefFulfillmentStatus.Delivered))
+            {
+                throw new InvalidOperationException("Relief request must have at least one delivered fulfillment before completion.");
+            }
+
+            request.Status = ReliefRequestStatus.Completed;
+            request.CompletedAt = DateTime.UtcNow;
+            request.UpdatedAt = DateTime.UtcNow;
+
+            if (!string.IsNullOrWhiteSpace(dto.Note))
+            {
+                request.Verifications.Add(new RequestVerification
+                {
+                    RequestVerificationId = Guid.NewGuid(),
+                    RequestId = request.RequestId,
+                    Status = RequestVerificationStatus.Approved,
+                    Method = VerificationMethod.ManualReview,
+                    Note = dto.Note,
+                    VerifiedBy = _currentUserService.UserId,
+                    VerifiedAt = DateTime.UtcNow
+                });
+            }
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            return MapToResponseDto(request);
+        }
+
+        public async Task<ReliefRequestStatsDto> GetStatsAsync(Guid? campaignId = null, Guid? assignedStationId = null, CancellationToken cancellationToken = default)
+        {
+            var counts = await _unitOfWork.ReliefRequests.GetStatusCountsAsync(campaignId, assignedStationId, cancellationToken);
+
+            int GetCount(ReliefRequestStatus status) => counts.TryGetValue((int)status, out var value) ? value : 0;
+
+            return new ReliefRequestStatsDto
+            {
+                Total = counts.Values.Sum(),
+                Pending = GetCount(ReliefRequestStatus.Pending),
+                Verified = GetCount(ReliefRequestStatus.Verified),
+                Approved = GetCount(ReliefRequestStatus.Approved),
+                Allocated = GetCount(ReliefRequestStatus.Allocated),
+                Delivered = GetCount(ReliefRequestStatus.Delivered),
+                Completed = GetCount(ReliefRequestStatus.Completed),
+                Rejected = GetCount(ReliefRequestStatus.Rejected)
+            };
+        }
+
         private async Task<ReliefStation> SelectStationForReliefRequestAsync(double requestLatitude, double requestLongitude, CancellationToken cancellationToken)
         {
             var stations = await _unitOfWork.ReliefStations.GetAllAsync();
@@ -341,7 +405,7 @@ namespace ReliefManagementSystem.Application.Services
             var campaign = await _unitOfWork.Campaigns.GetWithStationsAsync(campaignId.Value, cancellationToken);
             return campaign != null
                 && campaign.Type == CampaignType.Relief
-                && campaign.Status == CampaignStatus.Active
+                && (campaign.Status == CampaignStatus.ReadyToExecute || campaign.Status == CampaignStatus.InProgress)
                 && campaign.CampaignStations.Any(cs => cs.ReliefStationId == reliefStationId && cs.IsActive);
         }
 

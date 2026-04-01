@@ -13,5 +13,7 @@ namespace ReliefManagementSystem.Application.Interface
         Task<ReliefRequestResponseDto> RejectReliefRequestAsync(Guid requestId, RejectReliefRequestDto dto, CancellationToken cancellationToken = default);
         Task<ReliefRequestResponseDto> AssignStationAsync(Guid requestId, AssignReliefRequestStationDto dto, CancellationToken cancellationToken = default);
         Task<ReliefRequestResponseDto> AssignCampaignAsync(Guid requestId, AssignReliefRequestCampaignDto dto, CancellationToken cancellationToken = default);
+        Task<ReliefRequestResponseDto> CompleteAsync(Guid requestId, CompleteReliefRequestDto dto, CancellationToken cancellationToken = default);
+        Task<ReliefRequestStatsDto> GetStatsAsync(Guid? campaignId = null, Guid? assignedStationId = null, CancellationToken cancellationToken = default);
     }
 }
