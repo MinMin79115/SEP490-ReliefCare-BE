@@ -167,7 +167,10 @@ namespace ReliefManagementSystem.Application.Services
         {
             var moderators = await _userManager.GetUsersInRoleAsync(Role.Moderator.ToString());
             var now = DateTimeOffset.UtcNow;
-            var query = moderators.AsQueryable();
+            var moderatorIds = moderators.Select(u => u.Id).ToHashSet();
+            var query = _unitOfWork.Users
+                .GetAllUsersQueryable()
+                .Where(u => moderatorIds.Contains(u.Id));
 
             if (!string.IsNullOrWhiteSpace(request.Search))
             {

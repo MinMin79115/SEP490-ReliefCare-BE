@@ -87,6 +87,8 @@ builder.Services.AddSwaggerGen(c =>
         Version = "v1"
     });
 
+    c.CustomSchemaIds(type => type.FullName?.Replace("+", ".") ?? type.Name);
+
     c.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
     {
         Name = "Authorization",
