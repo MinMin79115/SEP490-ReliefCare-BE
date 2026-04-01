@@ -163,5 +163,15 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             _context.Set<CampaignTeam>().Update(campaignTeam);
             return Task.CompletedTask;
         }
+
+        public async Task<List<Campaign>> GetActiveReliefCampaignsByStationAsync(Guid reliefStationId, CancellationToken cancellationToken = default)
+        {
+            return await _context.Campaigns
+                .Include(c => c.CampaignStations)
+                .Where(c => c.Type == CampaignType.Relief
+                    && c.Status == CampaignStatus.Active
+                    && c.CampaignStations.Any(cs => cs.ReliefStationId == reliefStationId && cs.IsActive))
+                .ToListAsync(cancellationToken);
+        }
     }
 }

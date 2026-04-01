@@ -51,5 +51,6 @@ namespace ReliefManagementSystem.Domain.Entities
         public ICollection<CampaignResourceGoal> ResourceGoals { get; set; } = new List<CampaignResourceGoal>();
         
         public ICollection<CampaignStation> CampaignStations { get; set; } = new List<CampaignStation>();
+        public ICollection<DistributionSession> DistributionSessions { get; set; } = new List<DistributionSession>();
     }
 }

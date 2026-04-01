@@ -69,6 +69,9 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
         public ILocationRepository Locations { get; }
 
         public IRescueRequestRepository RescueRequests { get; }
+        public IReliefRequestRepository ReliefRequests { get; }
+        public IDistributionSessionRepository DistributionSessions { get; }
+        public IReliefFulfillmentRepository ReliefFulfillments { get; }
         public IRescueBatchRepository RescueBatches { get; }
         public IRescueBatchItemRepository RescueBatchItems { get; }
         public IPriorityCriteriaRepository PriorityCriterias { get; }
@@ -114,6 +117,9 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             ReliefStations = new ReliefStationRepository(_context);
             Locations = new LocationRepository(_context);
             RescueRequests = new RescueRequestRepository(_context);
+            ReliefRequests = new ReliefRequestRepository(_context);
+            DistributionSessions = new DistributionSessionRepository(_context);
+            ReliefFulfillments = new ReliefFulfillmentRepository(_context);
             RescueBatches = new RescueBatchRepository(_context);
             RescueBatchItems = new RescueBatchItemRepository(_context);
             PriorityCriterias = new PriorityCriteriaRepository(_context);
