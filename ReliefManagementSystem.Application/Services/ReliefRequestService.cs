@@ -192,20 +192,6 @@ namespace ReliefManagementSystem.Application.Services
             request.ApprovedAt = DateTime.UtcNow;
             request.UpdatedAt = DateTime.UtcNow;
 
-            if (!string.IsNullOrWhiteSpace(dto.Note))
-            {
-                request.Verifications.Add(new RequestVerification
-                {
-                    RequestVerificationId = Guid.NewGuid(),
-                    RequestId = request.RequestId,
-                    Status = RequestVerificationStatus.Approved,
-                    Method = VerificationMethod.ManualReview,
-                    Note = dto.Note,
-                    VerifiedBy = _currentUserService.UserId,
-                    VerifiedAt = DateTime.UtcNow
-                });
-            }
-
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             return MapToResponseDto(request);
         }

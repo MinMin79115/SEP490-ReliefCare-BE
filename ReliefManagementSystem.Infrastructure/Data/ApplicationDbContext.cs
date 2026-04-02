@@ -543,10 +543,6 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .HasKey(i => i.InventoryStockId);
 
             builder.Entity<InventoryStock>()
-                .Property(i => i.RowVersion)
-                .IsRowVersion();
-
-            builder.Entity<InventoryStock>()
                 .ToTable(t => t.HasCheckConstraint("CK_InventoryStocks_CurrentQuantity_NonNegative", "\"CurrentQuantity\" >= 0"));
 
             builder.Entity<InventoryStock>()

@@ -111,7 +111,7 @@ namespace ReliefManagementSystem.Application.Services
                 }
                 else
                 {
-                    session.Items.Add(new DistributionSessionItem
+                    await _unitOfWork.DistributionSessionItems.AddAsync(new DistributionSessionItem
                     {
                         DistributionSessionItemId = Guid.NewGuid(),
                         DistributionSessionId = session.DistributionSessionId,
@@ -154,18 +154,13 @@ namespace ReliefManagementSystem.Application.Services
                 if (await _unitOfWork.DistributionSessions.ExistsRequestAssignmentAsync(session.DistributionSessionId, reliefRequest.RequestId, cancellationToken))
                     continue;
 
-                session.Requests.Add(new DistributionSessionRequest
+                await _unitOfWork.DistributionSessionRequests.AddAsync(new DistributionSessionRequest
                 {
                     DistributionSessionId = session.DistributionSessionId,
                     ReliefRequestId = reliefRequest.RequestId,
                     PlannedNote = requestInput.PlannedNote
                 });
 
-                if (reliefRequest.Status == ReliefRequestStatus.Approved)
-                {
-                    reliefRequest.Status = ReliefRequestStatus.Allocated;
-                    reliefRequest.UpdatedAt = DateTime.UtcNow;
-                }
             }
 
             session.UpdatedAt = DateTime.UtcNow;
