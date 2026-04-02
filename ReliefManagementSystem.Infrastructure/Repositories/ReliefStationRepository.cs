@@ -43,6 +43,8 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
         {
             var query = _context.ReliefStations
                 .Include(x => x.Location)
+                .Include(x => x.Moderators)
+                    .ThenInclude(m => m.User)
                 .Where(x => x.Level == ReliefStationLevel.Provincial || x.Level == ReliefStationLevel.Regional);
 
             if (!string.IsNullOrWhiteSpace(request.Search))

@@ -88,8 +88,8 @@ namespace ReliefManagementSystem.API.Controllers
         [HttpPut("{stationId:guid}/assign-moderator")]
         public async Task<IActionResult> AssignModerator(Guid stationId, [FromBody] AssignModeratorRequest request, CancellationToken cancellationToken)
         {
-            await _stationService.AssignModeratorAsync(stationId, request, cancellationToken);
-            return NoContent();
+            var result = await _stationService.AssignModeratorAsync(stationId, request, cancellationToken);
+            return Ok(result);
         }
 
         [Authorize(Roles = "Moderator")]

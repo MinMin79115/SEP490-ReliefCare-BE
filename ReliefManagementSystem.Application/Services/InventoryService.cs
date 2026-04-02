@@ -206,6 +206,7 @@ namespace ReliefManagementSystem.Application.Services
                 InventoryId = inventoryId,
                 SupplyItemId = request.SupplyItemId,
                 CurrentQuantity = request.CurrentQuantity,
+                ExpirationDate = request.ExpirationDate,
                 MinimumStockLevel = request.MinimumStockLevel,
                 MaximumStockLevel = request.MaximumStockLevel
             };
@@ -329,6 +330,7 @@ namespace ReliefManagementSystem.Application.Services
             SupplyItemUnit = s.SupplyItem?.Unit ?? string.Empty,
             SupplyItemCategory = s.SupplyItem?.Category ?? SupplyCategory.Khac,
             CurrentQuantity = s.CurrentQuantity,
+            ExpirationDate = s.ExpirationDate,
             MinimumStockLevel = s.MinimumStockLevel,
             MaximumStockLevel = s.MaximumStockLevel,
             StockStatus = s.InventoryStatus

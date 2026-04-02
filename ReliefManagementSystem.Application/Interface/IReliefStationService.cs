@@ -23,7 +23,7 @@ namespace ReliefManagementSystem.Application.Interface
         
         Task<ReliefStationResponse> ActivateProvincialStationAsync(Guid stationId, CancellationToken cancellationToken);
 
-        Task AssignModeratorAsync(Guid stationId, AssignModeratorRequest request, CancellationToken cancellationToken);
+        Task<ReliefStationResponse> AssignModeratorAsync(Guid stationId, AssignModeratorRequest request, CancellationToken cancellationToken);
 
         Task<StationTeamResponse> AssignTeamToStationAsync(Guid stationId, AssignTeamRequest request, CancellationToken cancellationToken);
 
