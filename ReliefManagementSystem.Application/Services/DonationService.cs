@@ -206,6 +206,8 @@ namespace ReliefManagementSystem.Application.Services
 
         public async Task<Pagination<AdminDonationItemResponse>> GetAdminDonationsAsync(AdminDonationQueryRequest request, CancellationToken cancellationToken = default)
         {
+            NormalizePeriod(request);
+
             var items = await _unitOfWork.Donations.GetPagedAsync(
                 request.PageIndex,
                 request.PageSize,
@@ -345,9 +347,18 @@ namespace ReliefManagementSystem.Application.Services
             return MapStatus(donation);
         }
 
-        public async Task<AdminDonationStatsResponse> GetStatsAsync(CancellationToken cancellationToken = default)
+        public async Task<AdminDonationStatsResponse> GetStatsAsync(AdminDonationQueryRequest? request = null, CancellationToken cancellationToken = default)
         {
-            var all = await _unitOfWork.Donations.GetAllAsync();
+            request ??= new AdminDonationQueryRequest();
+            NormalizePeriod(request);
+
+            var all = await _unitOfWork.Donations.GetAllFilteredAsync(
+                request.Status,
+                request.CampaignId,
+                request.Keyword,
+                request.FromDate,
+                request.ToDate,
+                cancellationToken);
 
             return new AdminDonationStatsResponse
             {
@@ -363,6 +374,8 @@ namespace ReliefManagementSystem.Application.Services
 
         public async Task<string> ExportCsvAsync(AdminDonationQueryRequest request, CancellationToken cancellationToken = default)
         {
+            NormalizePeriod(request);
+
             var donations = await _unitOfWork.Donations.GetAllFilteredAsync(
                 request.Status,
                 request.CampaignId,
@@ -435,6 +448,44 @@ namespace ReliefManagementSystem.Application.Services
         {
             var value = $"DN{orderCode}";
             return value.Length > 25 ? value[..25] : value;
+        }
+
+        private static void NormalizePeriod(AdminDonationQueryRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Period))
+            {
+                return;
+            }
+
+            var now = DateTime.UtcNow;
+            DateTime from;
+            DateTime to;
+
+            switch (request.Period.Trim().ToLowerInvariant())
+            {
+                case "day":
+                    from = now.Date;
+                    to = from.AddDays(1).AddTicks(-1);
+                    break;
+                case "week":
+                    var diff = ((int)now.DayOfWeek + 6) % 7;
+                    from = now.Date.AddDays(-diff);
+                    to = from.AddDays(7).AddTicks(-1);
+                    break;
+                case "month":
+                    from = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+                    to = from.AddMonths(1).AddTicks(-1);
+                    break;
+                case "year":
+                    from = new DateTime(now.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                    to = from.AddYears(1).AddTicks(-1);
+                    break;
+                default:
+                    throw new InvalidOperationException("Period must be one of: day, week, month, year.");
+            }
+
+            request.FromDate = from;
+            request.ToDate = to;
         }
 
         private static long BuildOrderCode(DateTime nowUtc)
