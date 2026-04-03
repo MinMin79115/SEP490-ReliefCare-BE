@@ -116,9 +116,9 @@ namespace ReliefManagementSystem.API.Controllers
 
         [HttpGet("admin/stats")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> GetStats(CancellationToken cancellationToken)
+        public async Task<IActionResult> GetStats([FromQuery] AdminDonationQueryRequest request, CancellationToken cancellationToken)
         {
-            var result = await _donationService.GetStatsAsync(cancellationToken);
+            var result = await _donationService.GetStatsAsync(request, cancellationToken);
             return Ok(result);
         }
 

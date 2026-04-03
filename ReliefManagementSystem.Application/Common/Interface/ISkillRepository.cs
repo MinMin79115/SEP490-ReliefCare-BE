@@ -9,6 +9,6 @@ namespace ReliefManagementSystem.Application.Common.Interface
 {
     public interface ISkillRepository : IGenericRepository<Skill>
     {
-
+        IQueryable<Skill> GetQueryable();
     }
 }

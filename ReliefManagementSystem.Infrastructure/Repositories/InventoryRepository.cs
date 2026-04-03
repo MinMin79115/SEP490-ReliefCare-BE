@@ -60,6 +60,19 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .ToListAsync(cancellationToken);
         }
 
+        public async Task<Inventory?> GetActiveByReliefStationAsync(
+            Guid reliefStationId,
+            CancellationToken cancellationToken = default)
+        {
+            return await _dbSet
+                .AsNoTracking()
+                .Include(i => i.ReliefStation)
+                .Include(i => i.InventoryItems)
+                .Where(i => i.ReliefStationId == reliefStationId && i.Status == EntityStatus.Active)
+                .OrderBy(i => i.Level)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
         /// <inheritdoc/>
         public async Task<bool> IsLevelExistsForStationAsync(
             Guid reliefStationId,

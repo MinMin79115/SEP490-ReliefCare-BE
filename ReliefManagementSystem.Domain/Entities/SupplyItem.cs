@@ -22,6 +22,8 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public string Unit { get; set; } = null!; 
 
+        public decimal? EstimatedUnitCost { get; set; }
+
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 
         public DateTime? UpdatedAt { get; set; }
@@ -29,6 +31,7 @@ namespace ReliefManagementSystem.Domain.Entities
         public ICollection<InventoryStock> InventoryItems { get; set; } = new List<InventoryStock>();
         public ICollection<InventoryTransactionItem> InventoryTransactionItems { get; set; } = new List<InventoryTransactionItem>();
         public ICollection<SupplyAllocationItem> SupplyAllocationItems { get; set; } = new List<SupplyAllocationItem>();
+        public ICollection<ReliefFulfillmentItem> ReliefFulfillmentItems { get; set; } = new List<ReliefFulfillmentItem>();
         public ICollection<InKindDonationDetail> InKindDonationDetails { get; set; } = new List<InKindDonationDetail>();
 
     }

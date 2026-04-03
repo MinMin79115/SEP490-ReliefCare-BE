@@ -5,6 +5,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using ReliefManagementSystem.Application.Common.Interface;
+using ReliefManagementSystem.Application.Common.Models;
+using ReliefManagementSystem.Application.Features.ReliefStation.DTOs.Request;
 using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Domain.Enum;
 using ReliefManagementSystem.Infrastructure.Data;
@@ -35,27 +37,30 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 x.ReliefStationId != excludeStationId);
         }
 
-        public async Task<(List<ReliefStation> Items, int TotalCount)> GetProvincialStationsAsync(
-            string? search, int pageIndex, int pageSize, CancellationToken cancellationToken)
+        public async Task<Pagination<ReliefStation>> GetProvincialStationsAsync(
+            GetAllStationsRequest request,
+            CancellationToken cancellationToken)
         {
             var query = _context.ReliefStations
                 .Include(x => x.Location)
-                .Where(x => x.Level == ReliefStationLevel.Provincial);
+                .Include(x => x.Moderators)
+                    .ThenInclude(m => m.User)
+                .Where(x => x.Level == ReliefStationLevel.Provincial || x.Level == ReliefStationLevel.Regional);
 
-            if (!string.IsNullOrWhiteSpace(search))
+            if (!string.IsNullOrWhiteSpace(request.Search))
             {
-                query = query.Where(x => x.Name.Contains(search));
+                var keyword = request.Search.Trim();
+                query = query.Where(x =>
+                    x.Name.Contains(keyword) ||
+                    (x.Address ?? string.Empty).Contains(keyword) ||
+                    (x.ContactNumber ?? string.Empty).Contains(keyword));
             }
 
-            var totalCount = await query.CountAsync(cancellationToken);
-
-            var items = await query
+            query = query
                 .OrderBy(x => x.Name)
-                .Skip((pageIndex - 1) * pageSize)
-                .Take(pageSize)
-                .ToListAsync(cancellationToken);
+                .AsQueryable();
 
-            return (items, totalCount);
+            return await Pagination<ReliefStation>.ToPagedList(query, request.PageIndex, request.PageSize);
         }
 
     }

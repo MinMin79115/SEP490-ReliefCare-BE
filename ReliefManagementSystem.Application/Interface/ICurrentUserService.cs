@@ -10,5 +10,6 @@ namespace ReliefManagementSystem.Application.Interface
     {
         Guid? UserId { get; }
         string? Email { get; }
+        string? DisplayName { get; }
     }
 }

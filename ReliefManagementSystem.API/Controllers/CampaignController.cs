@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 using ReliefManagementSystem.Application.Features.Campaign.Dtos.Requests;
 using ReliefManagementSystem.Application.Interface;
 
@@ -37,6 +38,14 @@ namespace ReliefManagementSystem.API.Controllers
         public async Task<IActionResult> GetById(Guid id, CancellationToken cancellationToken)
         {
             var result = await _campaignService.GetByIdAsync(id, cancellationToken);
+            return Ok(result);
+        }
+
+        [AllowAnonymous]
+        [HttpGet("{id:guid}/summary")]
+        public async Task<IActionResult> GetPublicSummary(Guid id, CancellationToken cancellationToken)
+        {
+            var result = await _campaignService.GetPublicSummaryAsync(id, cancellationToken);
             return Ok(result);
         }
 
@@ -113,6 +122,29 @@ namespace ReliefManagementSystem.API.Controllers
         {
             await _campaignService.RemoveTeamAsync(id, teamId, cancellationToken);
             return NoContent();
+        }
+
+        [Authorize]
+        [HttpPost("{id:guid}/volunteer-registrations")]
+        public async Task<IActionResult> RegisterVolunteer(Guid id, CancellationToken cancellationToken)
+        {
+            var result = await _campaignService.RegisterVolunteerAsync(id, cancellationToken);
+            return Ok(result);
+        }
+
+        [Authorize]
+        [HttpDelete("{id:guid}/volunteer-registrations/me")]
+        public async Task<IActionResult> CancelVolunteerRegistration(Guid id, CancellationToken cancellationToken)
+        {
+            await _campaignService.CancelVolunteerRegistrationAsync(id, cancellationToken);
+            return NoContent();
+        }
+
+        [HttpGet("{id:guid}/volunteer-registrations")]
+        public async Task<IActionResult> GetVolunteerRegistrations(Guid id, CancellationToken cancellationToken)
+        {
+            var result = await _campaignService.GetVolunteerRegistrationsAsync(id, cancellationToken);
+            return Ok(result);
         }
     }
 }

@@ -13,7 +13,7 @@ namespace ReliefManagementSystem.Application.Interface
         Task<AdminDonationDetailResponse> GetAdminDonationDetailAsync(Guid donationId, CancellationToken cancellationToken = default);
         Task<DonationStatusResponse> ReconcileAsync(Guid donationId, CancellationToken cancellationToken = default);
         Task<DonationStatusResponse> CancelPendingAsync(Guid donationId, string? reason, CancellationToken cancellationToken = default);
-        Task<AdminDonationStatsResponse> GetStatsAsync(CancellationToken cancellationToken = default);
+        Task<AdminDonationStatsResponse> GetStatsAsync(AdminDonationQueryRequest? request = null, CancellationToken cancellationToken = default);
         Task<string> ExportCsvAsync(AdminDonationQueryRequest request, CancellationToken cancellationToken = default);
     }
 }

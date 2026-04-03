@@ -22,5 +22,9 @@ namespace ReliefManagementSystem.Application.Common.Interface
         /// Lấy IQueryable danh sách tất cả users để hỗ trợ phân trang
         /// </summary>
         IQueryable<ApplicationUser> GetAllUsersQueryable();
+
+        IQueryable<ApplicationUser> GetQueryableWithVolunteerProfile();
+
+        Task<ApplicationUser> GetUserById(Guid userId);
     }
 }

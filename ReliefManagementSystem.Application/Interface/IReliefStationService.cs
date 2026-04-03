@@ -13,8 +13,9 @@ namespace ReliefManagementSystem.Application.Interface
 
         Task<ReliefStationResponse> UpdateProvincialReliefStationAsync(Guid stationId, UpdateProvincialStationRequest request, CancellationToken cancellationToken);
 
-        Task<(List<ReliefStationResponse> Items, int TotalCount)> GetProvincialStationsAsync(
-            string? search, int pageIndex, int pageSize, CancellationToken cancellationToken);
+        Task<Pagination<ReliefStationResponse>> GetProvincialStationsAsync(
+            GetAllStationsRequest request,
+            CancellationToken cancellationToken);
 
         Task<ReliefStationResponse> GetCurrentModeratorStationAsync(CancellationToken cancellationToken);
 
@@ -22,7 +23,7 @@ namespace ReliefManagementSystem.Application.Interface
         
         Task<ReliefStationResponse> ActivateProvincialStationAsync(Guid stationId, CancellationToken cancellationToken);
 
-        Task AssignModeratorAsync(Guid stationId, AssignModeratorRequest request, CancellationToken cancellationToken);
+        Task<ReliefStationResponse> AssignModeratorAsync(Guid stationId, AssignModeratorRequest request, CancellationToken cancellationToken);
 
         Task<StationTeamResponse> AssignTeamToStationAsync(Guid stationId, AssignTeamRequest request, CancellationToken cancellationToken);
 

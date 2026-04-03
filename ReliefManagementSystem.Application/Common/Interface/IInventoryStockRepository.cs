@@ -13,6 +13,12 @@ namespace ReliefManagementSystem.Application.Common.Interface
         Task<IReadOnlyList<InventoryStock>> GetByInventoryIdAsync(Guid inventoryId, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Gets all stock entries for update within the current DbContext tracking scope.
+        /// SupplyItem navigation is not included to avoid tracked-entity conflicts.
+        /// </summary>
+        Task<List<InventoryStock>> GetByInventoryIdForUpdateAsync(Guid inventoryId, CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Gets a single stock entry for a given inventory and supply item combination.
         /// Returns null if not found.
         /// </summary>

@@ -5,10 +5,12 @@ using ReliefManagementSystem.Application.Common.Interface;
 using ReliefManagementSystem.Application.Features;
 using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Infrastructure.Data;
+using ReliefManagementSystem.Infrastructure.Map;
 using ReliefManagementSystem.Infrastructure.Persistence;
 using ReliefManagementSystem.Infrastructure.Payments;
 using ReliefManagementSystem.Infrastructure.Repositories;
 using ReliefManagementSystem.Infrastructure.Security;
+using ReliefManagementSystem.Infrastructure.Weather;
 
 namespace ReliefManagementSystem.Infrastructure
 {
@@ -21,7 +23,7 @@ namespace ReliefManagementSystem.Infrastructure
             //db context
             services.AddDbContext<ApplicationDbContext>(options =>
              options.UseNpgsql(
-         configuration.GetConnectionString("DefaultConnection")));
+         configuration.GetConnectionString("Default")));
 
             services.AddHttpContextAccessor();
 
@@ -40,6 +42,7 @@ namespace ReliefManagementSystem.Infrastructure
             // Team repositories
             services.AddScoped<ITeamRepository, TeamRepository>();
             services.AddScoped<ITeamMemberRepository, TeamMemberRepository>();
+            services.AddScoped<ITeamTrackingPointRepository, TeamTrackingPointRepository>();
             services.AddScoped<ITeamJoinRequestRepository, TeamJoinRequestRepository>();
             services.AddScoped<IStationJoinRequestRepository, StationJoinRequestRepository>();
 
@@ -55,12 +58,14 @@ namespace ReliefManagementSystem.Infrastructure
             services.AddScoped<IInventoryRepository, InventoryRepository>();
             services.AddScoped<IInventoryStockRepository, InventoryStockRepository>();
             services.AddScoped<IInventoryTransactionRepository, InventoryTransactionRepository>();
+            services.AddScoped<ISupplyTransferRepository, SupplyTransferRepository>();
             // Relief Station repositories
             services.AddScoped<IReliefStationRepository, ReliefStationRepository>();
             services.AddScoped<IReliefStationTeamRepository, ReliefStationTeamRepository>();
             // Supply Allocation repositories
             services.AddScoped<ISupplyAllocationRepository, SupplyAllocationRepository>();
             services.AddScoped<ICampaignRepository, CampaignRepository>();
+            services.AddScoped<ICampaignVolunteerRegistrationRepository, CampaignVolunteerRegistrationRepository>();
             services.AddScoped<IDonationRepository, DonationRepository>();
             services.AddScoped<IPaymentTransactionRepository, PaymentTransactionRepository>();
 
@@ -72,9 +77,16 @@ namespace ReliefManagementSystem.Infrastructure
 
 
             services.AddScoped<IRescueRequestRepository, RescueRequestRepository>();
+            services.AddScoped<IReliefRequestRepository, ReliefRequestRepository>();
+            services.AddScoped<IDistributionSessionRepository, DistributionSessionRepository>();
+            services.AddScoped<IReliefFulfillmentRepository, ReliefFulfillmentRepository>();
+            services.AddScoped<IRescueBatchRepository, RescueBatchRepository>();
+            services.AddScoped<IRescueBatchItemRepository, RescueBatchItemRepository>();
             services.AddScoped<IPriorityCriteriaRepository, PriorityCriteriaRepository>();
             services.AddScoped<IRescueRequestPriorityRepository, RescueRequestPriorityRepository>();
             services.AddScoped<IRescueOperationRepository, RescueOperationRepository>();
+            services.AddHttpClient<IGoongDistanceService, GoongDistanceService>();
+            services.AddHttpClient<IWeatherService, WeatherService>();
             services.AddHttpClient<IPayOsGateway, PayOsGateway>();
             return services;
 

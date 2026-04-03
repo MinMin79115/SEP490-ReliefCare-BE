@@ -76,6 +76,7 @@ namespace ReliefManagementSystem.Application.Services
                     ContactNumber = request.ContactNumber,
                     Longitude = request.Longitude,
                     Latitude = request.Latitude,
+                    CoverageRadiusKm = request.CoverageRadiusKm,
 
                     Level = ReliefStationLevel.Provincial,
                     ReliefStationStatus = ReliefStationStatus.Active,
@@ -145,6 +146,7 @@ namespace ReliefManagementSystem.Application.Services
             station.ContactNumber = request.ContactNumber;
             station.Longitude = request.Longitude;
             station.Latitude = request.Latitude;
+            station.CoverageRadiusKm = request.CoverageRadiusKm;
 
             _unitOfWork.ReliefStations.UpdateAsync(station);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -158,6 +160,7 @@ namespace ReliefManagementSystem.Application.Services
                 ContactNumber = station.ContactNumber,
                 Longitude = station.Longitude,
                 Latitude = station.Latitude,
+                CoverageRadiusKm = station.CoverageRadiusKm,
                 Status = station.ReliefStationStatus,
                 Level = station.Level,
                 LocationId = station.LocationId,
@@ -165,20 +168,27 @@ namespace ReliefManagementSystem.Application.Services
                 UpdatedAt = station.UpdatedAt
             };
         }
-        public async Task<(List<ReliefStationResponse> Items, int TotalCount)> GetProvincialStationsAsync(
-            string? search, int pageIndex, int pageSize, CancellationToken cancellationToken)
+        public async Task<Pagination<ReliefStationResponse>> GetProvincialStationsAsync(
+            GetAllStationsRequest request,
+            CancellationToken cancellationToken)
         {
-            var (stations, totalCount) = await _unitOfWork.ReliefStations
-                .GetProvincialStationsAsync(search, pageIndex, pageSize, cancellationToken);
+            var pagedStations = await _unitOfWork.ReliefStations
+                .GetProvincialStationsAsync(request, cancellationToken);
 
-            var items = stations.Select(s => new ReliefStationResponse
+            var items = pagedStations.Items!.Select(s => new ReliefStationResponse
             {
                 ReliefStationId = s.ReliefStationId,
                 Name = s.Name,
+                ModeratorName = s.Moderators
+                    .FirstOrDefault(m => m.IsStationHead)?.User?.DisplayName
+                    ?? s.Moderators.FirstOrDefault(m => m.IsStationHead)?.User?.UserName
+                    ?? s.Moderators.FirstOrDefault(m => m.IsStationHead)?.User?.Email
+                    ?? string.Empty,
                 Address = s.Address,
                 ContactNumber = s.ContactNumber,
                 Longitude = s.Longitude,
                 Latitude = s.Latitude,
+                CoverageRadiusKm = s.CoverageRadiusKm,
                 Status = s.ReliefStationStatus,
                 Level = s.Level,
                 LocationId = s.LocationId,
@@ -187,7 +197,11 @@ namespace ReliefManagementSystem.Application.Services
                 UpdatedAt = s.UpdatedAt
             }).ToList();
 
-            return (items, totalCount);
+            return new Pagination<ReliefStationResponse>(
+                items,
+                pagedStations.TotalCount,
+                pagedStations.CurrentPage,
+                pagedStations.PageSize);
         }
 
         public async Task<ReliefStationResponse> GetCurrentModeratorStationAsync(CancellationToken cancellationToken)
@@ -197,6 +211,7 @@ namespace ReliefManagementSystem.Application.Services
             {
                 throw new ModeratorProfileNotFoundException();
             }
+            var currentUser = await _unitOfWork.Users.GetUserById(currentUserId.Value);
 
             var moderatorProfile = await _unitOfWork.ModeratorProfiles
                 .GetByUserIdAsync(currentUserId.Value, cancellationToken);
@@ -218,10 +233,12 @@ namespace ReliefManagementSystem.Application.Services
             {
                 ReliefStationId = station.ReliefStationId,
                 Name = station.Name,
+                ModeratorName = currentUser?.DisplayName ?? string.Empty,
                 Address = station.Address,
                 ContactNumber = station.ContactNumber,
                 Longitude = station.Longitude,
                 Latitude = station.Latitude,
+                CoverageRadiusKm = station.CoverageRadiusKm,
                 Status = station.ReliefStationStatus,
                 Level = station.Level,
                 LocationId = station.LocationId,
@@ -267,6 +284,7 @@ namespace ReliefManagementSystem.Application.Services
                 ContactNumber = station.ContactNumber,
                 Longitude = station.Longitude,
                 Latitude = station.Latitude,
+                CoverageRadiusKm = station.CoverageRadiusKm,
                 Status = station.ReliefStationStatus,
                 Level = station.Level,
                 LocationId = station.LocationId,
@@ -315,6 +333,7 @@ namespace ReliefManagementSystem.Application.Services
                 ContactNumber = station.ContactNumber,
                 Longitude = station.Longitude,
                 Latitude = station.Latitude,
+                CoverageRadiusKm = station.CoverageRadiusKm,
                 Status = station.ReliefStationStatus,
                 Level = station.Level,
                 LocationId = station.LocationId,
@@ -324,7 +343,7 @@ namespace ReliefManagementSystem.Application.Services
             };
         }
 
-        public async Task AssignModeratorAsync(Guid stationId, AssignModeratorRequest request, CancellationToken cancellationToken)
+        public async Task<ReliefStationResponse> AssignModeratorAsync(Guid stationId, AssignModeratorRequest request, CancellationToken cancellationToken)
         {
             // 1. Kiểm tra trạm tồn tại
             var station = await _unitOfWork.ReliefStations.GetByIdAsync(stationId);
@@ -358,6 +377,30 @@ namespace ReliefManagementSystem.Application.Services
             await _unitOfWork.ModeratorProfiles.UpdateAsync(moderatorProfile);
             
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            var moderatorUser = await _unitOfWork.Users.GetUserById(request.ModeratorUserId);
+            var locationName = await _unitOfWork.Locations.GetFullNameByLocationId(station.LocationId);
+
+            return new ReliefStationResponse
+            {
+                ReliefStationId = station.ReliefStationId,
+                Name = station.Name,
+                ModeratorName = moderatorUser?.DisplayName
+                    ?? moderatorUser?.UserName
+                    ?? moderatorUser?.Email
+                    ?? string.Empty,
+                Address = station.Address,
+                ContactNumber = station.ContactNumber,
+                Longitude = station.Longitude,
+                Latitude = station.Latitude,
+                CoverageRadiusKm = station.CoverageRadiusKm,
+                Status = station.ReliefStationStatus,
+                Level = station.Level,
+                LocationId = station.LocationId,
+                LocationName = locationName,
+                CreatedAt = station.CreatedAt,
+                UpdatedAt = station.UpdatedAt
+            };
         }
 
         public async Task<StationTeamResponse> AssignTeamToStationAsync(Guid stationId, AssignTeamRequest request, CancellationToken cancellationToken)

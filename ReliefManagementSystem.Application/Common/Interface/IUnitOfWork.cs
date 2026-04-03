@@ -1,8 +1,11 @@
-﻿using System;
+﻿using ReliefManagementSystem.Domain.Entities;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+
+using System.Data;
 
 namespace ReliefManagementSystem.Application.Common.Interface
 {
@@ -21,6 +24,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
         
         ITeamRepository Teams { get; }
         ITeamMemberRepository TeamMembers { get; }
+        ITeamTrackingPointRepository TeamTrackingPoints { get; }
         ITeamJoinRequestRepository TeamJoinRequests { get; }
         IStationJoinRequestRepository StationJoinRequests { get; }
 
@@ -37,6 +41,8 @@ namespace ReliefManagementSystem.Application.Common.Interface
         IInventoryRepository Inventories { get; }
         IInventoryStockRepository InventoryStocks { get; }
         IInventoryTransactionRepository InventoryTransactions { get; }
+        ISupplyTransferRepository SupplyTransfers { get; }
+        IProcurementOrderRepository ProcurementOrders { get; }
 
         // Relief Station Management
         IReliefStationTeamRepository ReliefStationTeams { get; }
@@ -46,7 +52,9 @@ namespace ReliefManagementSystem.Application.Common.Interface
 
         // Campaign (stub for validation — full module TBD)
         ICampaignRepository Campaigns { get; }
+        ICampaignVolunteerRegistrationRepository CampaignVolunteerRegistrations { get; }
         IDonationRepository Donations { get; }
+        IFundRepository Funds { get; }
         IPaymentTransactionRepository PaymentTransactions { get; }
 
         // Relief Station Management
@@ -57,12 +65,28 @@ namespace ReliefManagementSystem.Application.Common.Interface
 
         IRescueOperationRepository RescueOperations { get; }
         IRescueRequestRepository RescueRequests { get; }
+        IReliefRequestRepository ReliefRequests { get; }
+        IDistributionSessionRepository DistributionSessions { get; }
+        IGenericRepository<DistributionSessionItem> DistributionSessionItems { get; }
+        IGenericRepository<DistributionSessionRequest> DistributionSessionRequests { get; }
+        IReliefFulfillmentRepository ReliefFulfillments { get; }
+        IRescueBatchRepository RescueBatches { get; }
+        IRescueBatchItemRepository RescueBatchItems { get; }
         IRescueRequestPriorityRepository RescueRequestPriorities { get; }
         IPriorityCriteriaRepository PriorityCriterias { get; }
 
         INotificationRepository Notifications { get; }
+        IAttachmentRepository Attachments { get; }
         Task<int> SaveChangesAsync(
         CancellationToken cancellationToken = default);
+
+        Task BeginTransactionAsync(
+            CancellationToken cancellationToken = default,
+            IsolationLevel isolationLevel = IsolationLevel.ReadCommitted);
+
+        Task CommitTransactionAsync(CancellationToken cancellationToken = default);
+
+        Task RollbackTransactionAsync(CancellationToken cancellationToken = default);
 
     }
 }

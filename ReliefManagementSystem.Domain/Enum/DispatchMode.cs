@@ -8,8 +8,8 @@ namespace ReliefManagementSystem.Domain.Enum
 {
     public enum DispatchMode
     {
+        SingleStationRadius,
         NearestStation,
         MultipleStations,
-        ProvinceBroadcast
     }
 }

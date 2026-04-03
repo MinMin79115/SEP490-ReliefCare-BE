@@ -13,6 +13,9 @@ namespace ReliefManagementSystem.Application.Features.InventoryTransaction.DTOs.
         [Required(ErrorMessage = "InventoryId is required.")]
         public Guid InventoryId { get; set; }
 
+        /// <summary>Optional linked supply transfer when transaction is created from transfer workflow.</summary>
+        public Guid? SupplyTransferId { get; set; }
+
         /// <summary>Import (1 - nhập kho) or Export (2 - xuất kho).</summary>
         [Required(ErrorMessage = "Type is required.")]
         public TransactionType Type { get; set; }

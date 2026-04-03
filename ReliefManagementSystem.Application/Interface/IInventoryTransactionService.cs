@@ -14,6 +14,7 @@ namespace ReliefManagementSystem.Application.Interface
         /// <summary>Creates a new transaction and atomically updates stock quantities.</summary>
         Task<TransactionResponse> CreateTransactionAsync(
             CreateTransactionRequest request,
+            bool autoSave = true,
             CancellationToken cancellationToken = default);
 
         /// <summary>Gets a transaction by ID with full line-item details.</summary>

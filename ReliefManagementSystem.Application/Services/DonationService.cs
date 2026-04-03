@@ -20,17 +20,20 @@ namespace ReliefManagementSystem.Application.Services
         private readonly ICurrentUserService _currentUserService;
         private readonly IPayOsGateway _payOsGateway;
         private readonly ICampaignService _campaignService;
+        private readonly IFundService _fundService;
 
         public DonationService(
             IUnitOfWork unitOfWork,
             ICurrentUserService currentUserService,
             IPayOsGateway payOsGateway,
-            ICampaignService campaignService)
+            ICampaignService campaignService,
+            IFundService fundService)
         {
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
             _payOsGateway = payOsGateway;
             _campaignService = campaignService;
+            _fundService = fundService;
         }
 
         public async Task<CreateDonationCheckoutResponse> CreateCheckoutAsync(CreateDonationCheckoutRequest request, CancellationToken cancellationToken = default)
@@ -198,11 +201,13 @@ namespace ReliefManagementSystem.Application.Services
             await _unitOfWork.Donations.UpdateAsync(donation);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            await AdjustCampaignProgressAsync(donation.CampaignId, donation.Amount, previousStatus, donation.Status, cancellationToken);
+            await AdjustCampaignProgressAsync(donation, previousStatus, donation.Status, cancellationToken);
         }
 
         public async Task<Pagination<AdminDonationItemResponse>> GetAdminDonationsAsync(AdminDonationQueryRequest request, CancellationToken cancellationToken = default)
         {
+            NormalizePeriod(request);
+
             var items = await _unitOfWork.Donations.GetPagedAsync(
                 request.PageIndex,
                 request.PageSize,
@@ -306,7 +311,7 @@ namespace ReliefManagementSystem.Application.Services
             await _unitOfWork.Donations.UpdateAsync(donation);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            await AdjustCampaignProgressAsync(donation.CampaignId, donation.Amount, previousStatus, donation.Status, cancellationToken);
+            await AdjustCampaignProgressAsync(donation, previousStatus, donation.Status, cancellationToken);
 
             return MapStatus(donation);
         }
@@ -337,14 +342,23 @@ namespace ReliefManagementSystem.Application.Services
             await _unitOfWork.Donations.UpdateAsync(donation);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            await AdjustCampaignProgressAsync(donation.CampaignId, donation.Amount, previousStatus, donation.Status, cancellationToken);
+            await AdjustCampaignProgressAsync(donation, previousStatus, donation.Status, cancellationToken);
 
             return MapStatus(donation);
         }
 
-        public async Task<AdminDonationStatsResponse> GetStatsAsync(CancellationToken cancellationToken = default)
+        public async Task<AdminDonationStatsResponse> GetStatsAsync(AdminDonationQueryRequest? request = null, CancellationToken cancellationToken = default)
         {
-            var all = await _unitOfWork.Donations.GetAllAsync();
+            request ??= new AdminDonationQueryRequest();
+            NormalizePeriod(request);
+
+            var all = await _unitOfWork.Donations.GetAllFilteredAsync(
+                request.Status,
+                request.CampaignId,
+                request.Keyword,
+                request.FromDate,
+                request.ToDate,
+                cancellationToken);
 
             return new AdminDonationStatsResponse
             {
@@ -360,6 +374,8 @@ namespace ReliefManagementSystem.Application.Services
 
         public async Task<string> ExportCsvAsync(AdminDonationQueryRequest request, CancellationToken cancellationToken = default)
         {
+            NormalizePeriod(request);
+
             var donations = await _unitOfWork.Donations.GetAllFilteredAsync(
                 request.Status,
                 request.CampaignId,
@@ -390,8 +406,7 @@ namespace ReliefManagementSystem.Application.Services
         }
 
         private async Task AdjustCampaignProgressAsync(
-            Guid campaignId,
-            decimal amount,
+            Domain.Entities.Donation donation,
             DonationStatus previousStatus,
             DonationStatus newStatus,
             CancellationToken cancellationToken)
@@ -401,15 +416,31 @@ namespace ReliefManagementSystem.Application.Services
                 return;
             }
 
+            var campaign = await _unitOfWork.Campaigns.GetWithGoalsAsync(donation.CampaignId, cancellationToken)
+                ?? throw new DonationCampaignNotFoundException(donation.CampaignId);
+
             if (previousStatus != DonationStatus.Completed && newStatus == DonationStatus.Completed)
             {
                 // Transition into Completed: add the donated amount
-                await _campaignService.UpdateProgressAsync(campaignId, CampaignResourceType.Money, amount, cancellationToken);
+                await _campaignService.UpdateProgressAsync(donation.CampaignId, CampaignResourceType.Money, donation.Amount, cancellationToken);
+                campaign.BudgetTotal += donation.Amount;
+                await _unitOfWork.Campaigns.UpdateAsync(campaign);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _fundService.EnsureContributionForCompletedDonationAsync(donation, cancellationToken);
             }
             else if (previousStatus == DonationStatus.Completed && newStatus != DonationStatus.Completed)
             {
                 // Transition out of Completed (refund, correction, cancel): subtract the donated amount
-                await _campaignService.UpdateProgressAsync(campaignId, CampaignResourceType.Money, -amount, cancellationToken);
+                if (campaign.BudgetTotal - donation.Amount < campaign.BudgetSpent)
+                {
+                    throw new DonationInvalidStateException("Không thể giảm BudgetTotal xuống thấp hơn BudgetSpent của campaign.");
+                }
+
+                await _campaignService.UpdateProgressAsync(donation.CampaignId, CampaignResourceType.Money, -donation.Amount, cancellationToken);
+                campaign.BudgetTotal -= donation.Amount;
+                await _unitOfWork.Campaigns.UpdateAsync(campaign);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _fundService.ReverseContributionForDonationAsync(donation, cancellationToken);
             }
         }
 
@@ -417,6 +448,44 @@ namespace ReliefManagementSystem.Application.Services
         {
             var value = $"DN{orderCode}";
             return value.Length > 25 ? value[..25] : value;
+        }
+
+        private static void NormalizePeriod(AdminDonationQueryRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.Period))
+            {
+                return;
+            }
+
+            var now = DateTime.UtcNow;
+            DateTime from;
+            DateTime to;
+
+            switch (request.Period.Trim().ToLowerInvariant())
+            {
+                case "day":
+                    from = now.Date;
+                    to = from.AddDays(1).AddTicks(-1);
+                    break;
+                case "week":
+                    var diff = ((int)now.DayOfWeek + 6) % 7;
+                    from = now.Date.AddDays(-diff);
+                    to = from.AddDays(7).AddTicks(-1);
+                    break;
+                case "month":
+                    from = new DateTime(now.Year, now.Month, 1, 0, 0, 0, DateTimeKind.Utc);
+                    to = from.AddMonths(1).AddTicks(-1);
+                    break;
+                case "year":
+                    from = new DateTime(now.Year, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+                    to = from.AddYears(1).AddTicks(-1);
+                    break;
+                default:
+                    throw new InvalidOperationException("Period must be one of: day, week, month, year.");
+            }
+
+            request.FromDate = from;
+            request.ToDate = to;
         }
 
         private static long BuildOrderCode(DateTime nowUtc)

@@ -32,6 +32,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .Include(vp => vp.User)
                 .Include(vp => vp.VolunteerSkills)
                     .ThenInclude(vs => vs.Skill)
+                .Include(vp => vp.Certificates)
                 .FirstOrDefaultAsync(vp => vp.UserId == userId);
         }
 
@@ -51,6 +52,16 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .Include(vp => vp.VolunteerSkills)
                     .ThenInclude(vs => vs.Skill)
                 .FirstOrDefaultAsync(vp => vp.VolunteerProfileId == volunteerProfileId);
+        }
+
+        public IQueryable<VolunteerProfile> GetQueryableForReview()
+        {
+            return _context.VolunteerProfiles
+                .AsNoTracking()
+                .Include(vp => vp.User)
+                .Include(vp => vp.VolunteerSkills)
+                    .ThenInclude(vs => vs.Skill)
+                .Include(vp => vp.Certificates);
         }
 
         public async Task<ApplicationUser?> GetByIdWithVolunteerProfileAsync(Guid userId)

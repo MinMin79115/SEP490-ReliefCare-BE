@@ -28,6 +28,7 @@ namespace ReliefManagementSystem.Application
             services.AddScoped<ISupplyItemService, SupplyItemService>();
             services.AddScoped<IInventoryService, InventoryService>();
             services.AddScoped<IInventoryTransactionService, InventoryTransactionService>();
+            services.AddScoped<ISupplyTransferService, SupplyTransferService>();
             // Relief Station Management
             services.AddScoped<IReliefStationService, ReliefStationService>();
             // Supply Allocation
@@ -38,11 +39,16 @@ namespace ReliefManagementSystem.Application
             //Resuce request service
 
             services.AddScoped<IRescueRequestService, RescueRequestService>();
+            services.AddScoped<IReliefRequestService, ReliefRequestService>();
+            services.AddScoped<IDistributionSessionService, DistributionSessionService>();
+            services.AddScoped<IReliefFulfillmentService, ReliefFulfillmentService>();
 
             // Priority Criteria CRUD
             services.AddScoped<IPriorityCriteriaService, PriorityCriteriaService>();
             services.AddScoped<IDonationService, DonationService>();
             services.AddScoped<ICampaignService, CampaignService>();
+            services.AddScoped<IProcurementService, ProcurementService>();
+            services.AddScoped<IFundService, FundService>();
 
             services.AddValidatorsFromAssemblyContaining<UpdateUserProfileRequest>();
             return services;

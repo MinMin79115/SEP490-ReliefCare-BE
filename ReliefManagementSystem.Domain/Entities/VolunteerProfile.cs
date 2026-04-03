@@ -22,6 +22,8 @@ namespace ReliefManagementSystem.Domain.Entities
         public string? Descriptions { get; set; }
         public string? Reason { get; set; }
         public int? YearsOfExperience { get; set; }
+        public TeamRolePreference PreferredTeamRole { get; set; } = TeamRolePreference.Member;
+        public VolunteerType VolunteerType { get; set; } = VolunteerType.Campaign;
 
         public ICollection<VolunteerSkill> VolunteerSkills { get; set; } = new List<VolunteerSkill>();
         public ICollection<VolunteerCertificate> Certificates { get; set; } = new List<VolunteerCertificate>();

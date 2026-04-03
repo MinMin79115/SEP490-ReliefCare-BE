@@ -11,6 +11,8 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Respons
 
         public string DisasterType { get; set; } = null!;
 
+        public string RescueRequestType { get; set; } = null!;
+
         public string Description { get; set; } = null!;
 
         public double Latitude { get; set; }
@@ -25,11 +27,34 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Respons
 
         public int? Priority { get; set; }
 
+        public RescuePriorityLevel? PriorityLevel { get; set; }
+
         public string RescueRequestStatus { get; set; } = null!;
 
         public string DispatchMode { get; set; } = null!;
 
         public string? Note { get; set; }
+
+        public string? WeatherCondition { get; set; }
+        public double? WeatherTempC { get; set; }
+        public double? WeatherWindKph { get; set; }
+        public double? WeatherPrecipMm { get; set; }
+        public double? WeatherVisibilityKm { get; set; }
+        public int? WeatherRiskScore { get; set; }
+        public string? WeatherRiskLevel { get; set; }
+        public DateTime? WeatherObservedAt { get; set; }
+
+        public Guid? CampaignId { get; set; }
+
+        public string? CampaignName { get; set; }
+
+        public double? StationToRequestDistanceKm { get; set; }
+
+        public int? StationToRequestDurationMinutes { get; set; }
+
+        public int? StationToRequestDistanceMeters { get; set; }
+
+        public int? StationToRequestDurationSeconds { get; set; }
 
         public DateTime CreatedAt { get; set; }
 
@@ -40,6 +65,10 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Respons
         public List<RescueRequestPriorityDto> PriorityDetails { get; set; } = new();
 
         public List<RescueOperationDto> RescueOperations { get; set; } = new();
+
+        public List<RequestVerificationDto> Verifications { get; set; } = new();
+
+        public AssignedRescueTeamDto? AssignedRescueTeam { get; set; }
     }
 
     /// <summary>DTO cho attachment</summary>
@@ -50,6 +79,8 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Respons
         public string FileUrl { get; set; } = null!;
 
         public string ContentType { get; set; } = null!;
+
+        public string AttachmentType { get; set; } = null!;
 
         public DateTime UploadedAt { get; set; }
     }
@@ -69,10 +100,32 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Respons
     {
         public Guid RescueOperationId { get; set; }
 
+        public Guid? TeamId { get; set; }
+
+        public string? TeamName { get; set; }
+
         public string? StationName { get; set; }
+
+        public string? Status { get; set; }
 
         public DateTime StartedAt { get; set; }
 
         public DateTime? EndedAt { get; set; }
+    }
+
+    public class AssignedRescueTeamDto
+    {
+        public Guid RescueOperationId { get; set; }
+        public Guid TeamId { get; set; }
+        public string TeamName { get; set; } = null!;
+        public string OperationStatus { get; set; } = null!;
+        public double? CurrentLatitude { get; set; }
+        public double? CurrentLongitude { get; set; }
+        public DateTime? LastTrackedAt { get; set; }
+        public int? EstimatedMinutesToArrival { get; set; }
+        public double? DistanceKmToVictim { get; set; }
+        public string? RoutePolyline { get; set; }
+        public double? TotalDistanceKm { get; set; }
+        public int? TotalEstimatedMinutes { get; set; }
     }
 }
