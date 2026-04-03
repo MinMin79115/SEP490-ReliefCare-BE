@@ -1,5 +1,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Domain.Enum;
 using ReliefManagementSystem.Infrastructure.Data;
@@ -80,6 +81,25 @@ namespace ReliefManagementSystem.Infrastructure.Seed
             var allUsers = new List<ApplicationUser> { stationCoordinatorDn, stationCoordinatorHue };
             allUsers.AddRange(volunteers);
             context.Users.AddRange(allUsers);
+            await context.SaveChangesAsync();
+
+            var volunteerRoleId = await context.Roles
+                .Where(r => r.Name == Role.Volunteer.ToString())
+                .Select(r => r.Id)
+                .FirstOrDefaultAsync();
+
+            if (volunteerRoleId == Guid.Empty)
+            {
+                throw new Exception("Role 'Volunteer' not found. Run RoleSeeder first.");
+            }
+
+            var volunteerUserRoles = volunteers.Select(v => new IdentityUserRole<Guid>
+            {
+                UserId = v.Id,
+                RoleId = volunteerRoleId
+            }).ToList();
+
+            context.UserRoles.AddRange(volunteerUserRoles);
             await context.SaveChangesAsync();
 
             // Tạo VolunteerProfile đầy đủ cho 8 volunteer

@@ -280,6 +280,7 @@ namespace ReliefManagementSystem.Application.Services
                 PhoneNumber = user.PhoneNumber,
                 Descriptions = volunteerProfile.Descriptions,
                 VerificationStatus = volunteerProfile.VerificationStatus,
+                Reason = volunteerProfile.Reason,
                 YearsOfExperience = volunteerProfile.YearsOfExperience,
                 PreferredTeamRole = volunteerProfile.PreferredTeamRole,
                 Skills = volunteerProfile.VolunteerSkills.Select(vs => vs.SkillId).ToList(),
@@ -365,6 +366,59 @@ namespace ReliefManagementSystem.Application.Services
 
             if (profile == null)
                 return null;
+
+            return MapToResponse(profile, profile.User);
+        }
+
+        public async Task<VolunteerProfileResponse> ResubmitVolunteerProfileAsync(
+            ResubmitVolunteerRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var userId = _currentUserService.UserId
+                         ?? throw new UnauthorizedAccessException("User not authenticated");
+
+            var profile = await _unitOfWork.VolunteerProfiles.GetByUserIdWithSkillsAsync(userId);
+            if (profile == null)
+                throw new InvalidOperationException("Volunteer profile not found.");
+
+            if (profile.VerificationStatus != VerificationStatus.Rejected)
+                throw new InvalidOperationException("Only rejected volunteer profiles can be resubmitted.");
+
+            profile.Descriptions = request.Descriptions;
+            profile.YearsOfExperience = request.YearsOfExperience;
+            profile.PreferredTeamRole = request.PreferredTeamRole;
+            profile.VerificationStatus = VerificationStatus.Pending;
+            profile.VerifiedAt = null;
+            profile.VerifiedBy = null;
+            profile.Reason = null;
+            profile.Status = VolunteerStatus.Inactive;
+
+            profile.VolunteerSkills.Clear();
+            foreach (var skillId in request.SkillIds.Distinct())
+            {
+                profile.VolunteerSkills.Add(new VolunteerSkill
+                {
+                    VolunteerProfileId = profile.VolunteerProfileId,
+                    SkillId = skillId
+                });
+            }
+
+            profile.Certificates.Clear();
+            foreach (var certificate in request.Certificates)
+            {
+                profile.Certificates.Add(new VolunteerCertificate
+                {
+                    VolunteerProfileId = profile.VolunteerProfileId,
+                    Name = certificate.Name,
+                    IssuedBy = certificate.IssuedBy,
+                    IssuedDate = certificate.IssuedDate,
+                    ExpiryDate = certificate.ExpiryDate,
+                    FileUrl = certificate.FileUrl
+                });
+            }
+
+            await _unitOfWork.VolunteerProfiles.UpdateAsync(profile);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return MapToResponse(profile, profile.User);
         }
@@ -752,10 +806,20 @@ namespace ReliefManagementSystem.Application.Services
                 PhoneNumber = user?.PhoneNumber,
                 Descriptions = profile.Descriptions,
                 VerificationStatus = profile.VerificationStatus,
+                Reason = profile.Reason,
+                YearsOfExperience = profile.YearsOfExperience,
                 PreferredTeamRole = profile.PreferredTeamRole,
                 Skills = profile.VolunteerSkills
                     .Select(vs => vs.SkillId)
-                    .ToList()
+                    .ToList(),
+                Certificates = profile.Certificates.Select(c => new VolunteerCertificateResponse
+                {
+                    Name = c.Name,
+                    IssuedBy = c.IssuedBy,
+                    IssuedDate = c.IssuedDate,
+                    ExpiryDate = c.ExpiryDate,
+                    FileUrl = c.FileUrl
+                }).ToList()
             };
         }
     }

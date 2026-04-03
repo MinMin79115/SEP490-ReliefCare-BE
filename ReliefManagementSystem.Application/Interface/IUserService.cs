@@ -44,6 +44,10 @@ namespace ReliefManagementSystem.Application.Interface
         Task<VolunteerProfileResponse?> GetMyVolunteerProfileAsync(
             CancellationToken cancellationToken = default);
 
+        Task<VolunteerProfileResponse> ResubmitVolunteerProfileAsync(
+            ResubmitVolunteerRequest request,
+            CancellationToken cancellationToken = default);
+
         Task<Pagination<VolunteerProfileResponse>> GetAllVolunteerProfilesAsync(
             SearchVolunteerProfilesRequest request,
             CancellationToken cancellationToken = default);

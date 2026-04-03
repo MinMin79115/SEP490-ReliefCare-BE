@@ -50,7 +50,9 @@ namespace ReliefManagementSystem.API.Middleware
                 await context.Response.WriteAsJsonAsync(new
                 {
                     message = "Internal Server Error",
-                    detail = ex.Message
+                    detail = ex.Message,
+                    innerException = ex.InnerException?.Message,
+                    traceId = context.TraceIdentifier
                 });
             }
 

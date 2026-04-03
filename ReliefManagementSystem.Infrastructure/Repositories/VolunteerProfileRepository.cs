@@ -32,6 +32,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .Include(vp => vp.User)
                 .Include(vp => vp.VolunteerSkills)
                     .ThenInclude(vs => vs.Skill)
+                .Include(vp => vp.Certificates)
                 .FirstOrDefaultAsync(vp => vp.UserId == userId);
         }
 

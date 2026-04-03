@@ -43,6 +43,14 @@ namespace ReliefManagementSystem.Application.Interface
              Task VerifyEmailOtpAsync(VerifyEmailOtpRequest request, CancellationToken cancellationToken);
 
              Task ResendEmailOtpAsync(ResendEmailOtpRequest request, CancellationToken cancellationToken);
-    }
+
+             Task<AuthResponse> RefreshTokenAsync(
+                 RefreshTokenRequest request,
+                 CancellationToken cancellationToken);
+
+             Task LogoutAsync(
+                 LogoutRequest request,
+                 CancellationToken cancellationToken);
+     }
 
 }

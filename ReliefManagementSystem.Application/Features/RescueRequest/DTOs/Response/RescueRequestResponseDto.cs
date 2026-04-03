@@ -27,6 +27,8 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Respons
 
         public int? Priority { get; set; }
 
+        public RescuePriorityLevel? PriorityLevel { get; set; }
+
         public string RescueRequestStatus { get; set; } = null!;
 
         public string DispatchMode { get; set; } = null!;
@@ -77,6 +79,8 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Respons
         public string FileUrl { get; set; } = null!;
 
         public string ContentType { get; set; } = null!;
+
+        public string AttachmentType { get; set; } = null!;
 
         public DateTime UploadedAt { get; set; }
     }
