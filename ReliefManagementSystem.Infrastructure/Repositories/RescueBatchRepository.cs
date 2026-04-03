@@ -17,6 +17,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .Where(b => b.TeamId == teamId && b.IsActive)
                 .Include(b => b.Items)
                     .ThenInclude(i => i.RescueRequest)
+                        .ThenInclude(r => r.RescueOperations)
                 .OrderByDescending(b => b.CreatedAt)
                 .FirstOrDefaultAsync(ct);
         }
@@ -27,6 +28,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .Where(b => b.RescueBatchId == batchId)
                 .Include(b => b.Items)
                     .ThenInclude(i => i.RescueRequest)
+                        .ThenInclude(r => r.RescueOperations)
                 .FirstOrDefaultAsync(ct);
         }
 
@@ -47,6 +49,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .Take(pageSize)
                 .Include(b => b.Items)
                     .ThenInclude(i => i.RescueRequest)
+                        .ThenInclude(r => r.RescueOperations)
                 .ToListAsync(ct);
 
             return (items, totalCount);

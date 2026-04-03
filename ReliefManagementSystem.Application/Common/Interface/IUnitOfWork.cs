@@ -73,6 +73,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
         IPriorityCriteriaRepository PriorityCriterias { get; }
 
         INotificationRepository Notifications { get; }
+        IAttachmentRepository Attachments { get; }
         Task<int> SaveChangesAsync(
         CancellationToken cancellationToken = default);
 

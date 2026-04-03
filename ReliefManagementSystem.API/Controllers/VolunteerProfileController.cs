@@ -47,6 +47,17 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(result);
         }
 
+        [Authorize]
+        [HttpPut("my-profile/resubmit")]
+        [SwaggerOperation(OperationId = "ResubmitVolunteerProfile", Description = "Volunteer chỉnh sửa và gửi lại hồ sơ đã bị từ chối. Hồ sơ sẽ quay về Pending để moderator duyệt lại.")]
+        public async Task<ActionResult<VolunteerProfileResponse>> ResubmitMyProfile(
+            [FromBody] ResubmitVolunteerRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _userService.ResubmitVolunteerProfileAsync(request, cancellationToken);
+            return Ok(result);
+        }
+
         [HttpGet]
         [SwaggerOperation(OperationId = "GetAllVolunteerProfiles", Description = "Lấy danh sách hồ sơ volunteer có phân trang và tìm kiếm theo FullName(DisplayName), Email, PhoneNumber")]
         public async Task<ActionResult<Pagination<VolunteerProfileResponse>>> GetAll(

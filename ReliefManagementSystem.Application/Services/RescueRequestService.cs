@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Request;
 using ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Response;
 using ReliefManagementSystem.Domain.Enum;
+using Microsoft.EntityFrameworkCore;
 
 namespace ReliefManagementSystem.Application.Services
 {
@@ -130,6 +131,7 @@ namespace ReliefManagementSystem.Application.Services
                         RequestId = rescueRequest.RequestId,
                         FileUrl = attachment.FileUrl,
                         ContentType = attachment.ContentType,
+                        AttachmentType = AttachmentType.RequestEvidence,
                         UploadedAt = DateTime.UtcNow
                     });
                 }
@@ -428,7 +430,7 @@ namespace ReliefManagementSystem.Application.Services
             CompleteRescueOperationRequestDto dto,
             CancellationToken cancellationToken = default)
         {
-            var request = await _unitOfWork.RescueRequests.GetByIdAsync(requestId, cancellationToken);
+            var request = await _unitOfWork.RescueRequests.GetByIdForCompletionAsync(requestId, cancellationToken);
             if (request == null)
                 throw new InvalidOperationException($"Rescue request {requestId} not found");
 
@@ -445,11 +447,15 @@ namespace ReliefManagementSystem.Application.Services
             if (!currentUserId.HasValue)
                 throw new UnauthorizedAccessException("User not authenticated.");
 
-            var team = await _unitOfWork.Teams.GetByIdAsync(operation.TeamId.Value);
-            if (team == null)
+            var teamLeaderId = await _unitOfWork.Teams.GetQueryable()
+                .Where(t => t.TeamId == operation.TeamId.Value)
+                .Select(t => t.LeaderId)
+                .FirstOrDefaultAsync(cancellationToken);
+
+            if (!teamLeaderId.HasValue)
                 throw new InvalidOperationException("Team được gán cho operation không tồn tại.");
 
-            if (!team.LeaderId.HasValue || team.LeaderId.Value != currentUserId.Value)
+            if (teamLeaderId.Value != currentUserId.Value)
                 throw new UnauthorizedAccessException("Chỉ team leader của operation mới được xác nhận hoàn tất cứu hộ.");
 
             if (dto?.Attachments == null || dto.Attachments.Count == 0)
@@ -457,16 +463,21 @@ namespace ReliefManagementSystem.Application.Services
 
             var now = DateTime.UtcNow;
 
-            foreach (var attachment in dto.Attachments)
+            await _unitOfWork.RescueRequests.DetachTrackedAttachmentsAsync(request.RequestId, cancellationToken);
+
+            var completionAttachments = dto.Attachments.Select(attachment => new Attachment
             {
-                request.Attachments.Add(new Attachment
-                {
-                    AttachmentId = Guid.NewGuid(),
-                    RequestId = request.RequestId,
-                    FileUrl = attachment.FileUrl,
-                    ContentType = attachment.ContentType,
-                    UploadedAt = now
-                });
+                AttachmentId = Guid.NewGuid(),
+                RequestId = request.RequestId,
+                FileUrl = attachment.FileUrl,
+                ContentType = attachment.ContentType,
+                AttachmentType = AttachmentType.CompletionEvidence,
+                UploadedAt = now
+            }).ToList();
+
+            foreach (var attachment in completionAttachments)
+            {
+                await _unitOfWork.Attachments.AddAsync(attachment);
             }
 
             operation.Status = RescueOperationStatus.RescueCompleted;
@@ -479,22 +490,33 @@ namespace ReliefManagementSystem.Application.Services
                     : $"{operation.Note}{Environment.NewLine}{dto.Note}";
             }
 
-            await CompleteBatchItemAndAdvanceQueueAsync(
-                operation.TeamId.Value,
-                request.RequestId,
-                now,
-                cancellationToken);
-
-            if (request.RescueOperations.All(o =>
-                    o.Status == RescueOperationStatus.Closed ||
-                    o.Status == RescueOperationStatus.Cancelled))
-            {
-                request.RescueRequestStatus = RescueRequestStatus.Completed;
-            }
-
             request.UpdatedAt = now;
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            try
+            {
+                await CompleteBatchItemAndAdvanceQueueAsync(
+                    operation.TeamId.Value,
+                    request.RequestId,
+                    now,
+                    cancellationToken);
+
+                if (request.RescueOperations.All(o =>
+                        o.Status == RescueOperationStatus.RescueCompleted ||
+                        o.Status == RescueOperationStatus.Cancelled))
+                {
+                    request.RescueRequestStatus = RescueRequestStatus.Completed;
+                }
+
+                request.UpdatedAt = now;
+
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+            }
+
             return await GetRescueRequestByIdAsync(requestId, cancellationToken);
         }
 
@@ -588,7 +610,7 @@ namespace ReliefManagementSystem.Application.Services
             {
                 nextPending.Status = RescueBatchItemStatus.InProgress;
 
-                var nextRequest = await _unitOfWork.RescueRequests.GetByIdAsync(nextPending.RescueRequestId, cancellationToken);
+                var nextRequest = nextPending.RescueRequest;
                 if (nextRequest != null)
                 {
                     var nextStationOperation = nextRequest.RescueOperations
@@ -1016,6 +1038,7 @@ namespace ReliefManagementSystem.Application.Services
                 ReporterFullName = request.ReporterFullName,
                 ReporterPhone = request.ReporterPhone,
                 Priority = request.PriorityPoint,
+                PriorityLevel = request.RescuePriorityLevel,
                 RescueRequestStatus = request.RescueRequestStatus.ToString(),
                 DispatchMode = request.DispatchMode.ToString(),
                 Note = request.Note,
@@ -1040,6 +1063,7 @@ namespace ReliefManagementSystem.Application.Services
                     AttachmentId = a.AttachmentId,
                     FileUrl = a.FileUrl,
                     ContentType = a.ContentType,
+                    AttachmentType = a.AttachmentType.ToString(),
                     UploadedAt = a.UploadedAt
                 }).ToList(),
                 PriorityDetails = request.RescueRequestPriorities.Select(rp => new RescueRequestPriorityDto

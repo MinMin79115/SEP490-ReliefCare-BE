@@ -731,6 +731,11 @@ namespace ReliefManagementSystem.Application.Services
 
         private TeamDetailResponse MapToTeamDetailResponse(Team team)
         {
+            var stationAssignment = team.ReliefStationTeams
+                .Where(rst => rst.RemovedAt == null)
+                .OrderByDescending(rst => rst.JoinedAt)
+                .FirstOrDefault();
+
             return new TeamDetailResponse
             {
                 TeamId = team.TeamId,
@@ -738,6 +743,10 @@ namespace ReliefManagementSystem.Application.Services
                 Description = team.Description,
                 ContactPhone = team.ContactPhone,
                 Status = team.Status,
+                ReliefStationId = stationAssignment?.ReliefStationId,
+                ReliefStationName = stationAssignment?.ReliefStation?.Name,
+                ReliefStationAddress = stationAssignment?.ReliefStation?.Address,
+                ReliefStationStatus = stationAssignment?.ReliefStation?.ReliefStationStatus,
                 Moderator = new ModeratorInfo
                 {
                     UserId = team.CreateBy,

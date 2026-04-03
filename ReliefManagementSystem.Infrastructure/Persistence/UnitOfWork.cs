@@ -80,6 +80,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
         public IRescueOperationRepository RescueOperations { get; }
 
         public INotificationRepository Notifications { get; }
+        public IAttachmentRepository Attachments { get; }
 
         // Constructor
         public UnitOfWork(ApplicationDbContext context)
@@ -126,6 +127,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             RescueRequestPriorities = new RescueRequestPriorityRepository(_context);
             RescueOperations = new RescueOperationRepository(_context);
             Notifications = new NotificationRepository(_context);
+            Attachments = new AttachmentRepository(_context);
         }
 
         public async Task<int> SaveChangesAsync(

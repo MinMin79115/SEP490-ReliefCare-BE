@@ -1,7 +1,9 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using ReliefManagementSystem.Application.Common.Interface;
 using ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Request;
 using ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Response;
@@ -23,11 +25,16 @@ namespace ReliefManagementSystem.API.Controllers
     {
         private readonly IRescueRequestService _rescueRequestService;
         private readonly IWeatherService _weatherService;
+        private readonly ILogger<RescueRequestController> _logger;
 
-        public RescueRequestController(IRescueRequestService rescueRequestService, IWeatherService weatherService)
+        public RescueRequestController(
+            IRescueRequestService rescueRequestService,
+            IWeatherService weatherService,
+            ILogger<RescueRequestController> logger)
         {
             _rescueRequestService = rescueRequestService;
             _weatherService = weatherService;
+            _logger = logger;
         }
 
         /// <summary>
@@ -266,8 +273,61 @@ namespace ReliefManagementSystem.API.Controllers
             [FromBody] CompleteRescueOperationRequestDto request,
             CancellationToken cancellationToken = default)
         {
-            var result = await _rescueRequestService.CompleteRescueOperationAsync(id, operationId, request, cancellationToken);
-            return Ok(result);
+            try
+            {
+                var result = await _rescueRequestService.CompleteRescueOperationAsync(id, operationId, request, cancellationToken);
+                return Ok(result);
+            }
+            catch (DbUpdateConcurrencyException ex)
+            {
+                var conflictEntries = ex.Entries.Select(entry => new
+                {
+                    entity = entry.Metadata.ClrType.Name,
+                    state = entry.State.ToString(),
+                    keys = entry.Properties
+                        .Where(p => p.Metadata.IsPrimaryKey())
+                        .ToDictionary(p => p.Metadata.Name, p => p.CurrentValue?.ToString())
+                }).ToList();
+
+                _logger.LogError(
+                    ex,
+                    "CompleteRescueOperation concurrency conflict. RequestId: {RequestId}, OperationId: {OperationId}, TraceId: {TraceId}, Entries: {@Entries}",
+                    id,
+                    operationId,
+                    HttpContext.TraceIdentifier,
+                    conflictEntries);
+
+                return Conflict(new
+                {
+                    statusCode = StatusCodes.Status409Conflict,
+                    message = "Nhiệm vụ vừa được cập nhật bởi thao tác khác hoặc dữ liệu đính kèm bị xung đột.",
+                    detail = "Vui lòng tải lại dữ liệu nhiệm vụ rồi thử hoàn thành lại một lần nữa.",
+                    conflictEntries,
+                    requestId = id,
+                    operationId,
+                    traceId = HttpContext.TraceIdentifier
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(
+                    ex,
+                    "CompleteRescueOperation failed. RequestId: {RequestId}, OperationId: {OperationId}, TraceId: {TraceId}",
+                    id,
+                    operationId,
+                    HttpContext.TraceIdentifier);
+
+                return StatusCode(StatusCodes.Status500InternalServerError, new
+                {
+                    statusCode = StatusCodes.Status500InternalServerError,
+                    message = "CompleteRescueOperation failed",
+                    detail = ex.Message,
+                    innerException = ex.InnerException?.Message,
+                    requestId = id,
+                    operationId,
+                    traceId = HttpContext.TraceIdentifier
+                });
+            }
         }
 
         [HttpGet("teams/{teamId}/active-batch")]
