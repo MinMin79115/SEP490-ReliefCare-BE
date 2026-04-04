@@ -41,6 +41,19 @@ services:
       Jwt__RefreshTokenDays: "7"
       AuthenticationGoogle__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
       AuthenticationGoogle__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
+      EmailSettings__Host: ${EMAIL_HOST:-smtp-relay.brevo.com}
+      EmailSettings__Port: ${EMAIL_PORT:-587}
+      EmailSettings__Username: ${EMAIL_USERNAME:-}
+      EmailSettings__Password: ${EMAIL_PASSWORD:-}
+      EmailSettings__SenderEmail: ${EMAIL_SENDER_EMAIL:-noreply@reliefhub.info.vn}
+      EmailSettings__SenderName: ${EMAIL_SENDER_NAME:-Relief Hub}
+      CloudinarySettings__CloudName: ${CLOUDINARY_CLOUD_NAME:-}
+      CloudinarySettings__ApiKey: ${CLOUDINARY_API_KEY:-}
+      CloudinarySettings__ApiSecret: ${CLOUDINARY_API_SECRET:-}
+      Goong__BaseUrl: ${GOONG_BASE_URL:-https://rsapi.goong.io}
+      Goong__ApiKey: ${GOONG_API_KEY:-}
+      WeatherApi__BaseUrl: ${WEATHER_API_BASE_URL:-https://api.weatherapi.com/v1}
+      WeatherApi__ApiKey: ${WEATHER_API_KEY:-}
       PayOs__ClientId: ${PAYOS_CLIENT_ID:-}
       PayOs__ApiKey: ${PAYOS_API_KEY:-}
       PayOs__ChecksumKey: ${PAYOS_CHECKSUM_KEY:-}
@@ -83,8 +96,8 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
-      PGADMIN_CONFIG_SERVER_MODE: "True"               # Staging: bắt buộc đăng nhập
-      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "True"
+      PGADMIN_CONFIG_SERVER_MODE: "False"              # Desktop mode - giảm bớt bước đăng nhập
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
     ports:
       - "5050:80"
     volumes:
@@ -108,7 +121,7 @@ services:
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
       reliefcare-api:
-        condition: service_started
+        condition: service_healthy
     networks:
       - reliefcare-staging
 
