@@ -26,7 +26,7 @@ services:
   # ReliefCare API - Pull image từ GHCR (không build tại đây)
   # -----------------------------------------------------------
   reliefcare-api:
-    image: ${REGISTRY:-ghcr.io/minmin79115/sep490-reliefcare-be}/reliefcare-api:latest
+    image: ${REGISTRY:-ghcr.io/minmin79115/sep490-reliefcare-be}/reliefcare-api:${IMAGE_TAG:-latest}
     container_name: reliefcare-api
     restart: unless-stopped
     depends_on:
