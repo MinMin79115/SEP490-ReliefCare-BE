@@ -170,7 +170,14 @@ jobs:
           docker compose -p reliefcare-staging -f compose.staging.yaml down
 
           Write-Host "Removing staging Postgres volume only..."
-          docker volume rm reliefcare-staging-postgres-data 2>$null
+          $volumeName = "reliefcare-staging-postgres-data"
+          $volumeExists = docker volume ls -q --filter "name=^${volumeName}$"
+          if ($volumeExists) {
+            docker volume rm $volumeName
+          }
+          else {
+            Write-Host "Volume $volumeName does not exist. Skipping removal."
+          }
 
           Write-Host "Pulling latest images..."
           docker compose -p reliefcare-staging -f compose.staging.yaml pull
