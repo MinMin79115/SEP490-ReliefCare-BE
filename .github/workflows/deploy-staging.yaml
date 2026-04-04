@@ -159,8 +159,8 @@ jobs:
           Write-Host "Pulling latest images..."
           docker compose -p reliefcare-staging -f compose.staging.yaml pull
 
-          Write-Host "Deploying application..."
-          docker compose -p reliefcare-staging -f compose.staging.yaml up -d --remove-orphans
+          Write-Host "Deploying core services first..."
+          docker compose -p reliefcare-staging -f compose.staging.yaml up -d postgres reliefcare-api pgadmin
 
       - name: Wait for Healthcheck
         shell: powershell
@@ -193,6 +193,24 @@ jobs:
             docker compose -p reliefcare-staging -f compose.staging.yaml logs reliefcare-api
             exit 1
           fi
+
+      - name: Start Cloudflared
+        shell: powershell
+        run: |
+          Write-Host "Starting cloudflared after API is healthy..."
+          docker compose -p reliefcare-staging -f compose.staging.yaml up -d cloudflared
+
+          Start-Sleep -Seconds 8
+          $cloudflaredStatus = docker inspect -f "{{.State.Status}}" reliefcare-cloudflared 2>$null
+
+          if ($cloudflaredStatus -ne "running") {
+            Write-Host "❌ cloudflared is not running"
+            docker compose -p reliefcare-staging -f compose.staging.yaml logs cloudflared
+            exit 1
+          }
+
+          Write-Host "✅ cloudflared is running"
+          docker compose -p reliefcare-staging -f compose.staging.yaml ps
 
       - name: Cleanup Dangling Images After Deploy
         shell: powershell
