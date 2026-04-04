@@ -151,17 +151,17 @@ jobs:
         shell: powershell
         run: |
           Write-Host "Pulling latest images..."
-          docker compose -f compose.staging.yaml pull
+          docker compose -p reliefcare-staging -f compose.staging.yaml pull
 
           Write-Host "Deploying application..."
-          docker compose -f compose.staging.yaml up -d --remove-orphans
+          docker compose -p reliefcare-staging -f compose.staging.yaml up -d --remove-orphans
 
       - name: Wait for Healthcheck
         shell: powershell
         run: |
           Write-Host "Waiting for services to be ready..."
           Start-Sleep -Seconds 15
-          docker compose -f compose.staging.yaml ps
+          docker compose -p reliefcare-staging -f compose.staging.yaml ps
 
           $maxRetries = 10
           $isHealthy = $false
@@ -184,7 +184,7 @@ jobs:
 
           if (-not $isHealthy) {
             Write-Host "❌ Staging API health check failed after $maxRetries attempts"
-            docker compose -f compose.staging.yaml logs reliefcare-api
+            docker compose -p reliefcare-staging -f compose.staging.yaml logs reliefcare-api
             exit 1
           fi
 
