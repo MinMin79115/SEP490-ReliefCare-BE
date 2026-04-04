@@ -103,32 +103,20 @@ jobs:
       packages: write
     env:
       # Các biến môi trường lấy từ Secrets
-      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-      JWT_KEY: ${{ secrets.JWT_KEY }}
-      CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
-      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-      EMAIL_HOST: ${{ secrets.EMAIL_HOST }}
-      EMAIL_PORT: ${{ secrets.EMAIL_PORT }}
-      EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}
-      EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
-      EMAIL_SENDER_EMAIL: ${{ secrets.EMAIL_SENDER_EMAIL }}
-      EMAIL_SENDER_NAME: ${{ secrets.EMAIL_SENDER_NAME }}
-      CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
-      CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
-      CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
-      GOONG_BASE_URL: ${{ secrets.GOONG_BASE_URL }}
-      GOONG_API_KEY: ${{ secrets.GOONG_API_KEY }}
-      WEATHER_API_BASE_URL: ${{ secrets.WEATHER_API_BASE_URL }}
-      WEATHER_API_KEY: ${{ secrets.WEATHER_API_KEY }}
-      PAYOS_CLIENT_ID: ${{ secrets.PAYOS_CLIENT_ID }}
-      PAYOS_API_KEY: ${{ secrets.PAYOS_API_KEY }}
-      PAYOS_CHECKSUM_KEY: ${{ secrets.PAYOS_CHECKSUM_KEY }}
-      PAYOS_RETURN_URL: ${{ secrets.PAYOS_RETURN_URL }}
-      PAYOS_CANCEL_URL: ${{ secrets.PAYOS_CANCEL_URL }}
-      PAYOS_EXPIRED_MINUTES: ${{ secrets.PAYOS_EXPIRED_MINUTES }}
-      PGADMIN_EMAIL: ${{ secrets.PGADMIN_EMAIL }}
-      PGADMIN_PASSWORD: ${{ secrets.PGADMIN_PASSWORD }}
+      POSTGRES_PASSWORD: ${{ secrets.STAGING_POSTGRES_PASSWORD }}
+      JWT_KEY: ${{ secrets.STAGING_JWT_KEY }}
+      CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.STAGING_CLOUDFLARE_TUNNEL_TOKEN }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.STAGING_GOOGLE_CLIENT_SECRET }}
+      EMAIL_USERNAME: ${{ secrets.STAGING_EMAIL_USERNAME }}
+      EMAIL_PASSWORD: ${{ secrets.STAGING_EMAIL_PASSWORD }}
+      CLOUDINARY_API_KEY: ${{ secrets.STAGING_CLOUDINARY_API_KEY }}
+      CLOUDINARY_API_SECRET: ${{ secrets.STAGING_CLOUDINARY_API_SECRET }}
+      GOONG_API_KEY: ${{ secrets.STAGING_GOONG_API_KEY }}
+      WEATHER_API_KEY: ${{ secrets.STAGING_WEATHER_API_KEY }}
+      PAYOS_CLIENT_ID: ${{ secrets.STAGING_PAYOS_CLIENT_ID }}
+      PAYOS_API_KEY: ${{ secrets.STAGING_PAYOS_API_KEY }}
+      PAYOS_CHECKSUM_KEY: ${{ secrets.STAGING_PAYOS_CHECKSUM_KEY }}
+      PGADMIN_PASSWORD: ${{ secrets.STAGING_PGADMIN_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3

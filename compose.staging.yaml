@@ -39,27 +39,27 @@ services:
       Jwt__Audience: "ReliefClient"
       Jwt__AccessTokenMinutes: "15"
       Jwt__RefreshTokenDays: "7"
-      AuthenticationGoogle__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
+      AuthenticationGoogle__Google__ClientId: "914612994476-7tdvcqqm1e97mir23ilunou2vgmd4s5b.apps.googleusercontent.com"
       AuthenticationGoogle__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
-      EmailSettings__Host: ${EMAIL_HOST:-smtp-relay.brevo.com}
-      EmailSettings__Port: ${EMAIL_PORT:-587}
+      EmailSettings__Host: "smtp-relay.brevo.com"
+      EmailSettings__Port: "587"
       EmailSettings__Username: ${EMAIL_USERNAME:-}
       EmailSettings__Password: ${EMAIL_PASSWORD:-}
-      EmailSettings__SenderEmail: ${EMAIL_SENDER_EMAIL:-noreply@reliefhub.info.vn}
-      EmailSettings__SenderName: ${EMAIL_SENDER_NAME:-Relief Hub}
-      CloudinarySettings__CloudName: ${CLOUDINARY_CLOUD_NAME:-}
+      EmailSettings__SenderEmail: "noreply@reliefhub.info.vn"
+      EmailSettings__SenderName: "Relief Hub"
+      CloudinarySettings__CloudName: "dhwnptz55"
       CloudinarySettings__ApiKey: ${CLOUDINARY_API_KEY:-}
       CloudinarySettings__ApiSecret: ${CLOUDINARY_API_SECRET:-}
-      Goong__BaseUrl: ${GOONG_BASE_URL:-https://rsapi.goong.io}
+      Goong__BaseUrl: "https://rsapi.goong.io"
       Goong__ApiKey: ${GOONG_API_KEY:-}
-      WeatherApi__BaseUrl: ${WEATHER_API_BASE_URL:-https://api.weatherapi.com/v1}
+      WeatherApi__BaseUrl: "https://api.weatherapi.com/v1"
       WeatherApi__ApiKey: ${WEATHER_API_KEY:-}
       PayOs__ClientId: ${PAYOS_CLIENT_ID:-}
       PayOs__ApiKey: ${PAYOS_API_KEY:-}
       PayOs__ChecksumKey: ${PAYOS_CHECKSUM_KEY:-}
-      PayOs__ReturnUrl: ${PAYOS_RETURN_URL:-https://staging.reliefhub.info.vn/donation/return}
-      PayOs__CancelUrl: ${PAYOS_CANCEL_URL:-https://staging.reliefhub.info.vn/donation/cancel}
-      PayOs__ExpiredMinutes: ${PAYOS_EXPIRED_MINUTES:-15}
+      PayOs__ReturnUrl: "https://staging.reliefhub.info.vn/donation/return"
+      PayOs__CancelUrl: "https://staging.reliefhub.info.vn/donation/cancel"
+      PayOs__ExpiredMinutes: "15"
       # CORS - domain thật + localhost để FE dev test local gọi lên staging API
       CorsSettings__AllowedOrigins__0: "https://staging.reliefhub.info.vn"
       CorsSettings__AllowedOrigins__1: "https://reliefhub.info.vn"
@@ -94,7 +94,7 @@ services:
     container_name: reliefcare-pgadmin
     restart: unless-stopped
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_EMAIL: "admin@reliefcare.com"
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
       PGADMIN_CONFIG_SERVER_MODE: "False"              # Desktop mode - giảm bớt bước đăng nhập
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
