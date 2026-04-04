@@ -92,8 +92,20 @@ jobs:
         run: |
           echo "Building service: ${{ matrix.service }}"
           echo "Using image tag: ${IMAGE_TAG}"
-          docker compose -f compose.staging.yaml build ${{ matrix.service }}
-          docker compose -f compose.staging.yaml push ${{ matrix.service }}
+
+          if [ "${{ matrix.service }}" = "reliefcare-api" ]; then
+            docker build \
+              -f ReliefManagementSystem.API/Dockerfile \
+              -t ${REGISTRY}/reliefcare-api:${IMAGE_TAG} \
+              -t ${REGISTRY}/reliefcare-api:latest \
+              .
+
+            docker push ${REGISTRY}/reliefcare-api:${IMAGE_TAG}
+            docker push ${REGISTRY}/reliefcare-api:latest
+          else
+            echo "Unsupported service: ${{ matrix.service }}"
+            exit 1
+          fi
 
   api-image-deploy:
     name: Deploy / API
