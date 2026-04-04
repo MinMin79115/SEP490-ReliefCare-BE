@@ -137,6 +137,11 @@ namespace ReliefManagementSystem.Application.Services
 
         public async Task HandlePayOsWebhookAsync(PayOsWebhookRequest request, CancellationToken cancellationToken = default)
         {
+            if (IsWebhookRegistrationProbe(request))
+            {
+                return;
+            }
+
             var isValid = _payOsGateway.VerifyWebhook(request);
             if (!isValid)
             {
@@ -546,6 +551,15 @@ namespace ReliefManagementSystem.Application.Services
                 "PROCESSING" => DonationStatus.Pending,
                 _ => DateTime.UtcNow > expiresAt ? DonationStatus.Expired : DonationStatus.Failed
             };
+        }
+
+        private static bool IsWebhookRegistrationProbe(PayOsWebhookRequest? request)
+        {
+            return request is not null
+                && request.Success
+                && string.Equals(request.Code, "00", StringComparison.OrdinalIgnoreCase)
+                && request.Data is not null
+                && request.Data.OrderCode == 123;
         }
 
         private static DateTime? ParseDateTime(string? value)
