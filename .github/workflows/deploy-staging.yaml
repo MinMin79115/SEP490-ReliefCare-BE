@@ -192,7 +192,7 @@ jobs:
             Write-Host "❌ Staging API health check failed after $maxRetries attempts"
             docker compose -p reliefcare-staging -f compose.staging.yaml logs reliefcare-api
             exit 1
-          fi
+          }
 
       - name: Start Cloudflared
         shell: powershell
