@@ -150,6 +150,12 @@ jobs:
       - name: Pull and Deploy
         shell: powershell
         run: |
+          Write-Host "Stopping existing staging stack..."
+          docker compose -p reliefcare-staging -f compose.staging.yaml down
+
+          Write-Host "Removing staging Postgres volume only..."
+          docker volume rm reliefcare-staging-postgres-data 2>$null
+
           Write-Host "Pulling latest images..."
           docker compose -p reliefcare-staging -f compose.staging.yaml pull
 
