@@ -145,7 +145,7 @@ namespace ReliefManagementSystem.Application.Services
             var isValid = _payOsGateway.VerifyWebhook(request);
             if (!isValid)
             {
-                throw new PayOsWebhookSignatureInvalidException();
+                return;
             }
 
             var donation = await _unitOfWork.Donations.GetByPayOsOrderCodeAsync(request.Data.OrderCode, cancellationToken);
