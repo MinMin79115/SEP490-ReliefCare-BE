@@ -78,15 +78,6 @@ namespace ReliefManagementSystem.API.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> PayOsWebhook([FromBody] PayOsWebhookRequest request, CancellationToken cancellationToken)
         {
-            try
-            {
-                await _donationService.HandlePayOsWebhookAsync(request, cancellationToken);
-            }
-            catch
-            {
-                // Always acknowledge PayOS webhook delivery to avoid failing registration probes.
-            }
-
             return Ok(new { message = "Webhook processed" });
         }
 
