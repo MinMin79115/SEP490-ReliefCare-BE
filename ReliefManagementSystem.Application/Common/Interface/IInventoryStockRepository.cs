@@ -13,6 +13,12 @@ namespace ReliefManagementSystem.Application.Common.Interface
         Task<IReadOnlyList<InventoryStock>> GetByInventoryIdAsync(Guid inventoryId, CancellationToken cancellationToken = default);
 
         /// <summary>
+        /// Gets all stock entries for update within the current DbContext tracking scope.
+        /// SupplyItem navigation is not included to avoid tracked-entity conflicts.
+        /// </summary>
+        Task<List<InventoryStock>> GetByInventoryIdForUpdateAsync(Guid inventoryId, CancellationToken cancellationToken = default);
+
+        /// <summary>
         /// Gets a single stock entry for a given inventory and supply item combination.
         /// Returns null if not found.
         /// </summary>
@@ -27,5 +33,11 @@ namespace ReliefManagementSystem.Application.Common.Interface
         /// Checks whether a supply item is already registered in the given inventory.
         /// </summary>
         Task<bool> IsSupplyItemExistsInInventoryAsync(Guid inventoryId, Guid supplyItemId, Guid? excludeId = null, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Returns a queryable for composing server-side filter + pagination.
+        /// Includes SupplyItem navigation by default.
+        /// </summary>
+        IQueryable<InventoryStock> GetQueryable();
     }
 }

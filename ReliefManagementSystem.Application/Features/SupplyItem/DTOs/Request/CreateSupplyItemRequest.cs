@@ -22,6 +22,13 @@ namespace ReliefManagementSystem.Application.Features.SupplyItem.DTOs.Request
         public string? Description { get; set; }
 
         /// <summary>
+        /// Optional URL of the icon image for this supply item.
+        /// Accepts any valid URL (https recommended) or relative path.
+        /// </summary>
+        [MaxLength(500, ErrorMessage = "IconUrl must not exceed 500 characters.")]
+        public string? IconUrl { get; set; }
+
+        /// <summary>
         /// Category of the supply item.
         /// </summary>
         [Required(ErrorMessage = "Category is required.")]

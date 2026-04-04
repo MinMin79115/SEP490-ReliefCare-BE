@@ -9,7 +9,7 @@ namespace ReliefManagementSystem.Application.Common.Exceptions.ReliefStationExce
     public class LocationNotFoundException : AppException
     {
         public LocationNotFoundException()
-            : base("Location not found",
+            : base("Không thể tìm thấy tỉnh này",
                 "LOCATION_NOT_FOUND",
                 404)
         {

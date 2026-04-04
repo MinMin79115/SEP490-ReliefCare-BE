@@ -56,12 +56,26 @@ namespace ReliefManagementSystem.API.Controllers
         /// <response code="403">User không có quyền Admin</response>
         [HttpGet("all")]
         [Authorize(Roles = "Admin")]
-        [SwaggerOperation(OperationId = "GetAllProfiles", Description = "Admin lấy danh sách tất cả users có phân trang")]
+        [SwaggerOperation(OperationId = "GetAllProfiles", Description = "Admin lấy danh sách tất cả users có phân trang, tìm kiếm theo DisplayName/Email/PhoneNumber, lọc theo Role và trạng thái bị ban")]
         public async Task<IActionResult> GetAllProfiles(
             [FromQuery] GetAllUsersRequest request,
             CancellationToken cancellationToken)
         {
             var result = await _userService.GetAllProfilesAsync(request, cancellationToken);
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Lấy danh sách moderator có phân trang (dành cho Admin), kèm trạng thái có đang quản lý trạm hay không.
+        /// </summary>
+        [HttpGet("moderators")]
+        [Authorize(Roles = "Manager")]
+        [SwaggerOperation(OperationId = "GetModerators", Description = "Admin lấy danh sách moderator có phân trang, hỗ trợ tìm kiếm và lọc bị ban/không bị ban; kèm trường IsManagingStation")]
+        public async Task<IActionResult> GetModerators(
+            [FromQuery] GetModeratorsRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _userService.GetModeratorsAsync(request, cancellationToken);
             return Ok(result);
         }
 
@@ -99,6 +113,39 @@ namespace ReliefManagementSystem.API.Controllers
             }
 
             var result = await _userService.UpdateUserProfileAsync(request, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpGet("my-volunteer-profile")]
+        [Authorize]
+        [SwaggerOperation(OperationId = "GetMyVolunteerProfile", Description = "Lấy hồ sơ volunteer của user đang đăng nhập")]
+        public async Task<IActionResult> GetMyVolunteerProfile(CancellationToken cancellationToken)
+        {
+            var result = await _userService.GetMyVolunteerProfileAsync(cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpPut("{userId:guid}/ban")]
+        [Authorize(Roles = "Admin")]
+        [SwaggerOperation(OperationId = "BanUser", Description = "Admin khóa tài khoản user và lưu lý do bị ban")]
+        public async Task<IActionResult> BanUser(
+            Guid userId,
+            [FromBody] BanUserRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _userService.BanUserAsync(userId, request, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpPut("{userId:guid}/unban")]
+        [Authorize(Roles = "Admin")]
+        [SwaggerOperation(OperationId = "UnbanUser", Description = "Admin mở khóa tài khoản user")]
+        public async Task<IActionResult> UnbanUser(
+            Guid userId,
+            [FromBody] UnbanUserRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _userService.UnbanUserAsync(userId, request, cancellationToken);
             return Ok(result);
         }
     }

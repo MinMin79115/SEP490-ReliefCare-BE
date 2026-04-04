@@ -7,28 +7,20 @@ namespace ReliefManagementSystem.Application.Features.ReliefStation.DTOs.Respons
     {
         public Guid ReliefStationId { get; set; }
         public string Name { get; set; } = null!;
+        public string ModeratorName { get; set; } = null!;
         public string? Address { get; set; }
         public string? ContactNumber { get; set; }
         public double Longitude { get; set; }
         public double Latitude { get; set; }
+        public double CoverageRadiusKm { get; set; }
         public ReliefStationStatus Status { get; set; }
-        public string StatusName => Status.ToString();
-        public bool IsActive { get; set; }
-
-        /// <summary>Cấp trạm: Regional (vùng) | Provincial (tỉnh) | Local (địa phương).</summary>
         public ReliefStationLevel Level { get; set; }
-        public string LevelName => Level.ToString();
-
-        /// <summary>ID trạm cha (null nếu là trạm Regional).</summary>
-        public Guid? ParentReliefStationId { get; set; }
-
         public Guid LocationId { get; set; }
         public string LocationName { get; set; } = null!;
         public DateTime CreatedAt { get; set; }
-        public DateTime UpdatedAt { get; set; }
+        public DateTime? UpdatedAt { get; set; }
     }
 
-    /// <summary>Full detail response including teams and inventory count.</summary>
     public class ReliefStationDetailResponse : ReliefStationResponse
     {
         public int TotalInventories { get; set; }
@@ -44,5 +36,9 @@ namespace ReliefManagementSystem.Application.Features.ReliefStation.DTOs.Respons
         public ReliefTeamAssignmentStatus Status { get; set; }
         public string StatusName => Status.ToString();
         public bool IsActive { get; set; }
+        public string? Description { get; set; }
+        public string? RejectionReason { get; set; }
+        public DateTime? JoinedAt { get; set; }
+        public DateTime? TransferredAt { get; set; }
     }
 }

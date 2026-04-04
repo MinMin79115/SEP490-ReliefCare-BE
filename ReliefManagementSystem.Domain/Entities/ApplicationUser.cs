@@ -21,6 +21,8 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public string? Address { get; set; }
 
+        public string? BanReason { get; set; }
+
         /// <summary>
         /// Profile quản lý (chỉ có nếu user có role Manager).
         /// Chứa cấp quản lý (Regional/Province/Local) và địa phương phụ trách.
@@ -34,6 +36,7 @@ namespace ReliefManagementSystem.Domain.Entities
         public ModeratorProfile? ModeratorProfile { get; set; }
 
         public VolunteerProfile VolunteerProfile { get; set; }
+        public ICollection<CampaignVolunteerRegistration> CampaignVolunteerRegistrations { get; set; } = new List<CampaignVolunteerRegistration>();
         public ICollection<TeamMember> TeamMembers { get; set; }
 
         /// <summary>

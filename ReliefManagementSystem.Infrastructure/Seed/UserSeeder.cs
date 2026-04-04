@@ -65,7 +65,7 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                 userName: "regional.manager",
                 password: "Manager@123",
                 role: Role.Manager,
-                managerLevel: ReliefStationLevel.Regional);
+                managerLevel: LocationLevel.Region);
 
             await CreateUserAsync(
                 userManager,
@@ -74,7 +74,7 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                 userName: "regional.manager1",
                 password: "Manager@123",
                 role: Role.Manager,
-                managerLevel: ReliefStationLevel.Regional);
+                managerLevel: LocationLevel.Region);
 
             await CreateUserAsync(
                 userManager,
@@ -83,7 +83,7 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                 userName: "regional.manager2",
                 password: "Manager@123",
                 role: Role.Manager,
-                managerLevel: ReliefStationLevel.Regional);
+                managerLevel: LocationLevel.Region);
 
             await CreateUserAsync(
                 userManager,
@@ -92,7 +92,7 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                 userName: "regional.manager3",
                 password: "Manager@123",
                 role: Role.Manager,
-                managerLevel: ReliefStationLevel.Regional);
+                managerLevel: LocationLevel.Region);
 
             // ⭐ ACCOUNT MANAGER - CẤP TỈNH (Province)
             await CreateUserAsync(
@@ -102,17 +102,8 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                 userName: "provincial.manager",
                 password: "Manager@123",
                 role: Role.Manager,
-                managerLevel: ReliefStationLevel.Provincial);
+                managerLevel: LocationLevel.Province);
 
-            // ⭐ ACCOUNT MANAGER - CẤP ĐỊA PHƯƠNG (Local)
-            await CreateUserAsync(
-                userManager,
-                context,
-                email: "local.manager@system.com",
-                userName: "local.manager",
-                password: "Manager@123",
-                role: Role.Manager,
-                managerLevel: ReliefStationLevel.Local);
 
             await CreateUserAsync(
                 userManager,
@@ -210,7 +201,7 @@ namespace ReliefManagementSystem.Infrastructure.Seed
             string userName,
             string password,
             Role role,
-            ReliefStationLevel? managerLevel = null)
+            LocationLevel? managerLevel = null)
         {
             // ⭐ KIỂM TRA CẢ EMAIL VÀ USERNAME
             var existingUserByEmail = await userManager.FindByEmailAsync(email);
@@ -263,7 +254,7 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                     context.ManagerProfiles.Add(new ManagerProfile
                     {
                         UserId = user.Id,
-                        Level = managerLevel.Value,
+                        Level = (LocationLevel)managerLevel.Value,
                         AppointedAt = DateTime.UtcNow
                     });
 

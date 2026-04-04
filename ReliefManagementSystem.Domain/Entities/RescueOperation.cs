@@ -1,4 +1,5 @@
 ﻿using ReliefManagementSystem.Domain.Entities;
+using ReliefManagementSystem.Domain.Enum;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -19,11 +20,12 @@ namespace ReliefManagementSystem.Domain.Entities
         public DateTime StartedAt { get; set; }
         public DateTime? EndedAt { get; set; }
 
-        public string Status { get; set; }
-        public string Note { get; set; }
+        public RescueOperationStatus Status { get; set; } = RescueOperationStatus.Pending;
+        public string? Note { get; set; }
 
         public RescueRequest RescueRequest { get; set; } = default!;
         public Team? Team { get; set; }
         public ReliefStation? ReliefStation { get; set; }
+        public ICollection<TeamTrackingPoint> TrackingPoints { get; set; } = new List<TeamTrackingPoint>();
     }
 }

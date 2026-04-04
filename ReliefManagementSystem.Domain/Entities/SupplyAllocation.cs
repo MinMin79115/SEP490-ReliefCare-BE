@@ -1,4 +1,4 @@
-﻿using ReliefManagementSystem.Domain.Enum;
+using ReliefManagementSystem.Domain.Enum;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -16,6 +16,9 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public DateTime AllocatedAt { get; set; } = DateTime.UtcNow;
         public SupplyAllocationStatus Status { get; set; }
+        // Giao dịch kho (xuất kho) liên quan đến lần cấp phát này
+        public Guid? InventoryTransactionId { get; set; }
+        public InventoryTransaction? InventoryTransaction { get; set; }
 
         // Navigation
         public Campaign Campaign { get; set; } = default!;

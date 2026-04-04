@@ -1,7 +1,10 @@
+using Microsoft.EntityFrameworkCore;
 using ReliefManagementSystem.Application.Common.Interface;
+using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Application.Features.InventoryTransaction.DTOs.Request;
 using ReliefManagementSystem.Application.Features.InventoryTransaction.DTOs.Response;
 using ReliefManagementSystem.Application.Interface;
+using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Domain.Enum;
 
 namespace ReliefManagementSystem.Application.Services
@@ -24,6 +27,7 @@ namespace ReliefManagementSystem.Application.Services
         /// <inheritdoc/>
         public async Task<TransactionResponse> CreateTransactionAsync(
             CreateTransactionRequest request,
+            bool autoSave = true,
             CancellationToken cancellationToken = default)
         {
             // 1. Validate inventory exists and is usable
@@ -51,7 +55,7 @@ namespace ReliefManagementSystem.Application.Services
 
             // 4. Load all stocks for this inventory in ONE query (avoid N+1)
             var inventoryStocks = await _unitOfWork.InventoryStocks
-                .GetByInventoryIdAsync(request.InventoryId, cancellationToken);
+                .GetByInventoryIdForUpdateAsync(request.InventoryId, cancellationToken);
 
             // 5. Validate each item and pre-compute new quantities
             var stockUpdates = new List<(Domain.Entities.InventoryStock Stock, int NewQty)>();
@@ -73,6 +77,15 @@ namespace ReliefManagementSystem.Application.Services
                     ? stock.CurrentQuantity + itemReq.Quantity
                     : stock.CurrentQuantity - itemReq.Quantity;
 
+                if (request.Type == TransactionType.Import &&
+                    stock.MaximumStockLevel > 0 &&
+                    newQty > stock.MaximumStockLevel)
+                {
+                    throw new InvalidOperationException(
+                        $"Import quantity exceeds maximum stock level for '{stock.SupplyItem?.Name ?? itemReq.SupplyItemId.ToString()}'. " +
+                        $"Maximum: {stock.MaximumStockLevel}, After import: {newQty}.");
+                }
+
                 stockUpdates.Add((stock, newQty));
             }
 
@@ -86,8 +99,11 @@ namespace ReliefManagementSystem.Application.Services
                 InventoryId = request.InventoryId,
                 TransactionCode = code,
                 Type = request.Type,
+                Reason = request.Reason,
+                SupplyTransferId = request.SupplyTransferId,
                 CreatedAt = DateTime.UtcNow,
-                //CreatedBy = _currentUser.UserId,
+                CreatedBy = _currentUser.UserId
+                    ?? throw new UnauthorizedAccessException("User is not authenticated."),
                 Notes = request.Notes,
                 Items = request.Items.Select(i => new Domain.Entities.InventoryTransactionItem
                 {
@@ -107,14 +123,19 @@ namespace ReliefManagementSystem.Application.Services
                 await _unitOfWork.InventoryStocks.UpdateAsync(stock);
             }
 
-            // 9. Single SaveChanges — atomic commit
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            if (autoSave)
+            {
+                // 9. Single SaveChanges — atomic commit
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            // 10. Reload with navigation properties for full response
-            var saved = await _unitOfWork.InventoryTransactions
-                .GetByIdWithItemsAsync(transaction.TransactionId, cancellationToken);
+                // 10. Reload with navigation properties for full response
+                var saved = await _unitOfWork.InventoryTransactions
+                    .GetByIdWithItemsAsync(transaction.TransactionId, cancellationToken);
 
-            return MapToResponse(saved!);
+                return MapToResponse(saved!);
+            }
+
+            return MapToResponse(transaction);
         }
 
         /// <inheritdoc/>
@@ -132,29 +153,60 @@ namespace ReliefManagementSystem.Application.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IReadOnlyList<TransactionSummaryResponse>> GetTransactionsByInventoryAsync(
+        public async Task<Pagination<TransactionSummaryResponse>> GetTransactionsByInventoryAsync(
             Guid inventoryId,
+            int pageIndex = 1,
+            int pageSize = 20,
             CancellationToken cancellationToken = default)
         {
             if (!await _unitOfWork.Inventories.ExistsAsync(inventoryId))
                 throw new KeyNotFoundException($"Inventory '{inventoryId}' was not found.");
 
-            var transactions = await _unitOfWork.InventoryTransactions
-                .GetByInventoryIdAsync(inventoryId, cancellationToken);
+            var query = _unitOfWork.InventoryTransactions
+                .GetQueryable()
+                .Where(t => t.InventoryId == inventoryId)
+                .OrderByDescending(t => t.CreatedAt);
 
-            return transactions.Select(MapToSummary).ToList();
+            var paged = await Pagination<InventoryTransaction>.ToPagedList(query, pageIndex, pageSize);
+
+            var items = paged.Items!.Select(MapToSummary).ToList();
+            return new Pagination<TransactionSummaryResponse>(items, paged.TotalCount, paged.CurrentPage, paged.PageSize);
+        }
+
+        private string GetCreatedByNameFallback() =>
+            _currentUser.DisplayName
+            ?? _currentUser.Email
+            ?? string.Empty;
+
+        private string ResolveCreatedByName(Domain.Entities.InventoryTransaction transaction)
+        {
+            return transaction.CreatedByUser?.DisplayName
+                ?? transaction.CreatedByUser?.UserName
+                ?? transaction.CreatedByUser?.Email
+                ?? GetCreatedByNameFallback();
         }
 
         /// <inheritdoc/>
-        public async Task<IReadOnlyList<TransactionSummaryResponse>> GetTransactionsByTypeAsync(
+        public async Task<Pagination<TransactionSummaryResponse>> GetTransactionsByTypeAsync(
             TransactionType type,
             Guid? inventoryId = null,
+            int pageIndex = 1,
+            int pageSize = 20,
             CancellationToken cancellationToken = default)
         {
-            var transactions = await _unitOfWork.InventoryTransactions
-                .GetByTypeAsync(type, inventoryId, cancellationToken);
+            var query = _unitOfWork.InventoryTransactions
+                .GetQueryable()
+                .Where(t => t.Type == type);
 
-            return transactions.Select(MapToSummary).ToList();
+            if (inventoryId.HasValue)
+                query = query.Where(t => t.InventoryId == inventoryId.Value);
+
+            query = query.OrderByDescending(t => t.CreatedAt);
+
+            var paged = await Pagination<InventoryTransaction>.ToPagedList(query, pageIndex, pageSize);
+
+            var items = paged.Items!.Select(MapToSummary).ToList();
+            return new Pagination<TransactionSummaryResponse>(items, paged.TotalCount, paged.CurrentPage, paged.PageSize);
         }
 
         // ═══════════════════════════════════════════════════════════
@@ -173,16 +225,17 @@ namespace ReliefManagementSystem.Application.Services
             return $"{prefix}-{date}-{(count + 1):D3}";
         }
 
-        private static TransactionResponse MapToResponse(Domain.Entities.InventoryTransaction t) => new()
+        private TransactionResponse MapToResponse(Domain.Entities.InventoryTransaction t) => new()
         {
             TransactionId = t.TransactionId,
             InventoryId = t.InventoryId,
             ReliefStationName = t.Inventory?.ReliefStation?.Name ?? string.Empty,
             TransactionCode = t.TransactionCode,
             Type = t.Type,
+            Reason = t.Reason,
             CreatedAt = t.CreatedAt,
             CreatedBy = t.CreatedBy,
-            CreatedByName = t.CreatedByUser?.DisplayName ?? string.Empty,
+            CreatedByName = ResolveCreatedByName(t),
             Notes = t.Notes,
             Items = t.Items.Select(i => new TransactionItemResponse
             {
@@ -195,15 +248,16 @@ namespace ReliefManagementSystem.Application.Services
             }).ToList()
         };
 
-        private static TransactionSummaryResponse MapToSummary(Domain.Entities.InventoryTransaction t) => new()
+        private TransactionSummaryResponse MapToSummary(Domain.Entities.InventoryTransaction t) => new()
         {
             TransactionId = t.TransactionId,
             InventoryId = t.InventoryId,
             TransactionCode = t.TransactionCode,
             Type = t.Type,
+            Reason = t.Reason,
             TotalItems = t.Items.Count,
             CreatedAt = t.CreatedAt,
-            CreatedByName = t.CreatedByUser?.DisplayName ?? string.Empty,
+            CreatedByName = ResolveCreatedByName(t),
             Notes = t.Notes
         };
     }

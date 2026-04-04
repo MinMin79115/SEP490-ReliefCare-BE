@@ -57,9 +57,13 @@ namespace ReliefManagementSystem.Application.Services
                 DisplayName = user.DisplayName,
                 Email = user.Email,
                 PhoneNumber = user.PhoneNumber,
+                Address = user.Address,
                 DateOfBirth = user.DateOfBirth,
                 Gender = user.Gender,
                 PictureUrl = user.PictureUrl,
+                BanReason = user.BanReason,
+                IsBanned = user.LockoutEnabled && user.LockoutEnd.HasValue && user.LockoutEnd > DateTimeOffset.UtcNow,
+                LockoutEnd = user.LockoutEnd,
                 Roles = roles.ToList()
             };
         }
@@ -74,6 +78,58 @@ namespace ReliefManagementSystem.Application.Services
         {
             var query = _unitOfWork.Users.GetAllUsersQueryable();
 
+            var normalizedRole = string.IsNullOrWhiteSpace(request.Role)
+                ? null
+                : request.Role.Trim();
+
+            if (!string.IsNullOrWhiteSpace(normalizedRole))
+            {
+                var roleExists = await _roleManager.RoleExistsAsync(normalizedRole);
+                if (!roleExists)        
+                {
+                    return new Pagination<UserProfileResponse>(
+                        new List<UserProfileResponse>(),
+                        0,
+                        request.PageIndex,
+                        request.PageSize);
+                }
+
+                var usersInRole = await _userManager.GetUsersInRoleAsync(normalizedRole);
+                var userIdsInRole = usersInRole.Select(u => u.Id).ToHashSet();
+                query = query.Where(u => userIdsInRole.Contains(u.Id));
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var keyword = request.Search.Trim();
+
+                query = query.Where(u =>
+                    (u.DisplayName ?? string.Empty).Contains(keyword) ||
+                    (u.Email ?? string.Empty).Contains(keyword) ||
+                    (u.PhoneNumber ?? string.Empty).Contains(keyword)
+                );
+            }
+
+            if (request.IsBanned.HasValue)
+            {
+                var now = DateTimeOffset.UtcNow;
+
+                if (request.IsBanned.Value)
+                {
+                    query = query.Where(u =>
+                        u.LockoutEnabled &&
+                        u.LockoutEnd.HasValue &&
+                        u.LockoutEnd > now);
+                }
+                else
+                {
+                    query = query.Where(u =>
+                        !u.LockoutEnabled ||
+                        !u.LockoutEnd.HasValue ||
+                        u.LockoutEnd <= now);
+                }
+            }
+
             var pagedUsers = await Pagination<ApplicationUser>.ToPagedList(
                 query, request.PageIndex, request.PageSize);
 
@@ -87,9 +143,13 @@ namespace ReliefManagementSystem.Application.Services
                     DisplayName = user.DisplayName,
                     Email = user.Email,
                     PhoneNumber = user.PhoneNumber,
+                    Address = user.Address,
                     DateOfBirth = user.DateOfBirth,
                     Gender = user.Gender,
                     PictureUrl = user.PictureUrl,
+                    BanReason = user.BanReason,
+                    IsBanned = user.LockoutEnabled && user.LockoutEnd.HasValue && user.LockoutEnd > DateTimeOffset.UtcNow,
+                    LockoutEnd = user.LockoutEnd,
                     Roles = roles.ToList()
                 });
             }
@@ -99,6 +159,81 @@ namespace ReliefManagementSystem.Application.Services
                 pagedUsers.TotalCount,
                 pagedUsers.CurrentPage,
                 pagedUsers.PageSize);
+        }
+
+        public async Task<Pagination<ModeratorProfileResponse>> GetModeratorsAsync(
+            GetModeratorsRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var moderators = await _userManager.GetUsersInRoleAsync(Role.Moderator.ToString());
+            var now = DateTimeOffset.UtcNow;
+            var moderatorIds = moderators.Select(u => u.Id).ToHashSet();
+            var query = _unitOfWork.Users
+                .GetAllUsersQueryable()
+                .Where(u => moderatorIds.Contains(u.Id));
+
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var keyword = request.Search.Trim();
+                query = query.Where(u =>
+                    (u.DisplayName ?? string.Empty).Contains(keyword) ||
+                    (u.Email ?? string.Empty).Contains(keyword) ||
+                    (u.PhoneNumber ?? string.Empty).Contains(keyword));
+            }
+
+            if (request.IsBanned.HasValue)
+            {
+                if (request.IsBanned.Value)
+                {
+                    query = query.Where(u =>
+                        u.LockoutEnabled &&
+                        u.LockoutEnd.HasValue &&
+                        u.LockoutEnd > now);
+                }
+                else
+                {
+                    query = query.Where(u =>
+                        !u.LockoutEnabled ||
+                        !u.LockoutEnd.HasValue ||
+                        u.LockoutEnd <= now);
+                }
+            }
+
+            var pagedModerators = await Pagination<ApplicationUser>.ToPagedList(
+                query,
+                request.PageIndex,
+                request.PageSize);
+
+            var responses = new List<ModeratorProfileResponse>();
+
+            foreach (var moderator in pagedModerators.Items ?? new List<ApplicationUser>())
+            {
+                var moderatorProfile = await _unitOfWork.ModeratorProfiles
+                    .GetByUserIdAsync(moderator.Id, cancellationToken);
+
+                responses.Add(new ModeratorProfileResponse
+                {
+                    Id = moderator.Id,
+                    DisplayName = moderator.DisplayName,
+                    Email = moderator.Email,
+                    PhoneNumber = moderator.PhoneNumber,
+                    PictureUrl = moderator.PictureUrl,
+                    IsBanned = moderator.LockoutEnabled && moderator.LockoutEnd.HasValue && moderator.LockoutEnd > now,
+                    LockoutEnd = moderator.LockoutEnd,
+                    BanReason = moderator.BanReason,
+                    ModeratorStatus = moderatorProfile?.Status,
+                    IsStationHead = moderatorProfile?.IsStationHead ?? false,
+                    IsManagingStation = moderatorProfile?.ReliefStationId != null,
+                    ReliefStationId = moderatorProfile?.ReliefStationId,
+                    ReliefStationName = moderatorProfile?.ReliefStation?.Name
+                });
+            }
+
+            return new Pagination<ModeratorProfileResponse>(
+                responses,
+                pagedModerators.TotalCount,
+                pagedModerators.CurrentPage,
+                pagedModerators.PageSize);
         }
 
         public async Task<VolunteerProfileResponse> CreateVolunteerProfileAsync(CreateVolunteerRequest request, CancellationToken cancellationToken = default)
@@ -119,9 +254,20 @@ namespace ReliefManagementSystem.Application.Services
                 VerifiedAt = null,
                 VerifiedBy = null,
                 Descriptions = request.Descriptions,
+                YearsOfExperience = request.YearsOfExperience,
+                PreferredTeamRole = request.PreferredTeamRole,
+                Status = VolunteerStatus.Inactive,
                 VolunteerSkills = request.SkillIds.Select(skillId => new VolunteerSkill
                 {
                     SkillId = skillId
+                }).ToList(),
+                Certificates = request.Certificates.Select(c => new VolunteerCertificate
+                {
+                    Name = c.Name,
+                    IssuedBy = c.IssuedBy,
+                    IssuedDate = c.IssuedDate,
+                    ExpiryDate = c.ExpiryDate,
+                    FileUrl = c.FileUrl
                 }).ToList()
             };
             await _unitOfWork.VolunteerProfiles.AddAsync(volunteerProfile);
@@ -134,7 +280,20 @@ namespace ReliefManagementSystem.Application.Services
                 PhoneNumber = user.PhoneNumber,
                 Descriptions = volunteerProfile.Descriptions,
                 VerificationStatus = volunteerProfile.VerificationStatus,
-                Skills = volunteerProfile.VolunteerSkills.Select(vs => vs.SkillId).ToList()
+                Reason = volunteerProfile.Reason,
+                YearsOfExperience = volunteerProfile.YearsOfExperience,
+                PreferredTeamRole = volunteerProfile.PreferredTeamRole,
+                Skills = volunteerProfile.VolunteerSkills.Select(vs => vs.SkillId).ToList(),
+                Certificates = volunteerProfile.Certificates
+                    .Select(c => new VolunteerCertificateResponse
+                    {
+                        Name = c.Name,
+                        IssuedBy = c.IssuedBy,
+                        IssuedDate = c.IssuedDate,
+                        ExpiryDate = c.ExpiryDate,
+                        FileUrl = c.FileUrl
+                    }).ToList()
+                    
             };
         }
 
@@ -153,6 +312,7 @@ namespace ReliefManagementSystem.Application.Services
             profile.VerificationStatus = VerificationStatus.Approved;
             profile.VerifiedAt = DateTime.UtcNow;
             profile.VerifiedBy = _currentUserService.UserId;
+            profile.Status = VolunteerStatus.Active; 
 
             var currentRoles = await _userManager.GetRolesAsync(user);
 
@@ -188,16 +348,19 @@ namespace ReliefManagementSystem.Application.Services
             profile.VerifiedAt = DateTime.UtcNow;
             profile.VerifiedBy = _currentUserService.UserId;
             profile.Reason = reason;
+            profile.Status = VolunteerStatus.Inactive;
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return MapToResponse(profile, profile.User);
         }
 
-        public async Task<VolunteerProfileResponse?> GetVolunteerProfileByUserIdAsync(
-            Guid userId,
+        public async Task<VolunteerProfileResponse?> GetMyVolunteerProfileAsync(
             CancellationToken cancellationToken = default)
         {
+            var userId = _currentUserService.UserId
+                         ?? throw new UnauthorizedAccessException("User not authenticated");
+
             var profile = await _unitOfWork.VolunteerProfiles
                 .GetByUserIdWithSkillsAsync(userId);
 
@@ -207,15 +370,164 @@ namespace ReliefManagementSystem.Application.Services
             return MapToResponse(profile, profile.User);
         }
 
-        public async Task<List<VolunteerProfileResponse>> GetAllVolunteerProfilesAsync(
+        public async Task<VolunteerProfileResponse> ResubmitVolunteerProfileAsync(
+            ResubmitVolunteerRequest request,
             CancellationToken cancellationToken = default)
         {
-            var profiles = await _unitOfWork.VolunteerProfiles
-                .GetAllWithSkillsAsync();
+            var userId = _currentUserService.UserId
+                         ?? throw new UnauthorizedAccessException("User not authenticated");
 
-            return profiles
-                .Select(profile => MapToResponse(profile, profile.User))
+            var profile = await _unitOfWork.VolunteerProfiles.GetByUserIdWithSkillsAsync(userId);
+            if (profile == null)
+                throw new InvalidOperationException("Volunteer profile not found.");
+
+            if (profile.VerificationStatus != VerificationStatus.Rejected)
+                throw new InvalidOperationException("Only rejected volunteer profiles can be resubmitted.");
+
+            profile.Descriptions = request.Descriptions;
+            profile.YearsOfExperience = request.YearsOfExperience;
+            profile.PreferredTeamRole = request.PreferredTeamRole;
+            profile.VerificationStatus = VerificationStatus.Pending;
+            profile.VerifiedAt = null;
+            profile.VerifiedBy = null;
+            profile.Reason = null;
+            profile.Status = VolunteerStatus.Inactive;
+
+            profile.VolunteerSkills.Clear();
+            foreach (var skillId in request.SkillIds.Distinct())
+            {
+                profile.VolunteerSkills.Add(new VolunteerSkill
+                {
+                    VolunteerProfileId = profile.VolunteerProfileId,
+                    SkillId = skillId
+                });
+            }
+
+            profile.Certificates.Clear();
+            foreach (var certificate in request.Certificates)
+            {
+                profile.Certificates.Add(new VolunteerCertificate
+                {
+                    VolunteerProfileId = profile.VolunteerProfileId,
+                    Name = certificate.Name,
+                    IssuedBy = certificate.IssuedBy,
+                    IssuedDate = certificate.IssuedDate,
+                    ExpiryDate = certificate.ExpiryDate,
+                    FileUrl = certificate.FileUrl
+                });
+            }
+
+            await _unitOfWork.VolunteerProfiles.UpdateAsync(profile);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return MapToResponse(profile, profile.User);
+        }
+
+        public async Task<Pagination<VolunteerProfileResponse>> GetAllVolunteerProfilesAsync(
+            SearchVolunteerProfilesRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var query = _unitOfWork.Users.GetQueryableWithVolunteerProfile()
+                .Where(u => u.VolunteerProfile != null)
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var keyword = request.Search.Trim();
+                query = query.Where(u =>
+                    (u.DisplayName ?? string.Empty).Contains(keyword) ||
+                    (u.Email ?? string.Empty).Contains(keyword) ||
+                    (u.PhoneNumber ?? string.Empty).Contains(keyword));
+            }
+
+            query = query.OrderBy(u => u.DisplayName ?? u.Email ?? string.Empty);
+
+            var pagedUsers = await Pagination<ApplicationUser>.ToPagedList(query, request.PageIndex, request.PageSize);
+
+            var items = pagedUsers.Items!
+                .Where(u => u.VolunteerProfile != null)
+                .Select(u => MapToResponse(u.VolunteerProfile!, u))
                 .ToList();
+
+            return new Pagination<VolunteerProfileResponse>(
+                items,
+                pagedUsers.TotalCount,
+                pagedUsers.CurrentPage,
+                pagedUsers.PageSize);
+        }
+
+        public async Task<Pagination<VolunteerApplicationReviewResponse>> GetPendingVolunteerApplicationsAsync(
+            GetPendingVolunteerApplicationsRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var query = _unitOfWork.VolunteerProfiles.GetQueryableForReview()
+                .AsQueryable();
+
+            if (request.VerificationStatus.HasValue)
+            {
+                query = query.Where(vp => vp.VerificationStatus == request.VerificationStatus.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var keyword = request.Search.Trim();
+                query = query.Where(vp =>
+                    (vp.User != null && (
+                        (vp.User.DisplayName ?? string.Empty).Contains(keyword) ||
+                        (vp.User.Email ?? string.Empty).Contains(keyword) ||
+                        (vp.User.PhoneNumber ?? string.Empty).Contains(keyword)
+                    )));
+            }
+
+            query = query.OrderByDescending(vp => vp.CreatedAt);
+
+            var paged = await Pagination<VolunteerProfile>.ToPagedList(
+                query,
+                request.PageIndex,
+                request.PageSize);
+
+            var items = paged.Items!.Select(vp => new VolunteerApplicationReviewResponse
+            {
+                VolunteerProfileId = vp.VolunteerProfileId,
+                UserId = vp.UserId,
+                FullName = vp.User?.DisplayName,
+                Email = vp.User?.Email,
+                PhoneNumber = vp.User?.PhoneNumber,
+                Address = vp.User?.Address,
+                DateOfBirth = vp.User?.DateOfBirth,
+                Gender = vp.User?.Gender,
+                AppliedAt = vp.CreatedAt,
+                VerificationStatus = vp.VerificationStatus,
+                Status = vp.Status,
+                VerifiedBy = vp.VerifiedBy,
+                VerifiedAt = vp.VerifiedAt,
+                Reason = vp.Reason,
+                Descriptions = vp.Descriptions,
+                YearsOfExperience = vp.YearsOfExperience,
+                PreferredTeamRole = vp.PreferredTeamRole,
+                VolunteerType = vp.VolunteerType,
+                Skills = vp.VolunteerSkills.Select(vs => new VolunteerSkillResponse
+                {
+                    SkillId = vs.SkillId,
+                    Code = vs.Skill?.Code ?? string.Empty,
+                    Name = vs.Skill?.Name ?? string.Empty,
+                    Description = vs.Skill?.Description
+                }).ToList(),
+                Certificates = vp.Certificates.Select(c => new VolunteerCertificateResponse
+                {
+                    Name = c.Name,
+                    IssuedBy = c.IssuedBy,
+                    IssuedDate = c.IssuedDate,
+                    ExpiryDate = c.ExpiryDate,
+                    FileUrl = c.FileUrl
+                }).ToList()
+            }).ToList();
+
+            return new Pagination<VolunteerApplicationReviewResponse>(
+                items,
+                paged.TotalCount,
+                paged.CurrentPage,
+                paged.PageSize);
         }
 
         public async Task<VolunteerProfileResponse> AddNewSkillVolunteer(AddVolunteerRequest request,    CancellationToken cancellationToken)
@@ -262,6 +574,7 @@ namespace ReliefManagementSystem.Application.Services
                 PhoneNumber = user.PhoneNumber,
                 Descriptions = profile.Descriptions,
                 VerificationStatus = profile.VerificationStatus,
+                PreferredTeamRole = profile.PreferredTeamRole,
                 Skills = profile.VolunteerSkills
                     .Select(vs => vs.SkillId)
                     .ToList()
@@ -303,6 +616,7 @@ namespace ReliefManagementSystem.Application.Services
                 PhoneNumber = user.PhoneNumber,
                 Descriptions = profile.Descriptions,
                 VerificationStatus = profile.VerificationStatus,
+                PreferredTeamRole = profile.PreferredTeamRole,
                 Skills = profile.VolunteerSkills
                     .Select(vs => vs.SkillId)
                     .ToList()
@@ -356,6 +670,9 @@ namespace ReliefManagementSystem.Application.Services
             if (request.PhoneNumber != null)
                 user.PhoneNumber = request.PhoneNumber;
 
+            if (request.Address != null)
+                user.Address = request.Address;
+
             if (request.DateOfBirth.HasValue)
                 user.DateOfBirth = request.DateOfBirth.Value;
 
@@ -363,22 +680,16 @@ namespace ReliefManagementSystem.Application.Services
                 user.Gender = request.Gender;
 
             // Handle avatar upload
-            if (request.Avatar != null)
+            if (request.PictureUrl != null)
             {
-                // Delete old avatar if exists
-                if (!string.IsNullOrEmpty(user.PicturePublicId))
+                if (!string.IsNullOrEmpty(user.PicturePublicId) &&
+                    !string.IsNullOrEmpty(request.PicturePublicId))
                 {
-                    await _imageService.DeleteImageAsync(user.PicturePublicId, cancellationToken);
+                    await _imageService.DeleteImageAsync(user.PicturePublicId);
                 }
 
-                using var stream = request.Avatar.OpenReadStream();
-                var imageUrl = await _imageService.UploadImageAsync(
-                    stream,
-                    request.Avatar.FileName,
-                    cancellationToken);
-
-                user.PictureUrl = imageUrl;
-                user.PicturePublicId = imageUrl; // Store the public ID for future deletion
+                user.PictureUrl = request.PictureUrl;
+                user.PicturePublicId = request.PicturePublicId;
             }
 
             await _unitOfWork.Users.UpdateAsync(user);
@@ -392,9 +703,92 @@ namespace ReliefManagementSystem.Application.Services
                 DisplayName = user.DisplayName,
                 Email = user.Email,
                 PhoneNumber = user.PhoneNumber,
+                Address = user.Address,
                 DateOfBirth = user.DateOfBirth,
                 Gender = user.Gender,
                 PictureUrl = user.PictureUrl,
+                BanReason = user.BanReason,
+                IsBanned = user.LockoutEnabled && user.LockoutEnd.HasValue && user.LockoutEnd > DateTimeOffset.UtcNow,
+                LockoutEnd = user.LockoutEnd,
+                Roles = roles.ToList()
+            };
+        }
+
+        public async Task<UserProfileResponse> BanUserAsync(
+            Guid userId,
+            BanUserRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var user = await _userManager.FindByIdAsync(userId.ToString())
+                       ?? throw new UserNotFoundException(userId.ToString());
+
+            user.BanReason = request.Reason.Trim();
+            user.LockoutEnabled = true;
+
+            var lockResult = await _userManager.SetLockoutEndDateAsync(user, DateTimeOffset.MaxValue);
+            if (!lockResult.Succeeded)
+            {
+                var errors = lockResult.Errors
+                    .GroupBy(e => e.Code)
+                    .ToDictionary(g => g.Key, g => g.Select(e => e.Description).ToArray());
+                throw new ReliefManagementSystem.Application.Common.Exceptions.ValidationException(errors);
+            }
+
+            await _userManager.UpdateSecurityStampAsync(user);
+
+            var roles = await _userManager.GetRolesAsync(user);
+            return new UserProfileResponse
+            {
+                Id = user.Id,
+                DisplayName = user.DisplayName,
+                Email = user.Email,
+                PhoneNumber = user.PhoneNumber,
+                Address = user.Address,
+                DateOfBirth = user.DateOfBirth,
+                Gender = user.Gender,
+                PictureUrl = user.PictureUrl,
+                BanReason = user.BanReason,
+                IsBanned = true,
+                LockoutEnd = user.LockoutEnd,
+                Roles = roles.ToList()
+            };
+        }
+
+        public async Task<UserProfileResponse> UnbanUserAsync(
+            Guid userId,
+            UnbanUserRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var user = await _userManager.FindByIdAsync(userId.ToString())
+                       ?? throw new UserNotFoundException(userId.ToString());
+
+            user.BanReason = request.Note;
+
+            var unlockResult = await _userManager.SetLockoutEndDateAsync(user, null);
+            if (!unlockResult.Succeeded)
+            {
+                var errors = unlockResult.Errors
+                    .GroupBy(e => e.Code)
+                    .ToDictionary(g => g.Key, g => g.Select(e => e.Description).ToArray());
+                throw new ReliefManagementSystem.Application.Common.Exceptions.ValidationException(errors);
+            }
+
+            await _userManager.UpdateSecurityStampAsync(user);
+
+            var roles = await _userManager.GetRolesAsync(user);
+            return new UserProfileResponse
+            {
+                Id = user.Id,
+                DisplayName = user.DisplayName,
+                Email = user.Email,
+                PhoneNumber = user.PhoneNumber,
+                Address = user.Address,
+                DateOfBirth = user.DateOfBirth,
+                Gender = user.Gender,
+                PictureUrl = user.PictureUrl,
+                BanReason = user.BanReason,
+                IsBanned = false,
+                LockoutEnd = user.LockoutEnd,
                 Roles = roles.ToList()
             };
         }
@@ -412,9 +806,20 @@ namespace ReliefManagementSystem.Application.Services
                 PhoneNumber = user?.PhoneNumber,
                 Descriptions = profile.Descriptions,
                 VerificationStatus = profile.VerificationStatus,
+                Reason = profile.Reason,
+                YearsOfExperience = profile.YearsOfExperience,
+                PreferredTeamRole = profile.PreferredTeamRole,
                 Skills = profile.VolunteerSkills
                     .Select(vs => vs.SkillId)
-                    .ToList()
+                    .ToList(),
+                Certificates = profile.Certificates.Select(c => new VolunteerCertificateResponse
+                {
+                    Name = c.Name,
+                    IssuedBy = c.IssuedBy,
+                    IssuedDate = c.IssuedDate,
+                    ExpiryDate = c.ExpiryDate,
+                    FileUrl = c.FileUrl
+                }).ToList()
             };
         }
     }

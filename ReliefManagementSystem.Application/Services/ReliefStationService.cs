@@ -1,7 +1,9 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 using ReliefManagementSystem.Application.Common.Exceptions.ReliefStationExceptions;
+using ReliefManagementSystem.Application.Common.Exceptions.Team;
 using ReliefManagementSystem.Application.Common.Interface;
 using ReliefManagementSystem.Application.Common.Models;
+using ReliefManagementSystem.Application.Features.ReliefStation.Dtos;
 using ReliefManagementSystem.Application.Features.ReliefStation.DTOs.Request;
 using ReliefManagementSystem.Application.Features.ReliefStation.DTOs.Response;
 using ReliefManagementSystem.Application.Interface;
@@ -26,308 +28,529 @@ namespace ReliefManagementSystem.Application.Services
             _userManager = userManager;
         }
 
-        // ═══════════════════════════════════════════════════════════
-        //  GET ALL STATIONS (PAGINATED)
-        // ═══════════════════════════════════════════════════════════
-
-        /// <inheritdoc/>
-        public async Task<Pagination<ReliefStationResponse>> GetAllStationsAsync(
-            GetAllStationsRequest request,
-            CancellationToken ct = default)
+        public async Task<Guid> CreateProvincialReliefStationAsync(CreateProvincialReliefStationRequest request, CancellationToken cancellationToken)
         {
-            var query = _unitOfWork.ReliefStations
-                .GetAllQueryable(request.Level, request.Search);
+           
 
-            // Phân trang trên entity
-            var pagedStations = await Pagination<ReliefStation>.ToPagedList(
-                query, request.PageIndex, request.PageSize);
+            // 2️⃣ Validate coordinates
+            if (request.Latitude < -90 || request.Latitude > 90 ||
+                request.Longitude < -180 || request.Longitude > 180)
+            {
+                throw new InvalidCoordinatesException();
+            }
 
-            // Map sang response
-            var responses = pagedStations.Items!
-                .Select(rs => MapToResponse(rs, rs.Location?.Name ?? string.Empty))
-                .ToList();
+            // 3️⃣ Check Location exists
+            var location = await _unitOfWork.Locations.GetByIdAsync(request.LocationId);
+
+            if (location == null)
+            {
+                throw new LocationNotFoundException();
+            }
+
+            // 4️⃣ Validate location level (optional nếu Location có Level)
+            if (location.Level != LocationLevel.Province)
+            {
+                throw new InvalidLocationForProvincialStationException();
+            }
+
+
+            if (await _unitOfWork.ReliefStations.ExistsByNameAsync(request.Name))
+            {
+                throw new StationNameAlreadyExistsException(request.Name);
+            }
+
+
+            if (await _unitOfWork.ReliefStations.ExistsProvincialStationInLocationAsync(request.LocationId))
+            {
+                throw new DuplicateReliefStationLocationException();
+            }
+
+            try
+            {
+
+                var station = new ReliefStation
+                {
+                    LocationId = request.LocationId,
+                    Name = request.Name,
+                    Address = request.Address,
+                    ContactNumber = request.ContactNumber,
+                    Longitude = request.Longitude,
+                    Latitude = request.Latitude,
+                    CoverageRadiusKm = request.CoverageRadiusKm,
+
+                    Level = ReliefStationLevel.Provincial,
+                    ReliefStationStatus = ReliefStationStatus.Active,
+                };
+
+                var inventory = new Inventory
+                {
+                    Level = InventoryLevel.Provincial,
+                    Status = EntityStatus.Active,
+                    ReliefStation = station
+
+                };
+
+                await _unitOfWork.ReliefStations.AddAsync(station);
+                await _unitOfWork.Inventories.AddAsync(inventory);
+
+                var result = await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                if (result <= 0)
+                {
+                    throw new ReliefStationCreationFailedException();
+                }
+
+                return station.ReliefStationId;
+            }
+            catch (OperationCanceledException)
+            {
+                throw;
+            }
+            catch (Exception)
+            {
+                throw new InventoryCreationFailedException();
+            }
+        }
+        public async Task<ReliefStationResponse> UpdateProvincialReliefStationAsync(Guid stationId, UpdateProvincialStationRequest request, CancellationToken cancellationToken)
+        {
+            // 1️⃣ Lấy trạm cần cập nhật
+            var station = await _unitOfWork.ReliefStations.GetByIdAsync(stationId);
+            if (station == null)
+            {
+                throw new ReliefStationNotFoundException(stationId);
+            }
+
+            // 2️⃣ Kiểm tra đúng cấp Provincial
+            if (station.Level != ReliefStationLevel.Provincial)
+            {
+                throw new InvalidLocationForProvincialStationException();
+            }
+
+            // 3️⃣ Kiểm tra toạ độ
+            if (request.Latitude < -90 || request.Latitude > 90 ||
+                request.Longitude < -180 || request.Longitude > 180)
+            {
+                throw new InvalidCoordinatesException();
+            }
+
+            // 4️⃣ Kiểm tra tên không bị trùng với trạm khác
+            if (station.Name != request.Name &&
+                await _unitOfWork.ReliefStations.ExistsByNameExcludingIdAsync(request.Name, stationId))
+            {
+                throw new StationNameAlreadyExistsException(request.Name);
+            }
+
+            // 5️⃣ Cập nhật thông tin
+            station.Name = request.Name;
+            station.Address = request.Address;
+            station.ContactNumber = request.ContactNumber;
+            station.Longitude = request.Longitude;
+            station.Latitude = request.Latitude;
+            station.CoverageRadiusKm = request.CoverageRadiusKm;
+
+            _unitOfWork.ReliefStations.UpdateAsync(station);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // 6️⃣ Trả về thông tin trạm sau khi cập nhật
+            return new ReliefStationResponse
+            {
+                ReliefStationId = station.ReliefStationId,
+                Name = station.Name,
+                Address = station.Address,
+                ContactNumber = station.ContactNumber,
+                Longitude = station.Longitude,
+                Latitude = station.Latitude,
+                CoverageRadiusKm = station.CoverageRadiusKm,
+                Status = station.ReliefStationStatus,
+                Level = station.Level,
+                LocationId = station.LocationId,
+                LocationName = station.Location?.Name ?? string.Empty,
+                UpdatedAt = station.UpdatedAt
+            };
+        }
+        public async Task<Pagination<ReliefStationResponse>> GetProvincialStationsAsync(
+            GetAllStationsRequest request,
+            CancellationToken cancellationToken)
+        {
+            var pagedStations = await _unitOfWork.ReliefStations
+                .GetProvincialStationsAsync(request, cancellationToken);
+
+            var items = pagedStations.Items!.Select(s => new ReliefStationResponse
+            {
+                ReliefStationId = s.ReliefStationId,
+                Name = s.Name,
+                ModeratorName = s.Moderators
+                    .FirstOrDefault(m => m.IsStationHead)?.User?.DisplayName
+                    ?? s.Moderators.FirstOrDefault(m => m.IsStationHead)?.User?.UserName
+                    ?? s.Moderators.FirstOrDefault(m => m.IsStationHead)?.User?.Email
+                    ?? string.Empty,
+                Address = s.Address,
+                ContactNumber = s.ContactNumber,
+                Longitude = s.Longitude,
+                Latitude = s.Latitude,
+                CoverageRadiusKm = s.CoverageRadiusKm,
+                Status = s.ReliefStationStatus,
+                Level = s.Level,
+                LocationId = s.LocationId,
+                LocationName = s.Location?.Name ?? string.Empty,
+                CreatedAt = s.CreatedAt,
+                UpdatedAt = s.UpdatedAt
+            }).ToList();
 
             return new Pagination<ReliefStationResponse>(
-                responses,
+                items,
                 pagedStations.TotalCount,
                 pagedStations.CurrentPage,
                 pagedStations.PageSize);
         }
 
-        // ═══════════════════════════════════════════════════════════
-        //  CREATE PROVINCIAL STATION
-        // ═══════════════════════════════════════════════════════════
-
-        /// <inheritdoc/>
-        public async Task<ReliefStationResponse> CreateProvincialStationAsync(
-            CreateProvincialStationRequest request,
-            CancellationToken ct = default)
+        public async Task<ReliefStationResponse> GetCurrentModeratorStationAsync(CancellationToken cancellationToken)
         {
-            var userId = _currentUser.UserId
-                         ?? throw new UnauthorizedAccessException("User not authenticated");
-            // 1. Kiểm tra user hiện tại có ManagerProfile không
-            var managerProfile = await _unitOfWork.ManagerProfiles
-                .GetByUserIdAsync(userId, ct);
-
-            if (managerProfile is null)
-                throw new UnauthorizedStationCreationException();
-
-            // 2. Kiểm tra LocationId có tồn tại không
-            var location = await _unitOfWork.Locations.GetByIdAsync(request.LocationId);
-            if (location is null)
-                throw new LocationNotFoundException();
-
-            // 3. Kiểm tra LocationId phải đúng cấp Tỉnh (Province)
-            if (location.Level != LocationLevel.Province)
-                throw new InvalidLocationLevelException("Tỉnh (Province)");
-
-            // 4. Tìm trạm Regional cha trong vùng Manager phụ trách
-            //    AssignedLocationId của Manager phải là LocationId cấp Region
-            if (managerProfile.AssignedLocationId is null)
-                throw new ParentStationNotFoundException();
-
-            var parentStation = await _unitOfWork.ReliefStations
-                .GetRegionalByLocationIdAsync(managerProfile.AssignedLocationId.Value, ct);
-
-            if (parentStation is null)
-                throw new ParentStationNotFoundException();
-
-            // 5. Tạo trạm tỉnh
-            var now = DateTime.UtcNow;
-            var station = new ReliefStation
+            var currentUserId = _currentUser.UserId;
+            if (!currentUserId.HasValue)
             {
-                ReliefStationId = Guid.NewGuid(),
-                Name             = request.Name,
-                LocationId       = request.LocationId,
-                Address          = request.Address,
-                ContactNumber    = request.ContactNumber,
-                Longitude        = request.Longitude,
-                Latitude         = request.Latitude,
-                Level            = ReliefStationLevel.Provincial,
-                ParentReliefStationId = parentStation.ReliefStationId,
-                Status           = ReliefStationStatus.Draft,
-                IsActive         = true,
-                CreatedBy        = _currentUser.UserId,
-                CreatedAt        = now,
-                UpdatedAt        = now
-            };
-
-            await _unitOfWork.ReliefStations.AddAsync(station);
-            await _unitOfWork.SaveChangesAsync(ct);
-
-            return MapToResponse(station, location.Name);
-        }
-
-        // ═══════════════════════════════════════════════════════════
-        //  CREATE LOCAL STATION
-        // ═══════════════════════════════════════════════════════════
-
-        /// <inheritdoc/>
-        public async Task<ReliefStationResponse> CreateLocalStationAsync(
-            CreateLocalStationRequest request,
-            CancellationToken ct = default)
-        {
-            var userId = _currentUser.UserId
-                         ?? throw new UnauthorizedAccessException("User not authenticated");
-            // 1. Kiểm tra user hiện tại có ModeratorProfile + IsStationHead không
-            var moderatorProfile = await _unitOfWork.ModeratorProfiles
-                .GetByUserIdAsync(userId, ct);
-
-            if (moderatorProfile is null || !moderatorProfile.IsStationHead)
-                throw new UnauthorizedStationCreationException();
-
-            // 2. Trạm mà Moderator đứng đầu phải là trạm Provincial
-            if (moderatorProfile.ReliefStationId is null)
-                throw new ParentStationNotFoundException();
-
-            var parentStation = await _unitOfWork.ReliefStations
-                .GetByIdAsync(moderatorProfile.ReliefStationId.Value);
-
-            if (parentStation is null || parentStation.Level != ReliefStationLevel.Provincial)
-                throw new ParentStationNotFoundException();
-
-            // 3. Kiểm tra LocationId có tồn tại không
-            var location = await _unitOfWork.Locations.GetByIdAsync(request.LocationId);
-            if (location is null)
-                throw new LocationNotFoundException();
-
-            // 4. Kiểm tra LocationId phải đúng cấp Xã/Phường (Commune)
-            if (location.Level != LocationLevel.Commune)
-                throw new InvalidLocationLevelException("Xã/Phường (Commune)");
-
-            // 5. Tạo trạm địa phương
-            var now = DateTime.UtcNow;
-            var station = new ReliefStation
-            {
-                ReliefStationId       = Guid.NewGuid(),
-                Name                  = request.Name,
-                LocationId            = request.LocationId,
-                Address               = request.Address,
-                ContactNumber         = request.ContactNumber,
-                Longitude             = request.Longitude,
-                Latitude              = request.Latitude,
-                Level                 = ReliefStationLevel.Local,
-                ParentReliefStationId = parentStation.ReliefStationId,
-                Status                = ReliefStationStatus.Draft,
-                IsActive              = true,
-                CreatedBy             = _currentUser.UserId,
-                CreatedAt             = now,
-                UpdatedAt             = now
-            };
-
-            await _unitOfWork.ReliefStations.AddAsync(station);
-            await _unitOfWork.SaveChangesAsync(ct);
-
-            return MapToResponse(station, location.Name);
-        }
-
-        // ═══════════════════════════════════════════════════════════
-        //  ASSIGN MODERATOR
-        // ═══════════════════════════════════════════════════════════
-
-        /// <inheritdoc/>
-        public async Task<bool> AssignModeratorAsync(
-            Guid stationId,
-            UpdateTeamAssignmentRequest.AssignModeratorRequest request,
-            CancellationToken ct = default)
-        {
-            var userId = _currentUser.UserId
-                         ?? throw new UnauthorizedAccessException("User not authenticated");
-            // 1. Get Station
-            var station = await _unitOfWork.ReliefStations.GetByIdAsync(stationId);
-            if (station is null)
-                throw new ReliefStationNotFoundException();
-
-            // 2. Authorization
-            var user = await _userManager.FindByIdAsync(userId.ToString());
-            if (user == null)
-                throw new UnauthorizedModeratorAssignmentException();
-
-            var roles = await _userManager.GetRolesAsync(user);
-            bool isAuthorized = false;
-
-            if (roles.Contains(Role.Admin.ToString()))
-            {
-                isAuthorized = true;
-            }
-            else if (roles.Contains(Role.Manager.ToString()))
-            {
-                var managerProfile = await _unitOfWork.ManagerProfiles.GetByUserIdAsync(userId, ct);
-                if (managerProfile?.AssignedLocationId != null)
-                {
-                    var regionalStation = await _unitOfWork.ReliefStations
-                        .GetRegionalByLocationIdAsync(managerProfile.AssignedLocationId.Value, ct);
-
-                    if (regionalStation != null)
-                    {
-                        if (station.ReliefStationId == regionalStation.ReliefStationId)
-                            isAuthorized = true;
-                        else if (station.ParentReliefStationId == regionalStation.ReliefStationId)
-                            isAuthorized = true;
-                        else if (station.Level == ReliefStationLevel.Local)
-                        {
-                            var parentStation = await _unitOfWork.ReliefStations.GetByIdAsync(station.ParentReliefStationId ?? Guid.Empty);
-                            if (parentStation?.ParentReliefStationId == regionalStation.ReliefStationId)
-                                isAuthorized = true;
-                        }
-                    }
-                }
-            }
-            else if (roles.Contains(Role.Moderator.ToString()))
-            {
-                var modProfile = await _unitOfWork.ModeratorProfiles.GetByUserIdAsync(userId, ct);
-                if (modProfile != null && modProfile.IsStationHead && modProfile.ReliefStationId == station.ParentReliefStationId)
-                {
-                    isAuthorized = true;
-                }
-            }
-
-            if (!isAuthorized)
-                throw new UnauthorizedModeratorAssignmentException();
-
-            // 3. Find Moderator Profile
-            var targetMod = await _unitOfWork.ModeratorProfiles.GetByUserIdAsync(request.ModeratorUserId, ct);
-            if (targetMod == null)
                 throw new ModeratorProfileNotFoundException();
+            }
+            var currentUser = await _unitOfWork.Users.GetUserById(currentUserId.Value);
 
-            if (targetMod.ReliefStationId != null && targetMod.ReliefStationId != stationId)
+            var moderatorProfile = await _unitOfWork.ModeratorProfiles
+                .GetByUserIdAsync(currentUserId.Value, cancellationToken);
+
+            var locationName = await _unitOfWork.Locations.GetFullNameByLocationId(moderatorProfile.ReliefStation.LocationId);
+            if (moderatorProfile == null)
             {
-                // Cho phép gỡ khỏi trạm hiện tại nếu trạng thái truyền vào mang ý nghĩa ngắt/thôi việc
-                // Thay vì cấm hoàn toàn, nếu đổi Status = Inactive/Suspended/Dismissed thì cho phép gỡ ReliefStationId
-                if (request.Status is ModeratorStatus.Inactive or ModeratorStatus.Suspended or ModeratorStatus.Dismissed)
-                {
-                   targetMod.ReliefStationId = null;
-                   targetMod.IsStationHead = false;
-                }
-                else
-                {
-                   throw new ModeratorAlreadyAssignedException();
-                }
+                throw new ModeratorProfileNotFoundException(currentUserId.Value);
             }
 
-            // 4. Handle IsStationHead logic (chỉ khi đang Active và gán trạm)
-            if (request.IsStationHead && (request.Status == null || request.Status == ModeratorStatus.Active))
+            if (!moderatorProfile.ReliefStationId.HasValue || moderatorProfile.ReliefStation == null)
             {
-                var existingHead = await _unitOfWork.ModeratorProfiles.GetStationHeadAsync(stationId, ct);
-                if (existingHead != null && existingHead.UserId != targetMod.UserId)
-                {
-                    existingHead.IsStationHead = false;
-                    _unitOfWork.ModeratorProfiles.UpdateAsync(existingHead);
-                }
+                throw new ModeratorStationNotAssignedException();
             }
 
-            // 5. Update Status & Reason
-            if (request.Status.HasValue)
-            {
-                targetMod.Status = request.Status.Value;
-                targetMod.StatusReason = request.Reason;
-                
-                // Nếu bị đình chỉ/sa thải/không hoạt động -> Gỡ khỏi trạm
-                if (targetMod.Status != ModeratorStatus.Active)
-                {
-                    targetMod.ReliefStationId = null;
-                    targetMod.IsStationHead = false;
-                }
-                else
-                {
-                    targetMod.ReliefStationId = stationId;
-                    targetMod.IsStationHead = request.IsStationHead;
-                }
-            }
-            else // Mặc định gán vào trạm -> Active
-            {
-                targetMod.ReliefStationId = stationId;
-                targetMod.IsStationHead = request.IsStationHead;
-                targetMod.Status = ModeratorStatus.Active;
-                targetMod.StatusReason = request.Reason;
-            }
+            var station = moderatorProfile.ReliefStation;
 
-            _unitOfWork.ModeratorProfiles.UpdateAsync(targetMod);
-            await _unitOfWork.SaveChangesAsync(ct);
-
-            return true;
+            return new ReliefStationResponse
+            {
+                ReliefStationId = station.ReliefStationId,
+                Name = station.Name,
+                ModeratorName = currentUser?.DisplayName ?? string.Empty,
+                Address = station.Address,
+                ContactNumber = station.ContactNumber,
+                Longitude = station.Longitude,
+                Latitude = station.Latitude,
+                CoverageRadiusKm = station.CoverageRadiusKm,
+                Status = station.ReliefStationStatus,
+                Level = station.Level,
+                LocationId = station.LocationId,
+                LocationName = locationName,
+                CreatedAt = station.CreatedAt,
+                UpdatedAt = station.UpdatedAt
+            };
         }
 
-        // ═══════════════════════════════════════════════════════════
-        //  PRIVATE HELPERS
-        // ═══════════════════════════════════════════════════════════
-
-        private static ReliefStationResponse MapToResponse(ReliefStation rs, string locationName) => new()
+        public async Task<ReliefStationResponse> DisableProvincialStationAsync(Guid stationId, CancellationToken cancellationToken)
         {
-            ReliefStationId       = rs.ReliefStationId,
-            Name                  = rs.Name,
-            Address               = rs.Address,
-            ContactNumber         = rs.ContactNumber,
-            Longitude             = rs.Longitude,
-            Latitude              = rs.Latitude,
-            Status                = rs.Status,
-            IsActive              = rs.IsActive,
-            Level                 = rs.Level,
-            ParentReliefStationId = rs.ParentReliefStationId,
-            LocationId            = rs.LocationId,
-            LocationName          = locationName,
-            CreatedAt             = rs.CreatedAt,
-            UpdatedAt             = rs.UpdatedAt ?? rs.CreatedAt
-        };
+            // 1️⃣ Lấy trạm cần disable
+            var station = await _unitOfWork.ReliefStations.GetByIdAsync(stationId);
+            if (station == null)
+            {
+                throw new ReliefStationNotFoundException(stationId);
+            }
+
+            // 2️⃣ Kiểm tra đúng cấp Provincial
+            if (station.Level != ReliefStationLevel.Provincial)
+            {
+                throw new InvalidLocationForProvincialStationException();
+            }
+
+            // 3️⃣ Cập nhật trạng thái trạm
+            station.ReliefStationStatus = ReliefStationStatus.Inactive;
+
+            // 4️⃣ Cập nhật Data Inventory thuộc về trạm này
+            var inventories = await _unitOfWork.Inventories.GetByReliefStationAsync(stationId, cancellationToken);
+            foreach (var inventory in inventories)
+            {
+                inventory.Status = EntityStatus.Inactive;
+            }
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // 5️⃣ Trả về thông tin trạm sau khi disable
+            return new ReliefStationResponse
+            {
+                ReliefStationId = station.ReliefStationId,
+                Name = station.Name,
+                Address = station.Address,
+                ContactNumber = station.ContactNumber,
+                Longitude = station.Longitude,
+                Latitude = station.Latitude,
+                CoverageRadiusKm = station.CoverageRadiusKm,
+                Status = station.ReliefStationStatus,
+                Level = station.Level,
+                LocationId = station.LocationId,
+                LocationName = station.Location?.Name ?? string.Empty,
+                CreatedAt = station.CreatedAt,
+                UpdatedAt = station.UpdatedAt
+            };
+        }
+        public async Task<ReliefStationResponse> ActivateProvincialStationAsync(Guid stationId, CancellationToken cancellationToken)
+        {
+            // 1️⃣ Lấy trạm cần activate
+            var station = await _unitOfWork.ReliefStations.GetByIdAsync(stationId);
+            if (station == null)
+            {
+                throw new ReliefStationNotFoundException(stationId);
+            }
+
+            // 2️⃣ Kiểm tra đúng cấp Provincial
+            if (station.Level != ReliefStationLevel.Provincial)
+            {
+                throw new InvalidLocationForProvincialStationException();
+            }
+
+            // 3️⃣ Cập nhật trạng thái trạm
+            station.ReliefStationStatus = ReliefStationStatus.Active;
+
+            // 4️⃣ Cập nhật Data Inventory thuộc về trạm này
+            // Lưu ý: với GetByReliefStationAsync hiện tại trong repository thường chỉ lấy Active, 
+            // nên nếu repository đang lọc Active thì phải sửa hoặc thêm hàm Get All (kể cả inactive)
+            var inventories = await _unitOfWork.Inventories.GetAllAsync();
+            var stationInventories = inventories.Where(i => i.ReliefStationId == stationId).ToList();
+            
+            foreach (var inventory in stationInventories)
+            {
+                inventory.Status = EntityStatus.Active;
+            }
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // 5️⃣ Trả về thông tin trạm sau khi activate
+            return new ReliefStationResponse
+            {
+                ReliefStationId = station.ReliefStationId,
+                Name = station.Name,
+                Address = station.Address,
+                ContactNumber = station.ContactNumber,
+                Longitude = station.Longitude,
+                Latitude = station.Latitude,
+                CoverageRadiusKm = station.CoverageRadiusKm,
+                Status = station.ReliefStationStatus,
+                Level = station.Level,
+                LocationId = station.LocationId,
+                LocationName = station.Location?.Name ?? string.Empty,
+                CreatedAt = station.CreatedAt,
+                UpdatedAt = station.UpdatedAt
+            };
+        }
+
+        public async Task<ReliefStationResponse> AssignModeratorAsync(Guid stationId, AssignModeratorRequest request, CancellationToken cancellationToken)
+        {
+            // 1. Kiểm tra trạm tồn tại
+            var station = await _unitOfWork.ReliefStations.GetByIdAsync(stationId);
+            if (station == null)
+            {
+                throw new ReliefStationNotFoundException(stationId);
+            }
+
+            // 2. Tìm profile Moderator theo UserId
+            var moderatorProfile = await _unitOfWork.ModeratorProfiles.GetByUserIdAsync(request.ModeratorUserId, cancellationToken);
+            if (moderatorProfile == null)
+            {
+                throw new ModeratorProfileNotFoundException(request.ModeratorUserId);
+            }
+
+            // 3. Kiểm tra xem trạm đã có Moderator phụ trách (trưởng trạm) chưa
+            // Vì yêu cầu: 1 trạm chỉ được có 1 moderator, nên moderator này sẽ là trưởng trạm
+            var currentHead = await _unitOfWork.ModeratorProfiles.GetStationHeadAsync(stationId, cancellationToken);
+            if (currentHead != null && currentHead.UserId != request.ModeratorUserId)
+            {
+                // Nếu đã có trưởng trạm và không phải là người đang được gán thì báo lỗi
+                throw new StationAlreadyHasModeratorException(stationId);
+            }
+
+            // 4. Gán trạm cho Moderator
+            moderatorProfile.ReliefStationId = stationId;
+            moderatorProfile.IsStationHead = true; // 1 trạm 1 mod -> mặc định là head
+            moderatorProfile.Status = request.Status ?? ModeratorStatus.Active;
+            moderatorProfile.StatusReason = request.Reason;
+
+            await _unitOfWork.ModeratorProfiles.UpdateAsync(moderatorProfile);
+            
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            var moderatorUser = await _unitOfWork.Users.GetUserById(request.ModeratorUserId);
+            var locationName = await _unitOfWork.Locations.GetFullNameByLocationId(station.LocationId);
+
+            return new ReliefStationResponse
+            {
+                ReliefStationId = station.ReliefStationId,
+                Name = station.Name,
+                ModeratorName = moderatorUser?.DisplayName
+                    ?? moderatorUser?.UserName
+                    ?? moderatorUser?.Email
+                    ?? string.Empty,
+                Address = station.Address,
+                ContactNumber = station.ContactNumber,
+                Longitude = station.Longitude,
+                Latitude = station.Latitude,
+                CoverageRadiusKm = station.CoverageRadiusKm,
+                Status = station.ReliefStationStatus,
+                Level = station.Level,
+                LocationId = station.LocationId,
+                LocationName = locationName,
+                CreatedAt = station.CreatedAt,
+                UpdatedAt = station.UpdatedAt
+            };
+        }
+
+        public async Task<StationTeamResponse> AssignTeamToStationAsync(Guid stationId, AssignTeamRequest request, CancellationToken cancellationToken)
+        {
+            var currentUserId = _currentUser.UserId;
+            if (!currentUserId.HasValue)
+            {
+                throw new OnlyStationHeadCanManageAssignmentsException();
+            }
+
+            var station = await _unitOfWork.ReliefStations.GetByIdAsync(stationId);
+            if (station == null)
+            {
+                throw new ReliefStationNotFoundException(stationId);
+            }
+
+            if (station.Level != ReliefStationLevel.Provincial || station.Level != ReliefStationLevel.Regional)
+            {
+                throw new InvalidLocationForProvincialStationException();
+            }
+
+            var stationHead = await _unitOfWork.ModeratorProfiles.GetStationHeadAsync(stationId, cancellationToken);
+            if (stationHead == null || stationHead.UserId != currentUserId.Value)
+            {
+                throw new OnlyStationHeadCanManageAssignmentsException();
+            }
+
+            var team = await _unitOfWork.Teams.GetByIdAsync(request.TeamId);
+            if (team == null)
+            {
+                throw new TeamNotFoundException(request.TeamId);
+            }
+
+            if (team.Status != TeamStatus.Active)
+            {
+                throw new TeamInactiveException(team.Name);
+            }
+
+            var existing = await _unitOfWork.ReliefStationTeams
+                .GetByStationAndTeamAsync(stationId, request.TeamId, cancellationToken);
+
+            if (existing != null)
+            {
+                if (existing.Status == ReliefTeamAssignmentStatus.Pending)
+                {
+                    existing.Status = ReliefTeamAssignmentStatus.Approved;
+                    existing.Description = request.Description ?? existing.Description;
+                    existing.RejectionReason = null;
+                    existing.JoinedAt ??= DateTime.UtcNow;
+                    await _unitOfWork.ReliefStationTeams.UpdateAsync(existing);
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                    return new StationTeamResponse
+                    {
+                        AssignmentId = existing.ReliefStationTeamId,
+                        TeamId = existing.TeamId,
+                        TeamName = existing.Team?.Name ?? team.Name,
+                        Status = existing.Status,
+                        Description = existing.Description,
+                        RejectionReason = existing.RejectionReason,
+                        JoinedAt = existing.JoinedAt,
+                    };
+                }
+
+                throw new ReliefStationAssignmentAlreadyExistsException(stationId, request.TeamId);
+            }
+
+            var assignment = new ReliefStationTeam
+            {
+                ReliefStationTeamId = Guid.NewGuid(),
+                ReliefStationId = stationId,
+                TeamId = request.TeamId,
+                Status = ReliefTeamAssignmentStatus.Approved,
+                Description = request.Description,
+                JoinedAt = DateTime.UtcNow
+            };
+
+            await _unitOfWork.ReliefStationTeams.AddAsync(assignment);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return new StationTeamResponse
+            {
+                AssignmentId = assignment.ReliefStationTeamId,
+                TeamId = assignment.TeamId,
+                TeamName = team.Name,
+                Status = assignment.Status,
+                Description = assignment.Description,
+                RejectionReason = assignment.RejectionReason,
+                JoinedAt = assignment.JoinedAt,
+            };
+        }
+
+        public async Task<StationTeamResponse> UpdateTeamAssignmentStatusAsync(
+            Guid stationId,
+            Guid teamId,
+            UpdateTeamAssignmentRequest request,
+            CancellationToken cancellationToken)
+        {
+            var currentUserId = _currentUser.UserId;
+            if (!currentUserId.HasValue)
+            {
+                throw new OnlyStationHeadCanManageAssignmentsException();
+            }
+
+            var stationHead = await _unitOfWork.ModeratorProfiles.GetStationHeadAsync(stationId, cancellationToken);
+            if (stationHead == null || stationHead.UserId != currentUserId.Value)
+            {
+                throw new OnlyStationHeadCanManageAssignmentsException();
+            }
+
+            var assignment = await _unitOfWork.ReliefStationTeams
+                .GetByStationAndTeamAsync(stationId, teamId, cancellationToken);
+
+            if (assignment == null)
+            {
+                throw new ReliefStationAssignmentNotFoundException(stationId, teamId);
+            }
+
+            assignment.Status = request.Status;
+            assignment.Description = request.Description ?? assignment.Description;
+
+            if (request.Status == ReliefTeamAssignmentStatus.Rejected)
+            {
+                if (string.IsNullOrWhiteSpace(request.RejectionReason))
+                {
+                    throw new RejectionReasonRequiredException();
+                }
+
+                assignment.RejectionReason = request.RejectionReason;
+            }
+            else if (request.Status == ReliefTeamAssignmentStatus.Approved)
+            {
+                assignment.RejectionReason = null;
+                assignment.JoinedAt ??= DateTime.UtcNow;
+            }
+
+            await _unitOfWork.ReliefStationTeams.UpdateAsync(assignment);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return new StationTeamResponse
+            {
+                AssignmentId = assignment.ReliefStationTeamId,
+                TeamId = assignment.TeamId,
+                TeamName = assignment.Team?.Name ?? string.Empty,
+                Status = assignment.Status,
+                Description = assignment.Description,
+                RejectionReason = assignment.RejectionReason,
+                JoinedAt = assignment.JoinedAt,
+            };
+        }
+
     }
 }

@@ -1,11 +1,13 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Application.Features.VolunteerRequest.Request;
 using ReliefManagementSystem.Application.Features.VolunteerRequest.Response;
 using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Application.Services;
 using ReliefManagementSystem.Domain.Entities;
+using Swashbuckle.AspNetCore.Annotations;
 
 namespace ReliefManagementSystem.API.Controllers
 {
@@ -31,13 +33,13 @@ namespace ReliefManagementSystem.API.Controllers
             return BadRequest("Failed to create volunteer profile.");
         }
 
-        [HttpGet("user/{userId:guid}")]
-        public async Task<ActionResult<VolunteerProfileResponse>> GetByUserId(
-    Guid userId,
-    CancellationToken cancellationToken)
+        [Authorize]
+        [HttpGet("my-profile")]
+        public async Task<ActionResult<VolunteerProfileResponse>> GetMyProfile(
+            CancellationToken cancellationToken)
         {
             var result = await _userService
-                .GetVolunteerProfileByUserIdAsync(userId, cancellationToken);
+                .GetMyVolunteerProfileAsync(cancellationToken);
 
             if (result == null)
                 return NotFound();
@@ -45,16 +47,50 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(result);
         }
 
+        [Authorize]
+        [HttpPut("my-profile/resubmit")]
+        [SwaggerOperation(OperationId = "ResubmitVolunteerProfile", Description = "Volunteer chỉnh sửa và gửi lại hồ sơ đã bị từ chối. Hồ sơ sẽ quay về Pending để moderator duyệt lại.")]
+        public async Task<ActionResult<VolunteerProfileResponse>> ResubmitMyProfile(
+            [FromBody] ResubmitVolunteerRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _userService.ResubmitVolunteerProfileAsync(request, cancellationToken);
+            return Ok(result);
+        }
+
         [HttpGet]
-        public async Task<ActionResult<List<VolunteerProfileResponse>>> GetAll(CancellationToken cancellationToken)
+        [SwaggerOperation(OperationId = "GetAllVolunteerProfiles", Description = "Lấy danh sách hồ sơ volunteer có phân trang và tìm kiếm theo FullName(DisplayName), Email, PhoneNumber")]
+        public async Task<ActionResult<Pagination<VolunteerProfileResponse>>> GetAll(
+            [FromQuery] SearchVolunteerProfilesRequest request,
+            CancellationToken cancellationToken)
         {
             var result = await _userService
-                .GetAllVolunteerProfilesAsync(cancellationToken);
+                .GetAllVolunteerProfilesAsync(request, cancellationToken);
 
             return Ok(result);
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Moderator")]
+        [HttpGet("pending-applications")]
+        public async Task<ActionResult<Pagination<VolunteerApplicationReviewResponse>>> GetPendingApplications(
+            [FromQuery] GetPendingVolunteerApplicationsRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _userService.GetPendingVolunteerApplicationsAsync(request, cancellationToken);
+            return Ok(result);
+        }
+
+        [Authorize(Roles = "Moderator")]
+        [HttpGet("review-applications")]
+        public async Task<ActionResult<Pagination<VolunteerApplicationReviewResponse>>> GetApplicationsForReview(
+            [FromQuery] GetPendingVolunteerApplicationsRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _userService.GetPendingVolunteerApplicationsAsync(request, cancellationToken);
+            return Ok(result);
+        }
+
+        [Authorize(Roles = "Moderator")]
         [HttpPut("{id:guid}/approve")]
         public async Task<ActionResult<VolunteerProfileResponse>> Approve(Guid id,CancellationToken cancellationToken)
         {
@@ -64,7 +100,7 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(result);
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Moderator")]
         [HttpPut("{id:guid}/reject")]
         public async Task<ActionResult<VolunteerProfileResponse>> Reject(Guid id,[FromBody] string reason,CancellationToken cancellationToken)
         {

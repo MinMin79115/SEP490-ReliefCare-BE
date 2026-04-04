@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Application.Services;
 using System;
@@ -19,6 +19,7 @@ namespace ReliefManagementSystem.Application
             services.AddScoped<IAuthService, AuthService>();
             services.AddScoped<ITeamService, TeamService>();
             services.AddScoped<ITeamJoinRequestService, TeamJoinRequestService>();
+            services.AddScoped<IStationJoinRequestService, StationJoinRequestService>();
             services.AddScoped<IUserService, UserService>();
             services.AddScoped<ISkillService, SkillService>();
             services.AddScoped<IVehicleService, VehicleService>();
@@ -27,6 +28,7 @@ namespace ReliefManagementSystem.Application
             services.AddScoped<ISupplyItemService, SupplyItemService>();
             services.AddScoped<IInventoryService, InventoryService>();
             services.AddScoped<IInventoryTransactionService, InventoryTransactionService>();
+            services.AddScoped<ISupplyTransferService, SupplyTransferService>();
             // Relief Station Management
             services.AddScoped<IReliefStationService, ReliefStationService>();
             // Supply Allocation
@@ -34,6 +36,19 @@ namespace ReliefManagementSystem.Application
             services.AddScoped<IReliefStationService, ReliefStationService>();
             services.AddScoped<ILocationService, LocationService>();
 
+            //Resuce request service
+
+            services.AddScoped<IRescueRequestService, RescueRequestService>();
+            services.AddScoped<IReliefRequestService, ReliefRequestService>();
+            services.AddScoped<IDistributionSessionService, DistributionSessionService>();
+            services.AddScoped<IReliefFulfillmentService, ReliefFulfillmentService>();
+
+            // Priority Criteria CRUD
+            services.AddScoped<IPriorityCriteriaService, PriorityCriteriaService>();
+            services.AddScoped<IDonationService, DonationService>();
+            services.AddScoped<ICampaignService, CampaignService>();
+            services.AddScoped<IProcurementService, ProcurementService>();
+            services.AddScoped<IFundService, FundService>();
 
             services.AddValidatorsFromAssemblyContaining<UpdateUserProfileRequest>();
             return services;

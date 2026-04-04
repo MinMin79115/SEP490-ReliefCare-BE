@@ -1,4 +1,5 @@
-﻿using ReliefManagementSystem.Application.Common.Interface;
+using ReliefManagementSystem.Application.Common.Interface;
+using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Application.Features.Skill.Dtos;
 using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Domain.Entities;
@@ -19,12 +20,26 @@ namespace ReliefManagementSystem.Application.Services
             _unitOfWork = unitOfWork;
         }
 
-        public async Task<IReadOnlyList<SkillResponse>> GetAllSkillsAsync(
-    CancellationToken cancellationToken)
+        public async Task<Pagination<SkillResponse>> GetAllSkillsAsync(
+            SearchSkillRequest request,
+            CancellationToken cancellationToken)
         {
-            var skills = await _unitOfWork.Skills.GetAllAsync();
+            var query = _unitOfWork.Skills.GetQueryable();
 
-            return skills
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var keyword = request.Search.Trim();
+                query = query.Where(skill =>
+                    (skill.Code ?? string.Empty).Contains(keyword) ||
+                    (skill.Name ?? string.Empty).Contains(keyword) ||
+                    (skill.Description ?? string.Empty).Contains(keyword));
+            }
+
+            query = query.OrderBy(skill => skill.Name);
+
+            var pagedSkills = await Pagination<Skill>.ToPagedList(query, request.PageIndex, request.PageSize);
+
+            var items = pagedSkills.Items!
                 .Select(skill => new SkillResponse
                 {
                     SkillId = skill.SkillId,
@@ -33,6 +48,8 @@ namespace ReliefManagementSystem.Application.Services
                     Description = skill.Description
                 })
                 .ToList();
+
+            return new Pagination<SkillResponse>(items, pagedSkills.TotalCount, pagedSkills.CurrentPage, pagedSkills.PageSize);
         }
 
 

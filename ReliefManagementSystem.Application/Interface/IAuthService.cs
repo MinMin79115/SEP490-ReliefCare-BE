@@ -1,4 +1,4 @@
-﻿using ReliefManagementSystem.Application.Features.Auth.DTOs;
+using ReliefManagementSystem.Application.Features.Auth.DTOs;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -28,7 +28,29 @@ namespace ReliefManagementSystem.Application.Interface
                  ChangePasswordRequest request,
                  CancellationToken cancellationToken);
 
+             Task SendForgotPasswordOtpAsync(
+                 SendForgotPasswordOtpRequest request,
+                 CancellationToken cancellationToken);
 
-    }
+             Task<AuthResponse> VerifyForgotPasswordOtpAsync(
+                 VerifyForgotPasswordOtpRequest request,
+                 CancellationToken cancellationToken);
+
+             Task ResetPasswordByTokenAsync(
+                 ResetPasswordByTokenRequest request,
+                 CancellationToken cancellationToken);
+
+             Task VerifyEmailOtpAsync(VerifyEmailOtpRequest request, CancellationToken cancellationToken);
+
+             Task ResendEmailOtpAsync(ResendEmailOtpRequest request, CancellationToken cancellationToken);
+
+             Task<AuthResponse> RefreshTokenAsync(
+                 RefreshTokenRequest request,
+                 CancellationToken cancellationToken);
+
+             Task LogoutAsync(
+                 LogoutRequest request,
+                 CancellationToken cancellationToken);
+     }
 
 }

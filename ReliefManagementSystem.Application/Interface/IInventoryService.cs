@@ -1,3 +1,4 @@
+using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Application.Features.Inventory.DTOs.Request;
 using ReliefManagementSystem.Application.Features.Inventory.DTOs.Response;
 using ReliefManagementSystem.Domain.Enum;
@@ -17,8 +18,13 @@ namespace ReliefManagementSystem.Application.Interface
         /// <summary>Gets an inventory by ID with full stock details.</summary>
         Task<InventoryDetailResponse> GetInventoryByIdAsync(Guid inventoryId, CancellationToken cancellationToken = default);
 
-        /// <summary>Gets all active inventories, optionally filtered by relief station.</summary>
-        Task<IReadOnlyList<InventoryResponse>> GetAllInventoriesAsync(Guid? reliefStationId = null, CancellationToken cancellationToken = default);
+        /// <summary>Gets paginated inventories, optionally filtered by relief station and level.</summary>
+        Task<Pagination<InventoryResponse>> GetAllInventoriesAsync(
+            Guid? reliefStationId = null,
+            InventoryLevel? level = null,
+            int pageIndex = 1,
+            int pageSize = 10,
+            CancellationToken cancellationToken = default);
 
         /// <summary>Updates level and status of an existing inventory.</summary>
         Task<InventoryResponse> UpdateInventoryAsync(Guid inventoryId, UpdateInventoryRequest request, CancellationToken cancellationToken = default);
@@ -31,8 +37,12 @@ namespace ReliefManagementSystem.Application.Interface
         /// <summary>Adds a supply item slot to an inventory.</summary>
         Task<InventoryStockResponse> AddStockItemAsync(Guid inventoryId, AddStockItemRequest request, CancellationToken cancellationToken = default);
 
-        /// <summary>Gets all stock entries for a given inventory.</summary>
-        Task<IReadOnlyList<InventoryStockResponse>> GetStocksByInventoryIdAsync(Guid inventoryId, CancellationToken cancellationToken = default);
+        /// <summary>Gets paginated stock entries for a given inventory.</summary>
+        Task<Pagination<InventoryStockResponse>> GetStocksByInventoryIdAsync(
+            Guid inventoryId,
+            int pageIndex = 1,
+            int pageSize = 20,
+            CancellationToken cancellationToken = default);
 
         /// <summary>Updates the Min/Max stock thresholds for a stock entry.</summary>
         Task<InventoryStockResponse> UpdateStockItemAsync(Guid stockId, UpdateStockItemRequest request, CancellationToken cancellationToken = default);

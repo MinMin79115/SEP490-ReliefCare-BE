@@ -22,5 +22,8 @@ namespace ReliefManagementSystem.Application.Features.Inventory.DTOs.Request
         /// <summary>Maximum capacity of the storage slot.</summary>
         [Range(1, int.MaxValue, ErrorMessage = "MaximumStockLevel must be >= 1.")]
         public int MaximumStockLevel { get; set; }
+
+        /// <summary>Optional expiration date for this stock entry.</summary>
+        public DateTime? ExpirationDate { get; set; }
     }
 }

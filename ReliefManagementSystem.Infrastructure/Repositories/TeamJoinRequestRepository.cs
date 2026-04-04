@@ -74,7 +74,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                     .ThenInclude(v => v.VolunteerProfile)
                         .ThenInclude(vp => vp.VolunteerSkills)
                             .ThenInclude(vs => vs.Skill)
-                .Where(tjr => tjr.Team.ModeratorId == moderatorId &&
+                .Where(tjr => tjr.Team.CreateBy == moderatorId &&
                              tjr.Status == TeamJoinRequestStatus.Pending)
                 .OrderBy(tjr => tjr.CreatedAt)
                 .ToListAsync();

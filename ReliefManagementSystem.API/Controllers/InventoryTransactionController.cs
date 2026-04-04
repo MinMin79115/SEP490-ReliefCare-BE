@@ -35,7 +35,7 @@ namespace ReliefManagementSystem.API.Controllers
         {
             try
             {
-                var result = await _transactionService.CreateTransactionAsync(request, cancellationToken);
+                var result = await _transactionService.CreateTransactionAsync(request, cancellationToken: cancellationToken);
                 return Ok(result);
             }
             catch (KeyNotFoundException ex)
@@ -65,15 +65,23 @@ namespace ReliefManagementSystem.API.Controllers
             }
         }
 
-        /// <summary>Gets all transactions for a specific inventory, newest first.</summary>
-        /// <response code="200">List of transaction summaries.</response>
+        /// <summary>Gets paginated transactions for a specific inventory, newest first.</summary>
+        /// <param name="inventoryId">Inventory ID.</param>
+        /// <param name="pageIndex">Page number, default 1.</param>
+        /// <param name="pageSize">Items per page, default 20.</param>
+        /// <response code="200">Paged list of transaction summaries.</response>
         /// <response code="404">Inventory not found.</response>
         [HttpGet("by-inventory/{inventoryId:guid}")]
-        public async Task<IActionResult> GetByInventory(Guid inventoryId, CancellationToken cancellationToken)
+        public async Task<IActionResult> GetByInventory(
+            Guid inventoryId,
+            [FromQuery] int pageIndex = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
         {
             try
             {
-                var result = await _transactionService.GetTransactionsByInventoryAsync(inventoryId, cancellationToken);
+                var result = await _transactionService.GetTransactionsByInventoryAsync(
+                    inventoryId, pageIndex, pageSize, cancellationToken);
                 return Ok(result);
             }
             catch (KeyNotFoundException ex)
@@ -83,17 +91,22 @@ namespace ReliefManagementSystem.API.Controllers
         }
 
         /// <summary>
-        /// Gets transactions filtered by type (Import=1, Export=2).
+        /// Gets paginated transactions filtered by type (Import=1, Export=2).
         /// Optionally filter by inventory.
         /// </summary>
-        /// <response code="200">Filtered list of transaction summaries.</response>
+        /// <param name="pageIndex">Page number, default 1.</param>
+        /// <param name="pageSize">Items per page, default 20.</param>
+        /// <response code="200">Paged list of transaction summaries.</response>
         [HttpGet("by-type")]
         public async Task<IActionResult> GetByType(
             [FromQuery] TransactionType type,
             [FromQuery] Guid? inventoryId,
-            CancellationToken cancellationToken)
+            [FromQuery] int pageIndex = 1,
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
         {
-            var result = await _transactionService.GetTransactionsByTypeAsync(type, inventoryId, cancellationToken);
+            var result = await _transactionService.GetTransactionsByTypeAsync(
+                type, inventoryId, pageIndex, pageSize, cancellationToken);
             return Ok(result);
         }
     }

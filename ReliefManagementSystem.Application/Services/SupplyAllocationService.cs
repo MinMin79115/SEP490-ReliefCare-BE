@@ -1,4 +1,5 @@
 using ReliefManagementSystem.Application.Common.Interface;
+using ReliefManagementSystem.Application.Features.InventoryTransaction.DTOs.Request;
 using ReliefManagementSystem.Application.Features.SupplyAllocation.DTOs.Request;
 using ReliefManagementSystem.Application.Features.SupplyAllocation.DTOs.Response;
 using ReliefManagementSystem.Application.Interface;
@@ -13,10 +14,14 @@ namespace ReliefManagementSystem.Application.Services
     public class SupplyAllocationService : ISupplyAllocationService
     {
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IInventoryTransactionService _inventoryTransactionService;
 
-        public SupplyAllocationService(IUnitOfWork unitOfWork)
+        public SupplyAllocationService(
+            IUnitOfWork unitOfWork,
+            IInventoryTransactionService inventoryTransactionService)
         {
             _unitOfWork = unitOfWork;
+            _inventoryTransactionService = inventoryTransactionService;
         }
 
         // ═══════════════════════════════════════════════════
@@ -36,8 +41,19 @@ namespace ReliefManagementSystem.Application.Services
                 throw new InvalidOperationException("Cannot allocate from an inactive inventory.");
 
             // 2. Validate campaign exists
-            if (!await _unitOfWork.Campaigns.ExistsAsync(request.CampaignId))
+            var campaign = await _unitOfWork.Campaigns.GetWithStationsAsync(request.CampaignId, cancellationToken);
+            if (campaign is null)
                 throw new KeyNotFoundException($"Campaign '{request.CampaignId}' was not found.");
+
+            if (campaign.Type == CampaignType.Relief)
+            {
+                var activeStation = campaign.CampaignStations.FirstOrDefault(cs => cs.IsActive);
+                if (activeStation is null)
+                    throw new InvalidOperationException("Relief campaign phải có relief station active trước khi tạo supply allocation.");
+
+                if (inventory.ReliefStationId != activeStation.ReliefStationId)
+                    throw new InvalidOperationException("Relief campaign chỉ được cấp phát từ inventory thuộc station đang gắn với campaign.");
+            }
 
             // 3. Reject empty items list
             if (request.Items is null || request.Items.Count == 0)
@@ -162,48 +178,78 @@ namespace ReliefManagementSystem.Application.Services
             // Validate legal transition
             ValidateTransition(allocation.Status, request.Status);
 
-            var stocks = await _unitOfWork.InventoryStocks
-                .GetByInventoryIdAsync(allocation.SourceInventoryId, cancellationToken);
-
             // ── Pending → Approved: deduct stock ───────────────
             if (request.Status == SupplyAllocationStatus.Approved)
             {
-                var stockUpdates = new List<(Domain.Entities.InventoryStock Stock, int NewQty)>();
-
-                foreach (var item in allocation.Items)
+                await _unitOfWork.BeginTransactionAsync(cancellationToken);
+                try
                 {
-                    var stock = stocks.FirstOrDefault(s => s.SupplyItemId == item.SupplyItemId)
-                        ?? throw new InvalidOperationException(
-                            $"Supply item '{item.SupplyItemId}' is no longer registered in this inventory.");
+                    var transaction = await _inventoryTransactionService.CreateTransactionAsync(new CreateTransactionRequest
+                    {
+                        InventoryId = allocation.SourceInventoryId,
+                        Type = TransactionType.Export,
+                        Reason = TransactionReason.CampaignAllocation,
+                        Notes = $"Supply allocation approval: {allocation.AllocationId}",
+                        Items = allocation.Items.Select(item => new TransactionItemRequest
+                        {
+                            SupplyItemId = item.SupplyItemId,
+                            Quantity = item.Quantity,
+                            Notes = $"Allocation {allocation.AllocationId}"
+                        }).ToList()
+                    }, autoSave: false, cancellationToken);
 
-                    if (stock.CurrentQuantity < item.Quantity)
-                        throw new InvalidOperationException(
-                            $"Insufficient stock for '{item.SupplyItem?.Name ?? item.SupplyItemId.ToString()}'. " +
-                            $"Available: {stock.CurrentQuantity}, Requested: {item.Quantity}.");
-
-                    stockUpdates.Add((stock, stock.CurrentQuantity - item.Quantity));
+                    allocation.InventoryTransactionId = transaction.TransactionId;
+                    allocation.Status = request.Status;
+                    await _unitOfWork.SupplyAllocations.UpdateAsync(allocation);
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                    await _unitOfWork.CommitTransactionAsync(cancellationToken);
+                }
+                catch
+                {
+                    await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                    throw;
                 }
 
-                foreach (var (stock, newQty) in stockUpdates)
-                {
-                    stock.CurrentQuantity = newQty;
-                    await _unitOfWork.InventoryStocks.UpdateAsync(stock);
-                }
+                var approved = await _unitOfWork.SupplyAllocations
+                    .GetByIdWithDetailsAsync(allocationId, cancellationToken);
+                return MapToResponse(approved!);
             }
 
             // ── Approved → Cancelled: return stock ─────────────
             if (allocation.Status == SupplyAllocationStatus.Approved &&
                 request.Status == SupplyAllocationStatus.Cancelled)
             {
-                foreach (var item in allocation.Items)
+                await _unitOfWork.BeginTransactionAsync(cancellationToken);
+                try
                 {
-                    var stock = stocks.FirstOrDefault(s => s.SupplyItemId == item.SupplyItemId);
-                    if (stock is not null)
+                    await _inventoryTransactionService.CreateTransactionAsync(new CreateTransactionRequest
                     {
-                        stock.CurrentQuantity += item.Quantity;
-                        await _unitOfWork.InventoryStocks.UpdateAsync(stock);
-                    }
+                        InventoryId = allocation.SourceInventoryId,
+                        Type = TransactionType.Import,
+                        Reason = TransactionReason.CampaignAllocation,
+                        Notes = $"Supply allocation cancellation: {allocation.AllocationId}",
+                        Items = allocation.Items.Select(item => new TransactionItemRequest
+                        {
+                            SupplyItemId = item.SupplyItemId,
+                            Quantity = item.Quantity,
+                            Notes = $"Allocation reversal {allocation.AllocationId}"
+                        }).ToList()
+                    }, autoSave: false, cancellationToken);
+
+                    allocation.Status = request.Status;
+                    await _unitOfWork.SupplyAllocations.UpdateAsync(allocation);
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                    await _unitOfWork.CommitTransactionAsync(cancellationToken);
                 }
+                catch
+                {
+                    await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                    throw;
+                }
+
+                var cancelled = await _unitOfWork.SupplyAllocations
+                    .GetByIdWithDetailsAsync(allocationId, cancellationToken);
+                return MapToResponse(cancelled!);
             }
 
             allocation.Status = request.Status;
@@ -248,6 +294,7 @@ namespace ReliefManagementSystem.Application.Services
             SourceInventoryName = a.SourceInventory?.ReliefStation?.Name
                 ?? a.SourceInventoryId.ToString(),
             ReliefStationName = a.SourceInventory?.ReliefStation?.Name ?? string.Empty,
+            InventoryTransactionId = a.InventoryTransactionId,
             Status = a.Status,
             AllocatedAt = a.AllocatedAt,
             Items = a.Items.Select(i => new AllocationItemResponse
@@ -269,7 +316,15 @@ namespace ReliefManagementSystem.Application.Services
                 ?? a.SourceInventoryId.ToString(),
             Status = a.Status,
             TotalItems = a.Items.Count,
-            AllocatedAt = a.AllocatedAt
+            AllocatedAt = a.AllocatedAt,
+            Items = a.Items.Select(i => new AllocationItemResponse
+            {
+                AllocationItemId = i.AllocationItemId,
+                SupplyItemId = i.SupplyItemId,
+                SupplyItemName = i.SupplyItem?.Name ?? string.Empty,
+                SupplyItemUnit = i.SupplyItem?.Unit ?? string.Empty,
+                Quantity = i.Quantity
+            }).ToList()
         };
     }
 }

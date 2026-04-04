@@ -15,7 +15,17 @@ namespace ReliefManagementSystem.Application.Features.Team.DTOs.Response
 
         public string? Description { get; set; }
 
+        public string? ContactPhone { get; set; }
+
         public TeamStatus Status { get; set; }
+
+        public Guid? ReliefStationId { get; set; }
+
+        public string? ReliefStationName { get; set; }
+
+        public string? ReliefStationAddress { get; set; }
+
+        public ReliefStationStatus? ReliefStationStatus { get; set; }
 
         public ModeratorInfo Moderator { get; set; } = null!;
 

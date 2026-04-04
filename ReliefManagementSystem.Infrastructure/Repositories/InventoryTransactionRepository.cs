@@ -74,5 +74,13 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             return await _dbSet
                 .CountAsync(t => t.Type == type && t.CreatedAt >= todayUtc, cancellationToken);
         }
+        /// <inheritdoc/>
+        public IQueryable<InventoryTransaction> GetQueryable()
+        {
+            return _dbSet
+                .Include(t => t.CreatedByUser)
+                .Include(t => t.Items)
+                    .ThenInclude(i => i.SupplyItem);
+        }
     }
 }

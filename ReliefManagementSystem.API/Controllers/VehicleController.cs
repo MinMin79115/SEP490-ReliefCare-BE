@@ -1,7 +1,10 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Application.Features.Vehicle.DTOs.Request;
+using ReliefManagementSystem.Application.Features.Vehicle.DTOs.Response;
 using ReliefManagementSystem.Application.Interface;
+using Swashbuckle.AspNetCore.Annotations;
 using System.Security.Claims;
 
 namespace ReliefManagementSystem.API.Controllers
@@ -38,11 +41,14 @@ namespace ReliefManagementSystem.API.Controllers
 
         // GET /api/vehicle
         [HttpGet]
-        public async Task<IActionResult> GetAllVehicles(CancellationToken cancellationToken)
+        [SwaggerOperation(OperationId = "GetAllVehicles", Description = "Lấy danh sách phương tiện có phân trang và tìm kiếm theo LicensePlate, TeamUsed, VehicleTypeName")]
+        public async Task<ActionResult<Pagination<VehicleResponse>>> GetAllVehicles(
+            [FromQuery] SearchVehicleRequest request,
+            CancellationToken cancellationToken)
         {
             try
             {
-                var result = await _vehicleService.GetAllVehiclesAsync(cancellationToken);
+                var result = await _vehicleService.GetAllVehiclesAsync(request, cancellationToken);
                 return Ok(result);
             }
             catch (Exception ex)

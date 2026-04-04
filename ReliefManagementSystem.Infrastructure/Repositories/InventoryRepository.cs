@@ -60,6 +60,19 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .ToListAsync(cancellationToken);
         }
 
+        public async Task<Inventory?> GetActiveByReliefStationAsync(
+            Guid reliefStationId,
+            CancellationToken cancellationToken = default)
+        {
+            return await _dbSet
+                .AsNoTracking()
+                .Include(i => i.ReliefStation)
+                .Include(i => i.InventoryItems)
+                .Where(i => i.ReliefStationId == reliefStationId && i.Status == EntityStatus.Active)
+                .OrderBy(i => i.Level)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
         /// <inheritdoc/>
         public async Task<bool> IsLevelExistsForStationAsync(
             Guid reliefStationId,
@@ -78,6 +91,15 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             }
 
             return await query.AnyAsync(cancellationToken);
+        }
+        /// <inheritdoc/>
+        public IQueryable<Inventory> GetQueryable()
+        {
+            return _dbSet
+                .Include(i => i.ReliefStation)
+                .Include(i => i.InventoryItems)
+                    .ThenInclude(s => s.SupplyItem)
+                .Where(i => i.Status != EntityStatus.Deleted);
         }
     }
 }

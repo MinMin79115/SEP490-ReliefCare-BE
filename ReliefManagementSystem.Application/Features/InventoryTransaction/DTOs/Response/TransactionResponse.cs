@@ -14,6 +14,8 @@ namespace ReliefManagementSystem.Application.Features.InventoryTransaction.DTOs.
         public string TransactionCode { get; set; } = null!;
         public TransactionType Type { get; set; }
         public string TypeName => Type.ToString();
+        public TransactionReason Reason { get; set; }
+        public string ReasonName => Reason.ToString();
         public DateTime CreatedAt { get; set; }
         public Guid CreatedBy { get; set; }
         public string CreatedByName { get; set; } = null!;
@@ -42,6 +44,8 @@ namespace ReliefManagementSystem.Application.Features.InventoryTransaction.DTOs.
         public string TransactionCode { get; set; } = null!;
         public TransactionType Type { get; set; }
         public string TypeName => Type.ToString();
+        public TransactionReason Reason { get; set; }
+        public string ReasonName => Reason.ToString();
         public int TotalItems { get; set; }
         public DateTime CreatedAt { get; set; }
         public string CreatedByName { get; set; } = null!;

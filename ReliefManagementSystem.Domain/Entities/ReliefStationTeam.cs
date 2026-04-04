@@ -1,6 +1,7 @@
-﻿using ReliefManagementSystem.Domain.Enum;
+using ReliefManagementSystem.Domain.Enum;
 using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -17,8 +18,16 @@ namespace ReliefManagementSystem.Domain.Entities
         public Guid TeamId { get; set; }
         public Team Team { get; set; } = null!;
 
-        public bool IsActive { get; set; } = true;
+         public ReliefTeamAssignmentStatus Status { get; set; }
 
-        public ReliefTeamAssignmentStatus Status { get; set; }
+         [MaxLength(1000)]
+         public string? Description { get; set; }
+
+         [MaxLength(1000)]
+         public string? RejectionReason { get; set; }
+
+         public DateTime? JoinedAt { get; set; }
+         public DateTime? RemovedAt{ get; set; }
+
     }
 }

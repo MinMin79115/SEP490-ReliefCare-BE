@@ -46,14 +46,13 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .ToListAsync(cancellationToken);
         }
 
-        /// <inheritdoc/>
+        ///// <inheritdoc/>
         public async Task<SupplyAllocation?> GetByIdWithDetailsAsync(
             Guid allocationId,
             CancellationToken cancellationToken = default)
         {
             return await _dbSet
                 .Include(a => a.Campaign)
-                    .ThenInclude(c => c.CreatedByStation)
                 .Include(a => a.SourceInventory)
                     .ThenInclude(i => i.ReliefStation)
                 .Include(a => a.Items)

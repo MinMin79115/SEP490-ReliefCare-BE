@@ -8,11 +8,11 @@ namespace ReliefManagementSystem.Domain.Enum
 {
     public enum DisasterType
     {
-        Flood,
-        Landslide,
-        Earthquake,
-        Fire,
-        Storm,
-        Other
+        Flood  =0,
+        Landslide =1,
+        Earthquake =2,
+        Fire =3,
+        Storm =4 ,
+        Other =5
     }
 }

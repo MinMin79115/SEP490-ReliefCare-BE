@@ -10,13 +10,14 @@ namespace ReliefManagementSystem.Application.Features.SupplyAllocation.DTOs.Resp
         public Guid SourceInventoryId { get; set; }
         public string SourceInventoryName { get; set; } = null!;
         public string ReliefStationName { get; set; } = null!;
+        public Guid? InventoryTransactionId { get; set; }
         public SupplyAllocationStatus Status { get; set; }
         public string StatusName => Status.ToString();
         public DateTime AllocatedAt { get; set; }
         public IReadOnlyList<AllocationItemResponse> Items { get; set; } = [];
     }
 
-    /// <summary>Summary response for list views (no line items).</summary>
+    /// <summary>Summary response for list views.</summary>
     public class SupplyAllocationSummaryResponse
     {
         public Guid AllocationId { get; set; }
@@ -27,6 +28,7 @@ namespace ReliefManagementSystem.Application.Features.SupplyAllocation.DTOs.Resp
         public string StatusName => Status.ToString();
         public int TotalItems { get; set; }
         public DateTime AllocatedAt { get; set; }
+        public IReadOnlyList<AllocationItemResponse> Items { get; set; } = [];
     }
 
     /// <summary>One resolved line item in an allocation response.</summary>

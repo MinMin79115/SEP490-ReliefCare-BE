@@ -8,10 +8,9 @@ namespace ReliefManagementSystem.Domain.Enum
 {
     public enum ReliefTeamAssignmentStatus
     {
-        Active = 1,        // Đang hoạt động tại trạm
-        Transferred = 2,   // Đã điều chuyển sang trạm khác
-        Suspended = 3,     // Tạm dừng (thiếu người, chờ lệnh...)
-        Completed = 4,     // Hoàn thành nhiệm vụ tại trạm
-        Cancelled = 5      // Hủy gán (chưa kịp triển khai)
+        Pending = 0,
+        Approved = 1,
+        Rejected = 2,
+        Removed = 3
     }
 }

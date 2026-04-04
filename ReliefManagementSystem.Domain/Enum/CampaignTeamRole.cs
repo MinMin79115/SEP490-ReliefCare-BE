@@ -10,7 +10,7 @@ namespace ReliefManagementSystem.Domain.Enum
     {
         Logistics = 0,     // vận chuyển – kho bãi
         Medical = 1,       // y tế
-        Rescue = 2,        // cứu hộ
+        Relief = 2,        // cứu trợ
         Communication = 3, // truyền thông
         Support = 4        // hỗ trợ chung
     }

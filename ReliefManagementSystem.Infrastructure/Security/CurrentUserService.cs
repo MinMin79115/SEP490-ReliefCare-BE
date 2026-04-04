@@ -29,5 +29,8 @@ namespace ReliefManagementSystem.Infrastructure.Security
 
         public string? Email =>
             _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.Email);
+
+        public string? DisplayName =>
+            _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.Name);
     }
 }

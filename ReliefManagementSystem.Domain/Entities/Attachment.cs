@@ -1,4 +1,5 @@
-﻿using System;
+﻿using ReliefManagementSystem.Domain.Enum;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -12,8 +13,12 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public Guid RequestId { get; set; }
 
-        public string? Url { get; set; }
-        public string? FileType { get; set; }
+        public string FileUrl { get; set; }
+
+        public string ContentType { get; set; }
+
+        public AttachmentType AttachmentType { get; set; }
+
         public DateTime UploadedAt { get; set; }
 
         public Request? Request { get; set; } 

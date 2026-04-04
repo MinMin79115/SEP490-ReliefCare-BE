@@ -17,7 +17,13 @@ namespace ReliefManagementSystem.Domain.Enum
         /// <summary>Giao dịch thất bại (từ chối, lỗi hệ thống, hết hạn…).</summary>
         Failed = 2,
 
+        /// <summary>Người dùng/chủ hệ thống đã huỷ giao dịch.</summary>
+        Cancelled = 3,
+
+        /// <summary>Link thanh toán đã hết hạn.</summary>
+        Expired = 4,
+
         /// <summary>Đã hoàn tiền lại cho người donate.</summary>
-        Refunded =3
+        Refunded = 5
     }
 }

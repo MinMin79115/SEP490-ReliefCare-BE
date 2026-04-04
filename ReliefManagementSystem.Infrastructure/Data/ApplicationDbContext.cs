@@ -23,8 +23,13 @@ namespace ReliefManagementSystem.Infrastructure.Data
 
         // Donation
         public DbSet<Donation> Donations { get; set; }
+        public DbSet<InKindDonation> InKindDonations { get; set; }
+        public DbSet<InKindDonationDetail> InKindDonationDetails { get; set; }
         public DbSet<PaymentTransaction> PaymentTransactions { get; set; }
         public DbSet<PaymentTransactionDetail> PaymentTransactionDetails { get; set; }
+        public DbSet<Fund> Funds { get; set; }
+        public DbSet<FundContribution> FundContributions { get; set; }
+        public DbSet<FundTransaction> FundTransactions { get; set; }
         public DbSet<RefreshToken> RefreshTokens { get; set; }
         public DbSet<Skill> Skills { get; set; }
         public DbSet<VolunteerSkill> VolunteerSkills { get; set; }
@@ -32,6 +37,8 @@ namespace ReliefManagementSystem.Infrastructure.Data
         public DbSet<Team> Teams { get; set; }
         public DbSet<TeamMember> TeamMembers { get; set; }
         public DbSet<TeamJoinRequest> TeamJoinRequests { get; set; }
+        public DbSet<StationJoinRequest> StationJoinRequests { get; set; }
+        public DbSet<EmailOtp> EmailOtps { get; set; }
 
 
         // Vehicle Management
@@ -42,6 +49,8 @@ namespace ReliefManagementSystem.Infrastructure.Data
         public DbSet<Inventory> Inventories { get; set; }
         public DbSet<InventoryStock> InventoryStocks { get; set; }
         public DbSet<InventoryTransaction> InventoryTransactions { get; set; }
+        public DbSet<ProcurementOrder> ProcurementOrders { get; set; }
+        public DbSet<ProcurementOrderItem> ProcurementOrderItems { get; set; }
         public DbSet<InventoryTransactionItem> InventoryTransactionItems { get; set; }
         public DbSet<SupplyItem> SupplyItems { get; set; }
         public DbSet<ReliefStation> ReliefStations { get; set; }
@@ -52,10 +61,21 @@ namespace ReliefManagementSystem.Infrastructure.Data
 
         // Campaign Management
         public DbSet<Campaign> Campaigns { get; set; }
+        public DbSet<CampaignResourceGoal> CampaignResourceGoals { get; set; }
+        public DbSet<CampaignStation> CampaignStations { get; set; }
         public DbSet<CampaignTeam> CampaignTeams { get; set; }
+        public DbSet<CampaignVolunteerRegistration> CampaignVolunteerRegistrations { get; set; }
         public DbSet<CampaignTask> CampaignTasks { get; set; }
         public DbSet<CampaignVehicle> CampaignVehicles { get; set; }
         public DbSet<MemberTask> MemberTasks { get; set; }
+        
+        public DbSet<CampaignTaskItem> CampaignTaskItems { get; set; }
+        public DbSet<MemberTaskItem> MemberTaskItems { get; set; }
+        public DbSet<DistributionSession> DistributionSessions { get; set; }
+        public DbSet<DistributionSessionItem> DistributionSessionItems { get; set; }
+        public DbSet<DistributionSessionRequest> DistributionSessionRequests { get; set; }
+        public DbSet<ReliefFulfillment> ReliefFulfillments { get; set; }
+        public DbSet<ReliefFulfillmentItem> ReliefFulfillmentItems { get; set; }
 
         // Supply Allocation
         public DbSet<SupplyAllocation> SupplyAllocations { get; set; }
@@ -78,6 +98,9 @@ namespace ReliefManagementSystem.Infrastructure.Data
         public DbSet<ReliefNeedItem> ReliefNeedItems { get; set; }
         public DbSet<RescueOperation> RescueOperations { get; set; }
         public DbSet<RescueRequestPriority> RescueRequestPriorities { get; set; }
+        public DbSet<RescueBatch> RescueBatches { get; set; }
+        public DbSet<RescueBatchItem> RescueBatchItems { get; set; }
+        public DbSet<TeamTrackingPoint> TeamTrackingPoints { get; set; }
 
         public ApplicationDbContext(
             DbContextOptions<ApplicationDbContext> options,
@@ -96,6 +119,8 @@ namespace ReliefManagementSystem.Infrastructure.Data
 
         public override async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
         {
+            NormalizeDateTimeKindsToUtc();
+
             var userId = _currentUserService?.UserId;
             var auditLogs = new List<AuditLog>();
 
@@ -181,6 +206,37 @@ namespace ReliefManagementSystem.Infrastructure.Data
             return await base.SaveChangesAsync(cancellationToken);
         }
 
+        private void NormalizeDateTimeKindsToUtc()
+        {
+            foreach (var entry in ChangeTracker.Entries())
+            {
+                if (entry.State != EntityState.Added && entry.State != EntityState.Modified)
+                    continue;
+
+                foreach (var property in entry.Properties)
+                {
+                    if (property.Metadata.ClrType == typeof(DateTime) && property.CurrentValue is DateTime dt)
+                    {
+                        property.CurrentValue = EnsureUtc(dt);
+                    }
+                    else if (property.Metadata.ClrType == typeof(DateTime?) && property.CurrentValue is DateTime ndt)
+                    {
+                        property.CurrentValue = EnsureUtc(ndt);
+                    }
+                }
+            }
+        }
+
+        private static DateTime EnsureUtc(DateTime value)
+        {
+            return value.Kind switch
+            {
+                DateTimeKind.Utc => value,
+                DateTimeKind.Local => value.ToUniversalTime(),
+                _ => DateTime.SpecifyKind(value, DateTimeKind.Utc)
+            };
+        }
+
         protected override void OnModelCreating(ModelBuilder builder)
         {
             base.OnModelCreating(builder);
@@ -205,6 +261,82 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .Property(mp => mp.Level)
                 .HasConversion<string>()
                 .IsRequired();
+
+            // Fund configuration
+            builder.Entity<Fund>()
+                .HasKey(f => f.FundId);
+
+            builder.Entity<Fund>()
+                .HasIndex(f => f.IsDefault)
+                .HasFilter("\"IsDefault\" = true");
+
+            builder.Entity<FundContribution>()
+                .HasKey(fc => fc.FundContributionId);
+
+            builder.Entity<FundContribution>()
+                .HasOne(fc => fc.Fund)
+                .WithMany(f => f.Contributions)
+                .HasForeignKey(fc => fc.FundId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<FundContribution>()
+                .HasOne(fc => fc.Donation)
+                .WithMany(d => d.FundContributions)
+                .HasForeignKey(fc => fc.DonationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<FundContribution>()
+                .HasOne(fc => fc.Campaign)
+                .WithMany()
+                .HasForeignKey(fc => fc.CampaignId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<FundContribution>()
+                .HasIndex(fc => fc.DonationId)
+                .IsUnique();
+
+            builder.Entity<FundTransaction>()
+                .HasKey(ft => ft.FundTransactionId);
+
+            builder.Entity<FundTransaction>()
+                .Property(ft => ft.Type)
+                .HasConversion<string>()
+                .IsRequired();
+
+            builder.Entity<CampaignVolunteerRegistration>()
+                .HasKey(x => x.CampaignVolunteerRegistrationId);
+
+            builder.Entity<CampaignVolunteerRegistration>()
+                .Property(x => x.Status)
+                .HasConversion<string>()
+                .IsRequired();
+
+            builder.Entity<CampaignVolunteerRegistration>()
+                .HasOne(x => x.Campaign)
+                .WithMany(c => c.VolunteerRegistrations)
+                .HasForeignKey(x => x.CampaignId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<CampaignVolunteerRegistration>()
+                .HasOne(x => x.User)
+                .WithMany(u => u.CampaignVolunteerRegistrations)
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<CampaignVolunteerRegistration>()
+                .HasIndex(x => new { x.CampaignId, x.UserId, x.Status });
+
+            builder.Entity<FundTransaction>()
+                .HasOne(ft => ft.Fund)
+                .WithMany(f => f.Transactions)
+                .HasForeignKey(ft => ft.FundId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<FundTransaction>()
+                .HasOne(ft => ft.FundContribution)
+                .WithMany()
+                .HasForeignKey(ft => ft.FundContributionId)
+                .OnDelete(DeleteBehavior.SetNull);
 
 
             // ModeratorProfile configuration (1:1 với ApplicationUser)
@@ -292,7 +424,7 @@ namespace ReliefManagementSystem.Infrastructure.Data
             builder.Entity<Team>()
                 .HasOne(t => t.Moderator)
                 .WithMany()
-                .HasForeignKey(t => t.ModeratorId)
+                .HasForeignKey(t => t.CreateBy)
                 .OnDelete(DeleteBehavior.Restrict);
 
             //TeamJoinRequest Configuration
@@ -313,6 +445,48 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .WithMany()
                 .HasForeignKey(tjr => tjr.ReviewedBy)
                 .OnDelete(DeleteBehavior.SetNull);
+
+            // StationJoinRequest Configuration
+            builder.Entity<StationJoinRequest>()
+                .HasOne(sjr => sjr.Team)
+                .WithMany(t => t.StationJoinRequests)
+                .HasForeignKey(sjr => sjr.TeamId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<StationJoinRequest>()
+                .HasOne(sjr => sjr.ReliefStation)
+                .WithMany(rs => rs.StationJoinRequests)
+                .HasForeignKey(sjr => sjr.ReliefStationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<StationJoinRequest>()
+                .HasOne(sjr => sjr.RequestedByLeader)
+                .WithMany()
+                .HasForeignKey(sjr => sjr.RequestedByLeaderId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<StationJoinRequest>()
+                .HasOne(sjr => sjr.ReviewedByModerator)
+                .WithMany()
+                .HasForeignKey(sjr => sjr.ReviewedByModeratorId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<StationJoinRequest>()
+                .HasIndex(sjr => new { sjr.TeamId, sjr.ReliefStationId, sjr.Status });
+
+            builder.Entity<EmailOtp>()
+                .HasOne(x => x.User)
+                .WithMany()
+                .HasForeignKey(x => x.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<EmailOtp>()
+                .Property(x => x.CodeHash)
+                .HasMaxLength(256)
+                .IsRequired();
+
+            builder.Entity<EmailOtp>()
+                .HasIndex(x => new { x.UserId, x.Purpose, x.CreatedAt });
 
             //RefreshToken Configuration
             builder.Entity<RefreshToken>()
@@ -369,6 +543,9 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .HasKey(i => i.InventoryStockId);
 
             builder.Entity<InventoryStock>()
+                .ToTable(t => t.HasCheckConstraint("CK_InventoryStocks_CurrentQuantity_NonNegative", "\"CurrentQuantity\" >= 0"));
+
+            builder.Entity<InventoryStock>()
                 .HasIndex(i => new { i.InventoryId, i.SupplyItemId })
                 .IsUnique();
 
@@ -403,6 +580,10 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .HasKey(it => it.TransactionId);
 
             builder.Entity<InventoryTransaction>()
+                .HasIndex(it => it.TransactionCode)
+                .IsUnique();
+
+            builder.Entity<InventoryTransaction>()
                 .HasOne(it => it.Inventory)
                 .WithMany(i => i.InventoryTransactions)
                 .HasForeignKey(it => it.InventoryId)
@@ -414,15 +595,15 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .HasForeignKey(it => it.CreatedBy)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            builder.Entity<InventoryTransaction>()
+                .HasOne(it => it.SupplyTransfer)
+                .WithMany(st => st.InventoryTransactions)
+                .HasForeignKey(it => it.SupplyTransferId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // ReliefStation Configuration
             builder.Entity<ReliefStation>()
                 .HasKey(rs => rs.ReliefStationId);
-
-            builder.Entity<ReliefStation>()
-                .HasOne(rs => rs.ParentStation)
-                .WithMany(rs => rs.ChildStations)
-                .HasForeignKey(rs => rs.ParentReliefStationId)
-                .OnDelete(DeleteBehavior.Restrict);
 
             // ReliefStationTeam Configuration (Many-to-Many between ReliefStation and Team)
             builder.Entity<ReliefStationTeam>()
@@ -436,7 +617,7 @@ namespace ReliefManagementSystem.Infrastructure.Data
 
             builder.Entity<ReliefStationTeam>()
                 .HasOne(rst => rst.Team)
-                .WithMany()
+                .WithMany(rst => rst.ReliefStationTeams)
                 .HasForeignKey(rst => rst.TeamId)
                 .OnDelete(DeleteBehavior.Cascade);
 
@@ -484,10 +665,103 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .OnDelete(DeleteBehavior.Restrict);
 
             builder.Entity<Campaign>()
-                .HasOne(c => c.CreatedByStation)
+                .Property(c => c.Type)
+                .HasConversion<string>()
+                .IsRequired();
+
+            builder.Entity<Campaign>()
+                .Property(c => c.CompletionRule)
+                .HasConversion<string>()
+                .IsRequired();
+
+            builder.Entity<Campaign>()
+                .Property(c => c.Status)
+                .HasConversion<string>()
+                .IsRequired();
+
+            builder.Entity<Campaign>()
+                .Property(c => c.AllowOverTarget)
+                .HasDefaultValue(true);
+
+            // CampaignResourceGoal Configuration
+            builder.Entity<CampaignResourceGoal>()
+                .HasKey(g => g.CampaignResourceGoalId);
+
+            builder.Entity<CampaignResourceGoal>()
+                .Property(g => g.ResourceType)
+                .HasConversion<string>()
+                .IsRequired();
+
+            builder.Entity<CampaignResourceGoal>()
+                .Property(g => g.IsRequired)
+                .HasDefaultValue(true);
+
+            builder.Entity<CampaignResourceGoal>()
+                .HasOne(g => g.Campaign)
+                .WithMany(c => c.ResourceGoals)
+                .HasForeignKey(g => g.CampaignId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<CampaignResourceGoal>()
+                .HasIndex(g => new { g.CampaignId, g.ResourceType })
+                .IsUnique();
+
+            builder.Entity<ProcurementOrder>()
+                .HasKey(p => p.ProcurementOrderId);
+
+            builder.Entity<ProcurementOrder>()
+                .Property(p => p.Status)
+                .HasConversion<string>()
+                .IsRequired();
+
+            builder.Entity<ProcurementOrder>()
+                .HasOne(p => p.Campaign)
                 .WithMany()
-                .HasForeignKey(c => c.CreatedByStationId)
+                .HasForeignKey(p => p.CampaignId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<ProcurementOrder>()
+                .HasOne(p => p.DestinationInventory)
+                .WithMany()
+                .HasForeignKey(p => p.DestinationInventoryId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<ProcurementOrder>()
+                .HasOne(p => p.InventoryTransaction)
+                .WithMany()
+                .HasForeignKey(p => p.InventoryTransactionId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<ProcurementOrderItem>()
+                .HasKey(i => i.ProcurementOrderItemId);
+
+            builder.Entity<ProcurementOrderItem>()
+                .HasOne(i => i.ProcurementOrder)
+                .WithMany(p => p.Items)
+                .HasForeignKey(i => i.ProcurementOrderId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<ProcurementOrderItem>()
+                .HasOne(i => i.SupplyItem)
+                .WithMany()
+                .HasForeignKey(i => i.SupplyItemId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // CampaignStation Configuration
+            builder.Entity<CampaignStation>()
+                .HasKey(cs => new { cs.CampaignId, cs.ReliefStationId });
+
+            builder.Entity<CampaignStation>()
+                .HasOne(cs => cs.Campaign)
+                .WithMany(c => c.CampaignStations)
+                .HasForeignKey(cs => cs.CampaignId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<CampaignStation>()
+                .HasOne(cs => cs.ReliefStation)
+                .WithMany(rs => rs.CampaignStations)
+                .HasForeignKey(cs => cs.ReliefStationId)
+                .OnDelete(DeleteBehavior.Cascade);
 
             // CampaignTeam Configuration
             builder.Entity<CampaignTeam>()
@@ -557,6 +831,38 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .HasForeignKey(mt => mt.VolunteerProfileId)
                 .OnDelete(DeleteBehavior.Cascade);
 
+            // CampaignTaskItem Configuration
+            builder.Entity<CampaignTaskItem>()
+                .HasKey(cti => cti.CampaignTaskItemId);
+
+            builder.Entity<CampaignTaskItem>()
+                .HasOne(cti => cti.CampaignTask)
+                .WithMany(ct => ct.CampaignTaskItems)
+                .HasForeignKey(cti => cti.CampaignTaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<CampaignTaskItem>()
+                .HasOne(cti => cti.SupplyAllocationItem)
+                .WithMany(sai => sai.CampaignTaskItems)
+                .HasForeignKey(cti => cti.SupplyAllocationItemId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // MemberTaskItem Configuration
+            builder.Entity<MemberTaskItem>()
+                .HasKey(mti => mti.MemberTaskItemId);
+
+            builder.Entity<MemberTaskItem>()
+                .HasOne(mti => mti.MemberTask)
+                .WithMany(mt => mt.MemberTaskItems)
+                .HasForeignKey(mti => mti.MemberTaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<MemberTaskItem>()
+                .HasOne(mti => mti.CampaignTaskItem)
+                .WithMany(cti => cti.MemberTaskItems)
+                .HasForeignKey(mti => mti.CampaignTaskItemId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // SupplyAllocation Configuration
             builder.Entity<SupplyAllocation>()
                 .HasKey(sa => sa.AllocationId);
@@ -572,6 +878,12 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .WithMany()
                 .HasForeignKey(sa => sa.SourceInventoryId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<SupplyAllocation>()
+                .HasOne(sa => sa.InventoryTransaction)
+                .WithOne(it => it.SupplyAllocation)
+                .HasForeignKey<SupplyAllocation>(sa => sa.InventoryTransactionId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             // SupplyAllocationItem Configuration
             builder.Entity<SupplyAllocationItem>()
@@ -597,6 +909,19 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .WithMany()
                 .HasForeignKey(rs => rs.LocationId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // SupplyTransfer Logistics FKs
+            builder.Entity<SupplyTransfer>()
+                .HasOne(st => st.Vehicle)
+                .WithMany(v => v.SupplyTransfers)
+                .HasForeignKey(st => st.VehicleId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<SupplyTransfer>()
+                .HasOne(st => st.DriverUser)
+                .WithMany()
+                .HasForeignKey(st => st.DriverUserId)
+                .OnDelete(DeleteBehavior.SetNull);
 
             // Campaign – CreatedBy FK
             builder.Entity<Campaign>()
@@ -626,6 +951,11 @@ namespace ReliefManagementSystem.Infrastructure.Data
                     .WithMany()
                     .HasForeignKey(r => r.ReporterUserId)
                     .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(r => r.Location)
+                    .WithMany(l => l.Requests)
+                    .HasForeignKey(r => r.LocationId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
 
             // =========================
@@ -642,6 +972,11 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 entity.Property(r => r.DisasterType)
                     .HasConversion<string>()
                     .IsRequired();
+
+                entity.HasOne(r => r.Campaign)
+                    .WithMany(c => c.RescueRequests)
+                    .HasForeignKey(r => r.CampaignId)
+                    .OnDelete(DeleteBehavior.SetNull);
             });
 
             // =========================
@@ -660,9 +995,163 @@ namespace ReliefManagementSystem.Infrastructure.Data
                     .HasForeignKey(r => r.CampaignId)
                     .OnDelete(DeleteBehavior.SetNull);
 
+                entity.HasOne(r => r.AssignedReliefStation)
+                    .WithMany()
+                    .HasForeignKey(r => r.AssignedReliefStationId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
                 entity.HasMany(r => r.ReliefNeedItems)
                     .WithOne(n => n.ReliefRequest)
                     .HasForeignKey(n => n.ReliefRequestId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasMany(r => r.DistributionSessionRequests)
+                    .WithOne(n => n.ReliefRequest)
+                    .HasForeignKey(n => n.ReliefRequestId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasMany(r => r.ReliefFulfillments)
+                    .WithOne(f => f.ReliefRequest)
+                    .HasForeignKey(f => f.ReliefRequestId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            builder.Entity<DistributionSession>(entity =>
+            {
+                entity.HasKey(x => x.DistributionSessionId);
+
+                entity.Property(x => x.Mode)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                entity.Property(x => x.Status)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                entity.Property(x => x.Name)
+                    .HasMaxLength(200)
+                    .IsRequired();
+
+                entity.Property(x => x.LocationName)
+                    .HasMaxLength(200);
+
+                entity.Property(x => x.Address)
+                    .HasMaxLength(500);
+
+                entity.Property(x => x.Notes)
+                    .HasMaxLength(1000);
+
+                entity.HasOne(x => x.Campaign)
+                    .WithMany(c => c.DistributionSessions)
+                    .HasForeignKey(x => x.CampaignId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.ReliefStation)
+                    .WithMany(rs => rs.DistributionSessions)
+                    .HasForeignKey(x => x.ReliefStationId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(x => new { x.CampaignId, x.Status });
+                entity.HasIndex(x => new { x.ReliefStationId, x.Status });
+            });
+
+            builder.Entity<ReliefFulfillment>(entity =>
+            {
+                entity.HasKey(x => x.ReliefFulfillmentId);
+
+                entity.Property(x => x.Mode)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                entity.Property(x => x.Status)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                entity.Property(x => x.RecipientName)
+                    .HasMaxLength(200);
+
+                entity.Property(x => x.RecipientPhone)
+                    .HasMaxLength(50);
+
+                entity.Property(x => x.DeliveryNote)
+                    .HasMaxLength(1000);
+
+                entity.Property(x => x.ProofImageUrl)
+                    .HasMaxLength(1000);
+
+                entity.HasOne(x => x.DistributionSession)
+                    .WithMany(s => s.ReliefFulfillments)
+                    .HasForeignKey(x => x.DistributionSessionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.ReliefRequest)
+                    .WithMany(r => r.ReliefFulfillments)
+                    .HasForeignKey(x => x.ReliefRequestId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(x => new { x.ReliefRequestId, x.DeliveredAt });
+                entity.HasIndex(x => x.DistributionSessionId);
+            });
+
+            builder.Entity<ReliefFulfillmentItem>(entity =>
+            {
+                entity.HasKey(x => x.ReliefFulfillmentItemId);
+
+                entity.Property(x => x.NeedCategory)
+                    .HasConversion<string>();
+
+                entity.Property(x => x.Note)
+                    .HasMaxLength(500);
+
+                entity.HasOne(x => x.ReliefFulfillment)
+                    .WithMany(f => f.Items)
+                    .HasForeignKey(x => x.ReliefFulfillmentId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.SupplyItem)
+                    .WithMany(s => s.ReliefFulfillmentItems)
+                    .HasForeignKey(x => x.SupplyItemId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            builder.Entity<DistributionSessionItem>(entity =>
+            {
+                entity.HasKey(x => x.DistributionSessionItemId);
+
+                entity.HasOne(x => x.DistributionSession)
+                    .WithMany(s => s.Items)
+                    .HasForeignKey(x => x.DistributionSessionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.SupplyItem)
+                    .WithMany()
+                    .HasForeignKey(x => x.SupplyItemId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.SupplyAllocationItem)
+                    .WithMany(a => a.DistributionSessionItems)
+                    .HasForeignKey(x => x.SupplyAllocationItemId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasIndex(x => new { x.DistributionSessionId, x.SupplyItemId, x.SupplyAllocationItemId })
+                    .IsUnique();
+            });
+
+            builder.Entity<DistributionSessionRequest>(entity =>
+            {
+                entity.HasKey(x => new { x.DistributionSessionId, x.ReliefRequestId });
+
+                entity.Property(x => x.PlannedNote)
+                    .HasMaxLength(500);
+
+                entity.HasOne(x => x.DistributionSession)
+                    .WithMany(s => s.Requests)
+                    .HasForeignKey(x => x.DistributionSessionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.ReliefRequest)
+                    .WithMany(r => r.DistributionSessionRequests)
+                    .HasForeignKey(x => x.ReliefRequestId)
                     .OnDelete(DeleteBehavior.Cascade);
             });
 
@@ -755,6 +1244,80 @@ namespace ReliefManagementSystem.Infrastructure.Data
             });
 
             // =========================
+            // RescueBatch
+            // =========================
+            builder.Entity<RescueBatch>(entity =>
+            {
+                entity.HasKey(rb => rb.RescueBatchId);
+
+                entity.Property(rb => rb.Status)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                entity.HasIndex(rb => new { rb.TeamId, rb.IsActive });
+
+                entity.HasOne(rb => rb.Team)
+                    .WithMany(t => t.RescueBatches)
+                    .HasForeignKey(rb => rb.TeamId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // =========================
+            // RescueBatchItem
+            // =========================
+            builder.Entity<RescueBatchItem>(entity =>
+            {
+                entity.HasKey(rbi => rbi.RescueBatchItemId);
+
+                entity.Property(rbi => rbi.Status)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                entity.HasIndex(rbi => new { rbi.RescueBatchId, rbi.SequenceOrder });
+
+                entity.HasOne(rbi => rbi.RescueBatch)
+                    .WithMany(rb => rb.Items)
+                    .HasForeignKey(rbi => rbi.RescueBatchId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(rbi => rbi.RescueRequest)
+                    .WithMany(rr => rr.RescueBatchItems)
+                    .HasForeignKey(rbi => rbi.RescueRequestId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // =========================
+            // TeamTrackingPoint
+            // =========================
+            builder.Entity<TeamTrackingPoint>(entity =>
+            {
+                entity.HasKey(ttp => ttp.TeamTrackingPointId);
+
+                entity.Property(ttp => ttp.Source)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                entity.HasOne(ttp => ttp.Team)
+                    .WithMany(t => t.TrackingPoints)
+                    .HasForeignKey(ttp => ttp.TeamId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(ttp => ttp.RescueBatch)
+                    .WithMany(rb => rb.TrackingPoints)
+                    .HasForeignKey(ttp => ttp.RescueBatchId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(ttp => ttp.RescueOperation)
+                    .WithMany(ro => ro.TrackingPoints)
+                    .HasForeignKey(ttp => ttp.RescueOperationId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasIndex(ttp => new { ttp.TeamId, ttp.CapturedAtUtc });
+                entity.HasIndex(ttp => new { ttp.RescueOperationId, ttp.CapturedAtUtc });
+                entity.HasIndex(ttp => new { ttp.RescueBatchId, ttp.CapturedAtUtc });
+            });
+
+            // =========================
             // PriorityCriteria
             // =========================
             builder.Entity<PriorityCriteria>(entity =>
@@ -792,16 +1355,79 @@ namespace ReliefManagementSystem.Infrastructure.Data
                     .HasConversion<string>()
                     .IsRequired();
 
+                entity.Property(d => d.DonorName)
+                    .HasMaxLength(255)
+                    .IsRequired();
+
+                entity.Property(d => d.PayOsPaymentLinkId)
+                    .HasMaxLength(128);
+
+                entity.Property(d => d.CheckoutUrl)
+                    .HasMaxLength(500);
+
+                entity.HasIndex(d => d.PayOsOrderCode)
+                    .IsUnique();
+
                 entity.HasOne(d => d.Campaign)
                     .WithMany(c => c.Donations)
                     .HasForeignKey(d => d.CampaignId)
                     .OnDelete(DeleteBehavior.Cascade);
 
-                // DonorUserId nullable: null nếu ẩn danh
+                // DonorUserId nullable: null nếu donate khi chưa login
                 entity.HasOne(d => d.DonorUser)
                     .WithMany()
                     .HasForeignKey(d => d.DonorUserId)
                     .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // =========================
+            // InKindDonation
+            // =========================
+            builder.Entity<InKindDonation>(entity =>
+            {
+                entity.HasKey(ik => ik.InKindDonationId);
+
+                entity.Property(ik => ik.Status)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                entity.HasOne(ik => ik.Campaign)
+                    .WithMany(c => c.InKindDonations)
+                    .HasForeignKey(ik => ik.CampaignId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(ik => ik.ReliefStation)
+                    .WithMany(rs => rs.ReceivedInKindDonations)
+                    .HasForeignKey(ik => ik.ReliefStationId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(ik => ik.DonorUser)
+                    .WithMany()
+                    .HasForeignKey(ik => ik.DonorUserId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(ik => ik.InventoryTransaction)
+                    .WithMany(it => it.InKindDonations)
+                    .HasForeignKey(ik => ik.InventoryTransactionId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // =========================
+            // InKindDonationDetail
+            // =========================
+            builder.Entity<InKindDonationDetail>(entity =>
+            {
+                entity.HasKey(ikd => ikd.InKindDonationDetailId);
+
+                entity.HasOne(ikd => ikd.InKindDonation)
+                    .WithMany(ik => ik.InKindDonationDetails)
+                    .HasForeignKey(ikd => ikd.InKindDonationId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(ikd => ikd.SupplyItem)
+                    .WithMany(si => si.InKindDonationDetails)
+                    .HasForeignKey(ikd => ikd.SupplyItemId)
+                    .OnDelete(DeleteBehavior.Restrict);
             });
 
             // =========================
@@ -811,9 +1437,39 @@ namespace ReliefManagementSystem.Infrastructure.Data
             {
                 entity.HasKey(dt => dt.PaymentTransactionId);
 
-                entity.Property(dt => dt.OrderAmount)
+                entity.Property(dt => dt.Provider)
+                    .HasMaxLength(50)
+                    .IsRequired();
+
+                entity.Property(dt => dt.PaymentLinkId)
+                    .HasMaxLength(128);
+
+                entity.Property(dt => dt.Reference)
+                    .HasMaxLength(100);
+
+                entity.Property(dt => dt.EventCode)
+                    .HasMaxLength(20);
+
+                entity.Property(dt => dt.EventDescription)
+                    .HasMaxLength(255);
+
+                entity.Property(dt => dt.Amount)
                     .HasPrecision(18, 2)
                     .IsRequired();
+
+                entity.Property(dt => dt.Currency)
+                    .HasMaxLength(10)
+                    .IsRequired();
+
+                entity.Property(dt => dt.Signature)
+                    .HasMaxLength(256)
+                    .IsRequired();
+
+                entity.Property(dt => dt.RawPayload)
+                    .IsRequired();
+
+                entity.HasIndex(dt => new { dt.Provider, dt.Reference });
+                entity.HasIndex(dt => new { dt.Provider, dt.OrderCode, dt.PaymentLinkId });
 
                 entity.HasOne(dt => dt.Donation)
                     .WithMany()
@@ -833,12 +1489,14 @@ namespace ReliefManagementSystem.Infrastructure.Data
             {
                 entity.HasKey(dtd => dtd.PaymentTransactionDetailId);
 
-                entity.Property(dtd => dtd.TransactionAmount)
-                    .HasPrecision(18, 2)
-                    .IsRequired();
+                entity.Property(dtd => dtd.FieldName)
+                    .HasMaxLength(100);
+
+                entity.Property(dtd => dtd.FieldValue)
+                    .HasMaxLength(1000);
 
                 entity.HasOne(dtd => dtd.PaymentTransaction)
-                    .WithMany(dt => dt.TransactionDetails)
+                    .WithMany()
                     .HasForeignKey(dtd => dtd.PaymentTransactionId)
                     .OnDelete(DeleteBehavior.Cascade);
             });

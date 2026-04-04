@@ -2,7 +2,7 @@
 # ReliefCare - Local Development Docker Compose
 # =============================================================
 # Dùng để chạy và test trên máy local.
-# Tất cả giá trị đã được hardcode - clone về chạy ngay, không cần .env
+# Dùng biến môi trường qua file .env (không commit secret)
 #
 # Cách dùng:
 #   docker compose up --build
@@ -26,17 +26,17 @@ services:
     container_name: reliefcare-local-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_DB: relief_db
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres123
+      POSTGRES_DB: ${POSTGRES_DB:-relief_db}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5432}:5432"
     volumes:
       - postgres_local_data:/var/lib/postgresql/data
     networks:
       - reliefcare-local
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres -d relief_db"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-postgres} -d ${POSTGRES_DB:-relief_db}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -56,26 +56,54 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    env_file:
+      - .env
     environment:
       # Database
-      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=relief_db;Username=postgres;Password=postgres123"
+      ConnectionStrings__Default: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-relief_db};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD}"
 
       # JWT - chỉ dùng cho local, KHÔNG dùng key này cho production
-      Jwt__Key: "local-dev-reliefcare-secret-key-minimum-32-characters-long"
-      Jwt__Issuer: "ReliefSystem"
-      Jwt__Audience: "ReliefClient"
-      Jwt__AccessTokenMinutes: "60"
-      Jwt__RefreshTokenDays: "7"
+      Jwt__Key: ${JWT_KEY}
+      Jwt__Issuer: ${JWT_ISSUER:-ReliefSystem}
+      Jwt__Audience: ${JWT_AUDIENCE:-ReliefClient}
+      Jwt__AccessTokenMinutes: ${JWT_ACCESS_TOKEN_MINUTES:-15}
+      Jwt__RefreshTokenDays: ${JWT_REFRESH_TOKEN_DAYS:-7}
 
       # Google OAuth - để trống, không test Google login trên local docker
-      AuthenticationGoogle__Google__ClientId: ""
-      AuthenticationGoogle__Google__ClientSecret: ""
+      AuthenticationGoogle__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
+      AuthenticationGoogle__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
 
-      # CORS - cho phép các frontend local phổ biến
-      CorsSettings__AllowedOrigins__0: "http://localhost:3000"
-      CorsSettings__AllowedOrigins__1: "http://localhost:5173"
-      CorsSettings__AllowedOrigins__2: "http://localhost:4200"
-      CorsSettings__AllowedOrigins__3: "http://localhost:8080"
+      # Email (Brevo SMTP) - để test gửi email local
+      EmailSettings__Host: ${EMAIL_HOST:-smtp-relay.brevo.com}
+      EmailSettings__Port: ${EMAIL_PORT:-587}
+      EmailSettings__Username: ${EMAIL_USERNAME:-}
+      EmailSettings__Password: ${EMAIL_PASSWORD:-}
+      EmailSettings__SenderEmail: ${EMAIL_SENDER_EMAIL:-noreply@reliefhub.info.vn}
+      EmailSettings__SenderName: ${EMAIL_SENDER_NAME:-Relief Hub}
+
+      # Cloudinary - để test upload ảnh local
+      CloudinarySettings__CloudName: ${CLOUDINARY_CLOUD_NAME:-}
+      CloudinarySettings__ApiKey: ${CLOUDINARY_API_KEY:-}
+      CloudinarySettings__ApiSecret: ${CLOUDINARY_API_SECRET:-}
+
+      # Goong
+      Goong__BaseUrl: ${GOONG_BASE_URL:-https://rsapi.goong.io}
+      Goong__ApiKey: ${GOONG_API_KEY:-}
+
+      # Weather API
+      WeatherApi__BaseUrl: ${WEATHER_API_BASE_URL:-https://api.weatherapi.com/v1}
+      WeatherApi__ApiKey: ${WEATHER_API_KEY:-}
+
+      # PayOS
+      PayOs__ClientId: ${PAYOS_CLIENT_ID:-}
+      PayOs__ApiKey: ${PAYOS_API_KEY:-}
+      PayOs__ChecksumKey: ${PAYOS_CHECKSUM_KEY:-}
+      PayOs__ReturnUrl: ${PAYOS_RETURN_URL:-http://localhost:5173/donation/return}
+      PayOs__CancelUrl: ${PAYOS_CANCEL_URL:-http://localhost:5173/donation/cancel}
+      PayOs__ExpiredMinutes: ${PAYOS_EXPIRED_MINUTES:-15}
+
+      # CORS
+      CorsSettings__AllowedOrigins__0: ${CORS_ALLOWED_ORIGIN:-*}
 
       # ASP.NET Core - Development mode bật Swagger
       ASPNETCORE_ENVIRONMENT: Development
@@ -83,18 +111,18 @@ services:
 
       # Logging - verbose hơn để dễ debug
       Logging__LogLevel__Default: "Information"
-      Logging__LogLevel__Microsoft__AspNetCore: "Information"
+      Logging__LogLevel__Microsoft__AspNetCore: "Warning"
       Logging__LogLevel__Microsoft__EntityFrameworkCore: "Information"
     ports:
       - "8080:8080"
     networks:
       - reliefcare-local
     healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      test: ["CMD-SHELL", "curl -fsSL http://localhost:8080/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 90s
+      start_period: 240s
 
   # -----------------------------------------------------------
   # pgAdmin 4 - Giao diện quản lý PostgreSQL
@@ -126,6 +154,7 @@ volumes:
   postgres_local_data:
     name: reliefcare-local-postgres-data
   pgadmin_local_data:
+    external: true
     name: reliefcare-local-pgadmin-data
 
 # -----------------------------------------------------------

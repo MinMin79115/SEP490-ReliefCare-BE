@@ -1,4 +1,5 @@
-﻿using ReliefManagementSystem.Application.Common.Interface;
+using ReliefManagementSystem.Application.Common.Interface;
+using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Application.Features.VehicleType.DTOs.Request;
 using ReliefManagementSystem.Application.Features.VehicleType.DTOs.Response;
 using ReliefManagementSystem.Application.Interface;
@@ -71,11 +72,26 @@ namespace ReliefManagementSystem.Application.Services
             };
         }
 
-        public async Task<IReadOnlyList<VehicleTypeResponse>> GetAllVehicleTypesAsync(
+        public async Task<Pagination<VehicleTypeResponse>> GetAllVehicleTypesAsync(
+            SearchVehicleTypeRequest request,
             CancellationToken cancellationToken = default)
         {
-            var vehicleTypes = await _unitOfWork.VehicleTypes.GetAllActiveAsync();
-            return vehicleTypes.Select(MapToResponse).ToList();
+            var query = _unitOfWork.VehicleTypes.GetQueryable();
+
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var keyword = request.Search.Trim();
+                query = query.Where(vt =>
+                    (vt.TypeName ?? string.Empty).Contains(keyword) ||
+                    (vt.Description ?? string.Empty).Contains(keyword));
+            }
+
+            query = query.OrderBy(vt => vt.TypeName);
+
+            var pagedVehicleTypes = await Pagination<VehicleType>.ToPagedList(query, request.PageIndex, request.PageSize);
+            var items = pagedVehicleTypes.Items!.Select(MapToResponse).ToList();
+
+            return new Pagination<VehicleTypeResponse>(items, pagedVehicleTypes.TotalCount, pagedVehicleTypes.CurrentPage, pagedVehicleTypes.PageSize);
         }
 
         public async Task<VehicleTypeResponse> UpdateVehicleTypeAsync(

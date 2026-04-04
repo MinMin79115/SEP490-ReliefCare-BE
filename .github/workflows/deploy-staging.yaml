@@ -108,6 +108,25 @@ jobs:
       CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
       GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
       GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      EMAIL_HOST: ${{ secrets.EMAIL_HOST }}
+      EMAIL_PORT: ${{ secrets.EMAIL_PORT }}
+      EMAIL_USERNAME: ${{ secrets.EMAIL_USERNAME }}
+      EMAIL_PASSWORD: ${{ secrets.EMAIL_PASSWORD }}
+      EMAIL_SENDER_EMAIL: ${{ secrets.EMAIL_SENDER_EMAIL }}
+      EMAIL_SENDER_NAME: ${{ secrets.EMAIL_SENDER_NAME }}
+      CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+      CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+      CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+      GOONG_BASE_URL: ${{ secrets.GOONG_BASE_URL }}
+      GOONG_API_KEY: ${{ secrets.GOONG_API_KEY }}
+      WEATHER_API_BASE_URL: ${{ secrets.WEATHER_API_BASE_URL }}
+      WEATHER_API_KEY: ${{ secrets.WEATHER_API_KEY }}
+      PAYOS_CLIENT_ID: ${{ secrets.PAYOS_CLIENT_ID }}
+      PAYOS_API_KEY: ${{ secrets.PAYOS_API_KEY }}
+      PAYOS_CHECKSUM_KEY: ${{ secrets.PAYOS_CHECKSUM_KEY }}
+      PAYOS_RETURN_URL: ${{ secrets.PAYOS_RETURN_URL }}
+      PAYOS_CANCEL_URL: ${{ secrets.PAYOS_CANCEL_URL }}
+      PAYOS_EXPIRED_MINUTES: ${{ secrets.PAYOS_EXPIRED_MINUTES }}
       PGADMIN_EMAIL: ${{ secrets.PGADMIN_EMAIL }}
       PGADMIN_PASSWORD: ${{ secrets.PGADMIN_PASSWORD }}
     steps:
@@ -148,8 +167,28 @@ jobs:
       - name: Wait for Healthcheck
         run: |
           echo "Waiting for services to be ready..."
-          sleep 10
+          sleep 15
           docker compose -f compose.staging.yaml ps
+
+          MAX_RETRIES=10
+          RETRY_COUNT=0
+
+          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
+            if curl -f http://localhost:8080/health > /dev/null 2>&1; then
+              echo "✅ Staging API is healthy!"
+              break
+            else
+              echo "⏳ Waiting for staging API... ($((RETRY_COUNT + 1))/$MAX_RETRIES)"
+              sleep 10
+              RETRY_COUNT=$((RETRY_COUNT + 1))
+            fi
+          done
+
+          if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
+            echo "❌ Staging API health check failed after $MAX_RETRIES attempts"
+            docker compose -f compose.staging.yaml logs reliefcare-api
+            exit 1
+          fi
 
       - name: Cleanup Dangling Images After Deploy
         run: |

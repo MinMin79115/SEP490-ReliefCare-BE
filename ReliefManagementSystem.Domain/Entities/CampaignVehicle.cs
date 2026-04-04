@@ -22,8 +22,7 @@ namespace ReliefManagementSystem.Domain.Entities
         public VehicleAssignmentStatus Status { get; set; }
 
         public string? Note { get; set; } 
-
-        // Navigation Properties
+        
         public virtual Vehicle Vehicle { get; set; } = default!;
         public virtual Campaign Campaign { get; set; } = default!;
         public virtual VolunteerProfile? Driver { get; set; }

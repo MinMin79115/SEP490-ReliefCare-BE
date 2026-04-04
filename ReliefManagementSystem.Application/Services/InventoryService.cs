@@ -1,4 +1,6 @@
+using Microsoft.EntityFrameworkCore;
 using ReliefManagementSystem.Application.Common.Interface;
+using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Application.Features.Inventory.DTOs.Request;
 using ReliefManagementSystem.Application.Features.Inventory.DTOs.Response;
 using ReliefManagementSystem.Application.Interface;
@@ -28,6 +30,12 @@ namespace ReliefManagementSystem.Application.Services
             CreateInventoryRequest request,
             CancellationToken cancellationToken = default)
         {
+            var station = await _unitOfWork.ReliefStations.GetByIdAsync(request.ReliefStationId);
+            if (station is null || station.IsDeleted)
+            {
+                throw new KeyNotFoundException($"Relief station '{request.ReliefStationId}' was not found.");
+            }
+
             // A relief station can only have one inventory per level
             if (await _unitOfWork.Inventories.IsLevelExistsForStationAsync(
                     request.ReliefStationId, request.Level, cancellationToken: cancellationToken))
@@ -67,12 +75,27 @@ namespace ReliefManagementSystem.Application.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IReadOnlyList<InventoryResponse>> GetAllInventoriesAsync(
+        public async Task<Pagination<InventoryResponse>> GetAllInventoriesAsync(
             Guid? reliefStationId = null,
+            InventoryLevel? level = null,
+            int pageIndex = 1,
+            int pageSize = 10,
             CancellationToken cancellationToken = default)
         {
-            var inventories = await _unitOfWork.Inventories.GetAllActiveAsync(reliefStationId, cancellationToken);
-            return inventories.Select(MapToResponse).ToList();
+            var query = _unitOfWork.Inventories.GetQueryable();
+
+            if (reliefStationId.HasValue)
+                query = query.Where(i => i.ReliefStationId == reliefStationId.Value);
+
+            if (level.HasValue)
+                query = query.Where(i => i.Level == level.Value);
+
+            query = query.OrderBy(i => i.Level);
+
+            var paged = await Pagination<Inventory>.ToPagedList(query, pageIndex, pageSize);
+            var items = paged.Items!.Select(MapToResponse).ToList();
+
+            return new Pagination<InventoryResponse>(items, paged.TotalCount, paged.CurrentPage, paged.PageSize);
         }
 
         /// <inheritdoc/>
@@ -167,12 +190,23 @@ namespace ReliefManagementSystem.Application.Services
                 throw new InvalidOperationException("MinimumStockLevel cannot exceed MaximumStockLevel.");
             }
 
+            if (request.CurrentQuantity < 0)
+            {
+                throw new InvalidOperationException("CurrentQuantity cannot be negative.");
+            }
+
+            if (request.MaximumStockLevel > 0 && request.CurrentQuantity > request.MaximumStockLevel)
+            {
+                throw new InvalidOperationException("CurrentQuantity cannot exceed MaximumStockLevel.");
+            }
+
             var stock = new InventoryStock
             {
                 InventoryStockId = Guid.NewGuid(),
                 InventoryId = inventoryId,
                 SupplyItemId = request.SupplyItemId,
                 CurrentQuantity = request.CurrentQuantity,
+                ExpirationDate = request.ExpirationDate,
                 MinimumStockLevel = request.MinimumStockLevel,
                 MaximumStockLevel = request.MaximumStockLevel
             };
@@ -186,18 +220,25 @@ namespace ReliefManagementSystem.Application.Services
         }
 
         /// <inheritdoc/>
-        public async Task<IReadOnlyList<InventoryStockResponse>> GetStocksByInventoryIdAsync(
+        public async Task<Pagination<InventoryStockResponse>> GetStocksByInventoryIdAsync(
             Guid inventoryId,
+            int pageIndex = 1,
+            int pageSize = 20,
             CancellationToken cancellationToken = default)
         {
             // Ensure inventory exists
             if (!await _unitOfWork.Inventories.ExistsAsync(inventoryId))
-            {
                 throw new KeyNotFoundException($"Inventory '{inventoryId}' was not found.");
-            }
 
-            var stocks = await _unitOfWork.InventoryStocks.GetByInventoryIdAsync(inventoryId, cancellationToken);
-            return stocks.Select(MapToStockResponse).ToList();
+            var query = _unitOfWork.InventoryStocks
+                .GetQueryable()
+                .Where(s => s.InventoryId == inventoryId)
+                .OrderBy(s => s.SupplyItem!.Name);
+
+            var paged = await Pagination<InventoryStock>.ToPagedList(query, pageIndex, pageSize);
+            var items = paged.Items!.Select(MapToStockResponse).ToList();
+
+            return new Pagination<InventoryStockResponse>(items, paged.TotalCount, paged.CurrentPage, paged.PageSize);
         }
 
         /// <inheritdoc/>
@@ -215,6 +256,11 @@ namespace ReliefManagementSystem.Application.Services
             if (request.MinimumStockLevel > request.MaximumStockLevel)
             {
                 throw new InvalidOperationException("MinimumStockLevel cannot exceed MaximumStockLevel.");
+            }
+
+            if (request.MaximumStockLevel > 0 && stock.CurrentQuantity > request.MaximumStockLevel)
+            {
+                throw new InvalidOperationException("Current stock quantity cannot exceed MaximumStockLevel.");
             }
 
             stock.MinimumStockLevel = request.MinimumStockLevel;
@@ -235,6 +281,11 @@ namespace ReliefManagementSystem.Application.Services
             if (stock is null)
             {
                 throw new KeyNotFoundException($"Stock entry '{stockId}' was not found.");
+            }
+
+            if (stock.CurrentQuantity > 0)
+            {
+                throw new InvalidOperationException("Cannot remove a stock item that still has quantity on hand.");
             }
 
             await _unitOfWork.InventoryStocks.DeleteAsync(stock);
@@ -279,6 +330,7 @@ namespace ReliefManagementSystem.Application.Services
             SupplyItemUnit = s.SupplyItem?.Unit ?? string.Empty,
             SupplyItemCategory = s.SupplyItem?.Category ?? SupplyCategory.Khac,
             CurrentQuantity = s.CurrentQuantity,
+            ExpirationDate = s.ExpirationDate,
             MinimumStockLevel = s.MinimumStockLevel,
             MaximumStockLevel = s.MaximumStockLevel,
             StockStatus = s.InventoryStatus
