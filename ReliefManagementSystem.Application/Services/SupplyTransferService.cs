@@ -73,6 +73,7 @@ namespace ReliefManagementSystem.Application.Services
                 RequestedAt = DateTime.UtcNow,
                 RequestedBy = currentUserId,
                 Notes = BuildNotes(request.Reason, request.Notes),
+                EvidenceUrls = NormalizeEvidenceUrls(request.EvidenceUrls),
                 Items = request.Items.Select(i => new SupplyTransferItem
                 {
                     SupplyTransferItemId = Guid.NewGuid(),
@@ -123,6 +124,7 @@ namespace ReliefManagementSystem.Application.Services
             transfer.ApprovedAt = DateTime.UtcNow;
             transfer.ApprovedBy = currentUserId;
             transfer.Notes = AppendNotes(transfer.Notes, request.Notes);
+            transfer.EvidenceUrls = MergeEvidenceUrls(transfer.EvidenceUrls, request.EvidenceUrls);
             await _unitOfWork.SupplyTransfers.UpdateAsync(transfer);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -149,26 +151,33 @@ namespace ReliefManagementSystem.Application.Services
             await _unitOfWork.BeginTransactionAsync(cancellationToken);
             try
             {
-                var transaction = await _inventoryTransactionService.CreateTransactionAsync(new CreateTransactionRequest
+                var existingOutboundTransaction = transfer.InventoryTransactions
+                    .FirstOrDefault(t => t.Reason == TransactionReason.SupplyTransferOut);
+
+                if (existingOutboundTransaction is null)
                 {
-                    InventoryId = sourceInventory.InventoryId,
-                    SupplyTransferId = transfer.SupplyTransferId,
-                    Type = TransactionType.Export,
-                    Reason = TransactionReason.SupplyTransferOut,
-                    Notes = $"Supply transfer shipping: {transfer.TransferCode}",
-                    Items = transfer.Items.Select(i => new TransactionItemRequest
+                    await _inventoryTransactionService.CreateTransactionAsync(new CreateTransactionRequest
                     {
-                        SupplyItemId = i.SupplyItemId,
-                        Quantity = i.RequestedQuantity,
-                        Notes = i.Notes
-                    }).ToList()
-                }, autoSave: false, cancellationToken);
+                        InventoryId = sourceInventory.InventoryId,
+                        SupplyTransferId = transfer.SupplyTransferId,
+                        Type = TransactionType.Export,
+                        Reason = TransactionReason.SupplyTransferOut,
+                        Notes = $"Supply transfer shipping: {transfer.TransferCode}",
+                        Items = transfer.Items.Select(i => new TransactionItemRequest
+                        {
+                            SupplyItemId = i.SupplyItemId,
+                            Quantity = i.RequestedQuantity,
+                            Notes = i.Notes
+                        }).ToList()
+                    }, autoSave: false, cancellationToken);
+                }
 
                 transfer.Status = SupplyTransferStatus.Shipping;
                 transfer.ShippedAt = DateTime.UtcNow;
                 transfer.VehicleId = request.VehicleId;
                 transfer.DriverUserId = request.DriverUserId;
                 transfer.Notes = AppendNotes(transfer.Notes, request.Notes);
+                transfer.EvidenceUrls = MergeEvidenceUrls(transfer.EvidenceUrls, request.EvidenceUrls);
                 await _unitOfWork.SupplyTransfers.UpdateAsync(transfer);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);
@@ -239,6 +248,7 @@ namespace ReliefManagementSystem.Application.Services
                 transfer.Status = SupplyTransferStatus.Received;
                 transfer.ReceivedAt = DateTime.UtcNow;
                 transfer.Notes = AppendNotes(transfer.Notes, request.Notes);
+                transfer.EvidenceUrls = MergeEvidenceUrls(transfer.EvidenceUrls, request.EvidenceUrls);
                 await _unitOfWork.SupplyTransfers.UpdateAsync(transfer);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);
@@ -260,6 +270,7 @@ namespace ReliefManagementSystem.Application.Services
 
             transfer.Status = SupplyTransferStatus.Cancelled;
             transfer.Notes = AppendNotes(transfer.Notes, request.Notes);
+            transfer.EvidenceUrls = MergeEvidenceUrls(transfer.EvidenceUrls, request.EvidenceUrls);
             await _unitOfWork.SupplyTransfers.UpdateAsync(transfer);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             return MapToResponse((await _unitOfWork.SupplyTransfers.GetByIdWithDetailsAsync(transferId, cancellationToken))!);
@@ -282,6 +293,17 @@ namespace ReliefManagementSystem.Application.Services
             return $"{current}\n{extra.Trim()}";
         }
 
+        private static List<string> NormalizeEvidenceUrls(IEnumerable<string>? urls)
+            => urls?
+                .Where(url => !string.IsNullOrWhiteSpace(url))
+                .Select(url => url.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList()
+               ?? [];
+
+        private static List<string> MergeEvidenceUrls(IEnumerable<string>? current, IEnumerable<string>? incoming)
+            => NormalizeEvidenceUrls((current ?? []).Concat(incoming ?? []));
+
         private static SupplyTransferResponse MapToResponse(SupplyTransfer transfer) => new()
         {
             SupplyTransferId = transfer.SupplyTransferId,
@@ -302,6 +324,7 @@ namespace ReliefManagementSystem.Application.Services
             VehicleId = transfer.VehicleId,
             DriverUserId = transfer.DriverUserId,
             Notes = transfer.Notes,
+            EvidenceUrls = transfer.EvidenceUrls,
             InventoryTransactionIds = transfer.InventoryTransactions.Select(t => t.TransactionId).ToList(),
             Items = transfer.Items.Select(i => new SupplyTransferItemResponse
             {
@@ -318,14 +341,17 @@ namespace ReliefManagementSystem.Application.Services
         {
             SupplyTransferId = transfer.SupplyTransferId,
             TransferCode = transfer.TransferCode,
+            SourceStationId = transfer.SourceStationId,
             SourceStationName = transfer.SourceStation?.Name ?? string.Empty,
+            DestinationStationId = transfer.DestinationStationId,
             DestinationStationName = transfer.DestinationStation?.Name ?? string.Empty,
             Status = transfer.Status,
             RequestedAt = transfer.RequestedAt,
             RequestedByName = transfer.RequestedByUser?.DisplayName ?? transfer.RequestedByUser?.UserName ?? transfer.RequestedByUser?.Email ?? string.Empty,
             TotalRequestedItems = transfer.Items.Count,
             TotalRequestedQuantity = transfer.Items.Sum(i => i.RequestedQuantity),
-            Notes = transfer.Notes
+            Notes = transfer.Notes,
+            EvidenceUrls = transfer.EvidenceUrls
         };
     }
 }

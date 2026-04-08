@@ -84,6 +84,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
 
         public INotificationRepository Notifications { get; }
         public IAttachmentRepository Attachments { get; }
+        public IGenericRepository<DisasterAnalysisLog> DisasterAnalysisLogs { get; }
 
         // Constructor
         public UnitOfWork(ApplicationDbContext context)
@@ -133,6 +134,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             RescueOperations = new RescueOperationRepository(_context);
             Notifications = new NotificationRepository(_context);
             Attachments = new AttachmentRepository(_context);
+            DisasterAnalysisLogs = new GenericRepository<DisasterAnalysisLog>(_context);
         }
 
         public async Task<int> SaveChangesAsync(

@@ -54,6 +54,15 @@ services:
       Goong__ApiKey: ${GOONG_API_KEY:-}
       WeatherApi__BaseUrl: "https://api.weatherapi.com/v1"
       WeatherApi__ApiKey: ${WEATHER_API_KEY:-}
+      LlmProvider__BaseUrl: "https://api.apipro.me/v1"
+      LlmProvider__ApiKey: ${LLM_PROVIDER_API_KEY:-}
+      LlmProvider__ProviderName: "APIPro"
+      LlmProvider__DefaultModel: "claude-haiku-4.5"
+      LlmProvider__ChatCompletionsPath: "/chat/completions"
+      LlmProvider__Temperature: "0.2"
+      LlmProvider__MaxTokens: "600"
+      DisasterAnalysis__TopRiskCount: "3"
+      DisasterAnalysis__IncludeEarthquakeInAutoDetect: "false"
       PayOs__ClientId: ${PAYOS_CLIENT_ID:-}
       PayOs__ApiKey: ${PAYOS_API_KEY:-}
       PayOs__ChecksumKey: ${PAYOS_CHECKSUM_KEY:-}
