@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore;
 using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Domain.Entities.Common;
@@ -1506,6 +1507,11 @@ namespace ReliefManagementSystem.Infrastructure.Data
             // =========================
             builder.Entity<SupplyTransfer>(entity =>
             {
+                var evidenceUrlsComparer = new ValueComparer<List<string>>(
+                    (left, right) => (left ?? new List<string>()).SequenceEqual(right ?? new List<string>()),
+                    list => (list ?? new List<string>()).Aggregate(0, (hash, item) => HashCode.Combine(hash, item == null ? 0 : item.GetHashCode())),
+                    list => list == null ? new List<string>() : list.ToList());
+
                 entity.HasKey(st => st.SupplyTransferId);
 
                 entity.Property(st => st.TransferCode)
@@ -1518,6 +1524,14 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 entity.Property(st => st.Status)
                     .HasConversion<string>()
                     .IsRequired();
+
+                entity.Property(st => st.EvidenceUrls)
+                    .HasConversion(
+                        value => JsonSerializer.Serialize(value ?? new List<string>(), (JsonSerializerOptions?)null),
+                        value => string.IsNullOrWhiteSpace(value)
+                            ? new List<string>()
+                            : JsonSerializer.Deserialize<List<string>>(value, (JsonSerializerOptions?)null) ?? new List<string>())
+                    .Metadata.SetValueComparer(evidenceUrlsComparer);
 
                 // Trạm nguồn
                 entity.HasOne(st => st.SourceStation)
