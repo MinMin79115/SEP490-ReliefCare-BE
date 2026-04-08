@@ -101,6 +101,7 @@ namespace ReliefManagementSystem.Infrastructure.Data
         public DbSet<RescueBatch> RescueBatches { get; set; }
         public DbSet<RescueBatchItem> RescueBatchItems { get; set; }
         public DbSet<TeamTrackingPoint> TeamTrackingPoints { get; set; }
+        public DbSet<DisasterAnalysisLog> DisasterAnalysisLogs { get; set; }
 
         public ApplicationDbContext(
             DbContextOptions<ApplicationDbContext> options,

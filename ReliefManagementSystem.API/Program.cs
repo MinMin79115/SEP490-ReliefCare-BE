@@ -150,6 +150,12 @@ builder.Services.Configure<GoongSettings>(
 builder.Services.Configure<WeatherApiSettings>(
     builder.Configuration.GetSection("WeatherApi"));
 
+builder.Services.Configure<DisasterAnalysisSettings>(
+    builder.Configuration.GetSection("DisasterAnalysis"));
+
+builder.Services.Configure<LlmProviderSettings>(
+    builder.Configuration.GetSection("LlmProvider"));
+
 var jwtSettings = builder.Configuration.GetSection("Jwt").Get<JwtSettings>();
 var googleSettings = builder.Configuration.GetSection("AuthenticationGoogle").Get<GoogleSetting>();
 var cloudSetting = builder.Configuration.GetSection("CloudinarySettings").Get<CloudinarySettings>();

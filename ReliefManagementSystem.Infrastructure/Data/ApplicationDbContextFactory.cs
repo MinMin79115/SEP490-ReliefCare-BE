@@ -13,13 +13,13 @@ namespace ReliefManagementSystem.Infrastructure.Data
 
             var configuration = new ConfigurationBuilder()
                 .SetBasePath(apiProjectPath)
-                .AddJsonFile("appsettings.json", optional: false)
+                .AddJsonFile("appsettings.json", optional: true)
                 .AddJsonFile("appsettings.Development.json", optional: true)
                 .AddEnvironmentVariables()
                 .Build();
 
             var connectionString = configuration.GetConnectionString("Default")
-                ?? throw new InvalidOperationException("Connection string 'Default' was not found.");
+                ?? "Host=localhost;Port=5432;Database=relief_db;Username=postgres;Password=postgres";
 
             var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
             optionsBuilder.UseNpgsql(connectionString);

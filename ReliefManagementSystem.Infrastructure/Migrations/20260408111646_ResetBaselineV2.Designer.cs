@@ -12,8 +12,8 @@ using ReliefManagementSystem.Infrastructure.Data;
 namespace ReliefManagementSystem.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260401081353_AddReliefFlowPhase1To4")]
-    partial class AddReliefFlowPhase1To4
+    [Migration("20260408111646_ResetBaselineV2")]
+    partial class ResetBaselineV2
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -251,6 +251,9 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Property<Guid>("AttachmentId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<int>("AttachmentType")
+                        .HasColumnType("integer");
 
                     b.Property<string>("ContentType")
                         .IsRequired()
@@ -612,6 +615,99 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.HasIndex("CampaignId", "UserId", "Status");
 
                     b.ToTable("CampaignVolunteerRegistrations");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.DisasterAnalysisLog", b =>
+                {
+                    b.Property<Guid>("DisasterAnalysisLogId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("AdditionalContext")
+                        .HasColumnType("text");
+
+                    b.Property<string>("AssessmentConfidence")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DataLimitationNote")
+                        .HasColumnType("text");
+
+                    b.Property<int>("DisasterType")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("text");
+
+                    b.Property<string>("HeuristicRiskLevel")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("HeuristicRiskScore")
+                        .HasColumnType("integer");
+
+                    b.Property<bool>("IsDeleted")
+                        .HasColumnType("boolean");
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("LlmModel")
+                        .HasColumnType("text");
+
+                    b.Property<string>("LlmProvider")
+                        .HasColumnType("text");
+
+                    b.Property<string>("LlmResponseJson")
+                        .HasColumnType("text");
+
+                    b.Property<string>("LocationName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("PotentialScenariosJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("PromptVersion")
+                        .HasColumnType("text");
+
+                    b.Property<string>("RequestedModel")
+                        .HasColumnType("text");
+
+                    b.Property<Guid?>("RescueRequestId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("TopThreatsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("TriggerFactorsJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("UpdatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("WeatherSnapshotJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("DisasterAnalysisLogId");
+
+                    b.ToTable("DisasterAnalysisLogs");
                 });
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.DistributionSession", b =>
@@ -1040,6 +1136,9 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Property<int>("CurrentQuantity")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime?>("ExpirationDate")
+                        .HasColumnType("timestamp with time zone");
+
                     b.Property<Guid>("InventoryId")
                         .HasColumnType("uuid");
 
@@ -1048,12 +1147,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
                     b.Property<int>("MinimumStockLevel")
                         .HasColumnType("integer");
-
-                    b.Property<byte[]>("RowVersion")
-                        .IsConcurrencyToken()
-                        .IsRequired()
-                        .ValueGeneratedOnAddOrUpdate()
-                        .HasColumnType("bytea");
 
                     b.Property<Guid>("SupplyItemId")
                         .HasColumnType("uuid");
