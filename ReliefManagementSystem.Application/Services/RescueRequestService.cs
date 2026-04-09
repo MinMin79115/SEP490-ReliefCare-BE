@@ -18,17 +18,20 @@ namespace ReliefManagementSystem.Application.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserService _currentUserService;
         private readonly IGoongDistanceService _goongDistanceService;
+        private readonly IGoongRouteService _goongRouteService;
         private readonly IWeatherService _weatherService;
 
         public RescueRequestService(
             IUnitOfWork unitOfWork,
             ICurrentUserService currentUserService,
             IGoongDistanceService goongDistanceService,
+            IGoongRouteService goongRouteService,
             IWeatherService weatherService)
         {
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
             _goongDistanceService = goongDistanceService;
+            _goongRouteService = goongRouteService;
             _weatherService = weatherService;
         }
 
@@ -378,6 +381,133 @@ namespace ReliefManagementSystem.Application.Services
             return await GetRescueRequestByIdAsync(requestId, cancellationToken);
         }
 
+        public async Task<DispatchPreviewResponseDto> PreviewSmartAssignAsync(
+            Guid requestId,
+            DispatchPreviewRequestDto dto,
+            CancellationToken cancellationToken = default)
+        {
+            return await BuildSmartAssignPreviewAsync(requestId, dto.TeamId, dto.AllowPreempt,
+                dto.NormalNearRouteThresholdKm, dto.EmergencyNearRouteThresholdKm, cancellationToken);
+        }
+
+        public async Task<RescueBatchQueueResponseDto> SmartAssignTeamToRescueAsync(
+            Guid requestId,
+            SmartAssignRescueTeamRequestDto dto,
+            CancellationToken cancellationToken = default)
+        {
+            var request = await _unitOfWork.RescueRequests.GetByIdAsync(requestId, cancellationToken)
+                ?? throw new InvalidOperationException($"Rescue request {requestId} not found");
+            var allActiveBatches = await _unitOfWork.RescueBatches.GetAllActiveWithItemsAsync(cancellationToken);
+            var eligibility = EvaluateDispatchEligibility(request, dto.TeamId, allActiveBatches);
+            if (!eligibility.CanDispatch)
+            {
+                throw new InvalidOperationException(eligibility.BlockReason ?? "Request cannot be dispatched.");
+            }
+
+            var preview = await BuildSmartAssignPreviewAsync(
+                requestId,
+                dto.TeamId,
+                dto.AllowPreempt,
+                dto.NormalNearRouteThresholdKm,
+                dto.EmergencyNearRouteThresholdKm,
+                cancellationToken);
+
+            if (!preview.Eligible)
+            {
+                throw new InvalidOperationException(string.Join("; ", preview.Reasons));
+            }
+
+            await AssignTeamToRescueAsync(requestId, new AssignRescueTeamRequestDto
+            {
+                TeamId = dto.TeamId,
+                Note = dto.Note
+            }, cancellationToken);
+
+            var activeBatch = await _unitOfWork.RescueBatches.GetActiveByTeamIdAsync(dto.TeamId, cancellationToken)
+                ?? throw new InvalidOperationException("No active rescue batch found for team after assign.");
+
+            var itemsByRequestId = activeBatch.Items.ToDictionary(i => i.RescueRequestId, i => i);
+            var orderedIds = preview.ProposedRequestIdsInOrder
+                .Where(itemsByRequestId.ContainsKey)
+                .Concat(activeBatch.Items.Where(i => !preview.ProposedRequestIdsInOrder.Contains(i.RescueRequestId))
+                    .OrderBy(i => i.SequenceOrder)
+                    .Select(i => i.RescueRequestId))
+                .Distinct()
+                .ToList();
+
+            return await ReorderBatchQueueAsync(dto.TeamId, new ReorderRescueBatchRequestDto
+            {
+                RequestIdsInOrder = orderedIds
+            }, cancellationToken);
+        }
+
+        public async Task<PaginatedDispatchCandidatesResponseDto> GetDispatchCandidatesAsync(
+            GetDispatchCandidatesRequestDto dto,
+            CancellationToken cancellationToken = default)
+        {
+            var pageNumber = dto.PageNumber <= 0 ? 1 : dto.PageNumber;
+            var pageSize = dto.PageSize <= 0 ? 20 : dto.PageSize;
+
+            var allRequests = await _unitOfWork.RescueRequests.GetAllAsync(cancellationToken);
+            var activeBatches = await _unitOfWork.RescueBatches.GetAllActiveWithItemsAsync(cancellationToken);
+
+            var teamHasActiveBatch = activeBatches.Any(b => b.TeamId == dto.TeamId);
+            if (!teamHasActiveBatch)
+            {
+                return new PaginatedDispatchCandidatesResponseDto
+                {
+                    TotalCount = 0,
+                    PageNumber = pageNumber,
+                    PageSize = pageSize,
+                    Data = new List<DispatchCandidateResponseDto>()
+                };
+            }
+
+            var filtered = allRequests
+                .Where(r => string.IsNullOrWhiteSpace(dto.Search) ||
+                            (r.Address ?? string.Empty).Contains(dto.Search.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                            (r.Description ?? string.Empty).Contains(dto.Search.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                            (r.ReporterFullName ?? string.Empty).Contains(dto.Search.Trim(), StringComparison.OrdinalIgnoreCase) ||
+                            (r.ReporterPhone ?? string.Empty).Contains(dto.Search.Trim(), StringComparison.OrdinalIgnoreCase))
+                .Select(r =>
+                {
+                    var eligibility = EvaluateDispatchEligibility(r, dto.TeamId, activeBatches);
+
+                    return new DispatchCandidateResponseDto
+                    {
+                        RequestId = r.RequestId,
+                        RescueRequestType = r.RescueRequestType.ToString(),
+                        RescueRequestStatus = r.RescueRequestStatus.ToString(),
+                        PriorityPoint = r.PriorityPoint,
+                        PriorityLevel = r.RescuePriorityLevel.ToString(),
+                        Address = r.Address,
+                        Latitude = r.Latitude,
+                        Longitude = r.Longitude,
+                        AlreadyAssignedTeamId = eligibility.AssignedTeamId,
+                        IsInOtherActiveBatch = eligibility.IsInOtherActiveBatch,
+                        CanDispatch = eligibility.CanDispatch,
+                        DispatchBlockReason = eligibility.BlockReason
+                    };
+                })
+                .ToList();
+
+            var totalCount = filtered.Count;
+            var pageData = filtered
+                .OrderByDescending(x => x.PriorityPoint ?? 0)
+                .ThenBy(x => x.RescueRequestType)
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+
+            return new PaginatedDispatchCandidatesResponseDto
+            {
+                TotalCount = totalCount,
+                PageNumber = pageNumber,
+                PageSize = pageSize,
+                Data = pageData
+            };
+        }
+
         public async Task<BulkAssignRescueTeamResponseDto> AssignTeamToMultipleRescueRequestsAsync(
             AssignRescueTeamBulkRequestDto dto,
             CancellationToken cancellationToken = default)
@@ -583,6 +713,233 @@ namespace ReliefManagementSystem.Application.Services
             activeBatch.Items.Add(batchItem);
         }
 
+        private async Task<DispatchPreviewResponseDto> BuildSmartAssignPreviewAsync(
+            Guid requestId,
+            Guid teamId,
+            bool allowPreempt,
+            double normalNearRouteThresholdKm,
+            double emergencyNearRouteThresholdKm,
+            CancellationToken cancellationToken)
+        {
+            var request = await _unitOfWork.RescueRequests.GetByIdAsync(requestId, cancellationToken)
+                ?? throw new InvalidOperationException($"Rescue request {requestId} not found");
+
+            var activeBatch = await _unitOfWork.RescueBatches.GetActiveByTeamIdAsync(teamId, cancellationToken);
+            var latestTracking = await _unitOfWork.TeamTrackingPoints.GetLatestPointAsync(teamId, cancellationToken);
+            var allActiveBatches = await _unitOfWork.RescueBatches.GetAllActiveWithItemsAsync(cancellationToken);
+
+            var preview = new DispatchPreviewResponseDto
+            {
+                RequestId = requestId,
+                TeamId = teamId,
+                RescueRequestType = request.RescueRequestType.ToString(),
+                PriorityPoint = request.PriorityPoint,
+                PriorityLevel = request.RescuePriorityLevel.ToString(),
+                Eligible = true,
+                RecommendedAction = "AssignQueueTail"
+            };
+
+            var eligibility = EvaluateDispatchEligibility(request, teamId, allActiveBatches);
+            if (!eligibility.CanDispatch)
+            {
+                preview.Eligible = false;
+                preview.Reasons.Add(eligibility.BlockReason ?? "Request cannot be dispatched.");
+                return preview;
+            }
+
+            if (latestTracking == null)
+            {
+                preview.Eligible = false;
+                preview.Reasons.Add("Team has no tracking location for smart assignment.");
+                return preview;
+            }
+
+            preview.DistanceFromTeamKm = CalculateDistance(
+                latestTracking.Latitude,
+                latestTracking.Longitude,
+                request.Latitude,
+                request.Longitude);
+
+            if (activeBatch == null || activeBatch.Items.Count == 0)
+            {
+                preview.RecommendedAction = request.RescueRequestType == RescueRequestType.Emergency
+                    ? "AssignAsInProgress"
+                    : "AssignAndInsertQueue";
+                preview.RecommendedQueueIndex = 0;
+                preview.ProposedRequestIdsInOrder.Add(requestId);
+                return preview;
+            }
+
+            var currentInProgress = activeBatch.Items
+                .FirstOrDefault(i => i.Status == RescueBatchItemStatus.InProgress)
+                ?? activeBatch.Items.OrderBy(i => i.SequenceOrder).FirstOrDefault();
+
+            preview.CurrentInProgressRequestId = currentInProgress?.RescueRequestId;
+            preview.CurrentInProgressBatchItemId = currentInProgress?.RescueBatchItemId;
+
+            var orderedActiveIds = activeBatch.Items
+                .OrderBy(i => i.SequenceOrder)
+                .Select(i => i.RescueRequestId)
+                .ToList();
+
+            if (currentInProgress?.RescueRequest != null)
+            {
+                preview.DistanceToCurrentInProgressKm = CalculateDistance(
+                    request.Latitude,
+                    request.Longitude,
+                    currentInProgress.RescueRequest.Latitude,
+                    currentInProgress.RescueRequest.Longitude);
+            }
+
+            var threshold = request.RescueRequestType == RescueRequestType.Emergency
+                ? emergencyNearRouteThresholdKm
+                : normalNearRouteThresholdKm;
+
+            var thresholdMeters = threshold * 1000d;
+            const int backtrackDetourThresholdMeters = 300;
+
+            var usedGoongNearRouteMetric = false;
+            var usedGoongDetourMetric = false;
+
+            if (currentInProgress?.RescueRequest != null)
+            {
+                try
+                {
+                    var routeA = await _goongRouteService.GetRouteAsync(
+                        latestTracking.Latitude,
+                        latestTracking.Longitude,
+                        currentInProgress.RescueRequest.Latitude,
+                        currentInProgress.RescueRequest.Longitude,
+                        cancellationToken: cancellationToken);
+
+                    if (routeA != null && !string.IsNullOrWhiteSpace(routeA.OverviewPolyline))
+                    {
+                        preview.CurrentRoutePolyline = routeA.OverviewPolyline;
+                        preview.CurrentRouteDistanceMeters = routeA.DistanceMeters;
+                        preview.CurrentRouteDurationSeconds = routeA.DurationSeconds;
+
+                        var routePoints = DecodePolyline(routeA.OverviewPolyline);
+                        if (routePoints.Count > 0)
+                        {
+                            var minDistanceMeters = GetMinDistanceToRouteMeters(
+                                request.Latitude,
+                                request.Longitude,
+                                routePoints);
+
+                            preview.MinDistanceToCurrentRouteMeters = minDistanceMeters;
+                            preview.IsNearCurrentRoute = minDistanceMeters <= thresholdMeters;
+                            usedGoongNearRouteMetric = true;
+                        }
+
+                        var routeB = await _goongRouteService.GetRouteAsync(
+                            latestTracking.Latitude,
+                            latestTracking.Longitude,
+                            request.Latitude,
+                            request.Longitude,
+                            cancellationToken: cancellationToken);
+
+                        var routeC = await _goongRouteService.GetRouteAsync(
+                            request.Latitude,
+                            request.Longitude,
+                            currentInProgress.RescueRequest.Latitude,
+                            currentInProgress.RescueRequest.Longitude,
+                            cancellationToken: cancellationToken);
+
+                        if (routeA.DistanceMeters.HasValue && routeB?.DistanceMeters.HasValue == true && routeC?.DistanceMeters.HasValue == true)
+                        {
+                            preview.DetourMeters = Math.Max(0, routeB.DistanceMeters.Value + routeC.DistanceMeters.Value - routeA.DistanceMeters.Value);
+                            preview.RequiresBacktrack = preview.DetourMeters.Value > backtrackDetourThresholdMeters;
+                            usedGoongDetourMetric = true;
+                        }
+
+                        if (routeA.DurationSeconds.HasValue && routeB?.DurationSeconds.HasValue == true && routeC?.DurationSeconds.HasValue == true)
+                        {
+                            preview.DetourSeconds = Math.Max(0, routeB.DurationSeconds.Value + routeC.DurationSeconds.Value - routeA.DurationSeconds.Value);
+                        }
+                    }
+                }
+                catch (Exception) when (!cancellationToken.IsCancellationRequested)
+                {
+                }
+            }
+
+            if (!usedGoongNearRouteMetric)
+            {
+                preview.IsNearCurrentRoute = preview.DistanceToCurrentInProgressKm.HasValue &&
+                                             preview.DistanceToCurrentInProgressKm.Value <= threshold;
+            }
+
+            if (!usedGoongDetourMetric)
+            {
+                preview.RequiresBacktrack = currentInProgress?.SequenceOrder == 0 &&
+                                            preview.DistanceFromTeamKm.HasValue &&
+                                            preview.DistanceToCurrentInProgressKm.HasValue &&
+                                            preview.DistanceFromTeamKm.Value + 0.3 < preview.DistanceToCurrentInProgressKm.Value;
+            }
+
+            if (request.RescueRequestType == RescueRequestType.Emergency &&
+                allowPreempt &&
+                preview.IsNearCurrentRoute &&
+                !preview.RequiresBacktrack)
+            {
+                preview.WillPreemptCurrentInProgress = true;
+                preview.RecommendedAction = "AssignAsInProgress";
+                preview.RecommendedQueueIndex = 0;
+                preview.ProposedRequestIdsInOrder = new List<Guid> { requestId };
+                preview.ProposedRequestIdsInOrder.AddRange(orderedActiveIds);
+                preview.Reasons.Add("Emergency request is near current route and can preempt active mission.");
+                return preview;
+            }
+
+            if (request.RescueRequestType == RescueRequestType.Normal)
+            {
+                var pendingIds = activeBatch.Items
+                    .Where(i => i.Status != RescueBatchItemStatus.InProgress)
+                    .OrderBy(i => i.SequenceOrder)
+                    .Select(i => i.RescueRequestId)
+                    .ToList();
+
+                preview.RecommendedAction = preview.IsNearCurrentRoute
+                    ? "AssignAndInsertQueue"
+                    : "AssignQueueTail";
+                preview.RecommendedQueueIndex = currentInProgress != null ? 1 : 0;
+                preview.ProposedRequestIdsInOrder = currentInProgress != null
+                    ? new List<Guid> { currentInProgress.RescueRequestId }
+                    : new List<Guid>();
+
+                var inserted = false;
+                foreach (var pendingId in pendingIds)
+                {
+                    var pendingItem = activeBatch.Items.First(i => i.RescueRequestId == pendingId);
+                    var pendingPriority = pendingItem.RescueRequest?.PriorityPoint ?? 0;
+                    var newPriority = request.PriorityPoint ?? 0;
+                    if (!inserted && (newPriority > pendingPriority))
+                    {
+                        preview.ProposedRequestIdsInOrder.Add(requestId);
+                        inserted = true;
+                    }
+
+                    preview.ProposedRequestIdsInOrder.Add(pendingId);
+                }
+
+                if (!inserted)
+                {
+                    preview.ProposedRequestIdsInOrder.Add(requestId);
+                }
+
+                return preview;
+            }
+
+            preview.RecommendedAction = "AssignAndInsertQueue";
+            preview.RecommendedQueueIndex = currentInProgress != null ? 1 : 0;
+            preview.ProposedRequestIdsInOrder = currentInProgress != null
+                ? new List<Guid> { currentInProgress.RescueRequestId, requestId }
+                : new List<Guid> { requestId };
+            preview.ProposedRequestIdsInOrder.AddRange(orderedActiveIds.Where(id => id != preview.CurrentInProgressRequestId));
+            preview.Reasons.Add("Emergency request inserted right after current in-progress mission.");
+            return preview;
+        }
+
         private async Task CompleteBatchItemAndAdvanceQueueAsync(
             Guid teamId,
             Guid completedRequestId,
@@ -635,6 +992,79 @@ namespace ReliefManagementSystem.Application.Services
                 activeBatch.Status = RescueBatchStatus.Completed;
                 activeBatch.ClosedAt = now;
             }
+        }
+
+        private DispatchEligibilityResult EvaluateDispatchEligibility(
+            Domain.Entities.RescueRequest request,
+            Guid teamId,
+            IEnumerable<RescueBatch> activeBatches)
+        {
+            if (request.RescueRequestStatus == RescueRequestStatus.Completed)
+            {
+                return new DispatchEligibilityResult
+                {
+                    CanDispatch = false,
+                    BlockReason = "Request đã hoàn thành."
+                };
+            }
+
+            if (request.RescueRequestStatus == RescueRequestStatus.Cancelled)
+            {
+                return new DispatchEligibilityResult
+                {
+                    CanDispatch = false,
+                    BlockReason = "Request đã bị hủy."
+                };
+            }
+
+            var assignedTeamId = request.RescueOperations
+                .Where(o => o.TeamId.HasValue)
+                .OrderByDescending(o => o.StartedAt)
+                .Select(o => o.TeamId)
+                .FirstOrDefault();
+
+            if (assignedTeamId.HasValue && assignedTeamId.Value != teamId)
+            {
+                return new DispatchEligibilityResult
+                {
+                    CanDispatch = false,
+                    AssignedTeamId = assignedTeamId,
+                    BlockReason = "Request đã được assign cho team khác."
+                };
+            }
+
+            var activeBatchTeamIds = activeBatches
+                .Where(b => b.Items.Any(i => i.RescueRequestId == request.RequestId))
+                .Select(b => b.TeamId)
+                .Distinct()
+                .ToList();
+
+            var isInOtherActiveBatch = activeBatchTeamIds.Any(t => t != teamId);
+            if (isInOtherActiveBatch)
+            {
+                return new DispatchEligibilityResult
+                {
+                    CanDispatch = false,
+                    AssignedTeamId = assignedTeamId,
+                    IsInOtherActiveBatch = true,
+                    BlockReason = "Request đang nằm trong active batch của team khác."
+                };
+            }
+
+            return new DispatchEligibilityResult
+            {
+                CanDispatch = true,
+                AssignedTeamId = assignedTeamId,
+                IsInOtherActiveBatch = false
+            };
+        }
+
+        private sealed class DispatchEligibilityResult
+        {
+            public bool CanDispatch { get; set; }
+            public Guid? AssignedTeamId { get; set; }
+            public bool IsInOtherActiveBatch { get; set; }
+            public string? BlockReason { get; set; }
         }
 
         // ... rest of the existing methods unchanged (GetRescueRequestByIdAsync, GetRescueRequestsAsync,
@@ -920,6 +1350,137 @@ namespace ReliefManagementSystem.Application.Services
                     Math.Cos(lat1 * Math.PI / 180) * Math.Cos(lat2 * Math.PI / 180) *
                     Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
             var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+            return R * c;
+        }
+
+        private static List<(double lat, double lng)> DecodePolyline(string encoded)
+        {
+            var points = new List<(double lat, double lng)>();
+            if (string.IsNullOrWhiteSpace(encoded))
+            {
+                return points;
+            }
+
+            var index = 0;
+            var lat = 0;
+            var lng = 0;
+
+            while (index < encoded.Length)
+            {
+                var result = 0;
+                var shift = 0;
+                int b;
+                do
+                {
+                    if (index >= encoded.Length)
+                        return points;
+                    b = encoded[index++] - 63;
+                    result |= (b & 0x1F) << shift;
+                    shift += 5;
+                }
+                while (b >= 0x20);
+
+                var dLat = (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
+                lat += dLat;
+
+                result = 0;
+                shift = 0;
+                do
+                {
+                    if (index >= encoded.Length)
+                        return points;
+                    b = encoded[index++] - 63;
+                    result |= (b & 0x1F) << shift;
+                    shift += 5;
+                }
+                while (b >= 0x20);
+
+                var dLng = (result & 1) != 0 ? ~(result >> 1) : (result >> 1);
+                lng += dLng;
+
+                points.Add((lat / 1E5, lng / 1E5));
+            }
+
+            return points;
+        }
+
+        private static double GetMinDistanceToRouteMeters(
+            double pointLat,
+            double pointLng,
+            IReadOnlyList<(double lat, double lng)> routePoints)
+        {
+            if (routePoints == null || routePoints.Count == 0)
+                return double.MaxValue;
+
+            if (routePoints.Count == 1)
+                return GetHaversineDistanceMeters(pointLat, pointLng, routePoints[0].lat, routePoints[0].lng);
+
+            var min = double.MaxValue;
+            for (var i = 0; i < routePoints.Count - 1; i++)
+            {
+                var a = routePoints[i];
+                var b = routePoints[i + 1];
+                var d = GetPointToSegmentDistanceMeters(pointLat, pointLng, a.lat, a.lng, b.lat, b.lng);
+                if (d < min)
+                {
+                    min = d;
+                }
+            }
+
+            return min;
+        }
+
+        private static double GetPointToSegmentDistanceMeters(
+            double pLat,
+            double pLng,
+            double aLat,
+            double aLng,
+            double bLat,
+            double bLng)
+        {
+            const double EarthRadiusMeters = 6371000d;
+            var refLatRad = (pLat + aLat + bLat) / 3d * Math.PI / 180d;
+
+            (double x, double y) ToXY(double lat, double lng)
+            {
+                var x = lng * Math.PI / 180d * EarthRadiusMeters * Math.Cos(refLatRad);
+                var y = lat * Math.PI / 180d * EarthRadiusMeters;
+                return (x, y);
+            }
+
+            var p = ToXY(pLat, pLng);
+            var a = ToXY(aLat, aLng);
+            var b = ToXY(bLat, bLng);
+
+            var abx = b.x - a.x;
+            var aby = b.y - a.y;
+            var apx = p.x - a.x;
+            var apy = p.y - a.y;
+            var ab2 = abx * abx + aby * aby;
+
+            if (ab2 <= double.Epsilon)
+                return Math.Sqrt(apx * apx + apy * apy);
+
+            var t = (apx * abx + apy * aby) / ab2;
+            t = Math.Max(0d, Math.Min(1d, t));
+
+            var cx = a.x + t * abx;
+            var cy = a.y + t * aby;
+
+            var dx = p.x - cx;
+            var dy = p.y - cy;
+            return Math.Sqrt(dx * dx + dy * dy);
+        }
+
+        private static double GetHaversineDistanceMeters(double lat1, double lon1, double lat2, double lon2)
+        {
+            const double R = 6371000d;
+            var dLat = (lat2 - lat1) * Math.PI / 180d;
+            var dLon = (lon2 - lon1) * Math.PI / 180d;
+            var a = Math.Sin(dLat / 2d) * Math.Sin(dLat / 2d) +
+                    Math.Cos(lat1 * Math.PI / 180d) * Math.Cos(lat2 * Math.PI / 180d) *
+                    Math.Sin(dLon / 2d) * Math.Sin(dLon / 2d);
+            var c = 2d * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1d - a));
             return R * c;
         }
 

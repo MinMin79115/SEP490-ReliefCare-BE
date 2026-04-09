@@ -120,11 +120,11 @@ namespace ReliefManagementSystem.Application.Services
                 throw new ReliefStationNotFoundException(stationId);
             }
 
-            // 2️⃣ Kiểm tra đúng cấp Provincial
-            if (station.Level != ReliefStationLevel.Provincial)
-            {
-                throw new InvalidLocationForProvincialStationException();
-            }
+            //// 2️⃣ Kiểm tra đúng cấp Provincial
+            //if (station.Level != ReliefStationLevel.Provincial)
+            //{
+            //    throw new InvalidLocationForProvincialStationException();
+            //}
 
             // 3️⃣ Kiểm tra toạ độ
             if (request.Latitude < -90 || request.Latitude > 90 ||
