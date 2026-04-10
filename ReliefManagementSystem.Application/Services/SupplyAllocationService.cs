@@ -316,7 +316,15 @@ namespace ReliefManagementSystem.Application.Services
                 ?? a.SourceInventoryId.ToString(),
             Status = a.Status,
             TotalItems = a.Items.Count,
-            AllocatedAt = a.AllocatedAt
+            AllocatedAt = a.AllocatedAt,
+            Items = a.Items.Select(i => new AllocationItemResponse
+            {
+                AllocationItemId = i.AllocationItemId,
+                SupplyItemId = i.SupplyItemId,
+                SupplyItemName = i.SupplyItem?.Name ?? string.Empty,
+                SupplyItemUnit = i.SupplyItem?.Unit ?? string.Empty,
+                Quantity = i.Quantity
+            }).ToList()
         };
     }
 }

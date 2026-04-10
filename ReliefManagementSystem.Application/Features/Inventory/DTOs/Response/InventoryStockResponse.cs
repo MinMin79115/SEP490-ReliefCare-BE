@@ -19,6 +19,7 @@ namespace ReliefManagementSystem.Application.Features.Inventory.DTOs.Response
 
         // Stock levels
         public int CurrentQuantity { get; set; }
+        public DateTime? ExpirationDate { get; set; }
         public int MinimumStockLevel { get; set; }
         public int MaximumStockLevel { get; set; }
 

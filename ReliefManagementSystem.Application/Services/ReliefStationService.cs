@@ -179,6 +179,11 @@ namespace ReliefManagementSystem.Application.Services
             {
                 ReliefStationId = s.ReliefStationId,
                 Name = s.Name,
+                ModeratorName = s.Moderators
+                    .FirstOrDefault(m => m.IsStationHead)?.User?.DisplayName
+                    ?? s.Moderators.FirstOrDefault(m => m.IsStationHead)?.User?.UserName
+                    ?? s.Moderators.FirstOrDefault(m => m.IsStationHead)?.User?.Email
+                    ?? string.Empty,
                 Address = s.Address,
                 ContactNumber = s.ContactNumber,
                 Longitude = s.Longitude,
@@ -338,7 +343,7 @@ namespace ReliefManagementSystem.Application.Services
             };
         }
 
-        public async Task AssignModeratorAsync(Guid stationId, AssignModeratorRequest request, CancellationToken cancellationToken)
+        public async Task<ReliefStationResponse> AssignModeratorAsync(Guid stationId, AssignModeratorRequest request, CancellationToken cancellationToken)
         {
             // 1. Kiểm tra trạm tồn tại
             var station = await _unitOfWork.ReliefStations.GetByIdAsync(stationId);
@@ -372,6 +377,30 @@ namespace ReliefManagementSystem.Application.Services
             await _unitOfWork.ModeratorProfiles.UpdateAsync(moderatorProfile);
             
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            var moderatorUser = await _unitOfWork.Users.GetUserById(request.ModeratorUserId);
+            var locationName = await _unitOfWork.Locations.GetFullNameByLocationId(station.LocationId);
+
+            return new ReliefStationResponse
+            {
+                ReliefStationId = station.ReliefStationId,
+                Name = station.Name,
+                ModeratorName = moderatorUser?.DisplayName
+                    ?? moderatorUser?.UserName
+                    ?? moderatorUser?.Email
+                    ?? string.Empty,
+                Address = station.Address,
+                ContactNumber = station.ContactNumber,
+                Longitude = station.Longitude,
+                Latitude = station.Latitude,
+                CoverageRadiusKm = station.CoverageRadiusKm,
+                Status = station.ReliefStationStatus,
+                Level = station.Level,
+                LocationId = station.LocationId,
+                LocationName = locationName,
+                CreatedAt = station.CreatedAt,
+                UpdatedAt = station.UpdatedAt
+            };
         }
 
         public async Task<StationTeamResponse> AssignTeamToStationAsync(Guid stationId, AssignTeamRequest request, CancellationToken cancellationToken)

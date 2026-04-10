@@ -52,6 +52,8 @@ namespace ReliefManagementSystem.Domain.Entities
         [MaxLength(1000)]
         public string? Notes { get; set; }
 
+        public List<string> EvidenceUrls { get; set; } = [];
+
         // ── Navigation properties ────────────────────────────────────
         public ReliefStation SourceStation { get; set; } = null!;
         public ReliefStation DestinationStation { get; set; } = null!;

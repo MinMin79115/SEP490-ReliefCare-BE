@@ -26,7 +26,7 @@ services:
   # ReliefCare API - Pull image từ GHCR (không build tại đây)
   # -----------------------------------------------------------
   reliefcare-api:
-    image: ${REGISTRY:-ghcr.io/minmin79115/sep490-reliefcare-be}/reliefcare-api:latest
+    image: ${REGISTRY:-ghcr.io/minmin79115/sep490-reliefcare-be}/reliefcare-api:${IMAGE_TAG:-latest}
     container_name: reliefcare-api
     restart: unless-stopped
     depends_on:
@@ -39,14 +39,36 @@ services:
       Jwt__Audience: "ReliefClient"
       Jwt__AccessTokenMinutes: "15"
       Jwt__RefreshTokenDays: "7"
-      AuthenticationGoogle__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
+      AuthenticationGoogle__Google__ClientId: "914612994476-7tdvcqqm1e97mir23ilunou2vgmd4s5b.apps.googleusercontent.com"
       AuthenticationGoogle__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
+      EmailSettings__Host: "smtp-relay.brevo.com"
+      EmailSettings__Port: "587"
+      EmailSettings__Username: ${EMAIL_USERNAME:-}
+      EmailSettings__Password: ${EMAIL_PASSWORD:-}
+      EmailSettings__SenderEmail: "noreply@reliefhub.info.vn"
+      EmailSettings__SenderName: "Relief Hub"
+      CloudinarySettings__CloudName: "dhwnptz55"
+      CloudinarySettings__ApiKey: ${CLOUDINARY_API_KEY:-}
+      CloudinarySettings__ApiSecret: ${CLOUDINARY_API_SECRET:-}
+      Goong__BaseUrl: "https://rsapi.goong.io"
+      Goong__ApiKey: ${GOONG_API_KEY:-}
+      WeatherApi__BaseUrl: "https://api.weatherapi.com/v1"
+      WeatherApi__ApiKey: ${WEATHER_API_KEY:-}
+      LlmProvider__BaseUrl: "https://api.apipro.me/v1"
+      LlmProvider__ApiKey: ${LLM_PROVIDER_API_KEY:-}
+      LlmProvider__ProviderName: "APIPro"
+      LlmProvider__DefaultModel: "claude-haiku-4.5"
+      LlmProvider__ChatCompletionsPath: "/chat/completions"
+      LlmProvider__Temperature: "0.2"
+      LlmProvider__MaxTokens: "600"
+      DisasterAnalysis__TopRiskCount: "3"
+      DisasterAnalysis__IncludeEarthquakeInAutoDetect: "false"
       PayOs__ClientId: ${PAYOS_CLIENT_ID:-}
       PayOs__ApiKey: ${PAYOS_API_KEY:-}
       PayOs__ChecksumKey: ${PAYOS_CHECKSUM_KEY:-}
-      PayOs__ReturnUrl: ${PAYOS_RETURN_URL:-https://staging.reliefhub.info.vn/donation/return}
-      PayOs__CancelUrl: ${PAYOS_CANCEL_URL:-https://staging.reliefhub.info.vn/donation/cancel}
-      PayOs__ExpiredMinutes: ${PAYOS_EXPIRED_MINUTES:-15}
+      PayOs__ReturnUrl: "https://staging.reliefhub.info.vn/donation/return"
+      PayOs__CancelUrl: "https://staging.reliefhub.info.vn/donation/cancel"
+      PayOs__ExpiredMinutes: "15"
       # CORS - domain thật + localhost để FE dev test local gọi lên staging API
       CorsSettings__AllowedOrigins__0: "https://staging.reliefhub.info.vn"
       CorsSettings__AllowedOrigins__1: "https://reliefhub.info.vn"
@@ -81,10 +103,10 @@ services:
     container_name: reliefcare-pgadmin
     restart: unless-stopped
     environment:
-      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_EMAIL}
+      PGADMIN_DEFAULT_EMAIL: "admin@reliefcare.com"
       PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
-      PGADMIN_CONFIG_SERVER_MODE: "True"               # Staging: bắt buộc đăng nhập
-      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "True"
+      PGADMIN_CONFIG_SERVER_MODE: "False"              # Desktop mode - giảm bớt bước đăng nhập
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
     ports:
       - "5050:80"
     volumes:
@@ -108,7 +130,7 @@ services:
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
       reliefcare-api:
-        condition: service_started
+        condition: service_healthy
     networks:
       - reliefcare-staging
 
@@ -122,3 +144,11 @@ networks:
   reliefcare-staging:
     name: reliefcare-staging-network
     driver: bridge
+
+
+
+
+
+
+
+

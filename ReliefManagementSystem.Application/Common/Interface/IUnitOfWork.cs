@@ -1,4 +1,5 @@
-﻿using System;
+﻿using ReliefManagementSystem.Domain.Entities;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -66,6 +67,8 @@ namespace ReliefManagementSystem.Application.Common.Interface
         IRescueRequestRepository RescueRequests { get; }
         IReliefRequestRepository ReliefRequests { get; }
         IDistributionSessionRepository DistributionSessions { get; }
+        IGenericRepository<DistributionSessionItem> DistributionSessionItems { get; }
+        IGenericRepository<DistributionSessionRequest> DistributionSessionRequests { get; }
         IReliefFulfillmentRepository ReliefFulfillments { get; }
         IRescueBatchRepository RescueBatches { get; }
         IRescueBatchItemRepository RescueBatchItems { get; }
@@ -74,6 +77,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
 
         INotificationRepository Notifications { get; }
         IAttachmentRepository Attachments { get; }
+        IGenericRepository<DisasterAnalysisLog> DisasterAnalysisLogs { get; }
         Task<int> SaveChangesAsync(
         CancellationToken cancellationToken = default);
 

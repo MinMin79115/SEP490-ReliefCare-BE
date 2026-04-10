@@ -38,6 +38,15 @@ services:
       Jwt__RefreshTokenDays: "7"
       AuthenticationGoogle__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
       AuthenticationGoogle__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
+      WeatherApi__BaseUrl: ${WEATHER_API_BASE_URL:-https://api.weatherapi.com/v1}
+      WeatherApi__ApiKey: ${WEATHER_API_KEY:-}
+      LlmProvider__BaseUrl: ${LLM_PROVIDER_BASE_URL:-}
+      LlmProvider__ApiKey: ${LLM_PROVIDER_API_KEY:-}
+      LlmProvider__ProviderName: ${LLM_PROVIDER_NAME:-OpenAI-Compatible}
+      LlmProvider__DefaultModel: ${LLM_PROVIDER_DEFAULT_MODEL:-gpt-4o-mini}
+      LlmProvider__ChatCompletionsPath: ${LLM_PROVIDER_CHAT_COMPLETIONS_PATH:-/chat/completions}
+      LlmProvider__Temperature: ${LLM_PROVIDER_TEMPERATURE:-0.2}
+      LlmProvider__MaxTokens: ${LLM_PROVIDER_MAX_TOKENS:-600}
       PayOs__ClientId: ${PAYOS_CLIENT_ID:-}
       PayOs__ApiKey: ${PAYOS_API_KEY:-}
       PayOs__ChecksumKey: ${PAYOS_CHECKSUM_KEY:-}

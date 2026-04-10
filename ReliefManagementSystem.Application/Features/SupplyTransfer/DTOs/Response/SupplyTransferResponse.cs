@@ -22,6 +22,7 @@ namespace ReliefManagementSystem.Application.Features.SupplyTransfer.DTOs.Respon
         public Guid? VehicleId { get; set; }
         public Guid? DriverUserId { get; set; }
         public string? Notes { get; set; }
+        public List<string> EvidenceUrls { get; set; } = [];
         public List<SupplyTransferItemResponse> Items { get; set; } = [];
         public List<Guid> InventoryTransactionIds { get; set; } = [];
     }
@@ -45,8 +46,11 @@ namespace ReliefManagementSystem.Application.Features.SupplyTransfer.DTOs.Respon
         public SupplyTransferStatus Status { get; set; }
         public DateTime RequestedAt { get; set; }
         public string RequestedByName { get; set; } = string.Empty;
+        public Guid SourceStationId { get; set; }
+        public Guid DestinationStationId { get; set; }
         public int TotalRequestedItems { get; set; }
         public int TotalRequestedQuantity { get; set; }
         public string? Notes { get; set; }
+        public List<string> EvidenceUrls { get; set; } = [];
     }
 }

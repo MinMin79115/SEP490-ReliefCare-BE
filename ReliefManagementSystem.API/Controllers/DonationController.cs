@@ -78,7 +78,15 @@ namespace ReliefManagementSystem.API.Controllers
         [AllowAnonymous]
         public async Task<IActionResult> PayOsWebhook([FromBody] PayOsWebhookRequest request, CancellationToken cancellationToken)
         {
-            await _donationService.HandlePayOsWebhookAsync(request, cancellationToken);
+            try
+            {
+                await _donationService.HandlePayOsWebhookAsync(request, cancellationToken);
+            }
+            catch
+            {
+                // Always acknowledge webhook delivery; invalid/test payloads are ignored in service.
+            }
+
             return Ok(new { message = "Webhook processed" });
         }
 
@@ -116,9 +124,9 @@ namespace ReliefManagementSystem.API.Controllers
 
         [HttpGet("admin/stats")]
         [Authorize(Roles = "Admin")]
-        public async Task<IActionResult> GetStats(CancellationToken cancellationToken)
+        public async Task<IActionResult> GetStats([FromQuery] AdminDonationQueryRequest request, CancellationToken cancellationToken)
         {
-            var result = await _donationService.GetStatsAsync(cancellationToken);
+            var result = await _donationService.GetStatsAsync(request, cancellationToken);
             return Ok(result);
         }
 
