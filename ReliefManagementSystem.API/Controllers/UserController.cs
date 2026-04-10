@@ -79,6 +79,105 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(result);
         }
 
+        [HttpPost("moderators")]
+        [Authorize(Roles = "Admin")]
+        [SwaggerOperation(OperationId = "CreateModeratorAccount", Description = "Admin tạo account Moderator và moderator profile")]
+        public async Task<IActionResult> CreateModerator(
+            [FromBody] CreateModeratorAccountRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _userService.CreateModeratorAsync(request, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpGet("moderators/{userId:guid}")]
+        [Authorize(Roles = "Admin")]
+        [SwaggerOperation(OperationId = "GetModeratorById", Description = "Admin lấy chi tiết account Moderator")]
+        public async Task<IActionResult> GetModeratorById(Guid userId, CancellationToken cancellationToken)
+        {
+            var result = await _userService.GetModeratorByIdAsync(userId, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpPut("moderators/{userId:guid}")]
+        [Authorize(Roles = "Admin")]
+        [SwaggerOperation(OperationId = "UpdateModeratorAccount", Description = "Admin cập nhật account Moderator và moderator profile")]
+        public async Task<IActionResult> UpdateModerator(
+            Guid userId,
+            [FromBody] UpdateModeratorAccountRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _userService.UpdateModeratorAsync(userId, request, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpDelete("moderators/{userId:guid}")]
+        [Authorize(Roles = "Admin")]
+        [SwaggerOperation(OperationId = "SoftDeleteModeratorAccount", Description = "Admin soft delete account Moderator bằng cách khóa tài khoản và đánh dấu profile dismissed")]
+        public async Task<IActionResult> SoftDeleteModerator(
+            Guid userId,
+            [FromBody] SoftDeletePrivilegedAccountRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _userService.SoftDeleteModeratorAsync(userId, request, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpGet("managers")]
+        [Authorize(Roles = "Admin")]
+        [SwaggerOperation(OperationId = "GetManagers", Description = "Admin lấy danh sách manager có phân trang")]
+        public async Task<IActionResult> GetManagers(
+            [FromQuery] GetManagersRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _userService.GetManagersAsync(request, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpPost("managers")]
+        [Authorize(Roles = "Admin")]
+        [SwaggerOperation(OperationId = "CreateManagerAccount", Description = "Admin tạo account Manager và manager profile")]
+        public async Task<IActionResult> CreateManager(
+            [FromBody] CreateManagerAccountRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _userService.CreateManagerAsync(request, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpGet("managers/{userId:guid}")]
+        [Authorize(Roles = "Admin")]
+        [SwaggerOperation(OperationId = "GetManagerById", Description = "Admin lấy chi tiết account Manager")]
+        public async Task<IActionResult> GetManagerById(Guid userId, CancellationToken cancellationToken)
+        {
+            var result = await _userService.GetManagerByIdAsync(userId, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpPut("managers/{userId:guid}")]
+        [Authorize(Roles = "Admin")]
+        [SwaggerOperation(OperationId = "UpdateManagerAccount", Description = "Admin cập nhật account Manager và manager profile")]
+        public async Task<IActionResult> UpdateManager(
+            Guid userId,
+            [FromBody] UpdateManagerAccountRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _userService.UpdateManagerAsync(userId, request, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpDelete("managers/{userId:guid}")]
+        [Authorize(Roles = "Admin")]
+        [SwaggerOperation(OperationId = "SoftDeleteManagerAccount", Description = "Admin soft delete account Manager bằng cách khóa tài khoản")]
+        public async Task<IActionResult> SoftDeleteManager(
+            Guid userId,
+            [FromBody] SoftDeletePrivilegedAccountRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _userService.SoftDeleteManagerAsync(userId, request, cancellationToken);
+            return Ok(result);
+        }
+
         /// <summary>
         /// Cập nhật thông tin profile của user đang đăng nhập (partial update).
         /// Frontend gửi form-data, chỉ cần gửi các field muốn cập nhật.
