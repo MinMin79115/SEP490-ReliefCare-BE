@@ -44,28 +44,58 @@ namespace ReliefManagementSystem.Infrastructure.Security
             RegisterRequest request,
             CancellationToken cancellationToken)
         {
-            var user = new ApplicationUser
-            {
-                Email = request.Email,
-                UserName = request.UserName,
-                PhoneNumber = request.PhoneNumber,
-                DisplayName = request.FullName,
-            };
+            await _unitOfWork.BeginTransactionAsync(cancellationToken);
 
-            var result = await _userManager.CreateAsync(user, request.Password);
+            ApplicationUser? user = null;
 
-            if (!result.Succeeded)
+            try
             {
-                var errors = ConvertErrors(result.Errors);
-                throw new ValidationException(errors);
+                user = new ApplicationUser
+                {
+                    Email = request.Email,
+                    UserName = request.UserName,
+                    PhoneNumber = request.PhoneNumber,
+                    DisplayName = request.FullName,
+                };
+
+                var result = await _userManager.CreateAsync(user, request.Password);
+
+                if (!result.Succeeded)
+                {
+                    var errors = ConvertErrors(result.Errors);
+                    throw new ValidationException(errors);
+                }
+
+                var addRoleResult = await _userManager.AddToRoleAsync(user, Role.User.ToString());
+                if (!addRoleResult.Succeeded)
+                {
+                    var errors = ConvertErrors(addRoleResult.Errors);
+                    throw new ValidationException(errors);
+                }
+
+                // Gửi OTP 6 số xác thực sau khi tạo tài khoản thành công
+                await SendEmailOtpAsync(user, cancellationToken);
+
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+                return user;
             }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
 
-            await _userManager.AddToRoleAsync(user, Role.User.ToString());
+                // Fallback an toàn: nếu user đã được tạo nhưng vì lý do nào đó transaction không bao trùm,
+                // thì xóa user để đảm bảo không lưu tài khoản nửa chừng.
+                if (user != null)
+                {
+                    var existing = await _userManager.FindByIdAsync(user.Id.ToString());
+                    if (existing != null)
+                    {
+                        await _userManager.DeleteAsync(existing);
+                    }
+                }
 
-            // Gửi OTP 6 số xác thực sau khi tạo tài khoản thành công
-            await SendEmailOtpAsync(user, cancellationToken);
-
-            return user;
+                throw;
+            }
         }
 
         public async Task SendEmailOtpAsync(ApplicationUser user, CancellationToken cancellationToken)

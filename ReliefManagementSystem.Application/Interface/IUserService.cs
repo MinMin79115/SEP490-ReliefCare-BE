@@ -1,4 +1,4 @@
-﻿using ReliefManagementSystem.Application.Common.Models;
+using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Application.Features.User;
 using ReliefManagementSystem.Application.Features.VolunteerRequest.Request;
 using ReliefManagementSystem.Application.Features.VolunteerRequest.Response;
@@ -50,6 +50,13 @@ namespace ReliefManagementSystem.Application.Interface
 
         Task<Pagination<VolunteerProfileResponse>> GetAllVolunteerProfilesAsync(
             SearchVolunteerProfilesRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<Pagination<VolunteerProfileResponse>> GetUnassignedVolunteersAsync(
+            SearchVolunteerProfilesRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<List<VolunteerProfileResponse>> GetAllUnassignedVolunteersListAsync(
             CancellationToken cancellationToken = default);
 
         Task<Pagination<VolunteerApplicationReviewResponse>> GetPendingVolunteerApplicationsAsync(

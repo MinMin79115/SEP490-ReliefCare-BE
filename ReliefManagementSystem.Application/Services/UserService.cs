@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Identity;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using ReliefManagementSystem.Application.Common.Exceptions.Auth;
 using ReliefManagementSystem.Application.Common.Interface;
@@ -25,15 +25,23 @@ namespace ReliefManagementSystem.Application.Services
         private readonly UserManager<ApplicationUser> _userManager;
         private readonly RoleManager<IdentityRole<Guid>> _roleManager;
         private readonly IImageService _imageService;
+        private readonly IEmailService _emailService;
 
 
-        public UserService(IUnitOfWork unitOfWork, ICurrentUserService currentUserService, UserManager<ApplicationUser> userManager, RoleManager<IdentityRole<Guid>> roleManager, IImageService imageService)
+        public UserService(
+            IUnitOfWork unitOfWork,
+            ICurrentUserService currentUserService,
+            UserManager<ApplicationUser> userManager,
+            RoleManager<IdentityRole<Guid>> roleManager,
+            IImageService imageService,
+            IEmailService emailService)
         {
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
             _userManager = userManager;
             _roleManager = roleManager;
             _imageService = imageService;
+            _emailService = emailService;
         }
 
         /// <summary>
@@ -329,6 +337,19 @@ namespace ReliefManagementSystem.Application.Services
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+            if (!string.IsNullOrWhiteSpace(user.Email))
+            {
+                var subject = "Hồ sơ tình nguyện viên đã được chấp nhận";
+                var body = $@"
+                    Xin chào {user.DisplayName},<br/><br/>
+                    Hồ sơ đăng ký tình nguyện viên của bạn đã được moderator chấp nhận.<br/>
+                    Bạn hiện đã có thể tham gia các chức năng dành cho tình nguyện viên trong hệ thống.<br/><br/>
+                    Trân trọng,<br/>
+                    ReliefCare";
+
+                await _emailService.SendEmailAsync(user.Email, subject, body);
+            }
+
             return MapToResponse(profile, profile.User);
         }
 
@@ -454,6 +475,53 @@ namespace ReliefManagementSystem.Application.Services
                 pagedUsers.TotalCount,
                 pagedUsers.CurrentPage,
                 pagedUsers.PageSize);
+        }
+
+        public async Task<Pagination<VolunteerProfileResponse>> GetUnassignedVolunteersAsync(
+            SearchVolunteerProfilesRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var query = _unitOfWork.Users.GetQueryableWithVolunteerProfile()
+                .Where(u => u.VolunteerProfile != null && u.VolunteerProfile.Status == VolunteerStatus.Active && !u.TeamMembers.Any())
+                .AsQueryable();
+
+            if (!string.IsNullOrWhiteSpace(request.Search))
+            {
+                var keyword = request.Search.Trim();
+                query = query.Where(u =>
+                    (u.DisplayName ?? string.Empty).Contains(keyword) ||
+                    (u.Email ?? string.Empty).Contains(keyword) ||
+                    (u.PhoneNumber ?? string.Empty).Contains(keyword));
+            }
+
+            query = query.OrderBy(u => u.DisplayName ?? u.Email ?? string.Empty);
+
+            var pagedUsers = await Pagination<ApplicationUser>.ToPagedList(query, request.PageIndex, request.PageSize);
+
+            var items = pagedUsers.Items!
+                .Where(u => u.VolunteerProfile != null)
+                .Select(u => MapToResponse(u.VolunteerProfile!, u))
+                .ToList();
+
+            return new Pagination<VolunteerProfileResponse>(
+                items,
+                pagedUsers.TotalCount,
+                pagedUsers.CurrentPage,
+                pagedUsers.PageSize);
+        }
+
+        public async Task<List<VolunteerProfileResponse>> GetAllUnassignedVolunteersListAsync(
+            CancellationToken cancellationToken = default)
+        {
+            var query = _unitOfWork.Users.GetQueryableWithVolunteerProfile()
+                .Where(u => u.VolunteerProfile != null && u.VolunteerProfile.Status == VolunteerStatus.Active && !u.TeamMembers.Any())
+                .OrderBy(u => u.DisplayName ?? u.Email ?? string.Empty);
+
+            var users = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(query, cancellationToken);
+
+            return users
+                .Select(u => MapToResponse(u.VolunteerProfile!, u))
+                .ToList();
         }
 
         public async Task<Pagination<VolunteerApplicationReviewResponse>> GetPendingVolunteerApplicationsAsync(
@@ -800,6 +868,7 @@ namespace ReliefManagementSystem.Application.Services
         {
             return new VolunteerProfileResponse
             {
+                UserId = user.Id,
                 VolunteerProfileId = profile.VolunteerProfileId,
                 FullName = user?.DisplayName,
                 Email = user?.Email,

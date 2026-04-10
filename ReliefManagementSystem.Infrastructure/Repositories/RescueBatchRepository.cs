@@ -22,6 +22,14 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .FirstOrDefaultAsync(ct);
         }
 
+        public async Task<List<RescueBatch>> GetAllActiveWithItemsAsync(CancellationToken ct = default)
+        {
+            return await _context.Set<RescueBatch>()
+                .Where(b => b.IsActive)
+                .Include(b => b.Items)
+                .ToListAsync(ct);
+        }
+
         public async Task<RescueBatch?> GetByIdWithItemsAsync(Guid batchId, CancellationToken ct = default)
         {
             return await _context.Set<RescueBatch>()

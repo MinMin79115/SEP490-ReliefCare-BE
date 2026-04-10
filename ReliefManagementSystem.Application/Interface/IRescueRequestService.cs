@@ -46,6 +46,20 @@ namespace ReliefManagementSystem.Application.Interface
             AssignRescueTeamRequestDto dto,
             CancellationToken cancellationToken = default);
 
+        Task<DispatchPreviewResponseDto> PreviewSmartAssignAsync(
+            Guid requestId,
+            DispatchPreviewRequestDto dto,
+            CancellationToken cancellationToken = default);
+
+        Task<RescueBatchQueueResponseDto> SmartAssignTeamToRescueAsync(
+            Guid requestId,
+            SmartAssignRescueTeamRequestDto dto,
+            CancellationToken cancellationToken = default);
+
+        Task<PaginatedDispatchCandidatesResponseDto> GetDispatchCandidatesAsync(
+            GetDispatchCandidatesRequestDto dto,
+            CancellationToken cancellationToken = default);
+
         Task<BulkAssignRescueTeamResponseDto> AssignTeamToMultipleRescueRequestsAsync(
             AssignRescueTeamBulkRequestDto dto,
             CancellationToken cancellationToken = default);
