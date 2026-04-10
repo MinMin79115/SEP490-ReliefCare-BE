@@ -40,6 +40,26 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
         }
 
+        public async Task<ApplicationUser?> GetByIdWithModeratorProfileAsync(
+            Guid userId,
+            CancellationToken cancellationToken = default)
+        {
+            return await _context.Users
+                .Include(u => u.ModeratorProfile)
+                    .ThenInclude(mp => mp!.ReliefStation)
+                .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+        }
+
+        public async Task<ApplicationUser?> GetByIdWithManagerProfileAsync(
+            Guid userId,
+            CancellationToken cancellationToken = default)
+        {
+            return await _context.Users
+                .Include(u => u.ManagerProfile)
+                    .ThenInclude(mp => mp!.AssignedLocation)
+                .FirstOrDefaultAsync(u => u.Id == userId, cancellationToken);
+        }
+
         /// <inheritdoc />
         public IQueryable<ApplicationUser> GetAllUsersQueryable()
         {
