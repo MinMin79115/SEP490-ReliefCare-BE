@@ -1163,6 +1163,73 @@ namespace ReliefManagementSystem.Application.Services
             };
         }
 
+        public async Task<PaginatedRescueRequestResponseDto> GetCurrentModeratorStationRequestsAsync(
+            string? search,
+            int? statusFilter,
+            int? verificationStatus,
+            int pageNumber = 1,
+            int pageSize = 10,
+            CancellationToken cancellationToken = default)
+        {
+            var currentUserId = _currentUserService.UserId
+                ?? throw new UnauthorizedAccessException("Current user is not authenticated.");
+
+            var moderatorProfile = await _unitOfWork.ModeratorProfiles.GetByUserIdAsync(currentUserId, cancellationToken)
+                ?? throw new InvalidOperationException("Moderator profile not found.");
+
+            if (!moderatorProfile.ReliefStationId.HasValue)
+                throw new InvalidOperationException("Current moderator is not assigned to any relief station.");
+
+            var stationId = moderatorProfile.ReliefStationId.Value;
+
+            var allData = await GetRescueRequestsAsync(
+                pageNumber: 1,
+                pageSize: int.MaxValue,
+                statusFilter: statusFilter,
+                cancellationToken: cancellationToken);
+
+            var stationOperations = await _unitOfWork.RescueOperations.GetByStationIdAsync(stationId, cancellationToken);
+            var requestIdsOfStation = stationOperations
+                .Select(o => o.RescueRequestId)
+                .Distinct()
+                .ToHashSet();
+
+            IEnumerable<RescueRequestResponseDto> filtered = allData.Data.Where(r => requestIdsOfStation.Contains(r.RequestId));
+
+            if (verificationStatus.HasValue)
+            {
+                filtered = filtered.Where(r => r.Verifications.Any(v => (int)v.Status == verificationStatus.Value));
+            }
+
+            var query = (search ?? string.Empty).Trim();
+            if (!string.IsNullOrWhiteSpace(query))
+            {
+                filtered = filtered.Where(r =>
+                    (!string.IsNullOrWhiteSpace(r.ReporterFullName) && r.ReporterFullName.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
+                    (!string.IsNullOrWhiteSpace(r.ReporterPhone) && r.ReporterPhone.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
+                    (!string.IsNullOrWhiteSpace(r.Address) && r.Address.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
+                    (!string.IsNullOrWhiteSpace(r.Description) && r.Description.Contains(query, StringComparison.OrdinalIgnoreCase)));
+            }
+
+            var safePageNumber = pageNumber <= 0 ? 1 : pageNumber;
+            var safePageSize = pageSize <= 0 ? 10 : pageSize;
+
+            var filteredList = filtered.ToList();
+            var totalCount = filteredList.Count;
+            var paged = filteredList
+                .Skip((safePageNumber - 1) * safePageSize)
+                .Take(safePageSize)
+                .ToList();
+
+            return new PaginatedRescueRequestResponseDto
+            {
+                TotalCount = totalCount,
+                PageNumber = safePageNumber,
+                PageSize = safePageSize,
+                Data = paged
+            };
+        }
+
         public async Task<RescueBatchQueueResponseDto?> GetActiveBatchByTeamAsync(
             Guid teamId,
             CancellationToken cancellationToken = default)

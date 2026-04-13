@@ -36,6 +36,14 @@ namespace ReliefManagementSystem.Application.Interface
             SearchRescueRequestDto request,
             CancellationToken cancellationToken = default);
 
+        Task<PaginatedRescueRequestResponseDto> GetCurrentModeratorStationRequestsAsync(
+            string? search,
+            int? statusFilter,
+            int? verificationStatus,
+            int pageNumber = 1,
+            int pageSize = 10,
+            CancellationToken cancellationToken = default);
+
         Task<RescueRequestResponseDto> VerifyRescueRequestAsync(
             Guid requestId,
             VerifyRescueRequestDto dto,
