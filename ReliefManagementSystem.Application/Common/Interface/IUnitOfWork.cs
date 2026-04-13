@@ -65,11 +65,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
 
         IRescueOperationRepository RescueOperations { get; }
         IRescueRequestRepository RescueRequests { get; }
-        IReliefRequestRepository ReliefRequests { get; }
-        IDistributionSessionRepository DistributionSessions { get; }
-        IGenericRepository<DistributionSessionItem> DistributionSessionItems { get; }
-        IGenericRepository<DistributionSessionRequest> DistributionSessionRequests { get; }
-        IReliefFulfillmentRepository ReliefFulfillments { get; }
+
         IRescueBatchRepository RescueBatches { get; }
         IRescueBatchItemRepository RescueBatchItems { get; }
         IRescueRequestPriorityRepository RescueRequestPriorities { get; }

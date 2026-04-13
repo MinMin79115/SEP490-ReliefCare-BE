@@ -35,7 +35,7 @@ namespace ReliefManagementSystem.Domain.Entities
         public Guid? ReferenceId { get; set; }
 
         /// <summary>
-        /// Tên loại entity: "RescueRequest", "ReliefRequest", "SupplyTransfer"…
+        /// Tên loại entity: "RescueRequest", "SupplyTransfer"…
         /// </summary>
         [MaxLength(100)]
         public string? ReferenceType { get; set; }

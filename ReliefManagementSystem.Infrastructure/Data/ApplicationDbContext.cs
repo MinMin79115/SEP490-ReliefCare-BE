@@ -71,11 +71,6 @@ namespace ReliefManagementSystem.Infrastructure.Data
         
         public DbSet<CampaignTaskItem> CampaignTaskItems { get; set; }
         public DbSet<MemberTaskItem> MemberTaskItems { get; set; }
-        public DbSet<DistributionSession> DistributionSessions { get; set; }
-        public DbSet<DistributionSessionItem> DistributionSessionItems { get; set; }
-        public DbSet<DistributionSessionRequest> DistributionSessionRequests { get; set; }
-        public DbSet<ReliefFulfillment> ReliefFulfillments { get; set; }
-        public DbSet<ReliefFulfillmentItem> ReliefFulfillmentItems { get; set; }
 
         // Supply Allocation
         public DbSet<SupplyAllocation> SupplyAllocations { get; set; }
@@ -90,12 +85,10 @@ namespace ReliefManagementSystem.Infrastructure.Data
 
         //Request Management
         public DbSet<Request> Requests { get; set; }
-        public DbSet<ReliefRequest> ReliefRequests { get; set; }
         public DbSet<RescueRequest> RescueRequests { get; set; }
         public DbSet<PriorityCriteria> PriorityCriterias { get; set; }
         public DbSet<Attachment> Attachments { get; set; }
         public DbSet<RequestVerification> RequestVerifications { get; set; }
-        public DbSet<ReliefNeedItem> ReliefNeedItems { get; set; }
         public DbSet<RescueOperation> RescueOperations { get; set; }
         public DbSet<RescueRequestPriority> RescueRequestPriorities { get; set; }
         public DbSet<RescueBatch> RescueBatches { get; set; }
@@ -932,7 +925,7 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .OnDelete(DeleteBehavior.Restrict);
 
             // =========================
-            // Request (TPT – Table-Per-Type: RescueRequest và ReliefRequest có bảng riêng,
+            // Request (TPT – Table-Per-Type: RescueRequest có bảng riêng,
             // dùng shared PK với bảng Requests)
             // =========================
             builder.Entity<Request>(entity =>
@@ -980,181 +973,6 @@ namespace ReliefManagementSystem.Infrastructure.Data
                     .OnDelete(DeleteBehavior.SetNull);
             });
 
-            // =========================
-            // ReliefRequest (TPT)
-            // =========================
-            builder.Entity<ReliefRequest>(entity =>
-            {
-                entity.ToTable("ReliefRequests");
-
-                entity.Property(r => r.Status)
-                    .HasConversion<string>()
-                    .IsRequired();
-
-                entity.HasOne(r => r.Campaign)
-                    .WithMany(c => c.ReliefRequests)
-                    .HasForeignKey(r => r.CampaignId)
-                    .OnDelete(DeleteBehavior.SetNull);
-
-                entity.HasOne(r => r.AssignedReliefStation)
-                    .WithMany()
-                    .HasForeignKey(r => r.AssignedReliefStationId)
-                    .OnDelete(DeleteBehavior.SetNull);
-
-                entity.HasMany(r => r.ReliefNeedItems)
-                    .WithOne(n => n.ReliefRequest)
-                    .HasForeignKey(n => n.ReliefRequestId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasMany(r => r.DistributionSessionRequests)
-                    .WithOne(n => n.ReliefRequest)
-                    .HasForeignKey(n => n.ReliefRequestId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasMany(r => r.ReliefFulfillments)
-                    .WithOne(f => f.ReliefRequest)
-                    .HasForeignKey(f => f.ReliefRequestId)
-                    .OnDelete(DeleteBehavior.Cascade);
-            });
-
-            builder.Entity<DistributionSession>(entity =>
-            {
-                entity.HasKey(x => x.DistributionSessionId);
-
-                entity.Property(x => x.Mode)
-                    .HasConversion<string>()
-                    .IsRequired();
-
-                entity.Property(x => x.Status)
-                    .HasConversion<string>()
-                    .IsRequired();
-
-                entity.Property(x => x.Name)
-                    .HasMaxLength(200)
-                    .IsRequired();
-
-                entity.Property(x => x.LocationName)
-                    .HasMaxLength(200);
-
-                entity.Property(x => x.Address)
-                    .HasMaxLength(500);
-
-                entity.Property(x => x.Notes)
-                    .HasMaxLength(1000);
-
-                entity.HasOne(x => x.Campaign)
-                    .WithMany(c => c.DistributionSessions)
-                    .HasForeignKey(x => x.CampaignId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasOne(x => x.ReliefStation)
-                    .WithMany(rs => rs.DistributionSessions)
-                    .HasForeignKey(x => x.ReliefStationId)
-                    .OnDelete(DeleteBehavior.Restrict);
-
-                entity.HasIndex(x => new { x.CampaignId, x.Status });
-                entity.HasIndex(x => new { x.ReliefStationId, x.Status });
-            });
-
-            builder.Entity<ReliefFulfillment>(entity =>
-            {
-                entity.HasKey(x => x.ReliefFulfillmentId);
-
-                entity.Property(x => x.Mode)
-                    .HasConversion<string>()
-                    .IsRequired();
-
-                entity.Property(x => x.Status)
-                    .HasConversion<string>()
-                    .IsRequired();
-
-                entity.Property(x => x.RecipientName)
-                    .HasMaxLength(200);
-
-                entity.Property(x => x.RecipientPhone)
-                    .HasMaxLength(50);
-
-                entity.Property(x => x.DeliveryNote)
-                    .HasMaxLength(1000);
-
-                entity.Property(x => x.ProofImageUrl)
-                    .HasMaxLength(1000);
-
-                entity.HasOne(x => x.DistributionSession)
-                    .WithMany(s => s.ReliefFulfillments)
-                    .HasForeignKey(x => x.DistributionSessionId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasOne(x => x.ReliefRequest)
-                    .WithMany(r => r.ReliefFulfillments)
-                    .HasForeignKey(x => x.ReliefRequestId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasIndex(x => new { x.ReliefRequestId, x.DeliveredAt });
-                entity.HasIndex(x => x.DistributionSessionId);
-            });
-
-            builder.Entity<ReliefFulfillmentItem>(entity =>
-            {
-                entity.HasKey(x => x.ReliefFulfillmentItemId);
-
-                entity.Property(x => x.NeedCategory)
-                    .HasConversion<string>();
-
-                entity.Property(x => x.Note)
-                    .HasMaxLength(500);
-
-                entity.HasOne(x => x.ReliefFulfillment)
-                    .WithMany(f => f.Items)
-                    .HasForeignKey(x => x.ReliefFulfillmentId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasOne(x => x.SupplyItem)
-                    .WithMany(s => s.ReliefFulfillmentItems)
-                    .HasForeignKey(x => x.SupplyItemId)
-                    .OnDelete(DeleteBehavior.Restrict);
-            });
-
-            builder.Entity<DistributionSessionItem>(entity =>
-            {
-                entity.HasKey(x => x.DistributionSessionItemId);
-
-                entity.HasOne(x => x.DistributionSession)
-                    .WithMany(s => s.Items)
-                    .HasForeignKey(x => x.DistributionSessionId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasOne(x => x.SupplyItem)
-                    .WithMany()
-                    .HasForeignKey(x => x.SupplyItemId)
-                    .OnDelete(DeleteBehavior.Restrict);
-
-                entity.HasOne(x => x.SupplyAllocationItem)
-                    .WithMany(a => a.DistributionSessionItems)
-                    .HasForeignKey(x => x.SupplyAllocationItemId)
-                    .OnDelete(DeleteBehavior.SetNull);
-
-                entity.HasIndex(x => new { x.DistributionSessionId, x.SupplyItemId, x.SupplyAllocationItemId })
-                    .IsUnique();
-            });
-
-            builder.Entity<DistributionSessionRequest>(entity =>
-            {
-                entity.HasKey(x => new { x.DistributionSessionId, x.ReliefRequestId });
-
-                entity.Property(x => x.PlannedNote)
-                    .HasMaxLength(500);
-
-                entity.HasOne(x => x.DistributionSession)
-                    .WithMany(s => s.Requests)
-                    .HasForeignKey(x => x.DistributionSessionId)
-                    .OnDelete(DeleteBehavior.Cascade);
-
-                entity.HasOne(x => x.ReliefRequest)
-                    .WithMany(r => r.DistributionSessionRequests)
-                    .HasForeignKey(x => x.ReliefRequestId)
-                    .OnDelete(DeleteBehavior.Cascade);
-            });
 
             // =========================
             // Attachment
@@ -1185,22 +1003,6 @@ namespace ReliefManagementSystem.Infrastructure.Data
                     .WithMany()
                     .HasForeignKey(rv => rv.VerifiedBy)
                     .OnDelete(DeleteBehavior.Restrict);
-            });
-
-            // =========================
-            // ReliefNeedItem
-            // =========================
-            builder.Entity<ReliefNeedItem>(entity =>
-            {
-                entity.HasKey(n => n.ReliefNeedItemId);
-
-                entity.Property(n => n.NeedType)
-                    .HasConversion<string>()
-                    .IsRequired();
-
-                entity.Property(n => n.UrgencyLevel)
-                    .HasConversion<string>()
-                    .IsRequired();
             });
 
             // =========================
