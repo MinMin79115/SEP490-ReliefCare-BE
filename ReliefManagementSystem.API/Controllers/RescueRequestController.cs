@@ -124,6 +124,55 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(result);
         }
 
+        [HttpGet("my-station")]
+        [Authorize(Roles = "Moderator")]
+        [SwaggerOperation(
+            OperationId = "GetCurrentModeratorStationRescueRequests",
+            Summary = "Lấy rescue requests của trạm moderator hiện tại",
+            Description = "Backend tự suy ra ReliefStationId từ ModeratorProfile của user đang đăng nhập, chỉ trả về các rescue request thuộc trạm đó.")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GetCurrentModeratorStationRescueRequests(
+            [FromQuery] string? search,
+            [FromQuery] int? statusFilter,
+            [FromQuery] int? verificationStatus,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var result = await _rescueRequestService.GetCurrentModeratorStationRequestsAsync(
+                    search,
+                    statusFilter,
+                    verificationStatus,
+                    pageNumber,
+                    pageSize,
+                    cancellationToken);
+
+                return Ok(result);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new
+                {
+                    statusCode = StatusCodes.Status401Unauthorized,
+                    message = ex.Message,
+                    traceId = HttpContext.TraceIdentifier
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new
+                {
+                    statusCode = StatusCodes.Status400BadRequest,
+                    message = ex.Message,
+                    traceId = HttpContext.TraceIdentifier
+                });
+            }
+        }
+
         [HttpGet("probe-distance-matrix")]
         [AllowAnonymous]
         [SwaggerOperation(
