@@ -36,6 +36,14 @@ namespace ReliefManagementSystem.Application.Interface
             SearchRescueRequestDto request,
             CancellationToken cancellationToken = default);
 
+        Task<PaginatedRescueRequestResponseDto> GetCurrentModeratorStationRequestsAsync(
+            string? search,
+            int? statusFilter,
+            int? verificationStatus,
+            int pageNumber = 1,
+            int pageSize = 10,
+            CancellationToken cancellationToken = default);
+
         Task<RescueRequestResponseDto> VerifyRescueRequestAsync(
             Guid requestId,
             VerifyRescueRequestDto dto,
@@ -44,6 +52,20 @@ namespace ReliefManagementSystem.Application.Interface
         Task<RescueRequestResponseDto> AssignTeamToRescueAsync(
             Guid requestId,
             AssignRescueTeamRequestDto dto,
+            CancellationToken cancellationToken = default);
+
+        Task<DispatchPreviewResponseDto> PreviewSmartAssignAsync(
+            Guid requestId,
+            DispatchPreviewRequestDto dto,
+            CancellationToken cancellationToken = default);
+
+        Task<RescueBatchQueueResponseDto> SmartAssignTeamToRescueAsync(
+            Guid requestId,
+            SmartAssignRescueTeamRequestDto dto,
+            CancellationToken cancellationToken = default);
+
+        Task<PaginatedDispatchCandidatesResponseDto> GetDispatchCandidatesAsync(
+            GetDispatchCandidatesRequestDto dto,
             CancellationToken cancellationToken = default);
 
         Task<BulkAssignRescueTeamResponseDto> AssignTeamToMultipleRescueRequestsAsync(

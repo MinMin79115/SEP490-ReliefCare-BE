@@ -88,6 +88,7 @@ namespace ReliefManagementSystem.Infrastructure
             services.AddScoped<IRescueRequestPriorityRepository, RescueRequestPriorityRepository>();
             services.AddScoped<IRescueOperationRepository, RescueOperationRepository>();
             services.AddHttpClient<IGoongDistanceService, GoongDistanceService>();
+            services.AddHttpClient<IGoongRouteService, GoongRouteService>();
             services.AddHttpClient<IWeatherService, WeatherService>();
             services.AddHttpClient<ILlmAnalysisService, OpenAiCompatibleLlmAnalysisService>();
             services.AddHttpClient<IPayOsGateway, PayOsGateway>();

@@ -18,6 +18,14 @@ namespace ReliefManagementSystem.Application.Common.Interface
             Guid userId, 
             CancellationToken cancellationToken = default);
 
+        Task<ApplicationUser?> GetByIdWithModeratorProfileAsync(
+            Guid userId,
+            CancellationToken cancellationToken = default);
+
+        Task<ApplicationUser?> GetByIdWithManagerProfileAsync(
+            Guid userId,
+            CancellationToken cancellationToken = default);
+
         /// <summary>
         /// Lấy IQueryable danh sách tất cả users để hỗ trợ phân trang
         /// </summary>
