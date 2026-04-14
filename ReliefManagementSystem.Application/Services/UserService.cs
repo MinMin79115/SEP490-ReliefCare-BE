@@ -26,6 +26,7 @@ namespace ReliefManagementSystem.Application.Services
         private readonly RoleManager<IdentityRole<Guid>> _roleManager;
         private readonly IImageService _imageService;
         private readonly IEmailService _emailService;
+        private readonly ICampaignService _campaignService;
 
 
         public UserService(
@@ -34,7 +35,8 @@ namespace ReliefManagementSystem.Application.Services
             UserManager<ApplicationUser> userManager,
             RoleManager<IdentityRole<Guid>> roleManager,
             IImageService imageService,
-            IEmailService emailService)
+            IEmailService emailService,
+            ICampaignService campaignService)
         {
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
@@ -42,6 +44,7 @@ namespace ReliefManagementSystem.Application.Services
             _roleManager = roleManager;
             _imageService = imageService;
             _emailService = emailService;
+            _campaignService = campaignService;
         }
 
         /// <summary>
@@ -556,6 +559,16 @@ namespace ReliefManagementSystem.Application.Services
             //if(user.DisplayName == null || user.PhoneNumber == null)
             //    throw new InvalidOperationException("User must have a display name and phone number to create a volunteer profile.");
 
+            Campaign? selectedCampaign = null;
+            if (request.CampaignId.HasValue)
+            {
+                selectedCampaign = await ValidateVolunteerCampaignAsync(request.CampaignId.Value, cancellationToken);
+                var existingRegistration = await _unitOfWork.CampaignVolunteerRegistrations
+                    .GetByCampaignAndUserAsync(request.CampaignId.Value, userId, cancellationToken);
+                if (existingRegistration != null)
+                    throw new InvalidOperationException("Bạn đã có đăng ký liên quan đến campaign này rồi.");
+            }
+
             var volunteerProfile = new VolunteerProfile
             {
                 UserId = userId,
@@ -579,30 +592,25 @@ namespace ReliefManagementSystem.Application.Services
                 }).ToList()
             };
             await _unitOfWork.VolunteerProfiles.AddAsync(volunteerProfile);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-            return new VolunteerProfileResponse
+
+            if (selectedCampaign != null)
             {
-                VolunteerProfileId = volunteerProfile.VolunteerProfileId,
-                FullName = user.DisplayName,
-                Email = user.Email,
-                PhoneNumber = user.PhoneNumber,
-                Descriptions = volunteerProfile.Descriptions,
-                VerificationStatus = volunteerProfile.VerificationStatus,
-                Reason = volunteerProfile.Reason,
-                YearsOfExperience = volunteerProfile.YearsOfExperience,
-                PreferredTeamRole = volunteerProfile.PreferredTeamRole,
-                Skills = volunteerProfile.VolunteerSkills.Select(vs => vs.SkillId).ToList(),
-                Certificates = volunteerProfile.Certificates
-                    .Select(c => new VolunteerCertificateResponse
-                    {
-                        Name = c.Name,
-                        IssuedBy = c.IssuedBy,
-                        IssuedDate = c.IssuedDate,
-                        ExpiryDate = c.ExpiryDate,
-                        FileUrl = c.FileUrl
-                    }).ToList()
-                    
-            };
+                var registration = new CampaignVolunteerRegistration
+                {
+                    CampaignVolunteerRegistrationId = Guid.NewGuid(),
+                    CampaignId = selectedCampaign.CampaignId,
+                    UserId = userId,
+                    Status = CampaignVolunteerRegistrationStatus.PendingVolunteerApproval,
+                    RegisteredAt = DateTime.UtcNow,
+                    User = user,
+                    Campaign = selectedCampaign 
+                };
+
+                await _unitOfWork.CampaignVolunteerRegistrations.AddAsync(registration, cancellationToken);
+            }
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            return await BuildVolunteerProfileResponseAsync(volunteerProfile, user, cancellationToken);
         }
 
         public async Task<VolunteerProfileResponse> ApproveVolunteerProfileAsync(
@@ -634,6 +642,13 @@ namespace ReliefManagementSystem.Application.Services
                 await _userManager.AddToRoleAsync(user, Role.Volunteer.ToString());
             }
 
+            var pendingRegistrations = await _unitOfWork.CampaignVolunteerRegistrations.GetByUserAsync(profile.UserId, cancellationToken);
+            foreach (var registration in pendingRegistrations.Where(x => x.Status == CampaignVolunteerRegistrationStatus.PendingVolunteerApproval))
+            {
+                registration.Status = CampaignVolunteerRegistrationStatus.Registered;
+                await _campaignService.UpdateProgressAsync(registration.CampaignId, CampaignResourceType.People, 1, cancellationToken);
+            }
+
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -650,7 +665,7 @@ namespace ReliefManagementSystem.Application.Services
                 await _emailService.SendEmailAsync(user.Email, subject, body);
             }
 
-            return MapToResponse(profile, profile.User);
+            return await BuildVolunteerProfileResponseAsync(profile, profile.User, cancellationToken);
         }
 
 
@@ -671,9 +686,15 @@ namespace ReliefManagementSystem.Application.Services
             profile.Reason = reason;
             profile.Status = VolunteerStatus.Inactive;
 
+            var pendingRegistrations = await _unitOfWork.CampaignVolunteerRegistrations.GetByUserAsync(profile.UserId, cancellationToken);
+            foreach (var registration in pendingRegistrations.Where(x => x.Status == CampaignVolunteerRegistrationStatus.PendingVolunteerApproval))
+            {
+                registration.Status = CampaignVolunteerRegistrationStatus.Rejected;
+            }
+
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return MapToResponse(profile, profile.User);
+            return await BuildVolunteerProfileResponseAsync(profile, profile.User, cancellationToken);
         }
 
         public async Task<VolunteerProfileResponse?> GetMyVolunteerProfileAsync(
@@ -688,7 +709,7 @@ namespace ReliefManagementSystem.Application.Services
             if (profile == null)
                 return null;
 
-            return MapToResponse(profile, profile.User);
+            return await BuildVolunteerProfileResponseAsync(profile, profile.User, cancellationToken);
         }
 
         public async Task<VolunteerProfileResponse> ResubmitVolunteerProfileAsync(
@@ -713,6 +734,36 @@ namespace ReliefManagementSystem.Application.Services
             profile.VerifiedBy = null;
             profile.Reason = null;
             profile.Status = VolunteerStatus.Inactive;
+
+            if (request.CampaignId.HasValue)
+            {
+                await ValidateVolunteerCampaignAsync(request.CampaignId.Value, cancellationToken);
+            }
+
+            var existingRegistrations = await _unitOfWork.CampaignVolunteerRegistrations.GetByUserAsync(userId, cancellationToken);
+            foreach (var registration in existingRegistrations.Where(x => x.Status == CampaignVolunteerRegistrationStatus.PendingVolunteerApproval))
+            {
+                registration.Status = CampaignVolunteerRegistrationStatus.Cancelled;
+                registration.CancelledAt = DateTime.UtcNow;
+            }
+
+            if (request.CampaignId.HasValue)
+            {
+                var duplicate = existingRegistrations.FirstOrDefault(x => x.CampaignId == request.CampaignId.Value && x.Status == CampaignVolunteerRegistrationStatus.Registered);
+                if (duplicate != null)
+                    throw new InvalidOperationException("Bạn đã đăng ký campaign này rồi.");
+
+                var pending = new CampaignVolunteerRegistration
+                {
+                    CampaignVolunteerRegistrationId = Guid.NewGuid(),
+                    CampaignId = request.CampaignId.Value,
+                    UserId = userId,
+                    Status = CampaignVolunteerRegistrationStatus.PendingVolunteerApproval,
+                    RegisteredAt = DateTime.UtcNow,
+                    User = profile.User
+                };
+                await _unitOfWork.CampaignVolunteerRegistrations.AddAsync(pending, cancellationToken);
+            }
 
             profile.VolunteerSkills.Clear();
             foreach (var skillId in request.SkillIds.Distinct())
@@ -741,7 +792,7 @@ namespace ReliefManagementSystem.Application.Services
             await _unitOfWork.VolunteerProfiles.UpdateAsync(profile);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            return MapToResponse(profile, profile.User);
+            return await BuildVolunteerProfileResponseAsync(profile, profile.User, cancellationToken);
         }
 
         public async Task<Pagination<VolunteerProfileResponse>> GetAllVolunteerProfilesAsync(
@@ -1164,7 +1215,8 @@ namespace ReliefManagementSystem.Application.Services
 
         private static VolunteerProfileResponse MapToResponse(
            VolunteerProfile profile,
-           ApplicationUser? user)
+           ApplicationUser? user,
+           CampaignVolunteerRegistration? registration = null)
         {
             return new VolunteerProfileResponse
             {
@@ -1176,6 +1228,9 @@ namespace ReliefManagementSystem.Application.Services
                 Descriptions = profile.Descriptions,
                 VerificationStatus = profile.VerificationStatus,
                 Reason = profile.Reason,
+                CampaignId = registration?.CampaignId,
+                CampaignName = registration?.Campaign?.Name,
+                CampaignRegistrationStatus = registration?.Status,
                 YearsOfExperience = profile.YearsOfExperience,
                 PreferredTeamRole = profile.PreferredTeamRole,
                 Skills = profile.VolunteerSkills
@@ -1190,6 +1245,39 @@ namespace ReliefManagementSystem.Application.Services
                     FileUrl = c.FileUrl
                 }).ToList()
             };
+        }
+
+        private async Task<VolunteerProfileResponse> BuildVolunteerProfileResponseAsync(
+            VolunteerProfile profile,
+            ApplicationUser? user,
+            CancellationToken cancellationToken)
+        {
+            var registrations = await _unitOfWork.CampaignVolunteerRegistrations.GetByUserAsync(profile.UserId, cancellationToken);
+            var selectedRegistration = registrations
+                .OrderByDescending(r => r.RegisteredAt)
+                .FirstOrDefault(r => r.Status == CampaignVolunteerRegistrationStatus.PendingVolunteerApproval)
+                ?? registrations.OrderByDescending(r => r.RegisteredAt).FirstOrDefault(r => r.Status == CampaignVolunteerRegistrationStatus.Registered)
+                ?? registrations.OrderByDescending(r => r.RegisteredAt).FirstOrDefault();
+
+            return MapToResponse(profile, user, selectedRegistration);
+        }
+
+        private async Task<Campaign> ValidateVolunteerCampaignAsync(Guid campaignId, CancellationToken cancellationToken)
+        {
+            var campaign = await _unitOfWork.Campaigns.GetWithGoalsAsync(campaignId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
+
+            if (campaign.Type != CampaignType.Fundraising)
+                throw new InvalidOperationException("Chỉ fundraising campaign mới cho phép đăng ký volunteer.");
+
+            if (campaign.Status != CampaignStatus.Active)
+                throw new InvalidOperationException("Chỉ campaign đang Active mới cho phép đăng ký volunteer.");
+
+            var peopleGoal = campaign.ResourceGoals.FirstOrDefault(g => g.ResourceType == CampaignResourceType.People);
+            if (peopleGoal is null)
+                throw new InvalidOperationException("Campaign này không có mục tiêu People để đăng ký volunteer.");
+
+            return campaign;
         }
 
         private static ModeratorProfileResponse MapToModeratorProfileResponse(
