@@ -102,6 +102,16 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Respons
         public Guid RequestId { get; set; }
         public string? Address { get; set; }
         public string DisasterType { get; set; } = null!;
+
+        /// <summary>Loại cứu hộ: Emergency / Normal</summary>
+        public string? RescueRequestType { get; set; }
+
+        /// <summary>Điểm ưu tiên tổng hợp</summary>
+        public int? Priority { get; set; }
+
+        /// <summary>Cấp ưu tiên: Low / Medium / High / Critical</summary>
+        public string? PriorityLevel { get; set; }
+
         public string RescueRequestStatus { get; set; } = null!;
         public string ReporterFullName { get; set; } = null!;
         public string ReporterPhone { get; set; } = null!;
