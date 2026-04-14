@@ -50,6 +50,16 @@ namespace ReliefManagementSystem.Application.Common.Interface
         // Supply Allocation
         ISupplyAllocationRepository SupplyAllocations { get; }
 
+        // Relief Distribution MVP
+        ICampaignHouseholdRepository CampaignHouseholds { get; }
+        IDistributionPointRepository DistributionPoints { get; }
+        IReliefPackageDefinitionRepository ReliefPackageDefinitions { get; }
+        IReliefPackageDefinitionItemRepository ReliefPackageDefinitionItems { get; }
+        IHouseholdDeliveryRepository HouseholdDeliveries { get; }
+        IHouseholdDeliveryProofRepository HouseholdDeliveryProofs { get; }
+        ISupplyShortageRequestRepository SupplyShortageRequests { get; }
+        ISupplyShortageRequestItemRepository SupplyShortageRequestItems { get; }
+
         // Campaign (stub for validation — full module TBD)
         ICampaignRepository Campaigns { get; }
         ICampaignVolunteerRegistrationRepository CampaignVolunteerRegistrations { get; }

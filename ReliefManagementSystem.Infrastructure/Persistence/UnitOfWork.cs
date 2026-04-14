@@ -58,6 +58,16 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
         // Supply Allocation
         public ISupplyAllocationRepository SupplyAllocations { get; }
 
+        // Relief Distribution MVP
+        public ICampaignHouseholdRepository CampaignHouseholds { get; }
+        public IDistributionPointRepository DistributionPoints { get; }
+        public IReliefPackageDefinitionRepository ReliefPackageDefinitions { get; }
+        public IReliefPackageDefinitionItemRepository ReliefPackageDefinitionItems { get; }
+        public IHouseholdDeliveryRepository HouseholdDeliveries { get; }
+        public IHouseholdDeliveryProofRepository HouseholdDeliveryProofs { get; }
+        public ISupplyShortageRequestRepository SupplyShortageRequests { get; }
+        public ISupplyShortageRequestItemRepository SupplyShortageRequestItems { get; }
+
         // Campaign (stub for validation — full module TBD)
         public ICampaignRepository Campaigns { get; }
         public ICampaignVolunteerRegistrationRepository CampaignVolunteerRegistrations { get; }
@@ -110,6 +120,14 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             ProcurementOrders = new ProcurementOrderRepository(_context);
             ReliefStationTeams = new ReliefStationTeamRepository(_context);
             SupplyAllocations = new SupplyAllocationRepository(_context);
+            CampaignHouseholds = new CampaignHouseholdRepository(_context);
+            DistributionPoints = new DistributionPointRepository(_context);
+            ReliefPackageDefinitions = new ReliefPackageDefinitionRepository(_context);
+            ReliefPackageDefinitionItems = new ReliefPackageDefinitionItemRepository(_context);
+            HouseholdDeliveries = new HouseholdDeliveryRepository(_context);
+            HouseholdDeliveryProofs = new HouseholdDeliveryProofRepository(_context);
+            SupplyShortageRequests = new SupplyShortageRequestRepository(_context);
+            SupplyShortageRequestItems = new SupplyShortageRequestItemRepository(_context);
             Campaigns = new CampaignRepository(_context);
             CampaignVolunteerRegistrations = new CampaignVolunteerRegistrationRepository(_context);
             Donations = new DonationRepository(_context);

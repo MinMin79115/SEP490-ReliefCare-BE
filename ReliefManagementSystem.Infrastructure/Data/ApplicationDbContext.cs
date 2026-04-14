@@ -72,6 +72,16 @@ namespace ReliefManagementSystem.Infrastructure.Data
         public DbSet<CampaignTaskItem> CampaignTaskItems { get; set; }
         public DbSet<MemberTaskItem> MemberTaskItems { get; set; }
 
+        // Relief Distribution MVP
+        public DbSet<CampaignHousehold> CampaignHouseholds { get; set; }
+        public DbSet<DistributionPoint> DistributionPoints { get; set; }
+        public DbSet<ReliefPackageDefinition> ReliefPackageDefinitions { get; set; }
+        public DbSet<ReliefPackageDefinitionItem> ReliefPackageDefinitionItems { get; set; }
+        public DbSet<HouseholdDelivery> HouseholdDeliveries { get; set; }
+        public DbSet<HouseholdDeliveryProof> HouseholdDeliveryProofs { get; set; }
+        public DbSet<SupplyShortageRequest> SupplyShortageRequests { get; set; }
+        public DbSet<SupplyShortageRequestItem> SupplyShortageRequestItems { get; set; }
+
         // Supply Allocation
         public DbSet<SupplyAllocation> SupplyAllocations { get; set; }
         public DbSet<SupplyAllocationItem> SupplyAllocationItems { get; set; }
@@ -894,6 +904,292 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .WithMany(s => s.SupplyAllocationItems)
                 .HasForeignKey(sai => sai.SupplyItemId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // =========================
+            // CampaignHousehold
+            // =========================
+            builder.Entity<CampaignHousehold>(entity =>
+            {
+                entity.HasKey(x => x.CampaignHouseholdId);
+
+                entity.Property(x => x.FulfillmentStatus)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                entity.Property(x => x.DeliveryMode)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                entity.Property(x => x.HouseholdCode)
+                    .HasMaxLength(100)
+                    .IsRequired();
+
+                entity.Property(x => x.HeadOfHouseholdName)
+                    .HasMaxLength(255)
+                    .IsRequired();
+
+                entity.Property(x => x.ContactPhone)
+                    .HasMaxLength(50);
+
+                entity.Property(x => x.Address)
+                    .HasMaxLength(500);
+
+                entity.HasOne(x => x.Campaign)
+                    .WithMany()
+                    .HasForeignKey(x => x.CampaignId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.DistributionPoint)
+                    .WithMany(p => p.Households)
+                    .HasForeignKey(x => x.DistributionPointId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(x => x.CampaignTeam)
+                    .WithMany()
+                    .HasForeignKey(x => x.CampaignTeamId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(x => x.Location)
+                    .WithMany()
+                    .HasForeignKey(x => x.LocationId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasIndex(x => new { x.CampaignId, x.HouseholdCode })
+                    .IsUnique();
+            });
+
+            // =========================
+            // DistributionPoint
+            // =========================
+            builder.Entity<DistributionPoint>(entity =>
+            {
+                entity.HasKey(x => x.DistributionPointId);
+
+                entity.Property(x => x.Name)
+                    .HasMaxLength(255)
+                    .IsRequired();
+
+                entity.Property(x => x.Address)
+                    .HasMaxLength(500);
+
+                entity.Property(x => x.DeliveryMode)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                entity.HasOne(x => x.Campaign)
+                    .WithMany()
+                    .HasForeignKey(x => x.CampaignId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.ReliefStation)
+                    .WithMany()
+                    .HasForeignKey(x => x.ReliefStationId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.CampaignTeam)
+                    .WithMany()
+                    .HasForeignKey(x => x.CampaignTeamId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(x => x.Location)
+                    .WithMany()
+                    .HasForeignKey(x => x.LocationId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasIndex(x => new { x.CampaignId, x.IsActive });
+            });
+
+            // =========================
+            // ReliefPackageDefinition
+            // =========================
+            builder.Entity<ReliefPackageDefinition>(entity =>
+            {
+                entity.HasKey(x => x.ReliefPackageDefinitionId);
+
+                entity.Property(x => x.Name)
+                    .HasMaxLength(255)
+                    .IsRequired();
+
+                entity.Property(x => x.Description)
+                    .HasMaxLength(1000);
+
+                entity.HasOne(x => x.Campaign)
+                    .WithMany()
+                    .HasForeignKey(x => x.CampaignId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasIndex(x => new { x.CampaignId, x.Name });
+            });
+
+            // =========================
+            // ReliefPackageDefinitionItem
+            // =========================
+            builder.Entity<ReliefPackageDefinitionItem>(entity =>
+            {
+                entity.HasKey(x => x.ReliefPackageDefinitionItemId);
+
+                entity.Property(x => x.Unit)
+                    .HasMaxLength(50)
+                    .IsRequired();
+
+                entity.HasOne(x => x.ReliefPackageDefinition)
+                    .WithMany(p => p.Items)
+                    .HasForeignKey(x => x.ReliefPackageDefinitionId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.SupplyItem)
+                    .WithMany()
+                    .HasForeignKey(x => x.SupplyItemId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(x => new { x.ReliefPackageDefinitionId, x.SupplyItemId })
+                    .IsUnique();
+            });
+
+            // =========================
+            // HouseholdDelivery
+            // =========================
+            builder.Entity<HouseholdDelivery>(entity =>
+            {
+                entity.HasKey(x => x.HouseholdDeliveryId);
+
+                entity.Property(x => x.DeliveryMode)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                entity.Property(x => x.Status)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                entity.Property(x => x.Notes)
+                    .HasMaxLength(1000);
+
+                entity.HasOne(x => x.Campaign)
+                    .WithMany()
+                    .HasForeignKey(x => x.CampaignId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.CampaignHousehold)
+                    .WithMany(h => h.Deliveries)
+                    .HasForeignKey(x => x.CampaignHouseholdId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.DistributionPoint)
+                    .WithMany(p => p.Deliveries)
+                    .HasForeignKey(x => x.DistributionPointId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(x => x.CampaignTeam)
+                    .WithMany()
+                    .HasForeignKey(x => x.CampaignTeamId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(x => x.ReliefPackageDefinition)
+                    .WithMany(p => p.HouseholdDeliveries)
+                    .HasForeignKey(x => x.ReliefPackageDefinitionId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.DeliveredByUser)
+                    .WithMany()
+                    .HasForeignKey(x => x.DeliveredByUserId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasIndex(x => new { x.CampaignId, x.CampaignTeamId, x.Status });
+            });
+
+            // =========================
+            // HouseholdDeliveryProof
+            // =========================
+            builder.Entity<HouseholdDeliveryProof>(entity =>
+            {
+                entity.HasKey(x => x.HouseholdDeliveryProofId);
+
+                entity.Property(x => x.FileUrl)
+                    .HasMaxLength(1000)
+                    .IsRequired();
+
+                entity.Property(x => x.FileType)
+                    .HasMaxLength(100);
+
+                entity.Property(x => x.Note)
+                    .HasMaxLength(1000);
+
+                entity.HasOne(x => x.HouseholdDelivery)
+                    .WithMany(d => d.Proofs)
+                    .HasForeignKey(x => x.HouseholdDeliveryId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.CapturedByUser)
+                    .WithMany()
+                    .HasForeignKey(x => x.CapturedByUserId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            // =========================
+            // SupplyShortageRequest
+            // =========================
+            builder.Entity<SupplyShortageRequest>(entity =>
+            {
+                entity.HasKey(x => x.SupplyShortageRequestId);
+
+                entity.Property(x => x.Status)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                entity.Property(x => x.Reason)
+                    .HasMaxLength(1000);
+
+                entity.Property(x => x.ReviewNote)
+                    .HasMaxLength(1000);
+
+                entity.HasOne(x => x.Campaign)
+                    .WithMany()
+                    .HasForeignKey(x => x.CampaignId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.DistributionPoint)
+                    .WithMany()
+                    .HasForeignKey(x => x.DistributionPointId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(x => x.CampaignTeam)
+                    .WithMany()
+                    .HasForeignKey(x => x.CampaignTeamId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(x => x.RequestedByUser)
+                    .WithMany()
+                    .HasForeignKey(x => x.RequestedByUserId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.ReviewedByUser)
+                    .WithMany()
+                    .HasForeignKey(x => x.ReviewedByUserId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasIndex(x => new { x.CampaignId, x.Status, x.RequestedAt });
+            });
+
+            // =========================
+            // SupplyShortageRequestItem
+            // =========================
+            builder.Entity<SupplyShortageRequestItem>(entity =>
+            {
+                entity.HasKey(x => x.SupplyShortageRequestItemId);
+
+                entity.Property(x => x.Note)
+                    .HasMaxLength(500);
+
+                entity.HasOne(x => x.SupplyShortageRequest)
+                    .WithMany(r => r.Items)
+                    .HasForeignKey(x => x.SupplyShortageRequestId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.SupplyItem)
+                    .WithMany()
+                    .HasForeignKey(x => x.SupplyItemId)
+                    .OnDelete(DeleteBehavior.Restrict);
+            });
 
 
             // ReliefStation – Location FK

@@ -48,6 +48,7 @@ namespace ReliefManagementSystem.Application
             services.AddScoped<ICampaignService, CampaignService>();
             services.AddScoped<IProcurementService, ProcurementService>();
             services.AddScoped<IFundService, FundService>();
+            services.AddScoped<IReliefDistributionService, ReliefDistributionService>();
 
             services.AddValidatorsFromAssemblyContaining<UpdateUserProfileRequest>();
             return services;
