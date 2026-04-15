@@ -19,6 +19,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
             CampaignStatus? status,
             CampaignType? type,
             Guid? locationId,
+            bool forVolunteerRegistration,
             CancellationToken cancellationToken = default);
 
         Task<bool> HasAnyActiveStationAsync(Guid campaignId, CancellationToken cancellationToken = default);

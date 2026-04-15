@@ -49,6 +49,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             CampaignStatus? status,
             CampaignType? type,
             Guid? locationId,
+            bool forVolunteerRegistration,
             CancellationToken cancellationToken = default)
         {
             pageIndex = pageIndex <= 0 ? 1 : pageIndex;
@@ -76,6 +77,14 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             if (locationId.HasValue)
             {
                 query = query.Where(c => c.LocationId == locationId.Value);
+            }
+
+            if (forVolunteerRegistration)
+            {
+                query = query.Where(c =>
+                    c.Type == CampaignType.Fundraising &&
+                    c.Status == CampaignStatus.Active &&
+                    c.ResourceGoals.Any(g => g.ResourceType == CampaignResourceType.People));
             }
 
             var totalCount = await query.CountAsync(cancellationToken);

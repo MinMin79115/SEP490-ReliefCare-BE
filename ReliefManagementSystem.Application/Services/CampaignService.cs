@@ -163,6 +163,7 @@ namespace ReliefManagementSystem.Application.Services
                 request.Status,
                 request.Type,
                 request.LocationId,
+                request.ForVolunteerRegistration,
                 cancellationToken);
 
             var mapped = items.Select(MapSummary).ToList();
