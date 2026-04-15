@@ -1,4 +1,3 @@
-using Microsoft.AspNetCore.Http;
 using ReliefManagementSystem.Application.Features.Relief.DTOs.Request;
 using ReliefManagementSystem.Application.Features.Relief.DTOs.Response;
 using ReliefManagementSystem.Domain.Enum;
@@ -51,7 +50,6 @@ namespace ReliefManagementSystem.Application.Interface
             Guid campaignId,
             Guid householdDeliveryId,
             CompleteHouseholdDeliveryRequest request,
-            IFormFile proofImage,
             CancellationToken cancellationToken = default);
 
         Task<SupplyShortageRequestResponse> CreateShortageRequestAsync(

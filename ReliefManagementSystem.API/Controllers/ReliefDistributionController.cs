@@ -71,14 +71,12 @@ namespace ReliefManagementSystem.API.Controllers
             => Ok(await _reliefDistributionService.GetReliefPackageDefinitionsAsync(campaignId, cancellationToken));
 
         [HttpPost("deliveries/{householdDeliveryId:guid}/complete")]
-        [Consumes("multipart/form-data")]
         public async Task<IActionResult> CompleteDelivery(
             Guid campaignId,
             Guid householdDeliveryId,
-            [FromForm] CompleteHouseholdDeliveryRequest request,
-            [FromForm] IFormFile proofImage,
+            [FromBody] CompleteHouseholdDeliveryRequest request,
             CancellationToken cancellationToken)
-            => Ok(await _reliefDistributionService.CompleteHouseholdDeliveryAsync(campaignId, householdDeliveryId, request, proofImage, cancellationToken));
+            => Ok(await _reliefDistributionService.CompleteHouseholdDeliveryAsync(campaignId, householdDeliveryId, request, cancellationToken));
 
         [HttpPost("shortage-requests")]
         public async Task<IActionResult> CreateShortageRequest(

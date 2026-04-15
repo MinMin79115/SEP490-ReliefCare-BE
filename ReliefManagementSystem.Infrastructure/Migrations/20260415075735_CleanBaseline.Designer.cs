@@ -12,8 +12,8 @@ using ReliefManagementSystem.Infrastructure.Data;
 namespace ReliefManagementSystem.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260414121152_AddReliefDistributionWorkflow")]
-    partial class AddReliefDistributionWorkflow
+    [Migration("20260415075735_CleanBaseline")]
+    partial class CleanBaseline
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -2573,6 +2573,10 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
                     b.Property<Guid?>("DriverUserId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("EvidenceUrls")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(1000)

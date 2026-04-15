@@ -42,6 +42,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .Include(x => x.CampaignHousehold)
                 .Include(x => x.DistributionPoint)
                 .Include(x => x.ReliefPackageDefinition)
+                .Include(x => x.Proofs)
                 .Where(x => x.CampaignId == campaignId)
                 .AsQueryable();
 

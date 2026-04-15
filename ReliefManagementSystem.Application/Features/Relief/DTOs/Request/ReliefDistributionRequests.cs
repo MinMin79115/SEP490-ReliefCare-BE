@@ -111,6 +111,13 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         public Guid? CampaignTeamId { get; set; }
         public string? Notes { get; set; }
         public string? ProofNote { get; set; }
+
+        [Required]
+        [MaxLength(1000)]
+        public string ProofFileUrl { get; set; } = string.Empty;
+
+        [MaxLength(200)]
+        public string? ProofContentType { get; set; }
     }
 
     public class CreateSupplyShortageRequest

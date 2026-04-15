@@ -5,7 +5,6 @@ using ReliefManagementSystem.Application.Features.Relief.DTOs.Response;
 using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Domain.Enum;
-using Microsoft.AspNetCore.Http;
 
 namespace ReliefManagementSystem.Application.Services
 {
@@ -13,18 +12,15 @@ namespace ReliefManagementSystem.Application.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserService _currentUser;
-        private readonly IImageService _imageService;
         private readonly IInventoryTransactionService _inventoryTransactionService;
 
         public ReliefDistributionService(
             IUnitOfWork unitOfWork,
             ICurrentUserService currentUser,
-            IImageService imageService,
             IInventoryTransactionService inventoryTransactionService)
         {
             _unitOfWork = unitOfWork;
             _currentUser = currentUser;
-            _imageService = imageService;
             _inventoryTransactionService = inventoryTransactionService;
         }
 
@@ -127,6 +123,30 @@ namespace ReliefManagementSystem.Application.Services
             household.Notes = request.Notes;
             household.FulfillmentStatus = HouseholdFulfillmentStatus.Pending;
             await _unitOfWork.CampaignHouseholds.UpdateAsync(household);
+
+            var existingDeliveries = await _unitOfWork.HouseholdDeliveries.GetByCampaignAsync(campaignId, cancellationToken);
+            var existingActiveDelivery = existingDeliveries
+                .Where(x => x.CampaignHouseholdId == household.CampaignHouseholdId)
+                .OrderByDescending(x => x.CreatedAt)
+                .FirstOrDefault(x => x.Status != HouseholdFulfillmentStatus.Delivered);
+
+            if (existingActiveDelivery is not null)
+            {
+                existingActiveDelivery.DistributionPointId = household.DistributionPointId;
+                existingActiveDelivery.CampaignTeamId = request.CampaignTeamId;
+                existingActiveDelivery.ReliefPackageDefinitionId = packageId.Value;
+                existingActiveDelivery.DeliveryMode = request.DeliveryMode;
+                existingActiveDelivery.ScheduledAt = request.ScheduledAt ?? existingActiveDelivery.ScheduledAt;
+                existingActiveDelivery.Notes = request.Notes;
+                existingActiveDelivery.Status = HouseholdFulfillmentStatus.Pending;
+
+                await _unitOfWork.HouseholdDeliveries.UpdateAsync(existingActiveDelivery);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                var existingSaved = await _unitOfWork.HouseholdDeliveries.GetByIdWithProofsAsync(existingActiveDelivery.HouseholdDeliveryId, cancellationToken)
+                    ?? throw new KeyNotFoundException("Assigned delivery was not found after save.");
+                return MapHouseholdDelivery(existingSaved);
+            }
 
             var delivery = new HouseholdDelivery
             {
@@ -316,11 +336,10 @@ namespace ReliefManagementSystem.Application.Services
             Guid campaignId,
             Guid householdDeliveryId,
             CompleteHouseholdDeliveryRequest request,
-            IFormFile proofImage,
             CancellationToken cancellationToken = default)
         {
-            if (proofImage is null || proofImage.Length <= 0)
-                throw new InvalidOperationException("Proof image is required for delivered status.");
+            if (string.IsNullOrWhiteSpace(request.ProofFileUrl))
+                throw new InvalidOperationException("Proof file URL is required for delivered status.");
 
             await EnsureReliefCampaignAsync(campaignId, cancellationToken);
 
@@ -350,18 +369,12 @@ namespace ReliefManagementSystem.Application.Services
                 delivery.CampaignTeamId = request.CampaignTeamId;
             }
 
-            string imageUrl;
-            await using (var stream = proofImage.OpenReadStream())
-            {
-                imageUrl = await _imageService.UploadImageAsync(stream, proofImage.FileName, cancellationToken);
-            }
-
             var proof = new HouseholdDeliveryProof
             {
                 HouseholdDeliveryProofId = Guid.NewGuid(),
                 HouseholdDeliveryId = delivery.HouseholdDeliveryId,
-                FileUrl = imageUrl,
-                FileType = proofImage.ContentType,
+                FileUrl = request.ProofFileUrl.Trim(),
+                FileType = request.ProofContentType,
                 Note = request.ProofNote,
                 CapturedAt = DateTime.UtcNow,
                 CapturedByUserId = _currentUser.UserId
