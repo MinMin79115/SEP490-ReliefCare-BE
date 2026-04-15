@@ -818,18 +818,8 @@ namespace ReliefManagementSystem.Application.Services
 
             if (next == CampaignStatus.Completed)
             {
-                var sessions = await _unitOfWork.DistributionSessions.GetByCampaignAsync(campaign.CampaignId, cancellationToken);
-                if (sessions.Any(s => s.Status != DistributionSessionStatus.Completed && s.Status != DistributionSessionStatus.Cancelled))
-                {
-                    throw new InvalidOperationException("Không thể hoàn tất relief campaign khi còn distribution session chưa ở trạng thái Completed/Cancelled.");
-                }
-
-                var requests = await _unitOfWork.ReliefRequests.GetByCampaignAsync(campaign.CampaignId, cancellationToken);
-                var unresolved = requests.Where(r => r.Status != ReliefRequestStatus.Completed && r.Status != ReliefRequestStatus.Rejected).ToList();
-                if (unresolved.Any())
-                {
-                    throw new InvalidOperationException("Không thể hoàn tất relief campaign khi còn relief request chưa Completed/Rejected.");
-                }
+                // Old relief-flow checks (DistributionSessions / ReliefRequests) removed.
+                // Add new completion-readiness checks here when the replacement flow is ready.
             }
         }
 

@@ -79,9 +79,7 @@ namespace ReliefManagementSystem.Infrastructure
 
 
             services.AddScoped<IRescueRequestRepository, RescueRequestRepository>();
-            services.AddScoped<IReliefRequestRepository, ReliefRequestRepository>();
-            services.AddScoped<IDistributionSessionRepository, DistributionSessionRepository>();
-            services.AddScoped<IReliefFulfillmentRepository, ReliefFulfillmentRepository>();
+
             services.AddScoped<IRescueBatchRepository, RescueBatchRepository>();
             services.AddScoped<IRescueBatchItemRepository, RescueBatchItemRepository>();
             services.AddScoped<IPriorityCriteriaRepository, PriorityCriteriaRepository>();

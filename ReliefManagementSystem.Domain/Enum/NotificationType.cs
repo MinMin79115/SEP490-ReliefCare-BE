@@ -16,15 +16,6 @@ namespace ReliefManagementSystem.Domain.Enum
         RescueRequestCompleted  = 5,  // Hoàn thành
         RescueRequestCancelled  = 6,  // Đã hủy
 
-        // ── ReliefRequest events ───────────────────────────────────
-        ReliefRequestCreated    = 11, // Yêu cầu cứu trợ mới được gửi
-        ReliefRequestVerified   = 12, // Đã xác minh
-        ReliefRequestApproved   = 13, // Đã phê duyệt
-        ReliefRequestAllocated  = 14, // Đã phân bổ hàng hóa
-        ReliefRequestDelivered  = 15, // Đã giao hàng
-        ReliefRequestCompleted  = 16, // Hoàn thành
-        ReliefRequestRejected   = 17, // Bị từ chối
-
         // ── SupplyTransfer events ──────────────────────────────────
         SupplyTransferCreated   = 21, // Phiếu vận chuyển kho mới
         SupplyTransferApproved  = 22, // Phiếu được duyệt
