@@ -463,6 +463,8 @@ namespace ReliefManagementSystem.Application.Services
                 throw new InvalidOperationException("Bạn đã đăng ký volunteer cho campaign này rồi.");
             }
 
+            await EnsureVolunteerRegistrationCapacityAsync(campaignId, cancellationToken);
+
             var registration = new CampaignVolunteerRegistration
             {
                 CampaignVolunteerRegistrationId = Guid.NewGuid(),
@@ -512,6 +514,20 @@ namespace ReliefManagementSystem.Application.Services
 
             var registrations = await _unitOfWork.CampaignVolunteerRegistrations.GetByCampaignAsync(campaignId, cancellationToken);
             return registrations.Select(MapVolunteerRegistration).ToList();
+        }
+
+        public async Task EnsureVolunteerRegistrationCapacityAsync(Guid campaignId, CancellationToken cancellationToken = default)
+        {
+            var campaign = await _unitOfWork.Campaigns.GetWithGoalsAsync(campaignId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
+
+            var peopleGoal = campaign.ResourceGoals.FirstOrDefault(g => g.ResourceType == CampaignResourceType.People)
+                ?? throw new InvalidOperationException("Campaign này không có mục tiêu People để đăng ký volunteer.");
+
+            if (!campaign.AllowOverTarget && peopleGoal.TargetAmount > 0 && peopleGoal.ReceivedAmount >= peopleGoal.TargetAmount)
+            {
+                throw new InvalidOperationException("Campaign đã đủ chỉ tiêu tình nguyện viên, không cho phép đăng ký vượt chỉ tiêu.");
+            }
         }
 
         public async Task UpdateProgressAsync(Guid campaignId, CampaignResourceType resourceType, decimal amountDelta, CancellationToken cancellationToken = default)

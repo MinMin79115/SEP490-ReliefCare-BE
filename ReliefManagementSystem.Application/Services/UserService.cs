@@ -645,6 +645,7 @@ namespace ReliefManagementSystem.Application.Services
             var pendingRegistrations = await _unitOfWork.CampaignVolunteerRegistrations.GetByUserAsync(profile.UserId, cancellationToken);
             foreach (var registration in pendingRegistrations.Where(x => x.Status == CampaignVolunteerRegistrationStatus.PendingVolunteerApproval))
             {
+                await _campaignService.EnsureVolunteerRegistrationCapacityAsync(registration.CampaignId, cancellationToken);
                 registration.Status = CampaignVolunteerRegistrationStatus.Registered;
                 await _campaignService.UpdateProgressAsync(registration.CampaignId, CampaignResourceType.People, 1, cancellationToken);
             }
