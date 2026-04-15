@@ -50,6 +50,16 @@ namespace ReliefManagementSystem.Application.Common.Interface
         // Supply Allocation
         ISupplyAllocationRepository SupplyAllocations { get; }
 
+        // Relief Distribution MVP
+        ICampaignHouseholdRepository CampaignHouseholds { get; }
+        IDistributionPointRepository DistributionPoints { get; }
+        IReliefPackageDefinitionRepository ReliefPackageDefinitions { get; }
+        IReliefPackageDefinitionItemRepository ReliefPackageDefinitionItems { get; }
+        IHouseholdDeliveryRepository HouseholdDeliveries { get; }
+        IHouseholdDeliveryProofRepository HouseholdDeliveryProofs { get; }
+        ISupplyShortageRequestRepository SupplyShortageRequests { get; }
+        ISupplyShortageRequestItemRepository SupplyShortageRequestItems { get; }
+
         // Campaign (stub for validation — full module TBD)
         ICampaignRepository Campaigns { get; }
         ICampaignVolunteerRegistrationRepository CampaignVolunteerRegistrations { get; }
@@ -65,11 +75,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
 
         IRescueOperationRepository RescueOperations { get; }
         IRescueRequestRepository RescueRequests { get; }
-        IReliefRequestRepository ReliefRequests { get; }
-        IDistributionSessionRepository DistributionSessions { get; }
-        IGenericRepository<DistributionSessionItem> DistributionSessionItems { get; }
-        IGenericRepository<DistributionSessionRequest> DistributionSessionRequests { get; }
-        IReliefFulfillmentRepository ReliefFulfillments { get; }
+
         IRescueBatchRepository RescueBatches { get; }
         IRescueBatchItemRepository RescueBatchItems { get; }
         IRescueRequestPriorityRepository RescueRequestPriorities { get; }
