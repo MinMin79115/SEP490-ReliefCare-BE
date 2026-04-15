@@ -31,6 +31,9 @@ namespace ReliefManagementSystem.Domain.Entities
         public ICollection<InventoryStock> InventoryItems { get; set; } = new List<InventoryStock>();
         public ICollection<InventoryTransactionItem> InventoryTransactionItems { get; set; } = new List<InventoryTransactionItem>();
         public ICollection<SupplyAllocationItem> SupplyAllocationItems { get; set; } = new List<SupplyAllocationItem>();
+        public ICollection<ReliefPackageDefinition> OutputOfReliefPackageDefinitions { get; set; } = new List<ReliefPackageDefinition>();
+        public ICollection<ReliefPackageAssembly> OutputReliefPackageAssemblies { get; set; } = new List<ReliefPackageAssembly>();
+        public ICollection<ReliefPackageAssemblyDetail> ReliefPackageAssemblyDetails { get; set; } = new List<ReliefPackageAssemblyDetail>();
 
         public ICollection<InKindDonationDetail> InKindDonationDetails { get; set; } = new List<InKindDonationDetail>();
 

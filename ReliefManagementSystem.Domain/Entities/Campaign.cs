@@ -49,6 +49,7 @@ namespace ReliefManagementSystem.Domain.Entities
         public ICollection<Donation> Donations { get; set; } = new List<Donation>();
         public ICollection<InKindDonation> InKindDonations { get; set; } = new List<InKindDonation>();
         public ICollection<CampaignResourceGoal> ResourceGoals { get; set; } = new List<CampaignResourceGoal>();
+        public ICollection<ReliefPackageAssembly> ReliefPackageAssemblies { get; set; } = new List<ReliefPackageAssembly>();
         
         public ICollection<CampaignStation> CampaignStations { get; set; } = new List<CampaignStation>();
 

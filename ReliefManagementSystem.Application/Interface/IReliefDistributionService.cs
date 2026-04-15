@@ -46,6 +46,33 @@ namespace ReliefManagementSystem.Application.Interface
             Guid campaignId,
             CancellationToken cancellationToken = default);
 
+        Task<ReliefPackageAssemblyAvailabilityResponse> GetPackageAssemblyAvailabilityAsync(
+            Guid campaignId,
+            Guid reliefPackageDefinitionId,
+            Guid reliefStationId,
+            Guid inventoryId,
+            CancellationToken cancellationToken = default);
+
+        Task<ReliefPackageAssemblyResponse> AssembleReliefPackageAsync(
+            Guid campaignId,
+            Guid reliefPackageDefinitionId,
+            AssembleReliefPackageRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<ReliefPackageAssemblyResponse>> GetPackageAssemblyHistoryByCampaignAsync(
+            Guid campaignId,
+            CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<ReliefPackageAssemblyResponse>> GetPackageAssemblyHistoryByStationAsync(
+            Guid campaignId,
+            Guid reliefStationId,
+            CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<ReliefPackageAssemblyResponse>> GetPackageAssemblyHistoryByDefinitionAsync(
+            Guid campaignId,
+            Guid reliefPackageDefinitionId,
+            CancellationToken cancellationToken = default);
+
         Task<HouseholdDeliveryResponse> CompleteHouseholdDeliveryAsync(
             Guid campaignId,
             Guid householdDeliveryId,

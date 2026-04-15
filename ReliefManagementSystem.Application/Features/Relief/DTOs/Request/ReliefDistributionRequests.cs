@@ -84,6 +84,9 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         [MaxLength(1000)]
         public string? Description { get; set; }
 
+        [Required]
+        public Guid OutputSupplyItemId { get; set; }
+
         public bool IsDefault { get; set; }
         public bool IsActive { get; set; } = true;
 
@@ -103,6 +106,21 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         [Required]
         [MaxLength(50)]
         public string Unit { get; set; } = string.Empty;
+    }
+
+    public class AssembleReliefPackageRequest
+    {
+        [Required]
+        public Guid ReliefStationId { get; set; }
+
+        [Required]
+        public Guid InventoryId { get; set; }
+
+        [Range(1, int.MaxValue)]
+        public int QuantityToAssemble { get; set; }
+
+        [MaxLength(1000)]
+        public string? Notes { get; set; }
     }
 
     public class CompleteHouseholdDeliveryRequest
