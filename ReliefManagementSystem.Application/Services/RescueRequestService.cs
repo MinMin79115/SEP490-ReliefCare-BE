@@ -476,6 +476,9 @@ namespace ReliefManagementSystem.Application.Services
                     return new DispatchCandidateResponseDto
                     {
                         RequestId = r.RequestId,
+                        UserName = r.ReporterUser?.UserName ?? r.ReporterFullName,
+                        ReporterFullName = r.ReporterFullName,
+                        ReporterPhone = r.ReporterPhone,
                         RescueRequestType = r.RescueRequestType.ToString(),
                         RescueRequestStatus = r.RescueRequestStatus.ToString(),
                         PriorityPoint = r.PriorityPoint,
@@ -2133,6 +2136,9 @@ namespace ReliefManagementSystem.Application.Services
                             RequestId = i.RescueRequestId,
                             Address = rr?.Address,
                             DisasterType = rr?.DisasterType.ToString() ?? "-",
+                            RescueRequestType = rr?.RescueRequestType.ToString(),
+                            Priority = rr?.PriorityPoint,
+                            PriorityLevel = rr?.RescuePriorityLevel.ToString(),
                             RescueRequestStatus = rr?.RescueRequestStatus.ToString() ?? "-",
                             ReporterFullName = rr?.ReporterFullName ?? "-",
                             ReporterPhone = rr?.ReporterPhone ?? "-",

@@ -6,6 +6,8 @@ namespace ReliefManagementSystem.Application.Common.Interface
     {
         Task AddAsync(CampaignVolunteerRegistration registration, CancellationToken cancellationToken = default);
         Task<CampaignVolunteerRegistration?> GetActiveAsync(Guid campaignId, Guid userId, CancellationToken cancellationToken = default);
+        Task<CampaignVolunteerRegistration?> GetByCampaignAndUserAsync(Guid campaignId, Guid userId, CancellationToken cancellationToken = default);
+        Task<List<CampaignVolunteerRegistration>> GetByUserAsync(Guid userId, CancellationToken cancellationToken = default);
         Task<List<CampaignVolunteerRegistration>> GetByCampaignAsync(Guid campaignId, CancellationToken cancellationToken = default);
     }
 }

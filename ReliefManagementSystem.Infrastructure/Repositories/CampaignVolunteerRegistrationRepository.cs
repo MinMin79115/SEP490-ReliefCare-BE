@@ -31,6 +31,24 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                     cancellationToken);
         }
 
+        public Task<CampaignVolunteerRegistration?> GetByCampaignAndUserAsync(Guid campaignId, Guid userId, CancellationToken cancellationToken = default)
+        {
+            return _context.Set<CampaignVolunteerRegistration>()
+                .Include(x => x.User)
+                .FirstOrDefaultAsync(
+                    x => x.CampaignId == campaignId && x.UserId == userId,
+                    cancellationToken);
+        }
+
+        public Task<List<CampaignVolunteerRegistration>> GetByUserAsync(Guid userId, CancellationToken cancellationToken = default)
+        {
+            return _context.Set<CampaignVolunteerRegistration>()
+                .Include(x => x.Campaign)
+                .Where(x => x.UserId == userId)
+                .OrderByDescending(x => x.RegisteredAt)
+                .ToListAsync(cancellationToken);
+        }
+
         public Task<List<CampaignVolunteerRegistration>> GetByCampaignAsync(Guid campaignId, CancellationToken cancellationToken = default)
         {
             return _context.Set<CampaignVolunteerRegistration>()

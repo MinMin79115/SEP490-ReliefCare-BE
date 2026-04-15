@@ -40,9 +40,7 @@ namespace ReliefManagementSystem.Application
 
             services.AddScoped<IRescueRequestService, RescueRequestService>();
             services.AddScoped<IDisasterAnalysisService, DisasterAnalysisService>();
-            services.AddScoped<IReliefRequestService, ReliefRequestService>();
-            services.AddScoped<IDistributionSessionService, DistributionSessionService>();
-            services.AddScoped<IReliefFulfillmentService, ReliefFulfillmentService>();
+
 
             // Priority Criteria CRUD
             services.AddScoped<IPriorityCriteriaService, PriorityCriteriaService>();
@@ -50,6 +48,7 @@ namespace ReliefManagementSystem.Application
             services.AddScoped<ICampaignService, CampaignService>();
             services.AddScoped<IProcurementService, ProcurementService>();
             services.AddScoped<IFundService, FundService>();
+            services.AddScoped<IReliefDistributionService, ReliefDistributionService>();
 
             services.AddValidatorsFromAssemblyContaining<UpdateUserProfileRequest>();
             return services;

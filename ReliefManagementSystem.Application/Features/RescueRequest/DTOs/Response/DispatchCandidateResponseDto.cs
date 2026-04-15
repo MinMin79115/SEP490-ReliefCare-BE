@@ -3,6 +3,9 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Respons
     public class DispatchCandidateResponseDto
     {
         public Guid RequestId { get; set; }
+        public string? UserName { get; set; }
+        public string? ReporterFullName { get; set; }
+        public string? ReporterPhone { get; set; }
         public string RescueRequestType { get; set; } = null!;
         public string RescueRequestStatus { get; set; } = null!;
         public int? PriorityPoint { get; set; }

@@ -9,6 +9,7 @@ namespace ReliefManagementSystem.Application.Features.VolunteerRequest.Request
 {
     public class CreateVolunteerRequest
     {
+        public Guid? CampaignId { get; set; }
         public List<Guid> SkillIds { get; set; }
         public string Descriptions { get; set; } = null!;
         public int? YearsOfExperience { get; set; }
