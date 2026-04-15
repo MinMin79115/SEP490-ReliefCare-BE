@@ -2428,6 +2428,10 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Property<Guid?>("DriverUserId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("EvidenceUrls")
+                        .IsRequired()
+                        .HasColumnType("text");
+
                     b.Property<string>("Notes")
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");

@@ -12,8 +12,8 @@ using ReliefManagementSystem.Infrastructure.Data;
 namespace ReliefManagementSystem.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260408111646_ResetBaselineV2")]
-    partial class ResetBaselineV2
+    [Migration("20260415074150_ResetBaselineV3")]
+    partial class ResetBaselineV3
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -2430,6 +2430,10 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
                     b.Property<Guid?>("DriverUserId")
                         .HasColumnType("uuid");
+
+                    b.Property<string>("EvidenceUrls")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("Notes")
                         .HasMaxLength(1000)

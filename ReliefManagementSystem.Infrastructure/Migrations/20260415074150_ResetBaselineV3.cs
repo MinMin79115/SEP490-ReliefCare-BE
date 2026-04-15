@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ReliefManagementSystem.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class ResetBaselineV2 : Migration
+    public partial class ResetBaselineV3 : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -1214,6 +1214,7 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     RequestedBy = table.Column<Guid>(type: "uuid", nullable: false),
                     ApprovedBy = table.Column<Guid>(type: "uuid", nullable: true),
                     Notes = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true),
+                    EvidenceUrls = table.Column<string>(type: "text", nullable: false),
                     VehicleId = table.Column<Guid>(type: "uuid", nullable: true),
                     DriverUserId = table.Column<Guid>(type: "uuid", nullable: true)
                 },
