@@ -44,5 +44,6 @@ namespace ReliefManagementSystem.Domain.Entities
         /// Từ đây có thể lấy ManagedStation.Location để biết cấp vùng (tỉnh / huyện / xã).
         /// </summary>
         public ReliefStation? ManagedStation { get; set; }
+        public ICollection<ReliefPackageAssembly> CreatedReliefPackageAssemblies { get; set; } = new List<ReliefPackageAssembly>();
     }
 }

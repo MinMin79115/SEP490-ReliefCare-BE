@@ -61,6 +61,9 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Response
     {
         public Guid ReliefPackageDefinitionId { get; set; }
         public Guid CampaignId { get; set; }
+        public Guid OutputSupplyItemId { get; set; }
+        public string OutputSupplyItemName { get; set; } = string.Empty;
+        public string OutputUnit { get; set; } = string.Empty;
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
         public bool IsDefault { get; set; }
@@ -130,5 +133,53 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Response
         public int QuantityRequested { get; set; }
         public int? QuantityApproved { get; set; }
         public string? Note { get; set; }
+    }
+
+    public class ReliefPackageAssemblyAvailabilityItemResponse
+    {
+        public Guid SupplyItemId { get; set; }
+        public string SupplyItemName { get; set; } = string.Empty;
+        public string Unit { get; set; } = string.Empty;
+        public int RequiredPerPackage { get; set; }
+        public int AvailableQuantity { get; set; }
+        public int MaxAssemblableByItem { get; set; }
+    }
+
+    public class ReliefPackageAssemblyAvailabilityResponse
+    {
+        public Guid CampaignId { get; set; }
+        public Guid ReliefStationId { get; set; }
+        public Guid InventoryId { get; set; }
+        public Guid ReliefPackageDefinitionId { get; set; }
+        public Guid OutputSupplyItemId { get; set; }
+        public string OutputSupplyItemName { get; set; } = string.Empty;
+        public string OutputUnit { get; set; } = string.Empty;
+        public int MaxAssemblableQuantity { get; set; }
+        public List<ReliefPackageAssemblyAvailabilityItemResponse> Components { get; set; } = [];
+    }
+
+    public class ReliefPackageAssemblyConsumeItemResponse
+    {
+        public Guid SupplyItemId { get; set; }
+        public string SupplyItemName { get; set; } = string.Empty;
+        public string Unit { get; set; } = string.Empty;
+        public int QuantityConsumed { get; set; }
+    }
+
+    public class ReliefPackageAssemblyResponse
+    {
+        public Guid ReliefPackageAssemblyId { get; set; }
+        public Guid CampaignId { get; set; }
+        public Guid ReliefStationId { get; set; }
+        public Guid InventoryId { get; set; }
+        public Guid ReliefPackageDefinitionId { get; set; }
+        public Guid OutputSupplyItemId { get; set; }
+        public string OutputSupplyItemName { get; set; } = string.Empty;
+        public string OutputUnit { get; set; } = string.Empty;
+        public int QuantityCreated { get; set; }
+        public Guid CreatedBy { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public string? Notes { get; set; }
+        public List<ReliefPackageAssemblyConsumeItemResponse> Details { get; set; } = [];
     }
 }

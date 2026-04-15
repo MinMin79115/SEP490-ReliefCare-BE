@@ -70,6 +70,52 @@ namespace ReliefManagementSystem.API.Controllers
         public async Task<IActionResult> GetReliefPackages(Guid campaignId, CancellationToken cancellationToken)
             => Ok(await _reliefDistributionService.GetReliefPackageDefinitionsAsync(campaignId, cancellationToken));
 
+        [HttpGet("packages/{reliefPackageDefinitionId:guid}/assembly-availability")]
+        public async Task<IActionResult> GetPackageAssemblyAvailability(
+            Guid campaignId,
+            Guid reliefPackageDefinitionId,
+            [FromQuery] Guid reliefStationId,
+            [FromQuery] Guid inventoryId,
+            CancellationToken cancellationToken)
+            => Ok(await _reliefDistributionService.GetPackageAssemblyAvailabilityAsync(
+                campaignId,
+                reliefPackageDefinitionId,
+                reliefStationId,
+                inventoryId,
+                cancellationToken));
+
+        [HttpPost("packages/{reliefPackageDefinitionId:guid}/assemble")]
+        public async Task<IActionResult> AssembleReliefPackage(
+            Guid campaignId,
+            Guid reliefPackageDefinitionId,
+            [FromBody] AssembleReliefPackageRequest request,
+            CancellationToken cancellationToken)
+            => Ok(await _reliefDistributionService.AssembleReliefPackageAsync(
+                campaignId,
+                reliefPackageDefinitionId,
+                request,
+                cancellationToken));
+
+        [HttpGet("package-assemblies")]
+        public async Task<IActionResult> GetPackageAssemblyHistoryByCampaign(
+            Guid campaignId,
+            CancellationToken cancellationToken)
+            => Ok(await _reliefDistributionService.GetPackageAssemblyHistoryByCampaignAsync(campaignId, cancellationToken));
+
+        [HttpGet("stations/{reliefStationId:guid}/package-assemblies")]
+        public async Task<IActionResult> GetPackageAssemblyHistoryByStation(
+            Guid campaignId,
+            Guid reliefStationId,
+            CancellationToken cancellationToken)
+            => Ok(await _reliefDistributionService.GetPackageAssemblyHistoryByStationAsync(campaignId, reliefStationId, cancellationToken));
+
+        [HttpGet("packages/{reliefPackageDefinitionId:guid}/package-assemblies")]
+        public async Task<IActionResult> GetPackageAssemblyHistoryByDefinition(
+            Guid campaignId,
+            Guid reliefPackageDefinitionId,
+            CancellationToken cancellationToken)
+            => Ok(await _reliefDistributionService.GetPackageAssemblyHistoryByDefinitionAsync(campaignId, reliefPackageDefinitionId, cancellationToken));
+
         [HttpPost("deliveries/{householdDeliveryId:guid}/complete")]
         public async Task<IActionResult> CompleteDelivery(
             Guid campaignId,

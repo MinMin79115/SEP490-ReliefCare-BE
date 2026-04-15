@@ -55,6 +55,8 @@ namespace ReliefManagementSystem.Application.Common.Interface
         IDistributionPointRepository DistributionPoints { get; }
         IReliefPackageDefinitionRepository ReliefPackageDefinitions { get; }
         IReliefPackageDefinitionItemRepository ReliefPackageDefinitionItems { get; }
+        IReliefPackageAssemblyRepository ReliefPackageAssemblies { get; }
+        IReliefPackageAssemblyDetailRepository ReliefPackageAssemblyDetails { get; }
         IHouseholdDeliveryRepository HouseholdDeliveries { get; }
         IHouseholdDeliveryProofRepository HouseholdDeliveryProofs { get; }
         ISupplyShortageRequestRepository SupplyShortageRequests { get; }

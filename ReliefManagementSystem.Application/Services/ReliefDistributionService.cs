@@ -269,20 +269,35 @@ namespace ReliefManagementSystem.Application.Services
         {
             await EnsureReliefCampaignAsync(campaignId, cancellationToken);
 
+            var outputSupplyItem = await _unitOfWork.SupplyItems.GetByIdAsync(request.OutputSupplyItemId)
+                ?? throw new KeyNotFoundException($"Output supply item '{request.OutputSupplyItemId}' was not found.");
+
             var duplicateSupplyItems = request.Items.GroupBy(x => x.SupplyItemId).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
             if (duplicateSupplyItems.Count != 0)
                 throw new InvalidOperationException($"Duplicate supply items in package: {string.Join(", ", duplicateSupplyItems)}");
+
+            var existingDefinitions = await _unitOfWork.ReliefPackageDefinitions.GetByCampaignAsync(campaignId, cancellationToken);
+            var packageCategorySupplyItemIds = existingDefinitions
+                .Select(x => x.OutputSupplyItemId)
+                .ToHashSet();
+            packageCategorySupplyItemIds.Add(request.OutputSupplyItemId);
 
             foreach (var item in request.Items)
             {
                 if (!await _unitOfWork.SupplyItems.ExistsAsync(item.SupplyItemId))
                     throw new KeyNotFoundException($"Supply item '{item.SupplyItemId}' was not found.");
+
+                if (item.SupplyItemId == request.OutputSupplyItemId)
+                    throw new InvalidOperationException("Output supply item cannot be used as a package component.");
+
+                if (packageCategorySupplyItemIds.Contains(item.SupplyItemId))
+                    throw new InvalidOperationException(
+                        $"Supply item '{item.SupplyItemId}' is a package-category item and cannot be selected as a package component.");
             }
 
             if (request.IsDefault)
             {
-                var existing = await _unitOfWork.ReliefPackageDefinitions.GetByCampaignAsync(campaignId, cancellationToken);
-                foreach (var pkg in existing.Where(x => x.IsDefault))
+                foreach (var pkg in existingDefinitions.Where(x => x.IsDefault))
                 {
                     pkg.IsDefault = false;
                     await _unitOfWork.ReliefPackageDefinitions.UpdateAsync(pkg);
@@ -293,6 +308,7 @@ namespace ReliefManagementSystem.Application.Services
             {
                 ReliefPackageDefinitionId = Guid.NewGuid(),
                 CampaignId = campaignId,
+                OutputSupplyItemId = outputSupplyItem.SupplyItemId,
                 Name = request.Name.Trim(),
                 Description = request.Description?.Trim(),
                 IsDefault = request.IsDefault,
@@ -313,6 +329,226 @@ namespace ReliefManagementSystem.Application.Services
             var saved = await _unitOfWork.ReliefPackageDefinitions.GetByIdWithItemsAsync(package.ReliefPackageDefinitionId, cancellationToken)
                 ?? throw new KeyNotFoundException("Relief package was not found after save.");
             return MapPackage(saved);
+        }
+
+        public async Task<ReliefPackageAssemblyAvailabilityResponse> GetPackageAssemblyAvailabilityAsync(
+            Guid campaignId,
+            Guid reliefPackageDefinitionId,
+            Guid reliefStationId,
+            Guid inventoryId,
+            CancellationToken cancellationToken = default)
+        {
+            var campaign = await EnsureReliefCampaignAsync(campaignId, cancellationToken);
+            ValidateStationAttachedToCampaign(campaign, reliefStationId);
+
+            var package = await _unitOfWork.ReliefPackageDefinitions.GetByIdWithItemsAsync(reliefPackageDefinitionId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Relief package definition '{reliefPackageDefinitionId}' was not found.");
+
+            if (package.CampaignId != campaignId)
+                throw new InvalidOperationException("Relief package definition does not belong to campaign.");
+
+            if (!package.IsActive)
+                throw new InvalidOperationException("Relief package definition is inactive.");
+
+            if (package.Items.Count == 0)
+                throw new InvalidOperationException("Relief package definition has no component items.");
+
+            var inventory = await _unitOfWork.Inventories.GetByIdWithStocksAsync(inventoryId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Inventory '{inventoryId}' was not found.");
+
+            if (inventory.Status != EntityStatus.Active)
+                throw new InvalidOperationException("Inventory is not active.");
+
+            if (inventory.ReliefStationId != reliefStationId)
+                throw new InvalidOperationException("Inventory does not belong to the selected relief station.");
+
+            var stockBySupplyItem = inventory.InventoryItems
+                .ToDictionary(x => x.SupplyItemId, x => x.CurrentQuantity);
+
+            var components = package.Items.Select(item =>
+            {
+                var available = stockBySupplyItem.TryGetValue(item.SupplyItemId, out var qty) ? qty : 0;
+                var maxByItem = item.Quantity > 0 ? available / item.Quantity : 0;
+
+                return new ReliefPackageAssemblyAvailabilityItemResponse
+                {
+                    SupplyItemId = item.SupplyItemId,
+                    SupplyItemName = item.SupplyItem?.Name ?? string.Empty,
+                    Unit = item.Unit,
+                    RequiredPerPackage = item.Quantity,
+                    AvailableQuantity = available,
+                    MaxAssemblableByItem = maxByItem
+                };
+            }).ToList();
+
+            var maxAssemblable = components.Count == 0 ? 0 : components.Min(x => x.MaxAssemblableByItem);
+
+            return new ReliefPackageAssemblyAvailabilityResponse
+            {
+                CampaignId = campaignId,
+                ReliefStationId = reliefStationId,
+                InventoryId = inventoryId,
+                ReliefPackageDefinitionId = reliefPackageDefinitionId,
+                OutputSupplyItemId = package.OutputSupplyItemId,
+                OutputSupplyItemName = package.OutputSupplyItem?.Name ?? string.Empty,
+                OutputUnit = package.OutputSupplyItem?.Unit ?? string.Empty,
+                MaxAssemblableQuantity = maxAssemblable,
+                Components = components
+            };
+        }
+
+        public async Task<ReliefPackageAssemblyResponse> AssembleReliefPackageAsync(
+            Guid campaignId,
+            Guid reliefPackageDefinitionId,
+            AssembleReliefPackageRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var currentUserId = _currentUser.UserId
+                ?? throw new UnauthorizedAccessException("User is not authenticated.");
+
+            var availability = await GetPackageAssemblyAvailabilityAsync(
+                campaignId,
+                reliefPackageDefinitionId,
+                request.ReliefStationId,
+                request.InventoryId,
+                cancellationToken);
+
+            if (request.QuantityToAssemble > availability.MaxAssemblableQuantity)
+                throw new InvalidOperationException(
+                    $"Insufficient component stock. Maximum assemblable quantity is {availability.MaxAssemblableQuantity}.");
+
+            var package = await _unitOfWork.ReliefPackageDefinitions.GetByIdWithItemsAsync(reliefPackageDefinitionId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Relief package definition '{reliefPackageDefinitionId}' was not found.");
+
+            var inventory = await _unitOfWork.Inventories.GetByIdWithStocksAsync(request.InventoryId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Inventory '{request.InventoryId}' was not found.");
+
+            await _unitOfWork.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                var outputStock = inventory.InventoryItems.FirstOrDefault(x => x.SupplyItemId == package.OutputSupplyItemId);
+                if (outputStock is null)
+                {
+                    outputStock = new InventoryStock
+                    {
+                        InventoryStockId = Guid.NewGuid(),
+                        InventoryId = inventory.InventoryId,
+                        SupplyItemId = package.OutputSupplyItemId,
+                        CurrentQuantity = 0,
+                        MinimumStockLevel = 0,
+                        MaximumStockLevel = 0
+                    };
+
+                    await _unitOfWork.InventoryStocks.AddAsync(outputStock);
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+                }
+
+                var consumeItems = package.Items.Select(item => new TransactionItemRequest
+                {
+                    SupplyItemId = item.SupplyItemId,
+                    Quantity = item.Quantity * request.QuantityToAssemble,
+                    Notes = $"Package assembly consume for definition {package.ReliefPackageDefinitionId}"
+                }).ToList();
+
+                await _inventoryTransactionService.CreateTransactionAsync(new CreateTransactionRequest
+                {
+                    InventoryId = request.InventoryId,
+                    Type = TransactionType.Export,
+                    Reason = TransactionReason.PackageAssemblyConsume,
+                    Notes = $"Package assembly consume for definition {package.ReliefPackageDefinitionId}",
+                    Items = consumeItems
+                }, autoSave: false, cancellationToken);
+
+                await _inventoryTransactionService.CreateTransactionAsync(new CreateTransactionRequest
+                {
+                    InventoryId = request.InventoryId,
+                    Type = TransactionType.Import,
+                    Reason = TransactionReason.PackageAssemblyProduce,
+                    Notes = $"Package assembly produce for definition {package.ReliefPackageDefinitionId}",
+                    Items =
+                    [
+                        new TransactionItemRequest
+                        {
+                            SupplyItemId = package.OutputSupplyItemId,
+                            Quantity = request.QuantityToAssemble,
+                            Notes = $"Produced package output for definition {package.ReliefPackageDefinitionId}"
+                        }
+                    ]
+                }, autoSave: false, cancellationToken);
+
+                var assembly = new ReliefPackageAssembly
+                {
+                    ReliefPackageAssemblyId = Guid.NewGuid(),
+                    CampaignId = campaignId,
+                    ReliefStationId = request.ReliefStationId,
+                    InventoryId = request.InventoryId,
+                    ReliefPackageDefinitionId = package.ReliefPackageDefinitionId,
+                    OutputSupplyItemId = package.OutputSupplyItemId,
+                    QuantityCreated = request.QuantityToAssemble,
+                    CreatedBy = currentUserId,
+                    CreatedAt = DateTime.UtcNow,
+                    Notes = request.Notes?.Trim(),
+                    Details = package.Items.Select(item => new ReliefPackageAssemblyDetail
+                    {
+                        ReliefPackageAssemblyDetailId = Guid.NewGuid(),
+                        SupplyItemId = item.SupplyItemId,
+                        QuantityConsumed = item.Quantity * request.QuantityToAssemble,
+                        Unit = item.Unit
+                    }).ToList()
+                };
+
+                await _unitOfWork.ReliefPackageAssemblies.AddAsync(assembly);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+                var saved = await _unitOfWork.ReliefPackageAssemblies.GetByIdWithDetailsAsync(assembly.ReliefPackageAssemblyId, cancellationToken)
+                    ?? throw new KeyNotFoundException("Relief package assembly was not found after save.");
+
+                return MapPackageAssembly(saved);
+            }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                throw;
+            }
+        }
+
+        public async Task<IReadOnlyList<ReliefPackageAssemblyResponse>> GetPackageAssemblyHistoryByCampaignAsync(
+            Guid campaignId,
+            CancellationToken cancellationToken = default)
+        {
+            await EnsureReliefCampaignAsync(campaignId, cancellationToken);
+            var items = await _unitOfWork.ReliefPackageAssemblies.GetByCampaignAsync(campaignId, cancellationToken);
+            return items.Select(MapPackageAssembly).ToList();
+        }
+
+        public async Task<IReadOnlyList<ReliefPackageAssemblyResponse>> GetPackageAssemblyHistoryByStationAsync(
+            Guid campaignId,
+            Guid reliefStationId,
+            CancellationToken cancellationToken = default)
+        {
+            var campaign = await EnsureReliefCampaignAsync(campaignId, cancellationToken);
+            ValidateStationAttachedToCampaign(campaign, reliefStationId);
+
+            var items = await _unitOfWork.ReliefPackageAssemblies.GetByStationAsync(campaignId, reliefStationId, cancellationToken);
+            return items.Select(MapPackageAssembly).ToList();
+        }
+
+        public async Task<IReadOnlyList<ReliefPackageAssemblyResponse>> GetPackageAssemblyHistoryByDefinitionAsync(
+            Guid campaignId,
+            Guid reliefPackageDefinitionId,
+            CancellationToken cancellationToken = default)
+        {
+            await EnsureReliefCampaignAsync(campaignId, cancellationToken);
+
+            var definition = await _unitOfWork.ReliefPackageDefinitions.GetByIdAsync(reliefPackageDefinitionId)
+                ?? throw new KeyNotFoundException($"Relief package definition '{reliefPackageDefinitionId}' was not found.");
+
+            if (definition.CampaignId != campaignId)
+                throw new InvalidOperationException("Relief package definition does not belong to campaign.");
+
+            var items = await _unitOfWork.ReliefPackageAssemblies.GetByPackageDefinitionAsync(campaignId, reliefPackageDefinitionId, cancellationToken);
+            return items.Select(MapPackageAssembly).ToList();
         }
 
         public async Task<IReadOnlyList<ReliefPackageDefinitionResponse>> GetReliefPackageDefinitionsAsync(
@@ -639,6 +875,9 @@ namespace ReliefManagementSystem.Application.Services
         {
             ReliefPackageDefinitionId = x.ReliefPackageDefinitionId,
             CampaignId = x.CampaignId,
+            OutputSupplyItemId = x.OutputSupplyItemId,
+            OutputSupplyItemName = x.OutputSupplyItem?.Name ?? string.Empty,
+            OutputUnit = x.OutputSupplyItem?.Unit ?? string.Empty,
             Name = x.Name,
             Description = x.Description,
             IsDefault = x.IsDefault,
@@ -703,5 +942,35 @@ namespace ReliefManagementSystem.Application.Services
                 Note = i.Note
             }).ToList()
         };
+
+        private static ReliefPackageAssemblyResponse MapPackageAssembly(ReliefPackageAssembly x) => new()
+        {
+            ReliefPackageAssemblyId = x.ReliefPackageAssemblyId,
+            CampaignId = x.CampaignId,
+            ReliefStationId = x.ReliefStationId,
+            InventoryId = x.InventoryId,
+            ReliefPackageDefinitionId = x.ReliefPackageDefinitionId,
+            OutputSupplyItemId = x.OutputSupplyItemId,
+            OutputSupplyItemName = x.OutputSupplyItem?.Name ?? string.Empty,
+            OutputUnit = x.OutputSupplyItem?.Unit ?? string.Empty,
+            QuantityCreated = x.QuantityCreated,
+            CreatedBy = x.CreatedBy,
+            CreatedAt = x.CreatedAt,
+            Notes = x.Notes,
+            Details = x.Details.Select(d => new ReliefPackageAssemblyConsumeItemResponse
+            {
+                SupplyItemId = d.SupplyItemId,
+                SupplyItemName = d.SupplyItem?.Name ?? string.Empty,
+                Unit = d.Unit,
+                QuantityConsumed = d.QuantityConsumed
+            }).ToList()
+        };
+
+        private static void ValidateStationAttachedToCampaign(Campaign campaign, Guid reliefStationId)
+        {
+            var stationAttached = campaign.CampaignStations.Any(x => x.ReliefStationId == reliefStationId && x.IsActive);
+            if (!stationAttached)
+                throw new InvalidOperationException("Relief station is not attached to this campaign.");
+        }
     }
 }

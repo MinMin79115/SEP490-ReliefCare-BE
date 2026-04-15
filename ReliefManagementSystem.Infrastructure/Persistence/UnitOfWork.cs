@@ -63,6 +63,8 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
         public IDistributionPointRepository DistributionPoints { get; }
         public IReliefPackageDefinitionRepository ReliefPackageDefinitions { get; }
         public IReliefPackageDefinitionItemRepository ReliefPackageDefinitionItems { get; }
+        public IReliefPackageAssemblyRepository ReliefPackageAssemblies { get; }
+        public IReliefPackageAssemblyDetailRepository ReliefPackageAssemblyDetails { get; }
         public IHouseholdDeliveryRepository HouseholdDeliveries { get; }
         public IHouseholdDeliveryProofRepository HouseholdDeliveryProofs { get; }
         public ISupplyShortageRequestRepository SupplyShortageRequests { get; }
@@ -124,6 +126,8 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             DistributionPoints = new DistributionPointRepository(_context);
             ReliefPackageDefinitions = new ReliefPackageDefinitionRepository(_context);
             ReliefPackageDefinitionItems = new ReliefPackageDefinitionItemRepository(_context);
+            ReliefPackageAssemblies = new ReliefPackageAssemblyRepository(_context);
+            ReliefPackageAssemblyDetails = new ReliefPackageAssemblyDetailRepository(_context);
             HouseholdDeliveries = new HouseholdDeliveryRepository(_context);
             HouseholdDeliveryProofs = new HouseholdDeliveryProofRepository(_context);
             SupplyShortageRequests = new SupplyShortageRequestRepository(_context);
