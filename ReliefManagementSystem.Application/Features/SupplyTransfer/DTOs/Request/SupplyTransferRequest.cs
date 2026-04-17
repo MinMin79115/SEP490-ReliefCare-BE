@@ -52,4 +52,14 @@ namespace ReliefManagementSystem.Application.Features.SupplyTransfer.DTOs.Reques
         [MaxLength(1000)] public string? Notes { get; set; }
         public List<string> EvidenceUrls { get; set; } = [];
     }
+
+    public class ReplaceSupplyTransferEvidenceUrlsRequest
+    {
+        public List<string> EvidenceUrls { get; set; } = [];
+    }
+
+    public class AppendSupplyTransferEvidenceUrlsRequest
+    {
+        public List<string> EvidenceUrls { get; set; } = [];
+    }
 }

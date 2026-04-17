@@ -1,10 +1,12 @@
-using ReliefManagementSystem.Domain.Entities;
-using ReliefManagementSystem.Domain.Enum;
+ using ReliefManagementSystem.Domain.Entities;
+ using ReliefManagementSystem.Domain.Enum;
+ using System.Linq;
 
 namespace ReliefManagementSystem.Application.Common.Interface
 {
     public interface ICampaignHouseholdRepository : IGenericRepository<CampaignHousehold>
     {
+        IQueryable<CampaignHousehold> GetQueryable();
         Task<List<CampaignHousehold>> GetByCampaignAsync(Guid campaignId, CancellationToken cancellationToken = default);
         Task<List<CampaignHousehold>> GetByDistributionPointAsync(Guid distributionPointId, CancellationToken cancellationToken = default);
         Task<List<CampaignHousehold>> GetByCampaignTeamAsync(Guid campaignTeamId, CancellationToken cancellationToken = default);

@@ -11,6 +11,9 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
         {
         }
 
+        public IQueryable<DistributionPoint> GetQueryable()
+            => _context.DistributionPoints.AsQueryable();
+
         public async Task<List<DistributionPoint>> GetByCampaignAsync(Guid campaignId, CancellationToken cancellationToken = default)
         {
             return await _context.DistributionPoints

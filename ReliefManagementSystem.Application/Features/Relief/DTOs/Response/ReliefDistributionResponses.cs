@@ -1,4 +1,5 @@
 using ReliefManagementSystem.Domain.Enum;
+using ReliefManagementSystem.Application.Common.Models;
 
 namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Response
 {
@@ -107,6 +108,22 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Response
         public string? Note { get; set; }
         public DateTime CapturedAt { get; set; }
         public Guid? CapturedByUserId { get; set; }
+    }
+
+    public class BatchCompleteHouseholdDeliveryItemResponse
+    {
+        public Guid HouseholdDeliveryId { get; set; }
+        public bool IsSuccess { get; set; }
+        public string? Error { get; set; }
+        public HouseholdDeliveryResponse? Delivery { get; set; }
+    }
+
+    public class BatchCompleteHouseholdDeliveryResponse
+    {
+        public int TotalRequested { get; set; }
+        public int SuccessCount { get; set; }
+        public int FailureCount { get; set; }
+        public List<BatchCompleteHouseholdDeliveryItemResponse> Items { get; set; } = [];
     }
 
     public class SupplyShortageRequestResponse
