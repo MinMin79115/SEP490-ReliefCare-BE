@@ -16,6 +16,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
         Task<IReadOnlyList<Vehicle>> GetByStatusAsync(VehicleStatus status);
         Task<Vehicle?> GetByLicensePlateAsync(string licensePlate);
         Task<IReadOnlyList<Vehicle>> GetByCreatorAsync(Guid creatorId);
-        //Task<bool> IsLicensePlateExistsAsync(string licensePlate, Guid? excludeId = null);
+        Task<bool> IsLicensePlateExistsAsync(string licensePlate, Guid? excludeId = null);
+        Task<int> GetCountAsync(Guid? reliefStationId = null, VehicleStatus? status = null);
     }
 }

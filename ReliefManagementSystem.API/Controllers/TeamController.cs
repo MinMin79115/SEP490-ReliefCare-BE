@@ -22,7 +22,7 @@ namespace ReliefManagementSystem.API.Controllers
         // POST /api/team
         [HttpPost]
         [Authorize(Roles = "Moderator")]
-        [SwaggerOperation(OperationId = "CreateTeam", Description = "Moderator tạo team mới")]
+        [SwaggerOperation(OperationId = "CreateTeam", Description = "Moderator tạo team mới. Bắt buộc chọn TeamType: Relief (cứu trợ) hoặc Rescue (cứu hộ). Team Rescue chỉ được tham gia luồng cứu hộ.")]
         public async Task<IActionResult> CreateTeam([FromBody] CreateTeamRequest request, CancellationToken cancellationToken)
         {
             var moderatorId = GetCurrentUserId();
@@ -63,7 +63,7 @@ namespace ReliefManagementSystem.API.Controllers
 
         // GET /api/team
         [HttpGet]
-        [SwaggerOperation(OperationId = "GetAllTeams", Description = "Lấy danh sách tất cả teams có phân trang và tìm kiếm theo Name, Description, ContactPhone")]
+        [SwaggerOperation(OperationId = "GetAllTeams", Description = "Lấy danh sách tất cả teams có phân trang và tìm kiếm theo Name, Description, ContactPhone. Hỗ trợ lọc theo TeamType.")]
         public async Task<IActionResult> GetAllTeams(
             [FromQuery] SearchTeamRequest request,
             CancellationToken cancellationToken = default)
@@ -75,7 +75,7 @@ namespace ReliefManagementSystem.API.Controllers
 
         // GET /api/team/search
         [HttpGet("search")]
-        [SwaggerOperation(OperationId = "SearchTeams", Description = "Tìm kiếm teams có phân trang theo Search (Name, Description, ContactPhone), Name, Status, ModeratorId")]
+        [SwaggerOperation(OperationId = "SearchTeams", Description = "Tìm kiếm teams có phân trang theo Search (Name, Description, ContactPhone), Name, Status, TeamType, ModeratorId")]
         public async Task<IActionResult> SearchTeams([FromQuery] SearchTeamRequest request, CancellationToken cancellationToken)
         {
             var result = await _teamService.SearchTeamsAsync(request, cancellationToken);

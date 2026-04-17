@@ -50,6 +50,8 @@ namespace ReliefManagementSystem.Application.Services
                 ? null
                 : request.ContactPhone.Trim();
 
+            ValidateTeamType(request.TeamType);
+
             var team = new Team
             { 
                 Name = normalizedName,
@@ -57,6 +59,7 @@ namespace ReliefManagementSystem.Application.Services
                 ContactPhone = normalizedPhone,
                 CreateBy = moderatorId,
                 LeaderId = null, 
+                TeamType = request.TeamType,
                 Status = TeamStatus.Active,
                 CreatedAt = DateTime.UtcNow
             };
@@ -187,6 +190,13 @@ namespace ReliefManagementSystem.Application.Services
             team.Description = normalizedDescription;
             team.ContactPhone = normalizedPhone;
             team.Status = request.Status;
+
+            if (request.TeamType.HasValue)
+            {
+                ValidateTeamType(request.TeamType.Value);
+                team.TeamType = request.TeamType.Value;
+            }
+
             team.UpdatedAt = DateTime.UtcNow;
 
             await _unitOfWork.Teams.UpdateAsync(team);
@@ -234,6 +244,11 @@ namespace ReliefManagementSystem.Application.Services
                 query = query.Where(t => t.Status == request.Status.Value);
             }
 
+            if (request.TeamType.HasValue)
+            {
+                query = query.Where(t => t.TeamType == request.TeamType.Value);
+            }
+
             if (request.ModeratorId.HasValue)
             {
                 query = query.Where(t => t.CreateBy == request.ModeratorId.Value);
@@ -276,6 +291,11 @@ namespace ReliefManagementSystem.Application.Services
             if (request.Status.HasValue)
             {
                 query = query.Where(t => t.Status == request.Status.Value);
+            }
+
+            if (request.TeamType.HasValue)
+            {
+                query = query.Where(t => t.TeamType == request.TeamType.Value);
             }
 
             if (request.ModeratorId.HasValue)
@@ -440,8 +460,6 @@ namespace ReliefManagementSystem.Application.Services
             if (team == null)
                 throw new TeamNotFoundException();
 
-            if (team.CreateBy != moderatorId)
-                throw new UnauthorizedTeamActionException("thêm thành viên");
 
             var volunteer = await _unitOfWork.Users.GetByIdWithVolunteerProfileAndSkillsAsync(
                 request.VolunteerId, cancellationToken);
@@ -512,8 +530,6 @@ namespace ReliefManagementSystem.Application.Services
             if (team == null)
                 throw new TeamNotFoundException();
 
-            if (team.CreateBy != moderatorId)
-                throw new UnauthorizedTeamActionException("thêm thành viên");
 
             foreach (var volunteerId in distinctVolunteerIds)
             {
@@ -718,6 +734,8 @@ namespace ReliefManagementSystem.Application.Services
                 Name = team.Name,
                 Description = team.Description,
                 ContactPhone = team.ContactPhone,
+                TeamType = team.TeamType,
+                TeamTypeName = team.TeamType.ToString(),
                 Status = team.Status,
                 ModeratorId = team.CreateBy,
                 ModeratorName = team.Moderator?.DisplayName ?? team.Moderator?.UserName ?? "Unknown",
@@ -742,6 +760,8 @@ namespace ReliefManagementSystem.Application.Services
                 Name = team.Name,
                 Description = team.Description,
                 ContactPhone = team.ContactPhone,
+                TeamType = team.TeamType,
+                TeamTypeName = team.TeamType.ToString(),
                 Status = team.Status,
                 ReliefStationId = stationAssignment?.ReliefStationId,
                 ReliefStationName = stationAssignment?.ReliefStation?.Name,
@@ -791,6 +811,14 @@ namespace ReliefManagementSystem.Application.Services
             var teams = await _unitOfWork.Teams.GetTeamsByModeratorWithMembersAsync(moderatorId);
     
             return teams.Select(team => MapToTeamDetailResponse(team)).ToList();
+        }
+
+        private static void ValidateTeamType(TeamType teamType)
+        {
+            if (!Enum.IsDefined(typeof(TeamType), teamType))
+            {
+                throw new TeamValidationException("Loại đội không hợp lệ. Vui lòng chọn đội cứu trợ hoặc đội cứu hộ.");
+            }
         }
 
     }

@@ -25,6 +25,8 @@ namespace ReliefManagementSystem.Domain.Entities
         public Guid? LeaderId { get; set; }
         public ApplicationUser? Leader { get; set; }
 
+        public TeamType TeamType { get; set; } = TeamType.Relief;
+
         public TeamStatus Status { get; set; } = TeamStatus.Active;
 
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;

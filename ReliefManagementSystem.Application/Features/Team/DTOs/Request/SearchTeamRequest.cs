@@ -15,6 +15,8 @@ namespace ReliefManagementSystem.Application.Features.Team.DTOs.Request
 
         public TeamStatus? Status { get; set; }
 
+        public TeamType? TeamType { get; set; }
+
         public Guid? ModeratorId { get; set; }
 
         public int PageIndex { get; set; } = 1;

@@ -7,5 +7,7 @@ namespace ReliefManagementSystem.Application.Features.Vehicle.DTOs.Request
         public int PageSize { get; set; } = 10;
 
         public string? Search { get; set; }
+
+        public Guid? ReliefStationId { get; set; }
     }
 }

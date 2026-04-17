@@ -1,4 +1,5 @@
 using ReliefManagementSystem.Domain.Entities;
+using System.Collections.Generic;
 
 namespace ReliefManagementSystem.Application.Common.Interface
 {
@@ -15,5 +16,10 @@ namespace ReliefManagementSystem.Application.Common.Interface
         /// Lấy trưởng trạm hiện tại của một trạm.
         /// </summary>
         Task<ModeratorProfile?> GetStationHeadAsync(Guid stationId, CancellationToken ct = default);
+
+        /// <summary>
+        /// Lấy danh sách moderator đang hoạt động theo trạm.
+        /// </summary>
+        Task<List<ModeratorProfile>> GetActiveByStationIdAsync(Guid stationId, CancellationToken ct = default);
     }
 }
