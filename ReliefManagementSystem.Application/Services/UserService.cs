@@ -817,10 +817,17 @@ namespace ReliefManagementSystem.Application.Services
 
             var pagedUsers = await Pagination<ApplicationUser>.ToPagedList(query, request.PageIndex, request.PageSize);
 
-            var items = pagedUsers.Items!
+            var users = pagedUsers.Items!
                 .Where(u => u.VolunteerProfile != null)
-                .Select(u => MapToResponse(u.VolunteerProfile!, u))
                 .ToList();
+
+            var items = new List<VolunteerProfileResponse>(users.Count);
+            foreach (var user in users)
+            {
+                var registrations = await _unitOfWork.CampaignVolunteerRegistrations.GetByUserAsync(user.Id, cancellationToken);
+                var selectedRegistration = SelectPreferredRegistration(registrations);
+                items.Add(MapToResponse(user.VolunteerProfile!, user, selectedRegistration));
+            }
 
             return new Pagination<VolunteerProfileResponse>(
                 items,
@@ -850,10 +857,17 @@ namespace ReliefManagementSystem.Application.Services
 
             var pagedUsers = await Pagination<ApplicationUser>.ToPagedList(query, request.PageIndex, request.PageSize);
 
-            var items = pagedUsers.Items!
+            var users = pagedUsers.Items!
                 .Where(u => u.VolunteerProfile != null)
-                .Select(u => MapToResponse(u.VolunteerProfile!, u))
                 .ToList();
+
+            var items = new List<VolunteerProfileResponse>(users.Count);
+            foreach (var user in users)
+            {
+                var registrations = await _unitOfWork.CampaignVolunteerRegistrations.GetByUserAsync(user.Id, cancellationToken);
+                var selectedRegistration = SelectPreferredRegistration(registrations);
+                items.Add(MapToResponse(user.VolunteerProfile!, user, selectedRegistration));
+            }
 
             return new Pagination<VolunteerProfileResponse>(
                 items,
@@ -871,9 +885,15 @@ namespace ReliefManagementSystem.Application.Services
 
             var users = await Microsoft.EntityFrameworkCore.EntityFrameworkQueryableExtensions.ToListAsync(query, cancellationToken);
 
-            return users
-                .Select(u => MapToResponse(u.VolunteerProfile!, u))
-                .ToList();
+            var results = new List<VolunteerProfileResponse>(users.Count);
+            foreach (var user in users)
+            {
+                var registrations = await _unitOfWork.CampaignVolunteerRegistrations.GetByUserAsync(user.Id, cancellationToken);
+                var selectedRegistration = SelectPreferredRegistration(registrations);
+                results.Add(MapToResponse(user.VolunteerProfile!, user, selectedRegistration));
+            }
+
+            return results;
         }
 
         public async Task<Pagination<VolunteerApplicationReviewResponse>> GetPendingVolunteerApplicationsAsync(
@@ -1254,13 +1274,18 @@ namespace ReliefManagementSystem.Application.Services
             CancellationToken cancellationToken)
         {
             var registrations = await _unitOfWork.CampaignVolunteerRegistrations.GetByUserAsync(profile.UserId, cancellationToken);
-            var selectedRegistration = registrations
-                .OrderByDescending(r => r.RegisteredAt)
-                .FirstOrDefault(r => r.Status == CampaignVolunteerRegistrationStatus.PendingVolunteerApproval)
-                ?? registrations.OrderByDescending(r => r.RegisteredAt).FirstOrDefault(r => r.Status == CampaignVolunteerRegistrationStatus.Registered)
-                ?? registrations.OrderByDescending(r => r.RegisteredAt).FirstOrDefault();
+            var selectedRegistration = SelectPreferredRegistration(registrations);
 
             return MapToResponse(profile, user, selectedRegistration);
+        }
+
+        private static CampaignVolunteerRegistration? SelectPreferredRegistration(IEnumerable<CampaignVolunteerRegistration> registrations)
+        {
+            var ordered = registrations.OrderByDescending(r => r.RegisteredAt);
+
+            return ordered.FirstOrDefault(r => r.Status == CampaignVolunteerRegistrationStatus.PendingVolunteerApproval)
+                ?? ordered.FirstOrDefault(r => r.Status == CampaignVolunteerRegistrationStatus.Registered)
+                ?? ordered.FirstOrDefault();
         }
 
         private async Task<Campaign> ValidateVolunteerCampaignAsync(Guid campaignId, CancellationToken cancellationToken)
