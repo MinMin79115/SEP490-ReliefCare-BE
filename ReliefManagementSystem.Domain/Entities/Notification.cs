@@ -6,7 +6,7 @@ namespace ReliefManagementSystem.Domain.Entities
 {
     /// <summary>
     /// Lưu thông báo gửi đến người dùng.
-    /// Kết hợp với SignalR để push real-time; đồng thời persist DB
+    /// Kết hợp với tầng realtime publisher để push real-time; đồng thời persist DB
     /// để user offline vẫn nhận được khi kết nối lại.
     /// </summary>
     public class Notification 
@@ -39,6 +39,9 @@ namespace ReliefManagementSystem.Domain.Entities
         /// </summary>
         [MaxLength(100)]
         public string? ReferenceType { get; set; }
+
+        [MaxLength(4000)]
+        public string? MetadataJson { get; set; }
 
         // ── Trạng thái đọc ────────────────────────────────────────
         public bool IsRead { get; set; } = false;

@@ -54,6 +54,8 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public List<string> EvidenceUrls { get; set; } = [];
 
+        public ICollection<SupplyTransferDocument> Documents { get; set; } = new List<SupplyTransferDocument>();
+
         // ── Navigation properties ────────────────────────────────────
         public ReliefStation SourceStation { get; set; } = null!;
         public ReliefStation DestinationStation { get; set; } = null!;

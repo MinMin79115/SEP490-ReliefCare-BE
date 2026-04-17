@@ -48,6 +48,69 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         public string? Notes { get; set; }
     }
 
+    public class ReliefPagedQueryRequest
+    {
+        public int PageIndex { get; set; } = 1;
+        public int PageSize { get; set; } = 10;
+        public string? Search { get; set; }
+    }
+
+    public class HouseholdQueryRequest : ReliefPagedQueryRequest
+    {
+        public HouseholdFulfillmentStatus? Status { get; set; }
+        public DeliveryMode? DeliveryMode { get; set; }
+        public Guid? DistributionPointId { get; set; }
+        public Guid? CampaignTeamId { get; set; }
+        public bool? IsIsolated { get; set; }
+    }
+
+    public class DeliveryQueryRequest : ReliefPagedQueryRequest
+    {
+        public HouseholdFulfillmentStatus? Status { get; set; }
+        public Guid? CampaignTeamId { get; set; }
+        public Guid? DistributionPointId { get; set; }
+        public DeliveryMode? DeliveryMode { get; set; }
+        public DateTime? ScheduledFrom { get; set; }
+        public DateTime? ScheduledTo { get; set; }
+    }
+
+    public class DistributionPointQueryRequest : ReliefPagedQueryRequest
+    {
+        public Guid? ReliefStationId { get; set; }
+        public Guid? CampaignTeamId { get; set; }
+        public bool? IsActive { get; set; }
+    }
+
+    public class ReliefPackageQueryRequest : ReliefPagedQueryRequest
+    {
+        public bool? IsActive { get; set; }
+        public bool? IsDefault { get; set; }
+    }
+
+    public class UpdateCampaignHouseholdRequest
+    {
+        [MaxLength(100)]
+        public string? HouseholdCode { get; set; }
+
+        [MaxLength(255)]
+        public string? HeadOfHouseholdName { get; set; }
+
+        [MaxLength(50)]
+        public string? ContactPhone { get; set; }
+
+        [MaxLength(500)]
+        public string? Address { get; set; }
+
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+        public int? HouseholdSize { get; set; }
+        public bool? IsIsolated { get; set; }
+        public DeliveryMode? DeliveryMode { get; set; }
+        public Guid? DistributionPointId { get; set; }
+        public Guid? CampaignTeamId { get; set; }
+        public string? Notes { get; set; }
+    }
+
     public class CreateDistributionPointRequest
     {
         [Required]
@@ -75,6 +138,25 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         public bool IsActive { get; set; } = true;
     }
 
+    public class UpdateDistributionPointRequest
+    {
+        [MaxLength(255)]
+        public string? Name { get; set; }
+        public Guid? ReliefStationId { get; set; }
+        public Guid? CampaignTeamId { get; set; }
+        public Guid? LocationId { get; set; }
+
+        [MaxLength(500)]
+        public string? Address { get; set; }
+
+        public double? Latitude { get; set; }
+        public double? Longitude { get; set; }
+        public DeliveryMode? DeliveryMode { get; set; }
+        public DateTime? StartsAt { get; set; }
+        public DateTime? EndsAt { get; set; }
+        public bool? IsActive { get; set; }
+    }
+
     public class CreateReliefPackageDefinitionRequest
     {
         [Required]
@@ -84,12 +166,29 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         [MaxLength(1000)]
         public string? Description { get; set; }
 
+        [Required]
+        public Guid OutputSupplyItemId { get; set; }
+
         public bool IsDefault { get; set; }
         public bool IsActive { get; set; } = true;
 
         [Required]
         [MinLength(1)]
         public List<ReliefPackageDefinitionItemRequest> Items { get; set; } = [];
+    }
+
+    public class UpdateReliefPackageDefinitionRequest
+    {
+        [MaxLength(255)]
+        public string? Name { get; set; }
+
+        [MaxLength(1000)]
+        public string? Description { get; set; }
+
+        public Guid? OutputSupplyItemId { get; set; }
+        public bool? IsDefault { get; set; }
+        public bool? IsActive { get; set; }
+        public List<ReliefPackageDefinitionItemRequest>? Items { get; set; }
     }
 
     public class ReliefPackageDefinitionItemRequest
@@ -105,6 +204,21 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         public string Unit { get; set; } = string.Empty;
     }
 
+    public class AssembleReliefPackageRequest
+    {
+        [Required]
+        public Guid ReliefStationId { get; set; }
+
+        [Required]
+        public Guid InventoryId { get; set; }
+
+        [Range(1, int.MaxValue)]
+        public int QuantityToAssemble { get; set; }
+
+        [MaxLength(1000)]
+        public string? Notes { get; set; }
+    }
+
     public class CompleteHouseholdDeliveryRequest
     {
         public Guid? ReliefPackageDefinitionId { get; set; }
@@ -118,6 +232,37 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
 
         [MaxLength(200)]
         public string? ProofContentType { get; set; }
+    }
+
+    public class CompleteHouseholdDeliveryProofRequest
+    {
+        [Required]
+        [MaxLength(1000)]
+        public string FileUrl { get; set; } = string.Empty;
+
+        [MaxLength(200)]
+        public string? FileType { get; set; }
+
+        public string? Note { get; set; }
+    }
+
+    public class CompleteHouseholdDeliveryBatchItemRequest
+    {
+        [Required]
+        public Guid HouseholdDeliveryId { get; set; }
+        public Guid? ReliefPackageDefinitionId { get; set; }
+        public Guid? CampaignTeamId { get; set; }
+        public string? Notes { get; set; }
+        [Required]
+        [MinLength(1)]
+        public List<CompleteHouseholdDeliveryProofRequest> Proofs { get; set; } = [];
+    }
+
+    public class CompleteHouseholdDeliveryBatchRequest
+    {
+        [Required]
+        [MinLength(1)]
+        public List<CompleteHouseholdDeliveryBatchItemRequest> Items { get; set; } = [];
     }
 
     public class CreateSupplyShortageRequest

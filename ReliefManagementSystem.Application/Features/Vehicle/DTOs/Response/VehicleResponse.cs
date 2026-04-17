@@ -14,7 +14,10 @@ namespace ReliefManagementSystem.Application.Features.Vehicle.DTOs.Response
         public string LicensePlate { get; set; } = string.Empty;
         public Guid CreatedBy { get; set; }
         public string CreatorName { get; set; } = string.Empty;
-        public string? TeamUsed { get; set; }
+        public Guid? ReliefStationId { get; set; }
+        public string? ReliefStationName { get; set; }
+        public Guid? TeamId { get; set; }
+        public string? TeamName { get; set; }
         public int Status { get; set; }
         public string StatusName { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }

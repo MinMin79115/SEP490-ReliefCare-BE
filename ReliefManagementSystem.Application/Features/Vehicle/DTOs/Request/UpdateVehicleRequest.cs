@@ -16,8 +16,7 @@ namespace ReliefManagementSystem.Application.Features.Vehicle.DTOs.Request
         [StringLength(20, ErrorMessage = "License Plate cannot exceed 20 characters")]
         public string LicensePlate { get; set; } = string.Empty;
 
-        [StringLength(200, ErrorMessage = "Team Used cannot exceed 200 characters")]
-        public string? TeamUsed { get; set; }
+        public Guid? TeamId { get; set; }
 
         [Range(1, 2, ErrorMessage = "Status must be 1 (Free) or 2 (Busy)")]
         public int Status { get; set; }

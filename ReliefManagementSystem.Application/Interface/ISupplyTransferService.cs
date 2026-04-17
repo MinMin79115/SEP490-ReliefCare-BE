@@ -15,5 +15,8 @@ namespace ReliefManagementSystem.Application.Interface
         Task<SupplyTransferResponse> ShipAsync(Guid transferId, ShipSupplyTransferRequest request, CancellationToken cancellationToken = default);
         Task<SupplyTransferResponse> ReceiveAsync(Guid transferId, ReceiveSupplyTransferRequest request, CancellationToken cancellationToken = default);
         Task<SupplyTransferResponse> CancelAsync(Guid transferId, CancelSupplyTransferRequest request, CancellationToken cancellationToken = default);
+        Task<SupplyTransferResponse> ReplaceEvidenceUrlsAsync(Guid transferId, ReplaceSupplyTransferEvidenceUrlsRequest request, CancellationToken cancellationToken = default);
+        Task<SupplyTransferResponse> AppendEvidenceUrlsAsync(Guid transferId, AppendSupplyTransferEvidenceUrlsRequest request, CancellationToken cancellationToken = default);
+        Task<SupplyTransferResponse> AddDocumentAsync(Guid transferId, CreateSupplyTransferDocumentRequest request, CancellationToken cancellationToken = default);
     }
 }

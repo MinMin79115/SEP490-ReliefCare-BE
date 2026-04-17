@@ -78,6 +78,8 @@ namespace ReliefManagementSystem.Infrastructure.Data
         public DbSet<DistributionPoint> DistributionPoints { get; set; }
         public DbSet<ReliefPackageDefinition> ReliefPackageDefinitions { get; set; }
         public DbSet<ReliefPackageDefinitionItem> ReliefPackageDefinitionItems { get; set; }
+        public DbSet<ReliefPackageAssembly> ReliefPackageAssemblies { get; set; }
+        public DbSet<ReliefPackageAssemblyDetail> ReliefPackageAssemblyDetails { get; set; }
         public DbSet<HouseholdDelivery> HouseholdDeliveries { get; set; }
         public DbSet<HouseholdDeliveryProof> HouseholdDeliveryProofs { get; set; }
         public DbSet<SupplyShortageRequest> SupplyShortageRequests { get; set; }
@@ -89,6 +91,7 @@ namespace ReliefManagementSystem.Infrastructure.Data
 
         // Supply Transfer (vận chuyển hàng giữa các trạm)
         public DbSet<SupplyTransfer> SupplyTransfers { get; set; }
+        public DbSet<SupplyTransferDocument> SupplyTransferDocuments { get; set; }
         public DbSet<SupplyTransferItem> SupplyTransferItems { get; set; }
 
         // Notification (thông báo real-time)
@@ -539,6 +542,12 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .HasOne(v => v.ReliefStation)
                 .WithMany(rs => rs.Vehicles)
                 .HasForeignKey(v => v.ReliefStationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<Vehicle>()
+                .HasOne(v => v.Team)
+                .WithMany()
+                .HasForeignKey(v => v.TeamId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             // Inventory Management Configurations
@@ -1019,6 +1028,11 @@ namespace ReliefManagementSystem.Infrastructure.Data
                     .HasForeignKey(x => x.CampaignId)
                     .OnDelete(DeleteBehavior.Cascade);
 
+                entity.HasOne(x => x.OutputSupplyItem)
+                    .WithMany(s => s.OutputOfReliefPackageDefinitions)
+                    .HasForeignKey(x => x.OutputSupplyItemId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
                 entity.HasIndex(x => new { x.CampaignId, x.Name });
             });
 
@@ -1044,6 +1058,75 @@ namespace ReliefManagementSystem.Infrastructure.Data
                     .OnDelete(DeleteBehavior.Restrict);
 
                 entity.HasIndex(x => new { x.ReliefPackageDefinitionId, x.SupplyItemId })
+                    .IsUnique();
+            });
+
+            // =========================
+            // ReliefPackageAssembly
+            // =========================
+            builder.Entity<ReliefPackageAssembly>(entity =>
+            {
+                entity.HasKey(x => x.ReliefPackageAssemblyId);
+
+                entity.Property(x => x.Notes)
+                    .HasMaxLength(1000);
+
+                entity.HasOne(x => x.Campaign)
+                    .WithMany(c => c.ReliefPackageAssemblies)
+                    .HasForeignKey(x => x.CampaignId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.ReliefStation)
+                    .WithMany(rs => rs.ReliefPackageAssemblies)
+                    .HasForeignKey(x => x.ReliefStationId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.Inventory)
+                    .WithMany(i => i.ReliefPackageAssemblies)
+                    .HasForeignKey(x => x.InventoryId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.ReliefPackageDefinition)
+                    .WithMany(p => p.PackageAssemblies)
+                    .HasForeignKey(x => x.ReliefPackageDefinitionId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.OutputSupplyItem)
+                    .WithMany(s => s.OutputReliefPackageAssemblies)
+                    .HasForeignKey(x => x.OutputSupplyItemId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.CreatedByUser)
+                    .WithMany(u => u.CreatedReliefPackageAssemblies)
+                    .HasForeignKey(x => x.CreatedBy)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(x => new { x.InventoryId, x.CreatedAt });
+                entity.HasIndex(x => new { x.ReliefPackageDefinitionId, x.CreatedAt });
+            });
+
+            // =========================
+            // ReliefPackageAssemblyDetail
+            // =========================
+            builder.Entity<ReliefPackageAssemblyDetail>(entity =>
+            {
+                entity.HasKey(x => x.ReliefPackageAssemblyDetailId);
+
+                entity.Property(x => x.Unit)
+                    .HasMaxLength(50)
+                    .IsRequired();
+
+                entity.HasOne(x => x.ReliefPackageAssembly)
+                    .WithMany(a => a.Details)
+                    .HasForeignKey(x => x.ReliefPackageAssemblyId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.SupplyItem)
+                    .WithMany(s => s.ReliefPackageAssemblyDetails)
+                    .HasForeignKey(x => x.SupplyItemId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(x => new { x.ReliefPackageAssemblyId, x.SupplyItemId })
                     .IsUnique();
             });
 
@@ -1655,6 +1738,43 @@ namespace ReliefManagementSystem.Infrastructure.Data
                     .WithMany()
                     .HasForeignKey(st => st.ApprovedBy)
                     .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasMany(st => st.Documents)
+                    .WithOne(d => d.SupplyTransfer)
+                    .HasForeignKey(d => d.SupplyTransferId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // =========================
+            // SupplyTransferDocument
+            // =========================
+            builder.Entity<SupplyTransferDocument>(entity =>
+            {
+                entity.HasKey(std => std.SupplyTransferDocumentId);
+
+                entity.Property(std => std.DocumentType)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                entity.Property(std => std.FileUrl)
+                    .HasMaxLength(2000)
+                    .IsRequired();
+
+                entity.Property(std => std.FileName)
+                    .HasMaxLength(255);
+
+                entity.Property(std => std.ContentType)
+                    .HasMaxLength(100);
+
+                entity.Property(std => std.Notes)
+                    .HasMaxLength(1000);
+
+                entity.HasIndex(std => new { std.SupplyTransferId, std.DocumentType, std.Version })
+                    .IsUnique();
+
+                entity.HasIndex(std => new { std.SupplyTransferId, std.DocumentType })
+                    .HasFilter("\"IsCurrent\" = true")
+                    .IsUnique();
             });
 
             // =========================
@@ -1695,6 +1815,9 @@ namespace ReliefManagementSystem.Infrastructure.Data
 
                 entity.Property(n => n.ReferenceType)
                     .HasMaxLength(100);
+
+                entity.Property(n => n.MetadataJson)
+                    .HasMaxLength(4000);
 
                 // Index để query nhanh: thông báo chưa đọc của một user
                 entity.HasIndex(n => new { n.RecipientId, n.IsRead });

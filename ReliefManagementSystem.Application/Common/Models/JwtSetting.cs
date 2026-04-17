@@ -15,4 +15,15 @@ namespace ReliefManagementSystem.Application.Common.Models
         public int RefreshTokenDays { get; set; }
     }
 
+    public class CentrifugoSettings
+    {
+        public string BaseUrl { get; set; } = null!;
+        public string PublicWebsocketUrl { get; set; } = null!;
+        public string HttpApiKey { get; set; } = null!;
+        public string ClientTokenSecret { get; set; } = null!;
+        public string Issuer { get; set; } = null!;
+        public string Audience { get; set; } = null!;
+        public int ConnectionTokenMinutes { get; set; } = 15;
+    }
+
 }

@@ -274,6 +274,16 @@ namespace ReliefManagementSystem.Application.Services
             var team = await _unitOfWork.Teams.GetByIdWithDetailsAsync(request.TeamId)
                 ?? throw new KeyNotFoundException($"Team '{request.TeamId}' was not found.");
 
+            if (campaign.Type == CampaignType.Rescue && team.TeamType != TeamType.Rescue)
+            {
+                throw new InvalidOperationException("Chiến dịch cứu hộ chỉ nhận team cứu hộ.");
+            }
+
+            if (campaign.Type != CampaignType.Rescue && team.TeamType != TeamType.Relief)
+            {
+                throw new InvalidOperationException("Team cứu hộ chỉ được tham gia chiến dịch cứu hộ.");
+            }
+
             var existing = await _unitOfWork.Campaigns.GetCampaignTeamAsync(campaignId, request.TeamId, cancellationToken);
             if (existing != null)
             {

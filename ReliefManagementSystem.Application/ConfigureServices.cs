@@ -39,6 +39,7 @@ namespace ReliefManagementSystem.Application
             //Resuce request service
 
             services.AddScoped<IRescueRequestService, RescueRequestService>();
+            services.AddScoped<INotificationService, NotificationService>();
             services.AddScoped<IDisasterAnalysisService, DisasterAnalysisService>();
 
 
