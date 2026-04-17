@@ -276,6 +276,26 @@ namespace ReliefManagementSystem.Application.Services
             return MapToResponse((await _unitOfWork.SupplyTransfers.GetByIdWithDetailsAsync(transferId, cancellationToken))!);
         }
 
+        public async Task<SupplyTransferResponse> ReplaceEvidenceUrlsAsync(Guid transferId, ReplaceSupplyTransferEvidenceUrlsRequest request, CancellationToken cancellationToken = default)
+        {
+            var transfer = await LoadTransferForUpdateAsync(transferId, cancellationToken);
+            transfer.EvidenceUrls = NormalizeEvidenceUrls(request.EvidenceUrls);
+            await _unitOfWork.SupplyTransfers.UpdateAsync(transfer);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return MapToResponse((await _unitOfWork.SupplyTransfers.GetByIdWithDetailsAsync(transferId, cancellationToken))!);
+        }
+
+        public async Task<SupplyTransferResponse> AppendEvidenceUrlsAsync(Guid transferId, AppendSupplyTransferEvidenceUrlsRequest request, CancellationToken cancellationToken = default)
+        {
+            var transfer = await LoadTransferForUpdateAsync(transferId, cancellationToken);
+            transfer.EvidenceUrls = MergeEvidenceUrls(transfer.EvidenceUrls, request.EvidenceUrls);
+            await _unitOfWork.SupplyTransfers.UpdateAsync(transfer);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return MapToResponse((await _unitOfWork.SupplyTransfers.GetByIdWithDetailsAsync(transferId, cancellationToken))!);
+        }
+
         private async Task<SupplyTransfer> LoadTransferForUpdateAsync(Guid transferId, CancellationToken cancellationToken)
             => await _unitOfWork.SupplyTransfers.GetByIdWithDetailsAsync(transferId, cancellationToken)
                ?? throw new KeyNotFoundException($"Supply transfer '{transferId}' was not found.");

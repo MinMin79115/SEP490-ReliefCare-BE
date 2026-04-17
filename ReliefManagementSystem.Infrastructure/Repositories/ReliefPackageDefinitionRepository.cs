@@ -11,6 +11,13 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
         {
         }
 
+        public IQueryable<ReliefPackageDefinition> GetQueryable()
+            => _context.ReliefPackageDefinitions
+                .Include(x => x.OutputSupplyItem)
+                .Include(x => x.Items)
+                    .ThenInclude(i => i.SupplyItem)
+                .AsQueryable();
+
         public async Task<List<ReliefPackageDefinition>> GetByCampaignAsync(Guid campaignId, CancellationToken cancellationToken = default)
         {
             return await _context.ReliefPackageDefinitions
