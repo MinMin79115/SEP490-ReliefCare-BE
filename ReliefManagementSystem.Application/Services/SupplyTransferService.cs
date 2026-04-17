@@ -296,6 +296,51 @@ namespace ReliefManagementSystem.Application.Services
             return MapToResponse((await _unitOfWork.SupplyTransfers.GetByIdWithDetailsAsync(transferId, cancellationToken))!);
         }
 
+        public async Task<SupplyTransferResponse> AddDocumentAsync(Guid transferId, CreateSupplyTransferDocumentRequest request, CancellationToken cancellationToken = default)
+        {
+            var currentUserId = _currentUser.UserId ?? throw new UnauthorizedAccessException("User is not authenticated.");
+            var transfer = await LoadTransferForUpdateAsync(transferId, cancellationToken);
+
+            var normalizedUrl = NormalizeRequiredUrl(request.FileUrl);
+            var fileName = NormalizeOptional(request.FileName, 255);
+            var contentType = NormalizeOptional(request.ContentType, 100);
+            var notes = NormalizeOptional(request.Notes, 1000);
+
+            var currentDocumentsOfType = transfer.Documents
+                .Where(d => d.DocumentType == request.DocumentType)
+                .ToList();
+
+            foreach (var currentDocument in currentDocumentsOfType.Where(d => d.IsCurrent))
+            {
+                currentDocument.IsCurrent = false;
+            }
+
+            var nextVersion = currentDocumentsOfType.Count == 0
+                ? 1
+                : currentDocumentsOfType.Max(d => d.Version) + 1;
+
+            transfer.Documents.Add(new SupplyTransferDocument
+            {
+                SupplyTransferDocumentId = Guid.NewGuid(),
+                SupplyTransferId = transfer.SupplyTransferId,
+                DocumentType = request.DocumentType,
+                Version = nextVersion,
+                FileUrl = normalizedUrl,
+                FileName = fileName,
+                ContentType = contentType,
+                FileSizeBytes = request.FileSizeBytes,
+                IsCurrent = true,
+                CreatedBy = currentUserId,
+                CreatedAt = DateTime.UtcNow,
+                Notes = notes
+            });
+
+            await _unitOfWork.SupplyTransfers.UpdateAsync(transfer);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return MapToResponse((await _unitOfWork.SupplyTransfers.GetByIdWithDetailsAsync(transferId, cancellationToken))!);
+        }
+
         private async Task<SupplyTransfer> LoadTransferForUpdateAsync(Guid transferId, CancellationToken cancellationToken)
             => await _unitOfWork.SupplyTransfers.GetByIdWithDetailsAsync(transferId, cancellationToken)
                ?? throw new KeyNotFoundException($"Supply transfer '{transferId}' was not found.");
@@ -324,6 +369,53 @@ namespace ReliefManagementSystem.Application.Services
         private static List<string> MergeEvidenceUrls(IEnumerable<string>? current, IEnumerable<string>? incoming)
             => NormalizeEvidenceUrls((current ?? []).Concat(incoming ?? []));
 
+        private static string NormalizeRequiredUrl(string value)
+        {
+            var normalized = value?.Trim();
+            if (string.IsNullOrWhiteSpace(normalized))
+                throw new InvalidOperationException("FileUrl is required.");
+
+            return normalized;
+        }
+
+        private static string? NormalizeOptional(string? value, int maxLength)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return null;
+
+            var normalized = value.Trim();
+            return normalized.Length <= maxLength
+                ? normalized
+                : normalized[..maxLength];
+        }
+
+        private static List<SupplyTransferDocumentResponse> MapDocuments(IEnumerable<SupplyTransferDocument>? documents)
+            => documents?
+                .OrderBy(d => d.DocumentType)
+                .ThenByDescending(d => d.Version)
+                .Select(d => new SupplyTransferDocumentResponse
+                {
+                    SupplyTransferDocumentId = d.SupplyTransferDocumentId,
+                    DocumentType = d.DocumentType,
+                    Version = d.Version,
+                    FileUrl = d.FileUrl,
+                    FileName = d.FileName,
+                    ContentType = d.ContentType,
+                    FileSizeBytes = d.FileSizeBytes,
+                    IsCurrent = d.IsCurrent,
+                    CreatedBy = d.CreatedBy,
+                    CreatedAt = d.CreatedAt,
+                    Notes = d.Notes
+                })
+                .ToList()
+               ?? [];
+
+        private static string? GetCurrentDocumentUrl(SupplyTransfer transfer, SupplyTransferDocumentType documentType)
+            => transfer.Documents
+                .Where(d => d.DocumentType == documentType && d.IsCurrent)
+                .OrderByDescending(d => d.Version)
+                .Select(d => d.FileUrl)
+                .FirstOrDefault();
+
         private static SupplyTransferResponse MapToResponse(SupplyTransfer transfer) => new()
         {
             SupplyTransferId = transfer.SupplyTransferId,
@@ -345,6 +437,9 @@ namespace ReliefManagementSystem.Application.Services
             DriverUserId = transfer.DriverUserId,
             Notes = transfer.Notes,
             EvidenceUrls = transfer.EvidenceUrls,
+            Documents = MapDocuments(transfer.Documents),
+            CurrentRequestPdfUrl = GetCurrentDocumentUrl(transfer, SupplyTransferDocumentType.RequestPdf),
+            CurrentConfirmedPdfUrl = GetCurrentDocumentUrl(transfer, SupplyTransferDocumentType.ConfirmedPdf),
             InventoryTransactionIds = transfer.InventoryTransactions.Select(t => t.TransactionId).ToList(),
             Items = transfer.Items.Select(i => new SupplyTransferItemResponse
             {
@@ -371,7 +466,9 @@ namespace ReliefManagementSystem.Application.Services
             TotalRequestedItems = transfer.Items.Count,
             TotalRequestedQuantity = transfer.Items.Sum(i => i.RequestedQuantity),
             Notes = transfer.Notes,
-            EvidenceUrls = transfer.EvidenceUrls
+            EvidenceUrls = transfer.EvidenceUrls,
+            CurrentRequestPdfUrl = GetCurrentDocumentUrl(transfer, SupplyTransferDocumentType.RequestPdf),
+            CurrentConfirmedPdfUrl = GetCurrentDocumentUrl(transfer, SupplyTransferDocumentType.ConfirmedPdf)
         };
     }
 }

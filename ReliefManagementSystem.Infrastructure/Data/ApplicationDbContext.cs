@@ -91,6 +91,7 @@ namespace ReliefManagementSystem.Infrastructure.Data
 
         // Supply Transfer (vận chuyển hàng giữa các trạm)
         public DbSet<SupplyTransfer> SupplyTransfers { get; set; }
+        public DbSet<SupplyTransferDocument> SupplyTransferDocuments { get; set; }
         public DbSet<SupplyTransferItem> SupplyTransferItems { get; set; }
 
         // Notification (thông báo real-time)
@@ -1737,6 +1738,43 @@ namespace ReliefManagementSystem.Infrastructure.Data
                     .WithMany()
                     .HasForeignKey(st => st.ApprovedBy)
                     .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasMany(st => st.Documents)
+                    .WithOne(d => d.SupplyTransfer)
+                    .HasForeignKey(d => d.SupplyTransferId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // =========================
+            // SupplyTransferDocument
+            // =========================
+            builder.Entity<SupplyTransferDocument>(entity =>
+            {
+                entity.HasKey(std => std.SupplyTransferDocumentId);
+
+                entity.Property(std => std.DocumentType)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                entity.Property(std => std.FileUrl)
+                    .HasMaxLength(2000)
+                    .IsRequired();
+
+                entity.Property(std => std.FileName)
+                    .HasMaxLength(255);
+
+                entity.Property(std => std.ContentType)
+                    .HasMaxLength(100);
+
+                entity.Property(std => std.Notes)
+                    .HasMaxLength(1000);
+
+                entity.HasIndex(std => new { std.SupplyTransferId, std.DocumentType, std.Version })
+                    .IsUnique();
+
+                entity.HasIndex(std => new { std.SupplyTransferId, std.DocumentType })
+                    .HasFilter("\"IsCurrent\" = true")
+                    .IsUnique();
             });
 
             // =========================

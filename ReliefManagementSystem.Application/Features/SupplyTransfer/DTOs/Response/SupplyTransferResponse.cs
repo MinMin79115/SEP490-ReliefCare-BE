@@ -23,8 +23,26 @@ namespace ReliefManagementSystem.Application.Features.SupplyTransfer.DTOs.Respon
         public Guid? DriverUserId { get; set; }
         public string? Notes { get; set; }
         public List<string> EvidenceUrls { get; set; } = [];
+        public List<SupplyTransferDocumentResponse> Documents { get; set; } = [];
+        public string? CurrentRequestPdfUrl { get; set; }
+        public string? CurrentConfirmedPdfUrl { get; set; }
         public List<SupplyTransferItemResponse> Items { get; set; } = [];
         public List<Guid> InventoryTransactionIds { get; set; } = [];
+    }
+
+    public class SupplyTransferDocumentResponse
+    {
+        public Guid SupplyTransferDocumentId { get; set; }
+        public SupplyTransferDocumentType DocumentType { get; set; }
+        public int Version { get; set; }
+        public string FileUrl { get; set; } = string.Empty;
+        public string? FileName { get; set; }
+        public string? ContentType { get; set; }
+        public long? FileSizeBytes { get; set; }
+        public bool IsCurrent { get; set; }
+        public Guid? CreatedBy { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public string? Notes { get; set; }
     }
 
     public class SupplyTransferItemResponse
@@ -52,5 +70,7 @@ namespace ReliefManagementSystem.Application.Features.SupplyTransfer.DTOs.Respon
         public int TotalRequestedQuantity { get; set; }
         public string? Notes { get; set; }
         public List<string> EvidenceUrls { get; set; } = [];
+        public string? CurrentRequestPdfUrl { get; set; }
+        public string? CurrentConfirmedPdfUrl { get; set; }
     }
 }
