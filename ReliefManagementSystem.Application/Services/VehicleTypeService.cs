@@ -35,6 +35,8 @@ namespace ReliefManagementSystem.Application.Services
             {
                 TypeName = request.TypeName,
                 DefaultCapacity = request.DefaultCapacity,
+                CapacityKind = request.CapacityKind,
+                CapacityUnit = NormalizeAndValidateCapacityUnit(request.CapacityKind, request.CapacityUnit),
                 Description = request.Description,
                 CreatedAt = DateTime.UtcNow
             };
@@ -63,6 +65,9 @@ namespace ReliefManagementSystem.Application.Services
                 VehicleTypeId = vehicleType.VehicleTypeId,
                 TypeName = vehicleType.TypeName,
                 DefaultCapacity = vehicleType.DefaultCapacity,
+                CapacityKind = (int)vehicleType.CapacityKind,
+                CapacityKindName = vehicleType.CapacityKind.ToString(),
+                CapacityUnit = vehicleType.CapacityUnit,
                 Description = vehicleType.Description,
                 TotalVehicles = totalVehicles,
                 FreeVehicles = freeVehicles,
@@ -113,6 +118,8 @@ namespace ReliefManagementSystem.Application.Services
 
             vehicleType.TypeName = request.TypeName;
             vehicleType.DefaultCapacity = request.DefaultCapacity;
+            vehicleType.CapacityKind = request.CapacityKind;
+            vehicleType.CapacityUnit = NormalizeAndValidateCapacityUnit(request.CapacityKind, request.CapacityUnit);
             vehicleType.Description = request.Description;
             vehicleType.UpdatedAt = DateTime.UtcNow;
 
@@ -154,10 +161,36 @@ namespace ReliefManagementSystem.Application.Services
                 VehicleTypeId = vehicleType.VehicleTypeId,
                 TypeName = vehicleType.TypeName,
                 DefaultCapacity = vehicleType.DefaultCapacity,
+                CapacityKind = (int)vehicleType.CapacityKind,
+                CapacityKindName = vehicleType.CapacityKind.ToString(),
+                CapacityUnit = vehicleType.CapacityUnit,
                 Description = vehicleType.Description,
                 CreatedAt = vehicleType.CreatedAt,
                 UpdatedAt = vehicleType.UpdatedAt
             };
+        }
+
+        private static string NormalizeAndValidateCapacityUnit(CapacityKind capacityKind, string capacityUnit)
+        {
+            if (string.IsNullOrWhiteSpace(capacityUnit))
+            {
+                throw new Exception("Capacity Unit is required");
+            }
+
+            var normalizedUnit = capacityUnit.Trim().ToLowerInvariant();
+
+            if (!Enum.IsDefined(typeof(CapacityKind), capacityKind))
+            {
+                throw new Exception("Capacity Kind is invalid");
+            }
+
+            var expectedUnit = capacityKind == CapacityKind.CargoWeight ? "kg" : "people";
+            if (!string.Equals(normalizedUnit, expectedUnit, StringComparison.OrdinalIgnoreCase))
+            {
+                throw new Exception($"Capacity Unit must be '{expectedUnit}' for CapacityKind '{capacityKind}'");
+            }
+
+            return expectedUnit;
         }
 
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using ReliefManagementSystem.Domain.Enum;
 
 namespace ReliefManagementSystem.Domain.Entities
 {
@@ -13,6 +14,10 @@ namespace ReliefManagementSystem.Domain.Entities
         public string TypeName { get; set; } = string.Empty;
 
         public int DefaultCapacity { get; set; }
+
+        public CapacityKind CapacityKind { get; set; }
+
+        public string CapacityUnit { get; set; } = string.Empty;
 
         public string? Description { get; set; }
 
