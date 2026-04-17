@@ -532,6 +532,11 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .IsRequired();
 
             builder.Entity<VehicleType>()
+                .Property(vt => vt.CapacityUnit)
+                .HasMaxLength(20)
+                .IsRequired();
+
+            builder.Entity<VehicleType>()
                 .HasIndex(vt => vt.TypeName)
                 .IsUnique();
 
