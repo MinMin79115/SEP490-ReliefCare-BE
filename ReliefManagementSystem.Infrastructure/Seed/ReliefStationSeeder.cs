@@ -193,6 +193,7 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                 ContactPhone = "0908000001",
                 CreateBy = stationCoordinatorDn.Id,
                 LeaderId = volunteers[0].Id,
+                TeamType = TeamType.Rescue,
                 Status = TeamStatus.Active,
                 CreatedAt = now
             };
@@ -205,6 +206,7 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                 ContactPhone = "0908000002",
                 CreateBy = stationCoordinatorDn.Id,
                 LeaderId = volunteers[2].Id,
+                TeamType = TeamType.Rescue,
                 Status = TeamStatus.Active,
                 CreatedAt = now
             };
@@ -217,6 +219,7 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                 ContactPhone = "0909000001",
                 CreateBy = stationCoordinatorHue.Id,
                 LeaderId = volunteers[4].Id,
+                TeamType = TeamType.Rescue,
                 Status = TeamStatus.Active,
                 CreatedAt = now
             };
@@ -229,6 +232,7 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                 ContactPhone = "0909000002",
                 CreateBy = stationCoordinatorHue.Id,
                 LeaderId = volunteers[6].Id,
+                TeamType = TeamType.Rescue,
                 Status = TeamStatus.Active,
                 CreatedAt = now
             };

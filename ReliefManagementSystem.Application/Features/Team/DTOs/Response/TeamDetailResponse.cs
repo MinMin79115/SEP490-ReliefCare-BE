@@ -17,6 +17,10 @@ namespace ReliefManagementSystem.Application.Features.Team.DTOs.Response
 
         public string? ContactPhone { get; set; }
 
+        public TeamType TeamType { get; set; }
+
+        public string TeamTypeName { get; set; } = string.Empty;
+
         public TeamStatus Status { get; set; }
 
         public Guid? ReliefStationId { get; set; }

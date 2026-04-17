@@ -91,6 +91,7 @@ namespace ReliefManagementSystem.Infrastructure.Data
 
         // Supply Transfer (vận chuyển hàng giữa các trạm)
         public DbSet<SupplyTransfer> SupplyTransfers { get; set; }
+        public DbSet<SupplyTransferDocument> SupplyTransferDocuments { get; set; }
         public DbSet<SupplyTransferItem> SupplyTransferItems { get; set; }
 
         // Notification (thông báo real-time)
@@ -534,6 +535,11 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .IsRequired();
 
             builder.Entity<VehicleType>()
+                .Property(vt => vt.CapacityUnit)
+                .HasMaxLength(20)
+                .IsRequired();
+
+            builder.Entity<VehicleType>()
                 .HasIndex(vt => vt.TypeName)
                 .IsUnique();
 
@@ -541,6 +547,12 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .HasOne(v => v.ReliefStation)
                 .WithMany(rs => rs.Vehicles)
                 .HasForeignKey(v => v.ReliefStationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<Vehicle>()
+                .HasOne(v => v.Team)
+                .WithMany()
+                .HasForeignKey(v => v.TeamId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             // Inventory Management Configurations
@@ -1731,6 +1743,43 @@ namespace ReliefManagementSystem.Infrastructure.Data
                     .WithMany()
                     .HasForeignKey(st => st.ApprovedBy)
                     .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasMany(st => st.Documents)
+                    .WithOne(d => d.SupplyTransfer)
+                    .HasForeignKey(d => d.SupplyTransferId)
+                    .OnDelete(DeleteBehavior.Cascade);
+            });
+
+            // =========================
+            // SupplyTransferDocument
+            // =========================
+            builder.Entity<SupplyTransferDocument>(entity =>
+            {
+                entity.HasKey(std => std.SupplyTransferDocumentId);
+
+                entity.Property(std => std.DocumentType)
+                    .HasConversion<string>()
+                    .IsRequired();
+
+                entity.Property(std => std.FileUrl)
+                    .HasMaxLength(2000)
+                    .IsRequired();
+
+                entity.Property(std => std.FileName)
+                    .HasMaxLength(255);
+
+                entity.Property(std => std.ContentType)
+                    .HasMaxLength(100);
+
+                entity.Property(std => std.Notes)
+                    .HasMaxLength(1000);
+
+                entity.HasIndex(std => new { std.SupplyTransferId, std.DocumentType, std.Version })
+                    .IsUnique();
+
+                entity.HasIndex(std => new { std.SupplyTransferId, std.DocumentType })
+                    .HasFilter("\"IsCurrent\" = true")
+                    .IsUnique();
             });
 
             // =========================
@@ -1771,6 +1820,9 @@ namespace ReliefManagementSystem.Infrastructure.Data
 
                 entity.Property(n => n.ReferenceType)
                     .HasMaxLength(100);
+
+                entity.Property(n => n.MetadataJson)
+                    .HasMaxLength(4000);
 
                 // Index để query nhanh: thông báo chưa đọc của một user
                 entity.HasIndex(n => new { n.RecipientId, n.IsRead });

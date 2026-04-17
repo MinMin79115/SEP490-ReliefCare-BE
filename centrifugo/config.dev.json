@@ -1,0 +1,36 @@
+{
+  "log": {
+    "level": "debug"
+  },
+
+  "client": {
+    "allowed_origins": ["*"],
+    "token": {
+      "hmac_secret_key": "ReliefCareSuperSecretRealtimeKey2026XYZ",
+      "issuer": "ReliefCare.API",
+      "audience": "ReliefCare.Realtime"
+    }
+  },
+  "http_api": {
+    "key": "reliefcare_dev_api_key",
+    "error_mode": "transport"
+  },
+
+  "health": {
+    "enabled": true
+  },
+
+  "admin": {
+    "enabled": true,
+    "password": "admin123",
+    "secret": "secret123"
+  },
+
+  "prometheus": {
+    "enabled": true
+  },
+
+  "presence": true,
+  "history_size": 100,
+  "history_ttl": "1h"
+}

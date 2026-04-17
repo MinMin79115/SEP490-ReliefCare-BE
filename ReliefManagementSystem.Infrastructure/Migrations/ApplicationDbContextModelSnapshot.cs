@@ -1545,6 +1545,10 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         .HasMaxLength(1000)
                         .HasColumnType("character varying(1000)");
 
+                    b.Property<string>("MetadataJson")
+                        .HasMaxLength(4000)
+                        .HasColumnType("character varying(4000)");
+
                     b.Property<DateTime?>("ReadAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -2712,6 +2716,63 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.ToTable("SupplyTransfers");
                 });
 
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.SupplyTransferDocument", b =>
+                {
+                    b.Property<Guid>("SupplyTransferDocumentId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("ContentType")
+                        .HasMaxLength(100)
+                        .HasColumnType("character varying(100)");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CreatedBy")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("DocumentType")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("FileName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<long?>("FileSizeBytes")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("FileUrl")
+                        .IsRequired()
+                        .HasMaxLength(2000)
+                        .HasColumnType("character varying(2000)");
+
+                    b.Property<bool>("IsCurrent")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("Notes")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<Guid>("SupplyTransferId")
+                        .HasColumnType("uuid");
+
+                    b.Property<int>("Version")
+                        .HasColumnType("integer");
+
+                    b.HasKey("SupplyTransferDocumentId");
+
+                    b.HasIndex("SupplyTransferId", "DocumentType")
+                        .IsUnique()
+                        .HasFilter("\"IsCurrent\" = true");
+
+                    b.HasIndex("SupplyTransferId", "DocumentType", "Version")
+                        .IsUnique();
+
+                    b.ToTable("SupplyTransferDocuments");
+                });
+
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.SupplyTransferItem", b =>
                 {
                     b.Property<Guid>("SupplyTransferItemId")
@@ -2769,6 +2830,9 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         .HasColumnType("text");
 
                     b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TeamType")
                         .HasColumnType("integer");
 
                     b.Property<DateTime?>("UpdatedAt")
@@ -2931,14 +2995,14 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("character varying(20)");
 
-                    b.Property<Guid>("ReliefStationId")
+                    b.Property<Guid?>("ReliefStationId")
                         .HasColumnType("uuid");
 
                     b.Property<int>("Status")
                         .HasColumnType("integer");
 
-                    b.Property<string>("TeamUsed")
-                        .HasColumnType("text");
+                    b.Property<Guid?>("TeamId")
+                        .HasColumnType("uuid");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -2955,6 +3019,8 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
                     b.HasIndex("ReliefStationId");
 
+                    b.HasIndex("TeamId");
+
                     b.HasIndex("VehicleTypeId");
 
                     b.ToTable("Vehicles");
@@ -2965,6 +3031,14 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Property<Guid>("VehicleTypeId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("uuid");
+
+                    b.Property<int>("CapacityKind")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("CapacityUnit")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -4322,6 +4396,17 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Navigation("Vehicle");
                 });
 
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.SupplyTransferDocument", b =>
+                {
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.SupplyTransfer", "SupplyTransfer")
+                        .WithMany("Documents")
+                        .HasForeignKey("SupplyTransferId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("SupplyTransfer");
+                });
+
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.SupplyTransferItem", b =>
                 {
                     b.HasOne("ReliefManagementSystem.Domain.Entities.SupplyItem", "SupplyItem")
@@ -4440,8 +4525,12 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.HasOne("ReliefManagementSystem.Domain.Entities.ReliefStation", "ReliefStation")
                         .WithMany("Vehicles")
                         .HasForeignKey("ReliefStationId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
+                        .OnDelete(DeleteBehavior.Restrict);
+
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.Team", "Team")
+                        .WithMany()
+                        .HasForeignKey("TeamId")
+                        .OnDelete(DeleteBehavior.Restrict);
 
                     b.HasOne("ReliefManagementSystem.Domain.Entities.VehicleType", "VehicleType")
                         .WithMany("Vehicles")
@@ -4452,6 +4541,8 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Navigation("Creator");
 
                     b.Navigation("ReliefStation");
+
+                    b.Navigation("Team");
 
                     b.Navigation("VehicleType");
                 });
@@ -4731,6 +4822,8 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.SupplyTransfer", b =>
                 {
+                    b.Navigation("Documents");
+
                     b.Navigation("InventoryTransactions");
 
                     b.Navigation("Items");

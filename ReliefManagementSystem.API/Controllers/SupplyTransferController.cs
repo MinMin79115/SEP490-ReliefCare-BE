@@ -61,5 +61,9 @@ namespace ReliefManagementSystem.API.Controllers
         [HttpPost("{id:guid}/evidences")]
         public async Task<IActionResult> AppendEvidenceUrls(Guid id, [FromBody] AppendSupplyTransferEvidenceUrlsRequest request, CancellationToken cancellationToken)
             => Ok(await _transferService.AppendEvidenceUrlsAsync(id, request, cancellationToken));
+
+        [HttpPost("{id:guid}/documents")]
+        public async Task<IActionResult> AddDocument(Guid id, [FromBody] CreateSupplyTransferDocumentRequest request, CancellationToken cancellationToken)
+            => Ok(await _transferService.AddDocumentAsync(id, request, cancellationToken));
     }
 }

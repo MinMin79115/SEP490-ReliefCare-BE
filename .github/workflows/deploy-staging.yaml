@@ -43,8 +43,8 @@ jobs:
           SERVICES="["
           FIRST=true
 
-          # Check reliefcare-api changes (API, Application, Domain, Infrastructure, compose files)
-          if echo "$CHANGED_FILES" | grep -E "^ReliefManagementSystem\.(API|Application|Domain|Infrastructure)/|^compose" > /dev/null; then
+          # Check reliefcare-api changes (API, Application, Domain, Infrastructure, compose files, centrifugo config)
+          if echo "$CHANGED_FILES" | grep -E "^ReliefManagementSystem\.(API|Application|Domain|Infrastructure)/|^compose|^centrifugo/" > /dev/null; then
             echo "reliefcare-api=true" >> $GITHUB_OUTPUT
             if [ "$FIRST" = true ]; then
               SERVICES="${SERVICES}\"reliefcare-api\""
@@ -132,6 +132,9 @@ jobs:
       PAYOS_API_KEY: ${{ secrets.STAGING_PAYOS_API_KEY }}
       PAYOS_CHECKSUM_KEY: ${{ secrets.STAGING_PAYOS_CHECKSUM_KEY }}
       PGADMIN_PASSWORD: ${{ secrets.STAGING_PGADMIN_PASSWORD }}
+      CENTRIFUGO_API_KEY: ${{ secrets.STAGING_CENTRIFUGO_API_KEY }}
+      CENTRIFUGO_SECRET: ${{ secrets.STAGING_CENTRIFUGO_SECRET }}
+      CENTRIFUGO_PUBLIC_WS_URL: ${{ vars.STAGING_CENTRIFUGO_PUBLIC_WS_URL }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -150,6 +153,23 @@ jobs:
           $repoLower = "${{ github.repository }}".ToLower()
           "REGISTRY=ghcr.io/$repoLower" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "IMAGE_TAG=${{ github.sha }}" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Generate Centrifugo Staging Config
+        shell: powershell
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:CENTRIFUGO_API_KEY)) {
+            throw "Missing STAGING_CENTRIFUGO_API_KEY secret"
+          }
+
+          if ([string]::IsNullOrWhiteSpace($env:CENTRIFUGO_SECRET)) {
+            throw "Missing STAGING_CENTRIFUGO_SECRET secret"
+          }
+
+          $configPath = "centrifugo/config.staging.json"
+          $content = Get-Content $configPath -Raw
+          $content = $content.Replace("__CENTRIFUGO_API_KEY__", $env:CENTRIFUGO_API_KEY)
+          $content = $content.Replace("__CENTRIFUGO_SECRET__", $env:CENTRIFUGO_SECRET)
+          Set-Content -Path $configPath -Value $content -NoNewline
 
       - name: Free Disk Space Before Deploy
         shell: powershell
@@ -184,7 +204,7 @@ jobs:
           docker compose -p reliefcare-staging -f compose.staging.yaml pull
 
           Write-Host "Deploying core services first..."
-          docker compose -p reliefcare-staging -f compose.staging.yaml up -d postgres reliefcare-api pgadmin
+          docker compose -p reliefcare-staging -f compose.staging.yaml up -d postgres centrifugo reliefcare-api pgadmin
 
           Write-Host "Running API image after deploy:"
           docker inspect reliefcare-api --format='{{.Config.Image}}'
@@ -195,6 +215,30 @@ jobs:
           Write-Host "Waiting for services to be ready..."
           Start-Sleep -Seconds 15
           docker compose -p reliefcare-staging -f compose.staging.yaml ps
+
+          $centrifugoHealthy = $false
+
+          for ($retry = 1; $retry -le 10; $retry++) {
+            try {
+              $centrifugoResponse = Invoke-WebRequest -Uri "http://127.0.0.1:8000/health" -UseBasicParsing -TimeoutSec 10
+              if ($centrifugoResponse.StatusCode -ge 200 -and $centrifugoResponse.StatusCode -lt 300) {
+                Write-Host "✅ Centrifugo is healthy!"
+                $centrifugoHealthy = $true
+                break
+              }
+            }
+            catch {
+              Write-Host "⏳ Waiting for Centrifugo... ($retry/10)"
+            }
+
+            Start-Sleep -Seconds 5
+          }
+
+          if (-not $centrifugoHealthy) {
+            Write-Host "❌ Centrifugo health check failed"
+            docker compose -p reliefcare-staging -f compose.staging.yaml logs centrifugo
+            exit 1
+          }
 
           $maxRetries = 10
           $isHealthy = $false
