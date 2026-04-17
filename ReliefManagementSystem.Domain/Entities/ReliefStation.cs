@@ -51,7 +51,8 @@ namespace ReliefManagementSystem.Domain.Entities
         public ICollection<SupplyTransfer> InboundTransfers { get; set; } = new List<SupplyTransfer>();
 
         public ICollection<InKindDonation> ReceivedInKindDonations { get; set; } = new List<InKindDonation>();
+        public ICollection<ReliefPackageAssembly> ReliefPackageAssemblies { get; set; } = new List<ReliefPackageAssembly>();
 
-        public ICollection<DistributionSession> DistributionSessions { get; set; } = new List<DistributionSession>();
+
     }
 }

@@ -5,6 +5,7 @@ using ReliefManagementSystem.Application.Common.Interface;
 using ReliefManagementSystem.Application.Features;
 using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Infrastructure.Data;
+using ReliefManagementSystem.Infrastructure.DisasterAnalysis;
 using ReliefManagementSystem.Infrastructure.Map;
 using ReliefManagementSystem.Infrastructure.Persistence;
 using ReliefManagementSystem.Infrastructure.Payments;
@@ -36,6 +37,7 @@ namespace ReliefManagementSystem.Infrastructure
             services.AddScoped<ICurrentUserService, CurrentUserService>();
             services.AddScoped<IImageService, CloudinaryImageService>();
             services.AddScoped<IEmailService, BrevoEmailService>();
+            services.AddScoped<IDisasterRiskAssessor, RuleBasedDisasterRiskAssessor>();
             services.AddScoped<INotificationRealtimePublisher, NotificationRealtimePublisher>();
             services.AddSignalR();
 
@@ -64,6 +66,8 @@ namespace ReliefManagementSystem.Infrastructure
             services.AddScoped<IReliefStationTeamRepository, ReliefStationTeamRepository>();
             // Supply Allocation repositories
             services.AddScoped<ISupplyAllocationRepository, SupplyAllocationRepository>();
+            services.AddScoped<IReliefPackageAssemblyRepository, ReliefPackageAssemblyRepository>();
+            services.AddScoped<IReliefPackageAssemblyDetailRepository, ReliefPackageAssemblyDetailRepository>();
             services.AddScoped<ICampaignRepository, CampaignRepository>();
             services.AddScoped<ICampaignVolunteerRegistrationRepository, CampaignVolunteerRegistrationRepository>();
             services.AddScoped<IDonationRepository, DonationRepository>();
@@ -77,16 +81,16 @@ namespace ReliefManagementSystem.Infrastructure
 
 
             services.AddScoped<IRescueRequestRepository, RescueRequestRepository>();
-            services.AddScoped<IReliefRequestRepository, ReliefRequestRepository>();
-            services.AddScoped<IDistributionSessionRepository, DistributionSessionRepository>();
-            services.AddScoped<IReliefFulfillmentRepository, ReliefFulfillmentRepository>();
+
             services.AddScoped<IRescueBatchRepository, RescueBatchRepository>();
             services.AddScoped<IRescueBatchItemRepository, RescueBatchItemRepository>();
             services.AddScoped<IPriorityCriteriaRepository, PriorityCriteriaRepository>();
             services.AddScoped<IRescueRequestPriorityRepository, RescueRequestPriorityRepository>();
             services.AddScoped<IRescueOperationRepository, RescueOperationRepository>();
             services.AddHttpClient<IGoongDistanceService, GoongDistanceService>();
+            services.AddHttpClient<IGoongRouteService, GoongRouteService>();
             services.AddHttpClient<IWeatherService, WeatherService>();
+            services.AddHttpClient<ILlmAnalysisService, OpenAiCompatibleLlmAnalysisService>();
             services.AddHttpClient<IPayOsGateway, PayOsGateway>();
             return services;
 

@@ -124,6 +124,55 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(result);
         }
 
+        [HttpGet("my-station")]
+        [Authorize(Roles = "Moderator")]
+        [SwaggerOperation(
+            OperationId = "GetCurrentModeratorStationRescueRequests",
+            Summary = "Lấy rescue requests của trạm moderator hiện tại",
+            Description = "Backend tự suy ra ReliefStationId từ ModeratorProfile của user đang đăng nhập, chỉ trả về các rescue request thuộc trạm đó.")]
+        [ProducesResponseType(StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        public async Task<IActionResult> GetCurrentModeratorStationRescueRequests(
+            [FromQuery] string? search,
+            [FromQuery] int? statusFilter,
+            [FromQuery] int? verificationStatus,
+            [FromQuery] int pageNumber = 1,
+            [FromQuery] int pageSize = 10,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var result = await _rescueRequestService.GetCurrentModeratorStationRequestsAsync(
+                    search,
+                    statusFilter,
+                    verificationStatus,
+                    pageNumber,
+                    pageSize,
+                    cancellationToken);
+
+                return Ok(result);
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Unauthorized(new
+                {
+                    statusCode = StatusCodes.Status401Unauthorized,
+                    message = ex.Message,
+                    traceId = HttpContext.TraceIdentifier
+                });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new
+                {
+                    statusCode = StatusCodes.Status400BadRequest,
+                    message = ex.Message,
+                    traceId = HttpContext.TraceIdentifier
+                });
+            }
+        }
+
         [HttpGet("probe-distance-matrix")]
         [AllowAnonymous]
         [SwaggerOperation(
@@ -256,6 +305,53 @@ namespace ReliefManagementSystem.API.Controllers
             CancellationToken cancellationToken = default)
         {
             var result = await _rescueRequestService.AssignTeamToMultipleRescueRequestsAsync(request, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpPost("{id}/dispatch-preview")]
+        [Authorize(Roles = "Moderator,Manager,Admin")]
+        [SwaggerOperation(
+            OperationId = "PreviewSmartAssignRescue",
+            Summary = "Xem trước phương án điều phối thông minh cho request",
+            Description = "Dựa trên active batch, vị trí tracking hiện tại của team, priority và loại request để đề xuất queue mới trước khi moderator xác nhận assign.")]
+        [ProducesResponseType(typeof(DispatchPreviewResponseDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> PreviewSmartAssign(
+            Guid id,
+            [FromBody] DispatchPreviewRequestDto request,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _rescueRequestService.PreviewSmartAssignAsync(id, request, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpPost("{id}/smart-assign")]
+        [Authorize(Roles = "Moderator,Manager,Admin")]
+        [SwaggerOperation(
+            OperationId = "SmartAssignRescue",
+            Summary = "Điều phối request vào team theo queue thông minh",
+            Description = "Assign team cho request và tự động sắp xếp lại active batch theo loại request, priority và độ gần route hiện tại. Emergency có thể chen ngang nếu đủ điều kiện.")]
+        [ProducesResponseType(typeof(RescueBatchQueueResponseDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> SmartAssignRescue(
+            Guid id,
+            [FromBody] SmartAssignRescueTeamRequestDto request,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _rescueRequestService.SmartAssignTeamToRescueAsync(id, request, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpGet("dispatch-candidates")]
+        [Authorize(Roles = "Moderator,Manager,Admin")]
+        [SwaggerOperation(
+            OperationId = "GetDispatchCandidates",
+            Summary = "Lấy danh sách request có thể điều phối",
+            Description = "Trả danh sách request còn dispatch được theo team. Kèm cờ canDispatch, isInOtherActiveBatch, alreadyAssignedTeamId và lý do block để FE hiển thị đúng UX.")]
+        [ProducesResponseType(typeof(PaginatedDispatchCandidatesResponseDto), StatusCodes.Status200OK)]
+        public async Task<IActionResult> GetDispatchCandidates(
+            [FromQuery] GetDispatchCandidatesRequestDto request,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _rescueRequestService.GetDispatchCandidatesAsync(request, cancellationToken);
             return Ok(result);
         }
 

@@ -20,6 +20,6 @@ namespace ReliefManagementSystem.Domain.Entities
         public SupplyItem SupplyItem { get; set; } = default!;
 
         public ICollection<CampaignTaskItem> CampaignTaskItems { get; set; } = new List<CampaignTaskItem>();
-        public ICollection<DistributionSessionItem> DistributionSessionItems { get; set; } = new List<DistributionSessionItem>();
+
     }
 }

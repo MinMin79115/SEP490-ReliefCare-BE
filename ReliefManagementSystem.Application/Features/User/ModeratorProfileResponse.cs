@@ -19,5 +19,8 @@ namespace ReliefManagementSystem.Application.Features.User
         public bool IsManagingStation { get; set; }
         public Guid? ReliefStationId { get; set; }
         public string? ReliefStationName { get; set; }
+        public DateTime AppointedAt { get; set; }
+        public string? Notes { get; set; }
+        public string? StatusReason { get; set; }
     }
 }

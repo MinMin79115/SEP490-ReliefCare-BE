@@ -8,6 +8,7 @@ namespace ReliefManagementSystem.Application.Features.SupplyTransfer.DTOs.Reques
         [Required] public Guid DestinationStationId { get; set; }
         [Required, MaxLength(1000)] public string Reason { get; set; } = string.Empty;
         [MaxLength(1000)] public string? Notes { get; set; }
+        public List<string> EvidenceUrls { get; set; } = [];
         [Required, MinLength(1)] public List<CreateSupplyTransferItemRequest> Items { get; set; } = [];
     }
 
@@ -21,6 +22,7 @@ namespace ReliefManagementSystem.Application.Features.SupplyTransfer.DTOs.Reques
     public class ApproveSupplyTransferRequest
     {
         [MaxLength(1000)] public string? Notes { get; set; }
+        public List<string> EvidenceUrls { get; set; } = [];
     }
 
     public class ShipSupplyTransferRequest
@@ -28,12 +30,14 @@ namespace ReliefManagementSystem.Application.Features.SupplyTransfer.DTOs.Reques
         public Guid? VehicleId { get; set; }
         public Guid? DriverUserId { get; set; }
         [MaxLength(1000)] public string? Notes { get; set; }
+        public List<string> EvidenceUrls { get; set; } = [];
     }
 
     public class ReceiveSupplyTransferRequest
     {
         [Required, MinLength(1)] public List<ReceiveSupplyTransferItemRequest> Items { get; set; } = [];
         [MaxLength(1000)] public string? Notes { get; set; }
+        public List<string> EvidenceUrls { get; set; } = [];
     }
 
     public class ReceiveSupplyTransferItemRequest
@@ -46,5 +50,16 @@ namespace ReliefManagementSystem.Application.Features.SupplyTransfer.DTOs.Reques
     public class CancelSupplyTransferRequest
     {
         [MaxLength(1000)] public string? Notes { get; set; }
+        public List<string> EvidenceUrls { get; set; } = [];
+    }
+
+    public class ReplaceSupplyTransferEvidenceUrlsRequest
+    {
+        public List<string> EvidenceUrls { get; set; } = [];
+    }
+
+    public class AppendSupplyTransferEvidenceUrlsRequest
+    {
+        public List<string> EvidenceUrls { get; set; } = [];
     }
 }

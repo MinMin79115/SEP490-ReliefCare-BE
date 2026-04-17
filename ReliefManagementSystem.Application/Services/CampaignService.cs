@@ -163,6 +163,7 @@ namespace ReliefManagementSystem.Application.Services
                 request.Status,
                 request.Type,
                 request.LocationId,
+                request.ForVolunteerRegistration,
                 cancellationToken);
 
             var mapped = items.Select(MapSummary).ToList();
@@ -463,6 +464,8 @@ namespace ReliefManagementSystem.Application.Services
                 throw new InvalidOperationException("Bạn đã đăng ký volunteer cho campaign này rồi.");
             }
 
+            await EnsureVolunteerRegistrationCapacityAsync(campaignId, cancellationToken);
+
             var registration = new CampaignVolunteerRegistration
             {
                 CampaignVolunteerRegistrationId = Guid.NewGuid(),
@@ -512,6 +515,20 @@ namespace ReliefManagementSystem.Application.Services
 
             var registrations = await _unitOfWork.CampaignVolunteerRegistrations.GetByCampaignAsync(campaignId, cancellationToken);
             return registrations.Select(MapVolunteerRegistration).ToList();
+        }
+
+        public async Task EnsureVolunteerRegistrationCapacityAsync(Guid campaignId, CancellationToken cancellationToken = default)
+        {
+            var campaign = await _unitOfWork.Campaigns.GetWithGoalsAsync(campaignId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
+
+            var peopleGoal = campaign.ResourceGoals.FirstOrDefault(g => g.ResourceType == CampaignResourceType.People)
+                ?? throw new InvalidOperationException("Campaign này không có mục tiêu People để đăng ký volunteer.");
+
+            if (!campaign.AllowOverTarget && peopleGoal.TargetAmount > 0 && peopleGoal.ReceivedAmount >= peopleGoal.TargetAmount)
+            {
+                throw new InvalidOperationException("Campaign đã đủ chỉ tiêu tình nguyện viên, không cho phép đăng ký vượt chỉ tiêu.");
+            }
         }
 
         public async Task UpdateProgressAsync(Guid campaignId, CampaignResourceType resourceType, decimal amountDelta, CancellationToken cancellationToken = default)
@@ -818,18 +835,8 @@ namespace ReliefManagementSystem.Application.Services
 
             if (next == CampaignStatus.Completed)
             {
-                var sessions = await _unitOfWork.DistributionSessions.GetByCampaignAsync(campaign.CampaignId, cancellationToken);
-                if (sessions.Any(s => s.Status != DistributionSessionStatus.Completed && s.Status != DistributionSessionStatus.Cancelled))
-                {
-                    throw new InvalidOperationException("Không thể hoàn tất relief campaign khi còn distribution session chưa ở trạng thái Completed/Cancelled.");
-                }
-
-                var requests = await _unitOfWork.ReliefRequests.GetByCampaignAsync(campaign.CampaignId, cancellationToken);
-                var unresolved = requests.Where(r => r.Status != ReliefRequestStatus.Completed && r.Status != ReliefRequestStatus.Rejected).ToList();
-                if (unresolved.Any())
-                {
-                    throw new InvalidOperationException("Không thể hoàn tất relief campaign khi còn relief request chưa Completed/Rejected.");
-                }
+                // Old relief-flow checks (DistributionSessions / ReliefRequests) removed.
+                // Add new completion-readiness checks here when the replacement flow is ready.
             }
         }
 

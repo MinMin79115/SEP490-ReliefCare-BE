@@ -57,7 +57,7 @@ namespace ReliefManagementSystem.Application.Services
                 ContactPhone = normalizedPhone,
                 CreateBy = moderatorId,
                 LeaderId = null, 
-                Status = TeamStatus.Draft,
+                Status = TeamStatus.Active,
                 CreatedAt = DateTime.UtcNow
             };
 
@@ -393,8 +393,8 @@ namespace ReliefManagementSystem.Application.Services
             if (team == null)
                 throw new TeamNotFoundException();
 
-            if (team.CreateBy != moderatorId)
-                throw new UnauthorizedTeamActionException("xoá thành viên");
+            //if (team.CreateBy != moderatorId)
+            //    throw new UnauthorizedTeamActionException("xoá thành viên");
 
             if (team.LeaderId == userId)
                 throw new CannotRemoveLeaderException();

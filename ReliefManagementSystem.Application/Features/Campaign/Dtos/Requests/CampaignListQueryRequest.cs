@@ -10,5 +10,6 @@ namespace ReliefManagementSystem.Application.Features.Campaign.Dtos.Requests
         public CampaignStatus? Status { get; set; }
         public CampaignType? Type { get; set; }
         public Guid? LocationId { get; set; }
+        public bool ForVolunteerRegistration { get; set; }
     }
 }

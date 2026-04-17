@@ -45,12 +45,13 @@ namespace ReliefManagementSystem.Domain.Entities
         public ICollection<CampaignTask> CampaignTasks { get; set; } = new List<CampaignTask>();
         public ICollection<CampaignVolunteerRegistration> VolunteerRegistrations { get; set; } = new List<CampaignVolunteerRegistration>();
         public ICollection<RescueRequest> RescueRequests { get; set; } = new List<RescueRequest>();
-        public ICollection<ReliefRequest> ReliefRequests { get; set; } = new List<ReliefRequest>();
+
         public ICollection<Donation> Donations { get; set; } = new List<Donation>();
         public ICollection<InKindDonation> InKindDonations { get; set; } = new List<InKindDonation>();
         public ICollection<CampaignResourceGoal> ResourceGoals { get; set; } = new List<CampaignResourceGoal>();
+        public ICollection<ReliefPackageAssembly> ReliefPackageAssemblies { get; set; } = new List<ReliefPackageAssembly>();
         
         public ICollection<CampaignStation> CampaignStations { get; set; } = new List<CampaignStation>();
-        public ICollection<DistributionSession> DistributionSessions { get; set; } = new List<DistributionSession>();
+
     }
 }

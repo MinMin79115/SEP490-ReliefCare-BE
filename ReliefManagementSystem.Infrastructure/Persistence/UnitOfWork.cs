@@ -58,6 +58,18 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
         // Supply Allocation
         public ISupplyAllocationRepository SupplyAllocations { get; }
 
+        // Relief Distribution MVP
+        public ICampaignHouseholdRepository CampaignHouseholds { get; }
+        public IDistributionPointRepository DistributionPoints { get; }
+        public IReliefPackageDefinitionRepository ReliefPackageDefinitions { get; }
+        public IReliefPackageDefinitionItemRepository ReliefPackageDefinitionItems { get; }
+        public IReliefPackageAssemblyRepository ReliefPackageAssemblies { get; }
+        public IReliefPackageAssemblyDetailRepository ReliefPackageAssemblyDetails { get; }
+        public IHouseholdDeliveryRepository HouseholdDeliveries { get; }
+        public IHouseholdDeliveryProofRepository HouseholdDeliveryProofs { get; }
+        public ISupplyShortageRequestRepository SupplyShortageRequests { get; }
+        public ISupplyShortageRequestItemRepository SupplyShortageRequestItems { get; }
+
         // Campaign (stub for validation — full module TBD)
         public ICampaignRepository Campaigns { get; }
         public ICampaignVolunteerRegistrationRepository CampaignVolunteerRegistrations { get; }
@@ -70,11 +82,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
         public ILocationRepository Locations { get; }
 
         public IRescueRequestRepository RescueRequests { get; }
-        public IReliefRequestRepository ReliefRequests { get; }
-        public IDistributionSessionRepository DistributionSessions { get; }
-        public IGenericRepository<DistributionSessionItem> DistributionSessionItems { get; }
-        public IGenericRepository<DistributionSessionRequest> DistributionSessionRequests { get; }
-        public IReliefFulfillmentRepository ReliefFulfillments { get; }
+
         public IRescueBatchRepository RescueBatches { get; }
         public IRescueBatchItemRepository RescueBatchItems { get; }
         public IPriorityCriteriaRepository PriorityCriterias { get; }
@@ -84,6 +92,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
 
         public INotificationRepository Notifications { get; }
         public IAttachmentRepository Attachments { get; }
+        public IGenericRepository<DisasterAnalysisLog> DisasterAnalysisLogs { get; }
 
         // Constructor
         public UnitOfWork(ApplicationDbContext context)
@@ -113,6 +122,16 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             ProcurementOrders = new ProcurementOrderRepository(_context);
             ReliefStationTeams = new ReliefStationTeamRepository(_context);
             SupplyAllocations = new SupplyAllocationRepository(_context);
+            CampaignHouseholds = new CampaignHouseholdRepository(_context);
+            DistributionPoints = new DistributionPointRepository(_context);
+            ReliefPackageDefinitions = new ReliefPackageDefinitionRepository(_context);
+            ReliefPackageDefinitionItems = new ReliefPackageDefinitionItemRepository(_context);
+            ReliefPackageAssemblies = new ReliefPackageAssemblyRepository(_context);
+            ReliefPackageAssemblyDetails = new ReliefPackageAssemblyDetailRepository(_context);
+            HouseholdDeliveries = new HouseholdDeliveryRepository(_context);
+            HouseholdDeliveryProofs = new HouseholdDeliveryProofRepository(_context);
+            SupplyShortageRequests = new SupplyShortageRequestRepository(_context);
+            SupplyShortageRequestItems = new SupplyShortageRequestItemRepository(_context);
             Campaigns = new CampaignRepository(_context);
             CampaignVolunteerRegistrations = new CampaignVolunteerRegistrationRepository(_context);
             Donations = new DonationRepository(_context);
@@ -121,11 +140,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             ReliefStations = new ReliefStationRepository(_context);
             Locations = new LocationRepository(_context);
             RescueRequests = new RescueRequestRepository(_context);
-            ReliefRequests = new ReliefRequestRepository(_context);
-            DistributionSessions = new DistributionSessionRepository(_context);
-            DistributionSessionItems = new GenericRepository<DistributionSessionItem>(_context);
-            DistributionSessionRequests = new GenericRepository<DistributionSessionRequest>(_context);
-            ReliefFulfillments = new ReliefFulfillmentRepository(_context);
+
             RescueBatches = new RescueBatchRepository(_context);
             RescueBatchItems = new RescueBatchItemRepository(_context);
             PriorityCriterias = new PriorityCriteriaRepository(_context);
@@ -133,6 +148,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             RescueOperations = new RescueOperationRepository(_context);
             Notifications = new NotificationRepository(_context);
             Attachments = new AttachmentRepository(_context);
+            DisasterAnalysisLogs = new GenericRepository<DisasterAnalysisLog>(_context);
         }
 
         public async Task<int> SaveChangesAsync(

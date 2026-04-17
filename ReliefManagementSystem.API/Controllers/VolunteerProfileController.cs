@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using ReliefManagementSystem.Application.Common.Models;
@@ -66,6 +66,29 @@ namespace ReliefManagementSystem.API.Controllers
         {
             var result = await _userService
                 .GetAllVolunteerProfilesAsync(request, cancellationToken);
+
+            return Ok(result);
+        }
+
+        [HttpGet("unassigned")]
+        [SwaggerOperation(OperationId = "GetUnassignedVolunteers", Description = "Lấy danh sách volunteer chưa tham gia team nào (có phân trang)")]
+        public async Task<ActionResult<Pagination<VolunteerProfileResponse>>> GetUnassignedVolunteers(
+            [FromQuery] SearchVolunteerProfilesRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _userService
+                .GetUnassignedVolunteersAsync(request, cancellationToken);
+
+            return Ok(result);
+        }
+
+        [HttpGet("unassigned/all")]
+        [SwaggerOperation(OperationId = "GetAllUnassignedVolunteers", Description = "Lấy TẤT CẢ danh sách volunteer chưa tham gia team nào (không phân trang)")]
+        public async Task<ActionResult<List<VolunteerProfileResponse>>> GetAllUnassignedVolunteers(
+            CancellationToken cancellationToken)
+        {
+            var result = await _userService
+                .GetAllUnassignedVolunteersListAsync(cancellationToken);
 
             return Ok(result);
         }

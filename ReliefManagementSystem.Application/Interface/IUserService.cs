@@ -1,4 +1,4 @@
-﻿using ReliefManagementSystem.Application.Common.Models;
+using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Application.Features.User;
 using ReliefManagementSystem.Application.Features.VolunteerRequest.Request;
 using ReliefManagementSystem.Application.Features.VolunteerRequest.Response;
@@ -29,6 +29,46 @@ namespace ReliefManagementSystem.Application.Interface
             GetModeratorsRequest request,
             CancellationToken cancellationToken = default);
 
+        Task<ModeratorProfileResponse> CreateModeratorAsync(
+            CreateModeratorAccountRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<ModeratorProfileResponse> GetModeratorByIdAsync(
+            Guid userId,
+            CancellationToken cancellationToken = default);
+
+        Task<ModeratorProfileResponse> UpdateModeratorAsync(
+            Guid userId,
+            UpdateModeratorAccountRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<ModeratorProfileResponse> SoftDeleteModeratorAsync(
+            Guid userId,
+            SoftDeletePrivilegedAccountRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<Pagination<ManagerProfileResponse>> GetManagersAsync(
+            GetManagersRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<ManagerProfileResponse> CreateManagerAsync(
+            CreateManagerAccountRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<ManagerProfileResponse> GetManagerByIdAsync(
+            Guid userId,
+            CancellationToken cancellationToken = default);
+
+        Task<ManagerProfileResponse> UpdateManagerAsync(
+            Guid userId,
+            UpdateManagerAccountRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<ManagerProfileResponse> SoftDeleteManagerAsync(
+            Guid userId,
+            SoftDeletePrivilegedAccountRequest request,
+            CancellationToken cancellationToken = default);
+
         public Task<VolunteerProfileResponse> CreateVolunteerProfileAsync(
             CreateVolunteerRequest request,
             CancellationToken cancellationToken = default);
@@ -50,6 +90,13 @@ namespace ReliefManagementSystem.Application.Interface
 
         Task<Pagination<VolunteerProfileResponse>> GetAllVolunteerProfilesAsync(
             SearchVolunteerProfilesRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<Pagination<VolunteerProfileResponse>> GetUnassignedVolunteersAsync(
+            SearchVolunteerProfilesRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<List<VolunteerProfileResponse>> GetAllUnassignedVolunteersListAsync(
             CancellationToken cancellationToken = default);
 
         Task<Pagination<VolunteerApplicationReviewResponse>> GetPendingVolunteerApplicationsAsync(

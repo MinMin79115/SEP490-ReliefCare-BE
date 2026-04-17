@@ -86,12 +86,26 @@ jobs:
         run: |
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
           echo "REGISTRY=ghcr.io/$REPO_LOWER" >> $GITHUB_ENV
+          echo "IMAGE_TAG=${GITHUB_SHA}" >> $GITHUB_ENV
 
       - name: Build Image And Push
         run: |
           echo "Building service: ${{ matrix.service }}"
-          docker compose -f compose.staging.yaml build ${{ matrix.service }}
-          docker compose -f compose.staging.yaml push ${{ matrix.service }}
+          echo "Using image tag: ${IMAGE_TAG}"
+
+          if [ "${{ matrix.service }}" = "reliefcare-api" ]; then
+            docker build \
+              -f ReliefManagementSystem.API/Dockerfile \
+              -t ${REGISTRY}/reliefcare-api:${IMAGE_TAG} \
+              -t ${REGISTRY}/reliefcare-api:latest \
+              .
+
+            docker push ${REGISTRY}/reliefcare-api:${IMAGE_TAG}
+            docker push ${REGISTRY}/reliefcare-api:latest
+          else
+            echo "Unsupported service: ${{ matrix.service }}"
+            exit 1
+          fi
 
   api-image-deploy:
     name: Deploy / API
@@ -103,13 +117,21 @@ jobs:
       packages: write
     env:
       # Các biến môi trường lấy từ Secrets
-      POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-      JWT_KEY: ${{ secrets.JWT_KEY }}
-      CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.CLOUDFLARE_TUNNEL_TOKEN }}
-      GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-      GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-      PGADMIN_EMAIL: ${{ secrets.PGADMIN_EMAIL }}
-      PGADMIN_PASSWORD: ${{ secrets.PGADMIN_PASSWORD }}
+      POSTGRES_PASSWORD: ${{ secrets.STAGING_POSTGRES_PASSWORD }}
+      JWT_KEY: ${{ secrets.STAGING_JWT_KEY }}
+      CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.STAGING_CLOUDFLARE_TUNNEL_TOKEN }}
+      GOOGLE_CLIENT_SECRET: ${{ secrets.STAGING_GOOGLE_CLIENT_SECRET }}
+      EMAIL_USERNAME: ${{ secrets.STAGING_EMAIL_USERNAME }}
+      EMAIL_PASSWORD: ${{ secrets.STAGING_EMAIL_PASSWORD }}
+      CLOUDINARY_API_KEY: ${{ secrets.STAGING_CLOUDINARY_API_KEY }}
+      CLOUDINARY_API_SECRET: ${{ secrets.STAGING_CLOUDINARY_API_SECRET }}
+      GOONG_API_KEY: ${{ secrets.STAGING_GOONG_API_KEY }}
+      WEATHER_API_KEY: ${{ secrets.STAGING_WEATHER_API_KEY }}
+      LLM_PROVIDER_API_KEY: ${{ secrets.STAGING_LLM_PROVIDER_API_KEY }}
+      PAYOS_CLIENT_ID: ${{ secrets.STAGING_PAYOS_CLIENT_ID }}
+      PAYOS_API_KEY: ${{ secrets.STAGING_PAYOS_API_KEY }}
+      PAYOS_CHECKSUM_KEY: ${{ secrets.STAGING_PAYOS_CHECKSUM_KEY }}
+      PGADMIN_PASSWORD: ${{ secrets.STAGING_PGADMIN_PASSWORD }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -122,36 +144,103 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set Environment Variables
+        shell: powershell
         run: |
           # Chuyển tên repo về chữ thường cho đúng chuẩn Docker
-          echo "REGISTRY=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+          $repoLower = "${{ github.repository }}".ToLower()
+          "REGISTRY=ghcr.io/$repoLower" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "IMAGE_TAG=${{ github.sha }}" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Free Disk Space Before Deploy
+        shell: powershell
         run: |
-          echo "=== Disk usage before cleanup ==="
-          df -h /
-          echo "=== Cleaning up unused Docker resources ==="
+          Write-Host "=== Disk usage before cleanup ==="
+          Get-PSDrive -PSProvider FileSystem | Format-Table -AutoSize
+          Write-Host "=== Cleaning up unused Docker resources ==="
           # Xóa images không dùng, stopped containers, unused networks, build cache
           # Không dùng --volumes để bảo vệ data volumes (postgres, pgadmin)
           docker system prune -a -f
-          echo "=== Disk usage after cleanup ==="
-          df -h /
+          Write-Host "=== Disk usage after cleanup ==="
+          Get-PSDrive -PSProvider FileSystem | Format-Table -AutoSize
 
       - name: Pull and Deploy
+        shell: powershell
         run: |
-          echo "Pulling latest images..."
-          docker compose -f compose.staging.yaml pull
+          Write-Host "Deploying image tag: $env:IMAGE_TAG"
+          Write-Host "Stopping existing staging stack..."
+          docker compose -p reliefcare-staging -f compose.staging.yaml down
 
-          echo "Deploying application..."
-          docker compose -f compose.staging.yaml up -d --remove-orphans
+          Write-Host "Removing staging Postgres volume only..."
+          $volumeName = "reliefcare-staging-postgres-data"
+          $volumeExists = docker volume ls -q --filter "name=^${volumeName}$"
+          if ($volumeExists) {
+            docker volume rm $volumeName
+          }
+          else {
+            Write-Host "Volume $volumeName does not exist. Skipping removal."
+          }
+
+          Write-Host "Pulling latest images..."
+          docker compose -p reliefcare-staging -f compose.staging.yaml pull
+
+          Write-Host "Deploying core services first..."
+          docker compose -p reliefcare-staging -f compose.staging.yaml up -d postgres reliefcare-api pgadmin
+
+          Write-Host "Running API image after deploy:"
+          docker inspect reliefcare-api --format='{{.Config.Image}}'
 
       - name: Wait for Healthcheck
+        shell: powershell
         run: |
-          echo "Waiting for services to be ready..."
-          sleep 10
-          docker compose -f compose.staging.yaml ps
+          Write-Host "Waiting for services to be ready..."
+          Start-Sleep -Seconds 15
+          docker compose -p reliefcare-staging -f compose.staging.yaml ps
+
+          $maxRetries = 10
+          $isHealthy = $false
+
+          for ($retry = 1; $retry -le $maxRetries; $retry++) {
+            try {
+              $response = Invoke-WebRequest -Uri "http://localhost:8080/health" -UseBasicParsing -TimeoutSec 10
+              if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 300) {
+                Write-Host "✅ Staging API is healthy!"
+                $isHealthy = $true
+                break
+              }
+            }
+            catch {
+              Write-Host "⏳ Waiting for staging API... ($retry/$maxRetries)"
+            }
+
+            Start-Sleep -Seconds 10
+          }
+
+          if (-not $isHealthy) {
+            Write-Host "❌ Staging API health check failed after $maxRetries attempts"
+            docker compose -p reliefcare-staging -f compose.staging.yaml logs reliefcare-api
+            exit 1
+          }
+
+      - name: Start Cloudflared
+        shell: powershell
+        run: |
+          Write-Host "Starting cloudflared after API is healthy..."
+          docker compose -p reliefcare-staging -f compose.staging.yaml up -d cloudflared
+
+          Start-Sleep -Seconds 8
+          $cloudflaredStatus = docker inspect -f "{{.State.Status}}" reliefcare-cloudflared 2>$null
+
+          if ($cloudflaredStatus -ne "running") {
+            Write-Host "❌ cloudflared is not running"
+            docker compose -p reliefcare-staging -f compose.staging.yaml logs cloudflared
+            exit 1
+          }
+
+          Write-Host "✅ cloudflared is running"
+          docker compose -p reliefcare-staging -f compose.staging.yaml ps
 
       - name: Cleanup Dangling Images After Deploy
+        shell: powershell
         run: |
           # Chỉ xóa dangling images (không tag) sau deploy, giữ lại images đang dùng
           docker image prune -f

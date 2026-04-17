@@ -14,5 +14,18 @@
     "Audience": "ReliefClient",
     "AccessTokenMinutes": 15,
     "RefreshTokenDays": 7
+  },
+  "LlmProvider": {
+    "BaseUrl": "https://your-openai-compatible-provider.example/v1",
+    "ApiKey": "YOUR_LLM_API_KEY_HERE",
+    "ProviderName": "OpenAI-Compatible",
+    "DefaultModel": "gpt-4o-mini",
+    "ChatCompletionsPath": "/chat/completions",
+    "Temperature": 0.2,
+    "MaxTokens": 600
+  },
+  "DisasterAnalysis": {
+    "TopRiskCount": 3,
+    "IncludeEarthquakeInAutoDetect": false
   }
 }
