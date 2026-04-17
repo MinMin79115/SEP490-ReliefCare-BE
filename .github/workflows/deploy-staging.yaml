@@ -175,7 +175,7 @@ jobs:
         run: |
           $composeText = Get-Content "compose.staging.yaml" -Raw
 
-          if ($composeText -notmatch 'Centrifugo__PublicWebsocketUrl:\s+"https://staging\.reliefhub\.info\.vn"') {
+          if ($composeText -notmatch 'Centrifugo__PublicWebsocketUrl:\s+"wss://staging\.reliefhub\.info\.vn"') {
             throw "compose.staging.yaml is missing the expected hard-coded Centrifugo__PublicWebsocketUrl"
           }
 

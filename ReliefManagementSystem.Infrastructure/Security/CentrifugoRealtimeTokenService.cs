@@ -4,6 +4,7 @@ using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Application.Interface;
 using System.IdentityModel.Tokens.Jwt;
 using System.Text;
+using System;
 
 namespace ReliefManagementSystem.Infrastructure.Security
 {
@@ -63,7 +64,7 @@ namespace ReliefManagementSystem.Infrastructure.Security
             return Task.FromResult(new RealtimeTokenResponse
             {
                 Token = tokenString,
-                Endpoint = $"{_centrifugoSettings.PublicWebsocketUrl.TrimEnd('/')}/connection/websocket",
+                Endpoint = BuildWebsocketEndpoint(_centrifugoSettings.PublicWebsocketUrl),
                 Channel = channel,
                 ExpiresAt = expiresAt
             });
@@ -71,5 +72,48 @@ namespace ReliefManagementSystem.Infrastructure.Security
 
         private static string GetNotificationChannel(Guid userId)
             => $"notifications_user_{userId}";
+
+        private static string BuildWebsocketEndpoint(string configuredUrl)
+        {
+            if (string.IsNullOrWhiteSpace(configuredUrl))
+            {
+                throw new InvalidOperationException("Centrifugo PublicWebsocketUrl is not configured.");
+            }
+
+            var trimmed = configuredUrl.Trim();
+
+            if (!Uri.TryCreate(trimmed, UriKind.Absolute, out var uri))
+            {
+                throw new InvalidOperationException("Centrifugo PublicWebsocketUrl must be an absolute URL.");
+            }
+
+            var scheme = uri.Scheme switch
+            {
+                "http" => "ws",
+                "https" => "wss",
+                "ws" => "ws",
+                "wss" => "wss",
+                _ => throw new InvalidOperationException("Centrifugo PublicWebsocketUrl must use http, https, ws, or wss scheme.")
+            };
+
+            var path = uri.AbsolutePath.TrimEnd('/');
+            if (string.IsNullOrEmpty(path) || path == "/")
+            {
+                path = "/connection/websocket";
+            }
+            else if (!path.EndsWith("/connection/websocket", StringComparison.OrdinalIgnoreCase))
+            {
+                path += "/connection/websocket";
+            }
+
+            var builder = new UriBuilder(uri)
+            {
+                Scheme = scheme,
+                Path = path,
+                Query = string.Empty
+            };
+
+            return builder.Uri.AbsoluteUri;
+        }
     }
 }
