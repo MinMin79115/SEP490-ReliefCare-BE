@@ -15,6 +15,7 @@
 # API:        http://localhost:8080
 # PostgreSQL: localhost:5432
 # pgAdmin:    http://localhost:5050  (admin@reliefcare.local / admin123)
+# Centrifugo: http://localhost:8000
 # =============================================================
 
 services:
@@ -43,6 +44,26 @@ services:
       start_period: 15s
 
   # -----------------------------------------------------------
+  # Centrifugo Realtime Server
+  # -----------------------------------------------------------
+  centrifugo:
+    image: centrifugo/centrifugo:v6
+    container_name: reliefcare-local-centrifugo
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./centrifugo/config.dev.json:/centrifugo/config.json:ro
+    command: centrifugo --config=/centrifugo/config.json
+    networks:
+      - reliefcare-local
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # -----------------------------------------------------------
   # ReliefCare API - Build từ source code local
   # -----------------------------------------------------------
   reliefcare-api:
@@ -56,6 +77,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      centrifugo:
+        condition: service_started
     env_file:
       - .env
     environment:
@@ -68,6 +91,15 @@ services:
       Jwt__Audience: ${JWT_AUDIENCE:-ReliefClient}
       Jwt__AccessTokenMinutes: ${JWT_ACCESS_TOKEN_MINUTES:-15}
       Jwt__RefreshTokenDays: ${JWT_REFRESH_TOKEN_DAYS:-7}
+
+      # Centrifugo
+      Centrifugo__BaseUrl: http://centrifugo:8000
+      Centrifugo__HttpApiKey: ${CENTRIFUGO_API_KEY}
+      Centrifugo__ClientTokenSecret: ${CENTRIFUGO_SECRET}
+      Centrifugo__PublicWebsocketUrl: ${CENTRIFUGO_PUBLIC_WS_URL}
+      Centrifugo__Issuer: ReliefCare.API
+      Centrifugo__Audience: ReliefCare.Realtime
+      Centrifugo__ConnectionTokenMinutes: 15
 
       # Google OAuth - để trống, không test Google login trên local docker
       AuthenticationGoogle__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
@@ -126,6 +158,7 @@ services:
       Logging__LogLevel__Default: "Information"
       Logging__LogLevel__Microsoft__AspNetCore: "Warning"
       Logging__LogLevel__Microsoft__EntityFrameworkCore: "Information"
+
     ports:
       - "8080:8080"
     networks:
@@ -147,13 +180,13 @@ services:
     environment:
       PGADMIN_DEFAULT_EMAIL: "admin@reliefcare.com"
       PGADMIN_DEFAULT_PASSWORD: "admin123"
-      PGADMIN_CONFIG_SERVER_MODE: "False"              # Desktop mode - không cần login lần 2
+      PGADMIN_CONFIG_SERVER_MODE: "False"
       PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
     ports:
       - "5050:80"
     volumes:
       - pgadmin_local_data:/var/lib/pgadmin
-      - ./pgadmin-servers.json:/pgadmin4/servers.json:ro  # Auto-register server
+      - ./pgadmin-servers.json:/pgadmin4/servers.json:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -166,6 +199,7 @@ services:
 volumes:
   postgres_local_data:
     name: reliefcare-local-postgres-data
+
   pgadmin_local_data:
     external: true
     name: reliefcare-local-pgadmin-data
@@ -177,5 +211,3 @@ networks:
   reliefcare-local:
     name: reliefcare-local-network
     driver: bridge
-
-#test

@@ -22,6 +22,8 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             return _dbSet
                 .Include(v => v.VehicleType)
                 .Include(v => v.Creator)
+                .Include(v => v.ReliefStation)
+                .Include(v => v.Team)
                 .Where(v => !v.IsDeleted)
                 .AsQueryable();
         }
@@ -31,6 +33,8 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             return await _dbSet
                 .Include(v => v.VehicleType)
                 .Include(v => v.Creator)
+                .Include(v => v.ReliefStation)
+                .Include(v => v.Team)
                 .Where(v => !v.IsDeleted)
                 .AsNoTracking()
                 .ToListAsync();
@@ -41,6 +45,8 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             return await _dbSet
                 .Include(v => v.VehicleType)
                 .Include(v => v.Creator)
+                .Include(v => v.ReliefStation)
+                .Include(v => v.Team)
                 .FirstOrDefaultAsync(v => v.VehicleId == id && !v.IsDeleted);
         }
 
@@ -49,6 +55,8 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             return await _dbSet
                 .Include(v => v.VehicleType)
                 .Include(v => v.Creator)
+                .Include(v => v.ReliefStation)
+                .Include(v => v.Team)
                 .Where(v => v.Status == status && !v.IsDeleted)
                 .AsNoTracking()
                 .ToListAsync();
@@ -59,6 +67,8 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             return await _dbSet
                 .Include(v => v.VehicleType)
                 .Include(v => v.Creator)
+                .Include(v => v.ReliefStation)
+                .Include(v => v.Team)
                 .FirstOrDefaultAsync(v => v.LicensePlate == licensePlate && !v.IsDeleted);
         }
 
@@ -66,6 +76,8 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
         {
             return await _dbSet
                 .Include(v => v.VehicleType)
+                .Include(v => v.ReliefStation)
+                .Include(v => v.Team)
                 .Where(v => v.CreatedBy == creatorId && !v.IsDeleted)
                 .AsNoTracking()
                 .ToListAsync();
@@ -81,6 +93,23 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             }
 
             return await query.AnyAsync();
+        }
+
+        public async Task<int> GetCountAsync(Guid? reliefStationId = null, VehicleStatus? status = null)
+        {
+            var query = _dbSet.Where(v => !v.IsDeleted);
+
+            if (reliefStationId.HasValue)
+            {
+                query = query.Where(v => v.ReliefStationId == reliefStationId.Value);
+            }
+
+            if (status.HasValue)
+            {
+                query = query.Where(v => v.Status == status.Value);
+            }
+
+            return await query.CountAsync();
         }
     }
 }

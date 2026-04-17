@@ -8,8 +8,10 @@ using System.Text;
 using System.Threading.Tasks;
 using ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Request;
 using ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Response;
+using ReliefManagementSystem.Application.Features.Notification;
 using ReliefManagementSystem.Domain.Enum;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json;
 
 namespace ReliefManagementSystem.Application.Services
 {
@@ -20,19 +22,22 @@ namespace ReliefManagementSystem.Application.Services
         private readonly IGoongDistanceService _goongDistanceService;
         private readonly IGoongRouteService _goongRouteService;
         private readonly IWeatherService _weatherService;
+        private readonly INotificationService _notificationService;
 
         public RescueRequestService(
             IUnitOfWork unitOfWork,
             ICurrentUserService currentUserService,
             IGoongDistanceService goongDistanceService,
             IGoongRouteService goongRouteService,
-            IWeatherService weatherService)
+            IWeatherService weatherService,
+            INotificationService notificationService)
         {
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
             _goongDistanceService = goongDistanceService;
             _goongRouteService = goongRouteService;
             _weatherService = weatherService;
+            _notificationService = notificationService;
         }
 
         public async Task<DistanceMatrixProbeResponse> ProbeDistanceMatrixAsync(
@@ -299,6 +304,14 @@ namespace ReliefManagementSystem.Application.Services
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+            if (operation.ReliefStationId.HasValue)
+            {
+                await NotifyModeratorsOnRescueRequestCreatedAsync(
+                    operation.ReliefStationId.Value,
+                    rescueRequest,
+                    cancellationToken);
+            }
+
             // 8. Trả về response
             return await GetRescueRequestByIdAsync(rescueRequest.RequestId, cancellationToken);
         }
@@ -339,6 +352,9 @@ namespace ReliefManagementSystem.Application.Services
             request.UpdatedAt = DateTime.UtcNow;
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            await NotifyReporterOnRescueRequestVerifiedAsync(request, dto.Status, cancellationToken);
+
             return await GetRescueRequestByIdAsync(requestId, cancellationToken);
         }
 
@@ -347,6 +363,8 @@ namespace ReliefManagementSystem.Application.Services
             AssignRescueTeamRequestDto dto,
             CancellationToken cancellationToken = default)
         {
+            await EnsureRescueTeamTypeAsync(dto.TeamId, cancellationToken);
+
             var request = await _unitOfWork.RescueRequests.GetByIdAsync(requestId, cancellationToken);
             if (request == null)
                 throw new InvalidOperationException($"Rescue request {requestId} not found");
@@ -378,6 +396,9 @@ namespace ReliefManagementSystem.Application.Services
             await RecalculateBatchEtaFromLatestTrackingAsync(dto.TeamId, cancellationToken);
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            await NotifyOnRescueRequestAssignedAsync(request, dto.TeamId, cancellationToken);
+
             return await GetRescueRequestByIdAsync(requestId, cancellationToken);
         }
 
@@ -386,6 +407,8 @@ namespace ReliefManagementSystem.Application.Services
             DispatchPreviewRequestDto dto,
             CancellationToken cancellationToken = default)
         {
+            await EnsureRescueTeamTypeAsync(dto.TeamId, cancellationToken);
+
             return await BuildSmartAssignPreviewAsync(requestId, dto.TeamId, dto.AllowPreempt,
                 dto.NormalNearRouteThresholdKm, dto.EmergencyNearRouteThresholdKm, cancellationToken);
         }
@@ -395,6 +418,8 @@ namespace ReliefManagementSystem.Application.Services
             SmartAssignRescueTeamRequestDto dto,
             CancellationToken cancellationToken = default)
         {
+            await EnsureRescueTeamTypeAsync(dto.TeamId, cancellationToken);
+
             var request = await _unitOfWork.RescueRequests.GetByIdAsync(requestId, cancellationToken)
                 ?? throw new InvalidOperationException($"Rescue request {requestId} not found");
             var allActiveBatches = await _unitOfWork.RescueBatches.GetAllActiveWithItemsAsync(cancellationToken);
@@ -445,6 +470,8 @@ namespace ReliefManagementSystem.Application.Services
             GetDispatchCandidatesRequestDto dto,
             CancellationToken cancellationToken = default)
         {
+            await EnsureRescueTeamTypeAsync(dto.TeamId, cancellationToken);
+
             var pageNumber = dto.PageNumber <= 0 ? 1 : dto.PageNumber;
             var pageSize = dto.PageSize <= 0 ? 20 : dto.PageSize;
 
@@ -515,6 +542,8 @@ namespace ReliefManagementSystem.Application.Services
             AssignRescueTeamBulkRequestDto dto,
             CancellationToken cancellationToken = default)
         {
+            await EnsureRescueTeamTypeAsync(dto.TeamId, cancellationToken);
+
             var requestIds = (dto.RequestIds ?? new List<Guid>())
                 .Where(id => id != Guid.Empty)
                 .Distinct()
@@ -1405,11 +1434,160 @@ namespace ReliefManagementSystem.Application.Services
             request.UpdatedAt = now;
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            if (dto.Status == RescueOperationStatus.EnRoute)
+            {
+                await NotifyReporterOnRescueTeamEnRouteAsync(request, cancellationToken);
+            }
+
             return await GetRescueRequestByIdAsync(requestId, cancellationToken);
         }
 
-       
+        private async Task NotifyModeratorsOnRescueRequestCreatedAsync(
+            Guid reliefStationId,
+            Domain.Entities.RescueRequest rescueRequest,
+            CancellationToken cancellationToken)
+        {
+            var moderators = await _unitOfWork.ModeratorProfiles.GetActiveByStationIdAsync(reliefStationId, cancellationToken);
+            var moderatorIds = moderators.Select(m => m.UserId).Distinct().ToList();
 
+            if (moderatorIds.Count == 0)
+            {
+                return;
+            }
+
+            var title = "Có yêu cầu cứu hộ mới";
+            var message = $"Rescue request mới tại trạm của bạn: {rescueRequest.Address ?? "(không có địa chỉ)"}.";
+            var metadataJson = BuildRescueRequestNotificationMetadataJson(rescueRequest);
+
+            await _notificationService.CreateManyAndPushAsync(
+                moderatorIds,
+                NotificationType.RescueRequestCreated,
+                title,
+                message,
+                rescueRequest.RequestId,
+                nameof(Domain.Entities.RescueRequest),
+                metadataJson,
+                cancellationToken);
+        }
+
+        private async Task NotifyReporterOnRescueRequestVerifiedAsync(
+            Domain.Entities.RescueRequest request,
+            RequestVerificationStatus verificationStatus,
+            CancellationToken cancellationToken)
+        {
+            if (!request.ReporterUserId.HasValue)
+            {
+                return;
+            }
+
+            var title = verificationStatus == RequestVerificationStatus.Approved
+                ? "Yêu cầu cứu hộ đã được duyệt"
+                : verificationStatus == RequestVerificationStatus.Rejected
+                    ? "Yêu cầu cứu hộ bị từ chối"
+                    : "Yêu cầu cứu hộ đã được cập nhật xác minh";
+
+            var message = verificationStatus == RequestVerificationStatus.Approved
+                ? "Yêu cầu cứu hộ của bạn đã được xác minh và đang chờ điều phối."
+                : verificationStatus == RequestVerificationStatus.Rejected
+                    ? "Yêu cầu cứu hộ của bạn đã bị từ chối. Vui lòng kiểm tra lại thông tin."
+                    : "Trạng thái xác minh yêu cầu cứu hộ của bạn đã được cập nhật.";
+
+            await _notificationService.CreateAndPushAsync(
+                request.ReporterUserId.Value,
+                NotificationType.RescueRequestVerified,
+                title,
+                message,
+                request.RequestId,
+                nameof(Domain.Entities.RescueRequest),
+                null,
+                cancellationToken);
+        }
+
+        private async Task NotifyOnRescueRequestAssignedAsync(
+            Domain.Entities.RescueRequest request,
+            Guid teamId,
+            CancellationToken cancellationToken)
+        {
+            var title = "Yêu cầu cứu hộ đã được điều phối team";
+            var message = "Đội cứu hộ đã được điều phối cho yêu cầu của bạn.";
+
+            if (request.ReporterUserId.HasValue)
+            {
+                await _notificationService.CreateAndPushAsync(
+                    request.ReporterUserId.Value,
+                    NotificationType.RescueRequestAssigned,
+                    title,
+                    message,
+                    request.RequestId,
+                    nameof(Domain.Entities.RescueRequest),
+                    null,
+                    cancellationToken);
+            }
+
+            var teamMemberUserIds = _unitOfWork.TeamMembers.GetQueryable()
+                .Where(tm => tm.TeamId == teamId)
+                .Select(tm => tm.UserId)
+                .Distinct()
+                .ToList();
+
+            if (teamMemberUserIds.Count > 0)
+            {
+                await _notificationService.CreateManyAndPushAsync(
+                    teamMemberUserIds,
+                    NotificationType.RescueRequestAssigned,
+                    "Bạn được điều phối cứu hộ",
+                    $"Team của bạn vừa được điều phối tới yêu cầu cứu hộ tại {request.Address ?? "(không có địa chỉ)"}.",
+                    request.RequestId,
+                    nameof(Domain.Entities.RescueRequest),
+                    null,
+                    cancellationToken);
+            }
+        }
+
+        private async Task NotifyReporterOnRescueTeamEnRouteAsync(
+            Domain.Entities.RescueRequest request,
+            CancellationToken cancellationToken)
+        {
+            if (!request.ReporterUserId.HasValue)
+            {
+                return;
+            }
+
+            await _notificationService.CreateAndPushAsync(
+                request.ReporterUserId.Value,
+                NotificationType.RescueRequestInProgress,
+                "Đội cứu hộ đang di chuyển",
+                "Đội cứu hộ đang trên đường đến vị trí của bạn.",
+                request.RequestId,
+                nameof(Domain.Entities.RescueRequest),
+                null,
+                cancellationToken);
+        }
+
+        private static string? BuildRescueRequestNotificationMetadataJson(Domain.Entities.RescueRequest rescueRequest)
+        {
+            var thumbnailUrls = rescueRequest.Attachments?
+                .OrderBy(a => a.UploadedAt)
+                .Select(a => a.FileUrl)
+                .Where(url => !string.IsNullOrWhiteSpace(url))
+                .Take(3)
+                .ToList() ?? new List<string>();
+
+            var attachmentCount = rescueRequest.Attachments?.Count ?? 0;
+            if (attachmentCount == 0 && thumbnailUrls.Count == 0)
+            {
+                return null;
+            }
+
+            var metadata = new NotificationMetadataDto
+            {
+                AttachmentCount = attachmentCount,
+                ThumbnailUrls = thumbnailUrls
+            };
+
+            return JsonSerializer.Serialize(metadata);
+        }
 
         private double CalculateDistance(double lat1, double lon1, double lat2, double lon2)
         {
@@ -2029,6 +2207,19 @@ namespace ReliefManagementSystem.Application.Services
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             return await GetRescueRequestByIdAsync(requestId, cancellationToken);
+        }
+
+        private async Task EnsureRescueTeamTypeAsync(Guid teamId, CancellationToken cancellationToken)
+        {
+            var team = await _unitOfWork.Teams.GetByIdAsync(teamId);
+            if (team == null)
+                throw new InvalidOperationException($"Team '{teamId}' was not found.");
+
+            if (team.Status != TeamStatus.Active)
+                throw new InvalidOperationException("Team is not active.");
+
+            if (team.TeamType != TeamType.Rescue)
+                throw new InvalidOperationException("Chỉ team cứu hộ mới được tham gia luồng cứu hộ.");
         }
 
         public async Task<TeamLocationForRequestDto?> GetTeamLocationForRequestAsync(

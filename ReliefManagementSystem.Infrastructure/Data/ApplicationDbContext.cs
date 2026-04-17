@@ -541,6 +541,12 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .HasForeignKey(v => v.ReliefStationId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            builder.Entity<Vehicle>()
+                .HasOne(v => v.Team)
+                .WithMany()
+                .HasForeignKey(v => v.TeamId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // Inventory Management Configurations
 
             // InventoryStock Configuration - Unique constraint on (InventoryId, SupplyItemId)
@@ -1695,6 +1701,9 @@ namespace ReliefManagementSystem.Infrastructure.Data
 
                 entity.Property(n => n.ReferenceType)
                     .HasMaxLength(100);
+
+                entity.Property(n => n.MetadataJson)
+                    .HasMaxLength(4000);
 
                 // Index để query nhanh: thông báo chưa đọc của một user
                 entity.HasIndex(n => new { n.RecipientId, n.IsRead });

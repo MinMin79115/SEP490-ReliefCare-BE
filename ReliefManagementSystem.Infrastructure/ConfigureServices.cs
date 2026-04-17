@@ -38,8 +38,14 @@ namespace ReliefManagementSystem.Infrastructure
             services.AddScoped<IImageService, CloudinaryImageService>();
             services.AddScoped<IEmailService, BrevoEmailService>();
             services.AddScoped<IDisasterRiskAssessor, RuleBasedDisasterRiskAssessor>();
-            services.AddScoped<INotificationRealtimePublisher, NotificationRealtimePublisher>();
-            services.AddSignalR();
+            services.AddScoped<IRealtimeTokenService, CentrifugoRealtimeTokenService>();
+            services.AddHttpClient<INotificationRealtimePublisher, NotificationRealtimePublisher>((serviceProvider, client) =>
+            {
+                var settings = configuration.GetSection("Centrifugo").Get<ReliefManagementSystem.Application.Common.Models.CentrifugoSettings>()
+                    ?? throw new InvalidOperationException("Centrifugo settings are not configured.");
+
+                client.BaseAddress = new Uri(settings.BaseUrl.TrimEnd('/') + "/");
+            });
 
             // Team repositories
             services.AddScoped<ITeamRepository, TeamRepository>();

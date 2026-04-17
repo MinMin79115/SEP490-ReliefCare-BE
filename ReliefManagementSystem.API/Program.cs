@@ -132,6 +132,9 @@ builder.Services
 builder.Services.Configure<JwtSettings>(
     builder.Configuration.GetSection("Jwt"));
 
+builder.Services.Configure<CentrifugoSettings>(
+    builder.Configuration.GetSection("Centrifugo"));
+
 builder.Services.Configure<GoogleSetting>(
     builder.Configuration.GetSection("AuthenticationGoogle"));
 
@@ -310,6 +313,5 @@ app.UseMiddleware<ExceptionMiddleware>();
 app.MapControllers();
 app.MapGet("/health", () => Results.Ok(new { status = "Healthy" })).AllowAnonymous();
 app.MapHealthChecks("/healthz");
-app.MapHub<NotificationHub>("/hubs/notifications");
 
 app.Run();

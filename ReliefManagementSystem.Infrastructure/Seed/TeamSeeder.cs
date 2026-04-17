@@ -33,6 +33,7 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                     Description = "Đội chuyên xử lý các tình huống khẩn cấp và cứu hộ",
                     CreateBy = moderator.Id,
                     LeaderId = user1?.Id, 
+                    TeamType = TeamType.Relief,
                     Status = TeamStatus.Active,
                     CreatedAt = DateTime.UtcNow
                 },
@@ -43,6 +44,7 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                     Description = "Đội hỗ trợ y tế và sơ cứu người dân vùng thiên tai",
                     CreateBy = moderator.Id,
                     LeaderId = user2?.Id,
+                    TeamType = TeamType.Relief,
                     Status = TeamStatus.Active,
                     CreatedAt = DateTime.UtcNow
                 },
@@ -53,6 +55,7 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                     Description = "Đội quản lý và phân phối vật tư cứu trợ",
                     CreateBy = moderator.Id,
                     LeaderId = null, 
+                    TeamType = TeamType.Relief,
                     Status = TeamStatus.Active,
                     CreatedAt = DateTime.UtcNow
                 }

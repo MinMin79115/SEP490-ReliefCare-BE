@@ -25,5 +25,16 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             return await _context.ModeratorProfiles
                 .FirstOrDefaultAsync(mp => mp.ReliefStationId == stationId && mp.IsStationHead, ct);
         }
+
+        /// <inheritdoc/>
+        public async Task<List<ModeratorProfile>> GetActiveByStationIdAsync(Guid stationId, CancellationToken ct = default)
+        {
+            return await _context.ModeratorProfiles
+                .Include(mp => mp.User)
+                .Where(mp =>
+                    mp.ReliefStationId == stationId &&
+                    mp.Status == Domain.Enum.ModeratorStatus.Active)
+                .ToListAsync(ct);
+        }
     }
 }

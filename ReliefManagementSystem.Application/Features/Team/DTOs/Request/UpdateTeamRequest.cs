@@ -17,6 +17,8 @@ namespace ReliefManagementSystem.Application.Features.Team.DTOs.Request
 
         public TeamStatus Status { get; set; }
 
+        public TeamType? TeamType { get; set; }
+
         // Moderator can change leader when update team
         public Guid? LeaderId { get; set; }
     }
