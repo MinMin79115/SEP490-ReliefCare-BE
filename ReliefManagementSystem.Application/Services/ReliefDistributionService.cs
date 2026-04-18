@@ -180,8 +180,7 @@ namespace ReliefManagementSystem.Application.Services
         {
             await EnsureReliefCampaignAsync(campaignId, cancellationToken);
 
-            var query = _unitOfWork.CampaignHouseholds.GetQueryable()
-                .Where(x => x.CampaignId == campaignId);
+            IEnumerable<CampaignHousehold> query = await _unitOfWork.CampaignHouseholds.GetByCampaignAsync(campaignId, cancellationToken);
 
             if (request.Status.HasValue)
                 query = query.Where(x => x.FulfillmentStatus == request.Status.Value);
@@ -208,11 +207,13 @@ namespace ReliefManagementSystem.Application.Services
                     (x.Address ?? string.Empty).Contains(keyword));
             }
 
-            query = query.OrderByDescending(x => x.CreatedAt);
+            var pageIndex = request.PageIndex <= 0 ? 1 : request.PageIndex;
+            var pageSize = request.PageSize <= 0 ? 10 : request.PageSize;
+            var ordered = query.OrderByDescending(x => x.CreatedAt).ToList();
+            var totalCount = ordered.Count;
+            var items = ordered.Skip((pageIndex - 1) * pageSize).Take(pageSize).Select(MapCampaignHousehold).ToList();
 
-            var paged = await Pagination<CampaignHousehold>.ToPagedList(query, request.PageIndex, request.PageSize);
-            var mapped = paged.Items!.Select(MapCampaignHousehold).ToList();
-            return new Pagination<CampaignHouseholdResponse>(mapped, paged.TotalCount, paged.CurrentPage, paged.PageSize);
+            return new Pagination<CampaignHouseholdResponse>(items, totalCount, pageIndex, pageSize);
         }
 
         public async Task<CampaignHouseholdResponse> UpdateCampaignHouseholdAsync(
@@ -323,32 +324,41 @@ namespace ReliefManagementSystem.Application.Services
             CancellationToken cancellationToken = default)
         {
             await EnsureReliefCampaignAsync(campaignId, cancellationToken);
-            var query = _unitOfWork.HouseholdDeliveries.GetQueryable()
-                .Where(x => x.CampaignId == campaignId);
+            IEnumerable<HouseholdDelivery> query = await _unitOfWork.HouseholdDeliveries.GetByChecklistAsync(
+                campaignId,
+                request.CampaignTeamId,
+                request.Status,
+                cancellationToken);
 
             query = ApplyDeliveryFilters(query, request);
-            query = query.OrderBy(x => x.ScheduledAt);
 
-            var paged = await Pagination<HouseholdDelivery>.ToPagedList(query, request.PageIndex, request.PageSize);
-            var items = paged.Items!.Select(x => new HouseholdChecklistItemResponse
-            {
-                HouseholdDeliveryId = x.HouseholdDeliveryId,
-                CampaignId = x.CampaignId,
-                CampaignHouseholdId = x.CampaignHouseholdId,
-                HouseholdCode = x.CampaignHousehold?.HouseholdCode ?? string.Empty,
-                HeadOfHouseholdName = x.CampaignHousehold?.HeadOfHouseholdName ?? string.Empty,
-                CampaignTeamId = x.CampaignTeamId,
-                DistributionPointId = x.DistributionPointId,
-                ReliefPackageDefinitionId = x.ReliefPackageDefinitionId,
-                DeliveryMode = x.DeliveryMode,
-                Status = x.Status,
-                ScheduledAt = x.ScheduledAt,
-                DeliveredAt = x.DeliveredAt,
-                Notes = x.Notes,
-                ProofCount = x.Proofs?.Count ?? 0
-            }).ToList();
+            var pageIndex = request.PageIndex <= 0 ? 1 : request.PageIndex;
+            var pageSize = request.PageSize <= 0 ? 10 : request.PageSize;
+            var ordered = query.OrderBy(x => x.ScheduledAt).ToList();
+            var totalCount = ordered.Count;
+            var items = ordered
+                .Skip((pageIndex - 1) * pageSize)
+                .Take(pageSize)
+                .Select(x => new HouseholdChecklistItemResponse
+                {
+                    HouseholdDeliveryId = x.HouseholdDeliveryId,
+                    CampaignId = x.CampaignId,
+                    CampaignHouseholdId = x.CampaignHouseholdId,
+                    HouseholdCode = x.CampaignHousehold?.HouseholdCode ?? string.Empty,
+                    HeadOfHouseholdName = x.CampaignHousehold?.HeadOfHouseholdName ?? string.Empty,
+                    CampaignTeamId = x.CampaignTeamId,
+                    DistributionPointId = x.DistributionPointId,
+                    ReliefPackageDefinitionId = x.ReliefPackageDefinitionId,
+                    DeliveryMode = x.DeliveryMode,
+                    Status = x.Status,
+                    ScheduledAt = x.ScheduledAt,
+                    DeliveredAt = x.DeliveredAt,
+                    Notes = x.Notes,
+                    ProofCount = x.Proofs?.Count ?? 0
+                })
+                .ToList();
 
-            return new Pagination<HouseholdChecklistItemResponse>(items, paged.TotalCount, paged.CurrentPage, paged.PageSize);
+            return new Pagination<HouseholdChecklistItemResponse>(items, totalCount, pageIndex, pageSize);
         }
 
         public async Task<DistributionPointResponse> CreateDistributionPointAsync(
@@ -956,15 +966,17 @@ namespace ReliefManagementSystem.Application.Services
         {
             await EnsureReliefCampaignAsync(campaignId, cancellationToken);
 
-            var query = _unitOfWork.HouseholdDeliveries.GetQueryable()
-                .Where(x => x.CampaignId == campaignId);
+            IEnumerable<HouseholdDelivery> query = await _unitOfWork.HouseholdDeliveries.GetByCampaignAsync(campaignId, cancellationToken);
 
             query = ApplyDeliveryFilters(query, request);
-            query = query.OrderByDescending(x => x.ScheduledAt);
 
-            var paged = await Pagination<HouseholdDelivery>.ToPagedList(query, request.PageIndex, request.PageSize);
-            var mapped = paged.Items!.Select(MapHouseholdDelivery).ToList();
-            return new Pagination<HouseholdDeliveryResponse>(mapped, paged.TotalCount, paged.CurrentPage, paged.PageSize);
+            var pageIndex = request.PageIndex <= 0 ? 1 : request.PageIndex;
+            var pageSize = request.PageSize <= 0 ? 10 : request.PageSize;
+            var ordered = query.OrderByDescending(x => x.ScheduledAt).ToList();
+            var totalCount = ordered.Count;
+            var mapped = ordered.Skip((pageIndex - 1) * pageSize).Take(pageSize).Select(MapHouseholdDelivery).ToList();
+
+            return new Pagination<HouseholdDeliveryResponse>(mapped, totalCount, pageIndex, pageSize);
         }
 
         public async Task<HouseholdDeliveryResponse> GetDeliveryByIdAsync(
@@ -1228,7 +1240,7 @@ namespace ReliefManagementSystem.Application.Services
             return campaign;
         }
 
-        private IQueryable<HouseholdDelivery> ApplyDeliveryFilters(IQueryable<HouseholdDelivery> query, DeliveryQueryRequest request)
+        private static IEnumerable<HouseholdDelivery> ApplyDeliveryFilters(IEnumerable<HouseholdDelivery> query, DeliveryQueryRequest request)
         {
             if (request.CampaignTeamId.HasValue)
                 query = query.Where(x => x.CampaignTeamId == request.CampaignTeamId.Value);
