@@ -16,5 +16,11 @@ namespace ReliefManagementSystem.Application.Features.Donation.DTOs.Request
 
         [MaxLength(1000)]
         public string? Message { get; set; }
+
+        [MaxLength(1000)]
+        public string? ReturnUrl { get; set; }
+
+        [MaxLength(1000)]
+        public string? CancelUrl { get; set; }
     }
 }

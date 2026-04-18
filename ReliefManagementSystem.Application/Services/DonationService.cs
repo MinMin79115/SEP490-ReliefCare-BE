@@ -81,6 +81,8 @@ namespace ReliefManagementSystem.Application.Services
                 request.DonorName,
                 null,
                 null,
+                request.ReturnUrl,
+                request.CancelUrl,
                 expiresAt,
                 cancellationToken);
 
