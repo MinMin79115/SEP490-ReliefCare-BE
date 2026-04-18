@@ -88,8 +88,8 @@ services:
       PayOs__ClientId: ${PAYOS_CLIENT_ID:-}
       PayOs__ApiKey: ${PAYOS_API_KEY:-}
       PayOs__ChecksumKey: ${PAYOS_CHECKSUM_KEY:-}
-      PayOs__ReturnUrl: "https://staging.reliefhub.info.vn/donation/return"
-      PayOs__CancelUrl: "https://staging.reliefhub.info.vn/donation/cancel"
+      PayOs__ReturnUrl: ${PAYOS_RETURN_URL:-}
+      PayOs__CancelUrl: ${PAYOS_CANCEL_URL:-}
       PayOs__ExpiredMinutes: "15"
       Centrifugo__BaseUrl: "http://centrifugo:8000"
       Centrifugo__HttpApiKey: ${CENTRIFUGO_API_KEY}
