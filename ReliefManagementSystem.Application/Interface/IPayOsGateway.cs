@@ -11,6 +11,8 @@ namespace ReliefManagementSystem.Application.Interface
             string buyerName,
             string? buyerEmail,
             string? buyerPhone,
+            string? returnUrl,
+            string? cancelUrl,
             DateTime expiresAtUtc,
             CancellationToken cancellationToken = default);
 
