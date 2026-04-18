@@ -90,6 +90,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
 
         public INotificationRepository Notifications { get; }
         public IAttachmentRepository Attachments { get; }
+        public IGenericRepository<RequestVerification> RequestVerifications { get; }
         public IGenericRepository<DisasterAnalysisLog> DisasterAnalysisLogs { get; }
 
         // Constructor
@@ -144,6 +145,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             RescueOperations = new RescueOperationRepository(_context);
             Notifications = new NotificationRepository(_context);
             Attachments = new AttachmentRepository(_context);
+            RequestVerifications = new GenericRepository<RequestVerification>(_context);
             DisasterAnalysisLogs = new GenericRepository<DisasterAnalysisLog>(_context);
         }
 

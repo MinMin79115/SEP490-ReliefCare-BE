@@ -83,6 +83,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
 
         INotificationRepository Notifications { get; }
         IAttachmentRepository Attachments { get; }
+        IGenericRepository<RequestVerification> RequestVerifications { get; }
         IGenericRepository<DisasterAnalysisLog> DisasterAnalysisLogs { get; }
         Task<int> SaveChangesAsync(
         CancellationToken cancellationToken = default);

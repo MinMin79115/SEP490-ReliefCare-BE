@@ -2173,7 +2173,7 @@ namespace ReliefManagementSystem.Application.Services
             CancelRescueRequestDto dto,
             CancellationToken cancellationToken = default)
         {
-            var request = await _unitOfWork.RescueRequests.GetByIdAsync(requestId, cancellationToken);
+            var request = await _unitOfWork.RescueRequests.GetByIdForCancellationUpdateAsync(requestId, cancellationToken);
             if (request == null)
                 throw new InvalidOperationException($"Rescue request {requestId} not found.");
 
@@ -2187,8 +2187,12 @@ namespace ReliefManagementSystem.Application.Services
             if (string.IsNullOrWhiteSpace(dto?.Reason))
                 throw new InvalidOperationException("Vui long cung cap ly do huy.");
 
+            await _unitOfWork.RescueRequests.DetachTrackedAttachmentsAsync(request.RequestId, cancellationToken);
+
+            var now = DateTime.UtcNow;
+
             request.RescueRequestStatus = RescueRequestStatus.Cancelled;
-            request.UpdatedAt = DateTime.UtcNow;
+            request.UpdatedAt = now;
 
             var cancelVerification = new RequestVerification
             {
@@ -2201,9 +2205,10 @@ namespace ReliefManagementSystem.Application.Services
                     ? "Người dân tự hủy yêu cầu."
                     : $"Người dân tự hủy yêu cầu. Lý do: {dto.Reason}",
                 VerifiedBy = userId,
-                VerifiedAt = DateTime.UtcNow
+                VerifiedAt = now
             };
-            request.Verifications.Add(cancelVerification);
+
+            await _unitOfWork.RequestVerifications.AddAsync(cancelVerification);
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             return await GetRescueRequestByIdAsync(requestId, cancellationToken);
