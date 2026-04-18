@@ -154,6 +154,44 @@ namespace ReliefManagementSystem.Application.Services
             return await BuildCampaignResponseAsync(campaign, cancellationToken);
         }
 
+        public async Task<CampaignInventoryBalanceResponse> GetInventoryBalanceAsync(Guid campaignId, CancellationToken cancellationToken = default)
+        {
+            var campaign = await _unitOfWork.Campaigns.GetWithStationsAsync(campaignId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
+
+            var activeStations = campaign.CampaignStations
+                .Where(cs => cs.IsActive)
+                .ToList();
+
+            var stationBalances = new List<CampaignInventoryBalanceStationResponse>();
+            foreach (var station in activeStations)
+            {
+                var inventory = await _unitOfWork.Inventories.GetActiveByReliefStationAsync(station.ReliefStationId, cancellationToken);
+                var stockItems = inventory?.InventoryItems
+                    .Where(i => i.CurrentQuantity > 0)
+                    .ToList() ?? [];
+
+                stationBalances.Add(new CampaignInventoryBalanceStationResponse
+                {
+                    ReliefStationId = station.ReliefStationId,
+                    ReliefStationName = station.ReliefStation?.Name ?? string.Empty,
+                    InventoryId = inventory?.InventoryId,
+                    HasActiveInventory = inventory is not null,
+                    DistinctSupplyItemCount = stockItems.Count,
+                    TotalQuantity = stockItems.Sum(i => i.CurrentQuantity)
+                });
+            }
+
+            return new CampaignInventoryBalanceResponse
+            {
+                CampaignId = campaign.CampaignId,
+                BudgetTotal = campaign.BudgetTotal,
+                BudgetSpent = campaign.BudgetSpent,
+                RemainingBudget = campaign.BudgetTotal - campaign.BudgetSpent,
+                Stations = stationBalances
+            };
+        }
+
         public async Task<Pagination<CampaignSummaryResponse>> GetPagedAsync(CampaignListQueryRequest request, CancellationToken cancellationToken = default)
         {
             var (items, totalCount) = await _unitOfWork.Campaigns.GetPagedAsync(

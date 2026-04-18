@@ -109,5 +109,25 @@ namespace ReliefManagementSystem.API.Controllers
                 type, inventoryId, pageIndex, pageSize, cancellationToken);
             return Ok(result);
         }
+
+        [HttpGet("by-inventory/{inventoryId:guid}/supply-item/{supplyItemId:guid}/imports")]
+        public async Task<IActionResult> GetImportHistoryBySupplyItem(
+            Guid inventoryId,
+            Guid supplyItemId,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var result = await _transactionService.GetImportHistoryBySupplyItemAsync(
+                    inventoryId,
+                    supplyItemId,
+                    cancellationToken);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+        }
     }
 }
