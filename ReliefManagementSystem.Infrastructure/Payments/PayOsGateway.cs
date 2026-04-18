@@ -40,15 +40,10 @@ namespace ReliefManagementSystem.Infrastructure.Payments
             string buyerName,
             string? buyerEmail,
             string? buyerPhone,
-            string? returnUrl,
-            string? cancelUrl,
             DateTime expiresAtUtc,
             CancellationToken cancellationToken = default)
         {
-            var effectiveReturnUrl = string.IsNullOrWhiteSpace(returnUrl) ? _settings.ReturnUrl : returnUrl;
-            var effectiveCancelUrl = string.IsNullOrWhiteSpace(cancelUrl) ? _settings.CancelUrl : cancelUrl;
-
-            var signatureData = $"amount={amount}&cancelUrl={effectiveCancelUrl}&description={description}&orderCode={orderCode}&returnUrl={effectiveReturnUrl}";
+            var signatureData = $"amount={amount}&cancelUrl={_settings.CancelUrl}&description={description}&orderCode={orderCode}&returnUrl={_settings.ReturnUrl}";
             var signature = ComputeSignature(signatureData, _settings.ChecksumKey);
 
             var payload = new
@@ -59,8 +54,8 @@ namespace ReliefManagementSystem.Infrastructure.Payments
                 buyerName,
                 buyerEmail,
                 buyerPhone,
-                cancelUrl = effectiveCancelUrl,
-                returnUrl = effectiveReturnUrl,
+                cancelUrl = _settings.CancelUrl,
+                returnUrl = _settings.ReturnUrl,
                 expiredAt = new DateTimeOffset(expiresAtUtc).ToUnixTimeSeconds(),
                 signature
             };
