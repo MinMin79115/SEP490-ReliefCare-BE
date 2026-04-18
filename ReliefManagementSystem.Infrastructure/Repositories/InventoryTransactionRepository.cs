@@ -74,6 +74,26 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             return await _dbSet
                 .CountAsync(t => t.Type == type && t.CreatedAt >= todayUtc, cancellationToken);
         }
+
+        public async Task<IReadOnlyList<InventoryTransaction>> GetImportHistoryBySupplyItemAsync(
+            Guid inventoryId,
+            Guid supplyItemId,
+            CancellationToken cancellationToken = default)
+        {
+            return await _dbSet
+                .AsNoTracking()
+                .Where(t => t.InventoryId == inventoryId
+                    && t.Type == TransactionType.Import
+                    && t.Items.Any(i => i.SupplyItemId == supplyItemId))
+                .Include(t => t.Inventory)
+                    .ThenInclude(i => i.ReliefStation)
+                .Include(t => t.CreatedByUser)
+                .Include(t => t.Items.Where(i => i.SupplyItemId == supplyItemId))
+                    .ThenInclude(i => i.SupplyItem)
+                .OrderByDescending(t => t.CreatedAt)
+                .ToListAsync(cancellationToken);
+        }
+
         /// <inheritdoc/>
         public IQueryable<InventoryTransaction> GetQueryable()
         {
