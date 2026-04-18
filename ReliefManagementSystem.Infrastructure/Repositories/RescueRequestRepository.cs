@@ -75,6 +75,21 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .FirstOrDefaultAsync(cancellationToken);
         }
 
+        public async Task<RescueRequest?> GetByIdForCancellationAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            return await _context.Set<RescueRequest>()
+                .Where(r => r.RequestId == id)
+                .Include(r => r.Verifications)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        public async Task<RescueRequest?> GetByIdForCancellationUpdateAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            return await _context.Set<RescueRequest>()
+                .Where(r => r.RequestId == id)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
         public async Task DetachTrackedAttachmentsAsync(Guid requestId, CancellationToken cancellationToken = default)
         {
             var trackedAttachmentEntries = _context.ChangeTracker.Entries<Attachment>()
