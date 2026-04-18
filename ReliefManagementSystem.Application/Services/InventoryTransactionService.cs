@@ -101,6 +101,8 @@ namespace ReliefManagementSystem.Application.Services
                 Type = request.Type,
                 Reason = request.Reason,
                 SupplyTransferId = request.SupplyTransferId,
+                ImportBatchCode = string.IsNullOrWhiteSpace(request.ImportBatchCode) ? null : request.ImportBatchCode.Trim(),
+                SourceReference = string.IsNullOrWhiteSpace(request.SourceReference) ? null : request.SourceReference.Trim(),
                 CreatedAt = DateTime.UtcNow,
                 CreatedBy = _currentUser.UserId
                     ?? throw new UnauthorizedAccessException("User is not authenticated."),
@@ -110,6 +112,8 @@ namespace ReliefManagementSystem.Application.Services
                     TransactionItemId = Guid.NewGuid(),
                     SupplyItemId = i.SupplyItemId,
                     Quantity = i.Quantity,
+                    UnitCost = i.UnitCost,
+                    ExpiryDate = i.ExpiryDate,
                     Notes = i.Notes
                 }).ToList()
             };
@@ -209,6 +213,23 @@ namespace ReliefManagementSystem.Application.Services
             return new Pagination<TransactionSummaryResponse>(items, paged.TotalCount, paged.CurrentPage, paged.PageSize);
         }
 
+        public async Task<IReadOnlyList<TransactionResponse>> GetImportHistoryBySupplyItemAsync(
+            Guid inventoryId,
+            Guid supplyItemId,
+            CancellationToken cancellationToken = default)
+        {
+            if (!await _unitOfWork.Inventories.ExistsAsync(inventoryId))
+                throw new KeyNotFoundException($"Inventory '{inventoryId}' was not found.");
+
+            if (!await _unitOfWork.SupplyItems.ExistsAsync(supplyItemId))
+                throw new KeyNotFoundException($"Supply item '{supplyItemId}' was not found.");
+
+            var transactions = await _unitOfWork.InventoryTransactions
+                .GetImportHistoryBySupplyItemAsync(inventoryId, supplyItemId, cancellationToken);
+
+            return transactions.Select(MapToResponse).ToList();
+        }
+
         // ═══════════════════════════════════════════════════════════
         //  PRIVATE HELPERS
         // ═══════════════════════════════════════════════════════════
@@ -236,6 +257,8 @@ namespace ReliefManagementSystem.Application.Services
             CreatedAt = t.CreatedAt,
             CreatedBy = t.CreatedBy,
             CreatedByName = ResolveCreatedByName(t),
+            ImportBatchCode = t.ImportBatchCode,
+            SourceReference = t.SourceReference,
             Notes = t.Notes,
             Items = t.Items.Select(i => new TransactionItemResponse
             {
@@ -244,6 +267,8 @@ namespace ReliefManagementSystem.Application.Services
                 SupplyItemName = i.SupplyItem?.Name ?? string.Empty,
                 SupplyItemUnit = i.SupplyItem?.Unit ?? string.Empty,
                 Quantity = i.Quantity,
+                UnitCost = i.UnitCost,
+                ExpiryDate = i.ExpiryDate,
                 Notes = i.Notes
             }).ToList()
         };
@@ -258,6 +283,8 @@ namespace ReliefManagementSystem.Application.Services
             TotalItems = t.Items.Count,
             CreatedAt = t.CreatedAt,
             CreatedByName = ResolveCreatedByName(t),
+            ImportBatchCode = t.ImportBatchCode,
+            SourceReference = t.SourceReference,
             Notes = t.Notes
         };
     }

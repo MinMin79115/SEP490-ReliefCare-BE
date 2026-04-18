@@ -36,5 +36,10 @@ namespace ReliefManagementSystem.Application.Interface
             int pageIndex = 1,
             int pageSize = 20,
             CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<TransactionResponse>> GetImportHistoryBySupplyItemAsync(
+            Guid inventoryId,
+            Guid supplyItemId,
+            CancellationToken cancellationToken = default);
     }
 }

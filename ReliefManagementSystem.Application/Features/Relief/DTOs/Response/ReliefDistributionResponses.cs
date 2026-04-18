@@ -88,8 +88,11 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Response
         public Guid CampaignId { get; set; }
         public Guid CampaignHouseholdId { get; set; }
         public Guid? DistributionPointId { get; set; }
+        public string? DistributionPointName { get; set; }
         public Guid? CampaignTeamId { get; set; }
+        public string? CampaignTeamName { get; set; }
         public Guid ReliefPackageDefinitionId { get; set; }
+        public string ReliefPackageDefinitionName { get; set; } = string.Empty;
         public Guid? DeliveredByUserId { get; set; }
         public DeliveryMode DeliveryMode { get; set; }
         public HouseholdFulfillmentStatus Status { get; set; }

@@ -38,6 +38,11 @@ namespace ReliefManagementSystem.Application.Common.Interface
             TransactionType type,
             CancellationToken cancellationToken = default);
 
+        Task<IReadOnlyList<InventoryTransaction>> GetImportHistoryBySupplyItemAsync(
+            Guid inventoryId,
+            Guid supplyItemId,
+            CancellationToken cancellationToken = default);
+
         /// <summary>
         /// Returns a queryable for composing server-side filter + pagination.
         /// Includes CreatedByUser, Items, and SupplyItem by default.
