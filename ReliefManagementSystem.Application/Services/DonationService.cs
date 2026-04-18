@@ -9,6 +9,7 @@ using ReliefManagementSystem.Domain.Enum;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace ReliefManagementSystem.Application.Services
 {
@@ -64,15 +65,15 @@ namespace ReliefManagementSystem.Application.Services
                 throw new DonationInvalidStateException("Campaign không có mục tiêu Money để nhận donation.");
             }
 
-            var now = DateTime.UtcNow;
-            var expiresAt = now.AddMinutes(15);
-            var orderCode = BuildOrderCode(now);
-
             var amountInt = Convert.ToInt32(Math.Round(request.Amount, MidpointRounding.AwayFromZero));
             if (amountInt <= 0)
             {
                 throw new DonationInvalidStateException("Số tiền donation không hợp lệ.");
             }
+
+            var now = DateTime.UtcNow;
+            var expiresAt = now.AddMinutes(15);
+            var orderCode = await GenerateUniqueOrderCodeAsync(cancellationToken);
 
             var createResult = await _payOsGateway.CreatePaymentLinkAsync(
                 orderCode,
@@ -105,7 +106,15 @@ namespace ReliefManagementSystem.Application.Services
             };
 
             await _unitOfWork.Donations.AddAsync(donation);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            try
+            {
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+            catch (Exception ex) when (IsPayOsOrderCodeUniqueViolation(ex))
+            {
+                throw new DonationInvalidStateException("Không thể tạo checkout donation do trùng mã giao dịch. Vui lòng thử lại.");
+            }
 
             return new CreateDonationCheckoutResponse
             {
@@ -495,11 +504,42 @@ namespace ReliefManagementSystem.Application.Services
             request.ToDate = to;
         }
 
-        private static long BuildOrderCode(DateTime nowUtc)
+        private async Task<long> GenerateUniqueOrderCodeAsync(CancellationToken cancellationToken)
         {
-            var prefix = nowUtc.ToString("yyMMddHHmm", CultureInfo.InvariantCulture);
-            var random = Random.Shared.Next(10, 99);
-            return long.Parse(prefix + random, CultureInfo.InvariantCulture);
+            const int maxGenerateAttempts = 10;
+            for (var attempt = 1; attempt <= maxGenerateAttempts; attempt++)
+            {
+                var orderCode = BuildOrderCode();
+                var existing = await _unitOfWork.Donations.GetByPayOsOrderCodeAsync(orderCode, cancellationToken);
+                if (existing is null)
+                {
+                    return orderCode;
+                }
+            }
+
+            throw new DonationInvalidStateException("Không thể tạo mã giao dịch duy nhất. Vui lòng thử lại.");
+        }
+
+        private static long BuildOrderCode()
+        {
+            // 18 digits numeric: UnixTimeMilliseconds(13) + random(5).
+            // Keeps code numeric for PayOS and dramatically lowers collision risk.
+            var milliseconds = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var random = Random.Shared.Next(0, 100000);
+            return long.Parse($"{milliseconds}{random:D5}", CultureInfo.InvariantCulture);
+        }
+
+        private static bool IsPayOsOrderCodeUniqueViolation(Exception exception)
+        {
+            var message = exception.ToString();
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                return false;
+            }
+
+            return Regex.IsMatch(message, @"IX_Donations_PayOsOrderCode", RegexOptions.IgnoreCase)
+                || Regex.IsMatch(message, @"PayOsOrderCode", RegexOptions.IgnoreCase)
+                   && Regex.IsMatch(message, @"unique|duplicate", RegexOptions.IgnoreCase);
         }
 
         private static DonationStatusResponse MapStatus(Domain.Entities.Donation donation)
