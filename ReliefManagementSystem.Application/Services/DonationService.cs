@@ -312,6 +312,17 @@ namespace ReliefManagementSystem.Application.Services
             };
         }
 
+        public async Task<DonationStatusResponse> ReconcileByOrderCodeAsync(long orderCode, CancellationToken cancellationToken = default)
+        {
+            var donation = await _unitOfWork.Donations.GetByPayOsOrderCodeAsync(orderCode, cancellationToken);
+            if (donation is null)
+            {
+                throw new InvalidOperationException($"Donation with order code {orderCode} was not found.");
+            }
+
+            return await ReconcileAsync(donation.DonationId, cancellationToken);
+        }
+
         public async Task<DonationStatusResponse> ReconcileAsync(Guid donationId, CancellationToken cancellationToken = default)
         {
             var donation = await _unitOfWork.Donations.GetByIdAsync(donationId);
