@@ -1,14 +1,14 @@
 ## 1. Campaign operational inventory foundation
 
-- [ ] 1.1 Add domain entities, repositories, and EF mappings for campaign inventory, campaign inventory stock, and campaign stock transaction history
+- [x] 1.1 Add domain entities, repositories, and EF mappings for campaign inventory, campaign inventory stock, and campaign stock transaction history
 - [ ] 1.2 Create database migrations for campaign operational inventory persistence and transaction linkage
-- [ ] 1.3 Add service-layer abstractions for creating, querying, and mutating campaign operational stock atomically
+- [x] 1.3 Add service-layer abstractions for creating, querying, and mutating campaign operational stock atomically
 
 ## 2. Supply allocation and campaign balance integration
 
-- [ ] 2.1 Update supply allocation approval to export stock from source station inventory and import the same quantities into campaign operational inventory in one transaction
+- [x] 2.1 Update supply allocation approval to export stock from source station inventory and import the same quantities into campaign operational inventory in one transaction
 - [ ] 2.2 Update supply allocation cancellation rules to reverse campaign stock only when reversal is still valid against consumed balances
-- [ ] 2.3 Update campaign inventory balance queries and DTOs to report persisted campaign-owned stock instead of station-inventory-only aggregates
+- [x] 2.3 Update campaign inventory balance queries and DTOs to report persisted campaign-owned stock instead of station-inventory-only aggregates
 
 ## 3. Campaign package consumption flows
 

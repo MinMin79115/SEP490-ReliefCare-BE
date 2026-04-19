@@ -29,7 +29,9 @@ namespace ReliefManagementSystem.Domain.Entities
         public DateTime? UpdatedAt { get; set; }
 
         public ICollection<InventoryStock> InventoryItems { get; set; } = new List<InventoryStock>();
+        public ICollection<CampaignInventoryStock> CampaignInventoryStocks { get; set; } = new List<CampaignInventoryStock>();
         public ICollection<InventoryTransactionItem> InventoryTransactionItems { get; set; } = new List<InventoryTransactionItem>();
+        public ICollection<CampaignInventoryTransactionItem> CampaignInventoryTransactionItems { get; set; } = new List<CampaignInventoryTransactionItem>();
         public ICollection<SupplyAllocationItem> SupplyAllocationItems { get; set; } = new List<SupplyAllocationItem>();
         public ICollection<ReliefPackageDefinition> OutputOfReliefPackageDefinitions { get; set; } = new List<ReliefPackageDefinition>();
         public ICollection<ReliefPackageAssembly> OutputReliefPackageAssemblies { get; set; } = new List<ReliefPackageAssembly>();

@@ -159,36 +159,28 @@ namespace ReliefManagementSystem.Application.Services
             var campaign = await _unitOfWork.Campaigns.GetWithStationsAsync(campaignId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
 
-            var activeStations = campaign.CampaignStations
-                .Where(cs => cs.IsActive)
-                .ToList();
-
-            var stationBalances = new List<CampaignInventoryBalanceStationResponse>();
-            foreach (var station in activeStations)
-            {
-                var inventory = await _unitOfWork.Inventories.GetActiveByReliefStationAsync(station.ReliefStationId, cancellationToken);
-                var stockItems = inventory?.InventoryItems
-                    .Where(i => i.CurrentQuantity > 0)
-                    .ToList() ?? [];
-
-                stationBalances.Add(new CampaignInventoryBalanceStationResponse
-                {
-                    ReliefStationId = station.ReliefStationId,
-                    ReliefStationName = station.ReliefStation?.Name ?? string.Empty,
-                    InventoryId = inventory?.InventoryId,
-                    HasActiveInventory = inventory is not null,
-                    DistinctSupplyItemCount = stockItems.Count,
-                    TotalQuantity = stockItems.Sum(i => i.CurrentQuantity)
-                });
-            }
+            var campaignInventory = await _unitOfWork.CampaignInventories.GetByCampaignIdWithDetailsAsync(campaignId, cancellationToken);
+            var stocks = campaignInventory?.Stocks
+                .Where(x => x.CurrentQuantity > 0)
+                .OrderBy(x => x.SupplyItem.Name)
+                .ToList() ?? [];
 
             return new CampaignInventoryBalanceResponse
             {
                 CampaignId = campaign.CampaignId,
+                CampaignInventoryId = campaignInventory?.CampaignInventoryId,
                 BudgetTotal = campaign.BudgetTotal,
                 BudgetSpent = campaign.BudgetSpent,
                 RemainingBudget = campaign.BudgetTotal - campaign.BudgetSpent,
-                Stations = stationBalances
+                DistinctSupplyItemCount = stocks.Count,
+                TotalQuantity = stocks.Sum(x => x.CurrentQuantity),
+                Items = stocks.Select(x => new CampaignInventoryBalanceItemResponse
+                {
+                    SupplyItemId = x.SupplyItemId,
+                    SupplyItemName = x.SupplyItem?.Name ?? string.Empty,
+                    SupplyItemUnit = x.SupplyItem?.Unit ?? string.Empty,
+                    Quantity = x.CurrentQuantity
+                }).ToList()
             };
         }
 
