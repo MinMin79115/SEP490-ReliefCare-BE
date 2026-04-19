@@ -102,7 +102,13 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Respons
 
         public Guid? TeamId { get; set; }
 
+        public Guid? VehicleId { get; set; }
+
         public string? TeamName { get; set; }
+
+        public string? VehicleName { get; set; }
+
+        public string? VehicleLicensePlate { get; set; }
 
         public string? StationName { get; set; }
 
@@ -118,6 +124,9 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Respons
         public Guid RescueOperationId { get; set; }
         public Guid TeamId { get; set; }
         public string TeamName { get; set; } = null!;
+        public Guid? VehicleId { get; set; }
+        public string? VehicleName { get; set; }
+        public string? VehicleLicensePlate { get; set; }
         public string OperationStatus { get; set; } = null!;
         public double? CurrentLatitude { get; set; }
         public double? CurrentLongitude { get; set; }
