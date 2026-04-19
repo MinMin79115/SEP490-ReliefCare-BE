@@ -208,6 +208,9 @@ namespace ReliefManagementSystem.Application.Services
             var destinationInventory = await _unitOfWork.Inventories.GetActiveByReliefStationAsync(transfer.DestinationStationId, cancellationToken)
                 ?? throw new InvalidOperationException("Trạm đích chưa có inventory active.");
 
+            if (request.Items is null || request.Items.Count == 0)
+                throw new InvalidOperationException("At least one received item is required.");
+
             var actualBySupplyId = request.Items.ToDictionary(i => i.SupplyItemId);
             foreach (var item in transfer.Items)
             {
@@ -224,6 +227,10 @@ namespace ReliefManagementSystem.Application.Services
                 {
                     await EnsureInventoryStockExistsAsync(destinationInventory.InventoryId, item.SupplyItemId, cancellationToken);
                 }
+
+                // Persist newly created destination stocks before creating import transaction,
+                // because CreateTransactionAsync reloads inventory stocks from the database.
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
 
                 var transaction = await _inventoryTransactionService.CreateTransactionAsync(new CreateTransactionRequest
                 {
