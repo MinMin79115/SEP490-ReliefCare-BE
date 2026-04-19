@@ -84,7 +84,6 @@ namespace ReliefManagementSystem.API.Controllers
             }
             catch
             {
-                // Always acknowledge webhook delivery; invalid/test payloads are ignored in service.
             }
 
             return Ok(new { message = "Webhook processed" });
