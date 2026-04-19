@@ -201,6 +201,11 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             _currentTransaction = null;
         }
 
+        public void ClearChangeTracker()
+        {
+            _context.ChangeTracker.Clear();
+        }
+
         public void Dispose()
         {
             _currentTransaction?.Dispose();
