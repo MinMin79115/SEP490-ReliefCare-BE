@@ -71,7 +71,6 @@ namespace ReliefManagementSystem.Application.Services
             var campaignInventory = await EnsureCampaignInventoryAsync(campaignId, cancellationToken);
             var stocks = await _unitOfWork.CampaignInventoryStocks.GetByCampaignInventoryIdForUpdateAsync(campaignInventory.CampaignInventoryId, cancellationToken);
             var updates = new List<(CampaignInventoryStock stock, int newQty)>();
-            var newStocks = new List<CampaignInventoryStock>();
 
             foreach (var item in items)
             {
@@ -96,19 +95,15 @@ namespace ReliefManagementSystem.Application.Services
                         CampaignInventoryStockId = Guid.NewGuid(),
                         CampaignInventoryId = campaignInventory.CampaignInventoryId,
                         SupplyItemId = item.SupplyItemId,
-                        CurrentQuantity = 0
+                        CurrentQuantity = item.Quantity
                     };
 
-                    newStocks.Add(stock);
+                    await _unitOfWork.CampaignInventoryStocks.AddAsync(stock);
                     stocks.Add(stock);
+                    continue;
                 }
 
                 updates.Add((stock, stock.CurrentQuantity + item.Quantity));
-            }
-
-            foreach (var stock in newStocks)
-            {
-                await _unitOfWork.CampaignInventoryStocks.AddAsync(stock);
             }
 
             var transaction = new CampaignInventoryTransaction
