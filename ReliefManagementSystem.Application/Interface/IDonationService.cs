@@ -9,6 +9,7 @@ namespace ReliefManagementSystem.Application.Interface
         Task<CreateDonationCheckoutResponse> CreateCheckoutAsync(CreateDonationCheckoutRequest request, CancellationToken cancellationToken = default);
         Task<DonationStatusResponse> GetStatusAsync(Guid donationId, CancellationToken cancellationToken = default);
         Task HandlePayOsWebhookAsync(PayOsWebhookRequest request, CancellationToken cancellationToken = default);
+        Task<DonationStatusResponse> ReconcileByOrderCodeAsync(long orderCode, CancellationToken cancellationToken = default);
         Task<Pagination<AdminDonationItemResponse>> GetAdminDonationsAsync(AdminDonationQueryRequest request, CancellationToken cancellationToken = default);
         Task<AdminDonationDetailResponse> GetAdminDonationDetailAsync(Guid donationId, CancellationToken cancellationToken = default);
         Task<DonationStatusResponse> ReconcileAsync(Guid donationId, CancellationToken cancellationToken = default);
