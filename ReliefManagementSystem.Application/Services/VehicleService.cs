@@ -196,6 +196,22 @@ namespace ReliefManagementSystem.Application.Services
             return vehicles.Select(MapToResponse).ToList();
         }
 
+        public async Task<IReadOnlyList<VehicleResponse>> GetAvailableVehiclesForModeratorAsync(
+            Guid userId,
+            CancellationToken cancellationToken = default)
+        {
+            var stationId = await GetModeratorStationIdAsync(userId, cancellationToken);
+
+            var vehicles = await _unitOfWork.Vehicles.GetQueryable()
+                .Where(v => v.ReliefStationId == stationId)
+                .Where(v => v.Status == VehicleStatus.Free)
+                .OrderBy(v => v.VehicleType!.TypeName)
+                .ThenBy(v => v.LicensePlate)
+                .ToListAsync(cancellationToken);
+
+            return vehicles.Select(MapToResponse).ToList();
+        }
+
         // Update Vehicle
         public async Task<VehicleResponse> UpdateVehicleAsync(
             Guid id,
@@ -422,6 +438,11 @@ namespace ReliefManagementSystem.Application.Services
 
         private VehicleResponse MapToResponse(Vehicle vehicle)
         {
+            var activeOperation = _unitOfWork.RescueOperations
+                .GetActiveByVehicleIdAsync(vehicle.VehicleId)
+                .GetAwaiter()
+                .GetResult();
+
             return new VehicleResponse
             {
                 VehicleId = vehicle.VehicleId,
@@ -434,6 +455,9 @@ namespace ReliefManagementSystem.Application.Services
                 ReliefStationName = vehicle.ReliefStation?.Name,
                 TeamId = vehicle.TeamId,
                 TeamName = vehicle.Team?.Name,
+                CurrentOperationId = activeOperation?.RescueOperationId,
+                CurrentUsingTeamId = activeOperation?.TeamId,
+                CurrentUsingTeamName = activeOperation?.Team?.Name,
                 Status = (int)vehicle.Status,
                 StatusName = vehicle.Status.ToString(),
                 CreatedAt = vehicle.CreatedAt,

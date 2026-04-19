@@ -13,5 +13,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
             CancellationToken cancellationToken = default);
 
         Task<List<RescueOperation>> GetByStationIdAsync(Guid stationId, CancellationToken cancellationToken = default);
+
+        Task<RescueOperation?> GetActiveByVehicleIdAsync(Guid vehicleId, CancellationToken cancellationToken = default);
     }
 }

@@ -18,6 +18,9 @@ namespace ReliefManagementSystem.Application.Features.Vehicle.DTOs.Response
         public string? ReliefStationName { get; set; }
         public Guid? TeamId { get; set; }
         public string? TeamName { get; set; }
+        public Guid? CurrentOperationId { get; set; }
+        public Guid? CurrentUsingTeamId { get; set; }
+        public string? CurrentUsingTeamName { get; set; }
         public int Status { get; set; }
         public string StatusName { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
