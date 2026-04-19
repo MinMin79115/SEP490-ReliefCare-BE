@@ -851,6 +851,18 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .IsRequired();
 
             builder.Entity<CampaignInventoryTransaction>()
+                .HasIndex(cit => cit.CampaignTeamId);
+
+            builder.Entity<CampaignInventoryTransaction>()
+                .HasIndex(cit => cit.DistributionPointId);
+
+            builder.Entity<CampaignInventoryTransaction>()
+                .HasIndex(cit => cit.HouseholdDeliveryId);
+
+            builder.Entity<CampaignInventoryTransaction>()
+                .HasIndex(cit => cit.ReliefPackageDefinitionId);
+
+            builder.Entity<CampaignInventoryTransaction>()
                 .HasOne(cit => cit.CampaignInventory)
                 .WithMany(ci => ci.Transactions)
                 .HasForeignKey(cit => cit.CampaignInventoryId)

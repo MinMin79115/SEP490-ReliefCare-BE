@@ -1,21 +1,21 @@
 ## 1. Campaign operational inventory foundation
 
 - [x] 1.1 Add domain entities, repositories, and EF mappings for campaign inventory, campaign inventory stock, and campaign stock transaction history
-- [ ] 1.2 Create database migrations for campaign operational inventory persistence and transaction linkage
+- [x] 1.2 Create database migrations for campaign operational inventory persistence and transaction linkage
 - [x] 1.3 Add service-layer abstractions for creating, querying, and mutating campaign operational stock atomically
 
 ## 2. Supply allocation and campaign balance integration
 
 - [x] 2.1 Update supply allocation approval to export stock from source station inventory and import the same quantities into campaign operational inventory in one transaction
-- [ ] 2.2 Update supply allocation cancellation rules to reverse campaign stock only when reversal is still valid against consumed balances
+- [x] 2.2 Update supply allocation cancellation rules to reverse campaign stock only when reversal is still valid against consumed balances
 - [x] 2.3 Update campaign inventory balance queries and DTOs to report persisted campaign-owned stock instead of station-inventory-only aggregates
 
 ## 3. Campaign package consumption flows
 
-- [ ] 3.1 Update package assembly availability calculation to use campaign operational stock as the source of consumable component inventory
-- [ ] 3.2 Update package assembly execution to consume component stock and produce package output stock in campaign inventory with audit records
-- [ ] 3.3 Update household delivery completion to consume campaign package stock before marking deliveries completed
-- [ ] 3.4 Add campaign-team and distribution-context references to campaign stock consumption records for reporting
+- [x] 3.1 Update package assembly availability calculation to use campaign operational stock as the source of consumable component inventory
+- [x] 3.2 Update package assembly execution to consume component stock and produce package output stock in campaign inventory with audit records
+- [x] 3.3 Update household delivery completion to consume campaign package stock before marking deliveries completed
+- [x] 3.4 Add campaign-team and distribution-context references to campaign stock consumption records for reporting
 
 ## 4. Lot-based station inventory tracking
 

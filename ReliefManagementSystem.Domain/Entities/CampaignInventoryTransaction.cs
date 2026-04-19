@@ -15,6 +15,10 @@ namespace ReliefManagementSystem.Domain.Entities
         public Guid CreatedBy { get; set; }
         public string? Notes { get; set; }
         public Guid? SupplyAllocationId { get; set; }
+        public Guid? CampaignTeamId { get; set; }
+        public Guid? DistributionPointId { get; set; }
+        public Guid? HouseholdDeliveryId { get; set; }
+        public Guid? ReliefPackageDefinitionId { get; set; }
 
         public CampaignInventory CampaignInventory { get; set; } = default!;
         public ApplicationUser CreatedByUser { get; set; } = null!;

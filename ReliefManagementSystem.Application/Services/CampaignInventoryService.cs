@@ -49,6 +49,10 @@ namespace ReliefManagementSystem.Application.Services
             IReadOnlyCollection<TransactionItemRequest> items,
             string? notes = null,
             Guid? supplyAllocationId = null,
+            Guid? campaignTeamId = null,
+            Guid? distributionPointId = null,
+            Guid? householdDeliveryId = null,
+            Guid? reliefPackageDefinitionId = null,
             bool autoSave = true,
             CancellationToken cancellationToken = default)
         {
@@ -118,6 +122,10 @@ namespace ReliefManagementSystem.Application.Services
                 CreatedBy = _currentUser.UserId ?? throw new UnauthorizedAccessException("User is not authenticated."),
                 Notes = notes,
                 SupplyAllocationId = supplyAllocationId,
+                CampaignTeamId = campaignTeamId,
+                DistributionPointId = distributionPointId,
+                HouseholdDeliveryId = householdDeliveryId,
+                ReliefPackageDefinitionId = reliefPackageDefinitionId,
                 Items = items.Select(i => new CampaignInventoryTransactionItem
                 {
                     CampaignInventoryTransactionItemId = Guid.NewGuid(),

@@ -15,6 +15,10 @@ namespace ReliefManagementSystem.Application.Interface
             IReadOnlyCollection<TransactionItemRequest> items,
             string? notes = null,
             Guid? supplyAllocationId = null,
+            Guid? campaignTeamId = null,
+            Guid? distributionPointId = null,
+            Guid? householdDeliveryId = null,
+            Guid? reliefPackageDefinitionId = null,
             bool autoSave = true,
             CancellationToken cancellationToken = default);
     }
