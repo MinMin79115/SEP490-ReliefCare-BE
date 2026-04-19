@@ -167,16 +167,15 @@ services:
 
 volumes:
   postgres_data:
-    external: true
     name: reliefcare-staging-postgres-data
   pgadmin_data:
-    external: true
     name: reliefcare-staging-pgadmin-data
 
 networks:
   reliefcare-staging:
     name: reliefcare-staging-network
     driver: bridge
+
 
 
 
