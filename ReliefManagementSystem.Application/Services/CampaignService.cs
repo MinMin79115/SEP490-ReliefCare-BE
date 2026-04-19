@@ -124,9 +124,9 @@ namespace ReliefManagementSystem.Application.Services
             var campaign = await _unitOfWork.Campaigns.GetWithDetailsAsync(campaignId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
 
-            if (campaign.Status is not CampaignStatus.Draft and not CampaignStatus.Active and not CampaignStatus.Suspended)
+            if (!CanEditCampaign(campaign))
             {
-                throw new InvalidOperationException("Chỉ có thể cập nhật campaign ở trạng thái Draft, Active hoặc Suspended.");
+                throw new InvalidOperationException(GetEditabilityErrorMessage(campaign));
             }
 
             campaign.Name = request.Name.Trim();
@@ -673,46 +673,7 @@ namespace ReliefManagementSystem.Application.Services
                 return;
             }
 
-            bool valid = campaign.Type switch
-            {
-                CampaignType.Fundraising => (campaign.Status, next) switch
-                {
-                    (CampaignStatus.Draft, CampaignStatus.Active) => true,
-                    (CampaignStatus.Active, CampaignStatus.Suspended) => true,
-                    (CampaignStatus.Active, CampaignStatus.GoalsMet) => true,
-                    (CampaignStatus.Active, CampaignStatus.Completed) => true,
-                    (CampaignStatus.Active, CampaignStatus.Cancelled) => true,
-                    (CampaignStatus.Suspended, CampaignStatus.Active) => true,
-                    (CampaignStatus.Suspended, CampaignStatus.Completed) => true,
-                    (CampaignStatus.Suspended, CampaignStatus.Cancelled) => true,
-                    (CampaignStatus.GoalsMet, CampaignStatus.Completed) => true,
-                    _ => false
-                },
-
-                CampaignType.Relief => (campaign.Status, next) switch
-                {
-                    (CampaignStatus.Draft, CampaignStatus.ReadyToExecute) => true,
-                    (CampaignStatus.ReadyToExecute, CampaignStatus.InProgress) => true,
-                    (CampaignStatus.InProgress, CampaignStatus.Suspended) => true,
-                    (CampaignStatus.InProgress, CampaignStatus.Completed) => true,
-                    (CampaignStatus.InProgress, CampaignStatus.Cancelled) => true,
-                    (CampaignStatus.Suspended, CampaignStatus.InProgress) => true,
-                    (CampaignStatus.Suspended, CampaignStatus.Cancelled) => true,
-                    _ => false
-                },
-
-                CampaignType.Rescue => (campaign.Status, next) switch
-                {
-                    (CampaignStatus.Draft, CampaignStatus.Active) => true,
-                    (CampaignStatus.Active, CampaignStatus.Closing) => true,
-                    (CampaignStatus.Closing, CampaignStatus.Completed) => true,
-                    (CampaignStatus.Active, CampaignStatus.Cancelled) => true,
-                    (CampaignStatus.Closing, CampaignStatus.Cancelled) => true,
-                    _ => false
-                },
-
-                _ => false
-            };
+            bool valid = GetAllowedNextStatuses(campaign).Contains(next);
 
             if (!valid)
             {
@@ -755,11 +716,69 @@ namespace ReliefManagementSystem.Application.Services
                 Type = campaign.Type,
                 CompletionRule = campaign.CompletionRule,
                 AllowOverTarget = campaign.AllowOverTarget,
+                AllowedNextStatuses = GetAllowedNextStatuses(campaign),
                 CreatedAt = campaign.CreatedAt,
                 Goals = goals.Select(MapGoal).ToList(),
                 Stations = stations
             };
         }
+
+        private static bool CanEditCampaign(Domain.Entities.Campaign campaign)
+            => GetEditableStatuses(campaign.Type).Contains(campaign.Status);
+
+        private static string GetEditabilityErrorMessage(Domain.Entities.Campaign campaign)
+            => campaign.Type switch
+            {
+                CampaignType.Relief => "Chỉ có thể cập nhật relief campaign ở trạng thái Draft, Active hoặc Suspended.",
+                CampaignType.Fundraising => "Chỉ có thể cập nhật fundraising campaign ở trạng thái Draft, Active hoặc Suspended.",
+                CampaignType.Rescue => "Chỉ có thể cập nhật rescue campaign ở trạng thái Draft hoặc Active.",
+                _ => $"Không thể cập nhật campaign loại '{campaign.Type}' ở trạng thái '{campaign.Status}'."
+            };
+
+        private static List<CampaignStatus> GetEditableStatuses(CampaignType campaignType)
+            => campaignType switch
+            {
+                CampaignType.Fundraising => [CampaignStatus.Draft, CampaignStatus.Active, CampaignStatus.Suspended],
+                CampaignType.Relief => [CampaignStatus.Draft, CampaignStatus.Active, CampaignStatus.Suspended],
+                CampaignType.Rescue => [CampaignStatus.Draft, CampaignStatus.Active],
+                _ => []
+            };
+
+        private static List<CampaignStatus> GetAllowedNextStatuses(Domain.Entities.Campaign campaign)
+            => GetAllowedNextStatuses(campaign.Type, campaign.Status, ShouldMarkGoalsMet(campaign));
+
+        private static List<CampaignStatus> GetAllowedNextStatuses(
+            CampaignType campaignType,
+            CampaignStatus current,
+            bool goalsMet)
+            => campaignType switch
+            {
+                CampaignType.Fundraising => current switch
+                {
+                    CampaignStatus.Draft => [CampaignStatus.Active],
+                    CampaignStatus.Active => goalsMet
+                        ? [CampaignStatus.Suspended, CampaignStatus.GoalsMet, CampaignStatus.Completed, CampaignStatus.Cancelled]
+                        : [CampaignStatus.Suspended, CampaignStatus.Completed, CampaignStatus.Cancelled],
+                    CampaignStatus.Suspended => [CampaignStatus.Active, CampaignStatus.Completed, CampaignStatus.Cancelled],
+                    CampaignStatus.GoalsMet => [CampaignStatus.Completed],
+                    _ => []
+                },
+                CampaignType.Relief => current switch
+                {
+                    CampaignStatus.Draft => [CampaignStatus.Active],
+                    CampaignStatus.Active => [CampaignStatus.Suspended, CampaignStatus.Completed, CampaignStatus.Cancelled],
+                    CampaignStatus.Suspended => [CampaignStatus.Active, CampaignStatus.Cancelled],
+                    _ => []
+                },
+                CampaignType.Rescue => current switch
+                {
+                    CampaignStatus.Draft => [CampaignStatus.Active],
+                    CampaignStatus.Active => [CampaignStatus.Closing, CampaignStatus.Cancelled],
+                    CampaignStatus.Closing => [CampaignStatus.Completed, CampaignStatus.Cancelled],
+                    _ => []
+                },
+                _ => []
+            };
 
         private static CampaignSummaryResponse MapSummary(Domain.Entities.Campaign campaign)
         {
@@ -834,16 +853,16 @@ namespace ReliefManagementSystem.Application.Services
             var station = campaign.CampaignStations.FirstOrDefault(s => s.IsActive);
             var activeTeams = campaign.CampaignTeams.Where(t => !t.IsDelete && (t.Status == CampaignTeamStatus.Accepted || t.Status == CampaignTeamStatus.Active)).ToList();
 
-            if (next == CampaignStatus.ReadyToExecute)
+            if (next == CampaignStatus.Active)
             {
                 if (activeTeams.Count == 0)
                 {
-                    throw new InvalidOperationException("Relief campaign cần ít nhất 1 team Accepted/Active trước khi chuyển sang ReadyToExecute.");
+                    throw new InvalidOperationException("Relief campaign cần ít nhất 1 team Accepted/Active trước khi chuyển sang Active.");
                 }
 
                 if (station is null)
                 {
-                    throw new InvalidOperationException("Relief campaign cần gắn 1 relief station active trước khi chuyển sang ReadyToExecute.");
+                    throw new InvalidOperationException("Relief campaign cần gắn 1 relief station active trước khi chuyển sang Active.");
                 }
 
                 var inventory = await _unitOfWork.Inventories.GetActiveByReliefStationAsync(station.ReliefStationId, cancellationToken);
@@ -858,26 +877,7 @@ namespace ReliefManagementSystem.Application.Services
 
                 if (!hasStock && !hasUsableAllocation && campaign.BudgetTotal <= campaign.BudgetSpent)
                 {
-                    throw new InvalidOperationException("Relief campaign cần có nguồn lực khả dụng (stock, allocation hoặc budget còn lại) trước khi sẵn sàng thực thi.");
-                }
-            }
-
-            if (next == CampaignStatus.InProgress)
-            {
-                if (activeTeams.Count == 0)
-                {
-                    throw new InvalidOperationException("Relief campaign cần ít nhất 1 team Accepted/Active trước khi bắt đầu InProgress.");
-                }
-
-                if (station is null)
-                {
-                    throw new InvalidOperationException("Relief campaign cần có relief station active trước khi bắt đầu InProgress.");
-                }
-
-                var inventory = await _unitOfWork.Inventories.GetActiveByReliefStationAsync(station.ReliefStationId, cancellationToken);
-                if (inventory is null)
-                {
-                    throw new InvalidOperationException("Relief station của campaign chưa có inventory active.");
+                    throw new InvalidOperationException("Relief campaign cần có nguồn lực khả dụng (stock, allocation hoặc budget còn lại) trước khi chuyển sang Active.");
                 }
             }
 
