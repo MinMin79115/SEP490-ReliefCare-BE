@@ -101,5 +101,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
 
         Task RollbackTransactionAsync(CancellationToken cancellationToken = default);
 
+        void ClearChangeTracker();
+
     }
 }
