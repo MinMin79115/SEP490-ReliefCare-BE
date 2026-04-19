@@ -72,6 +72,9 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
 
         // Campaign (stub for validation — full module TBD)
         public ICampaignRepository Campaigns { get; }
+        public ICampaignInventoryRepository CampaignInventories { get; }
+        public ICampaignInventoryStockRepository CampaignInventoryStocks { get; }
+        public ICampaignInventoryTransactionRepository CampaignInventoryTransactions { get; }
         public ICampaignVolunteerRegistrationRepository CampaignVolunteerRegistrations { get; }
         public IDonationRepository Donations { get; }
         public IFundRepository Funds { get; }
@@ -134,6 +137,9 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             SupplyShortageRequests = new SupplyShortageRequestRepository(_context);
             SupplyShortageRequestItems = new SupplyShortageRequestItemRepository(_context);
             Campaigns = new CampaignRepository(_context);
+            CampaignInventories = new CampaignInventoryRepository(_context);
+            CampaignInventoryStocks = new CampaignInventoryStockRepository(_context);
+            CampaignInventoryTransactions = new CampaignInventoryTransactionRepository(_context);
             CampaignVolunteerRegistrations = new CampaignVolunteerRegistrationRepository(_context);
             Donations = new DonationRepository(_context);
             Funds = new FundRepository(_context);

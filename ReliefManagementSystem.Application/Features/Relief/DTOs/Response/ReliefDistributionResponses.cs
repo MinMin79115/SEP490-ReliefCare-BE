@@ -168,6 +168,7 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Response
     public class ReliefPackageAssemblyAvailabilityResponse
     {
         public Guid CampaignId { get; set; }
+        public Guid? CampaignInventoryId { get; set; }
         public Guid ReliefStationId { get; set; }
         public Guid InventoryId { get; set; }
         public Guid ReliefPackageDefinitionId { get; set; }

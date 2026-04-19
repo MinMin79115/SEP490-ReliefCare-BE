@@ -15,15 +15,18 @@ namespace ReliefManagementSystem.Application.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserService _currentUser;
         private readonly IInventoryTransactionService _inventoryTransactionService;
+        private readonly ICampaignInventoryService _campaignInventoryService;
 
         public ReliefDistributionService(
             IUnitOfWork unitOfWork,
             ICurrentUserService currentUser,
-            IInventoryTransactionService inventoryTransactionService)
+            IInventoryTransactionService inventoryTransactionService,
+            ICampaignInventoryService campaignInventoryService)
         {
             _unitOfWork = unitOfWork;
             _currentUser = currentUser;
             _inventoryTransactionService = inventoryTransactionService;
+            _campaignInventoryService = campaignInventoryService;
         }
 
         public async Task<IReadOnlyList<CampaignHouseholdResponse>> ImportCampaignHouseholdsAsync(
@@ -601,7 +604,7 @@ namespace ReliefManagementSystem.Application.Services
             if (package.Items.Count == 0)
                 throw new InvalidOperationException("Relief package definition has no component items.");
 
-            var inventory = await _unitOfWork.Inventories.GetByIdWithStocksAsync(inventoryId, cancellationToken)
+            var inventory = await _unitOfWork.Inventories.GetByIdAsync(inventoryId)
                 ?? throw new KeyNotFoundException($"Inventory '{inventoryId}' was not found.");
 
             if (inventory.Status != EntityStatus.Active)
@@ -610,7 +613,10 @@ namespace ReliefManagementSystem.Application.Services
             if (inventory.ReliefStationId != reliefStationId)
                 throw new InvalidOperationException("Inventory does not belong to the selected relief station.");
 
-            var stockBySupplyItem = inventory.InventoryItems
+            var campaignInventory = await _campaignInventoryService.EnsureCampaignInventoryAsync(campaignId, cancellationToken);
+            var campaignStocks = await _unitOfWork.CampaignInventoryStocks.GetByCampaignInventoryIdAsync(campaignInventory.CampaignInventoryId, cancellationToken);
+
+            var stockBySupplyItem = campaignStocks
                 .ToDictionary(x => x.SupplyItemId, x => x.CurrentQuantity);
 
             var components = package.Items.Select(item =>
@@ -634,6 +640,7 @@ namespace ReliefManagementSystem.Application.Services
             return new ReliefPackageAssemblyAvailabilityResponse
             {
                 CampaignId = campaignId,
+                CampaignInventoryId = campaignInventory.CampaignInventoryId,
                 ReliefStationId = reliefStationId,
                 InventoryId = inventoryId,
                 ReliefPackageDefinitionId = reliefPackageDefinitionId,
@@ -668,29 +675,11 @@ namespace ReliefManagementSystem.Application.Services
             var package = await _unitOfWork.ReliefPackageDefinitions.GetByIdWithItemsAsync(reliefPackageDefinitionId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Relief package definition '{reliefPackageDefinitionId}' was not found.");
 
-            var inventory = await _unitOfWork.Inventories.GetByIdWithStocksAsync(request.InventoryId, cancellationToken)
-                ?? throw new KeyNotFoundException($"Inventory '{request.InventoryId}' was not found.");
+            _ = await _campaignInventoryService.EnsureCampaignInventoryAsync(campaignId, cancellationToken);
 
             await _unitOfWork.BeginTransactionAsync(cancellationToken);
             try
             {
-                var outputStock = inventory.InventoryItems.FirstOrDefault(x => x.SupplyItemId == package.OutputSupplyItemId);
-                if (outputStock is null)
-                {
-                    outputStock = new InventoryStock
-                    {
-                        InventoryStockId = Guid.NewGuid(),
-                        InventoryId = inventory.InventoryId,
-                        SupplyItemId = package.OutputSupplyItemId,
-                        CurrentQuantity = 0,
-                        MinimumStockLevel = 0,
-                        MaximumStockLevel = 0
-                    };
-
-                    await _unitOfWork.InventoryStocks.AddAsync(outputStock);
-                    await _unitOfWork.SaveChangesAsync(cancellationToken);
-                }
-
                 var consumeItems = package.Items.Select(item => new TransactionItemRequest
                 {
                     SupplyItemId = item.SupplyItemId,
@@ -698,22 +687,20 @@ namespace ReliefManagementSystem.Application.Services
                     Notes = $"Package assembly consume for definition {package.ReliefPackageDefinitionId}"
                 }).ToList();
 
-                await _inventoryTransactionService.CreateTransactionAsync(new CreateTransactionRequest
-                {
-                    InventoryId = request.InventoryId,
-                    Type = TransactionType.Export,
-                    Reason = TransactionReason.PackageAssemblyConsume,
-                    Notes = $"Package assembly consume for definition {package.ReliefPackageDefinitionId}",
-                    Items = consumeItems
-                }, autoSave: false, cancellationToken);
+                await _campaignInventoryService.CreateTransactionAsync(
+                    campaignId,
+                    TransactionType.Export,
+                    TransactionReason.PackageAssemblyConsume,
+                    consumeItems,
+                    notes: $"Package assembly consume for definition {package.ReliefPackageDefinitionId}",
+                    reliefPackageDefinitionId: package.ReliefPackageDefinitionId,
+                    autoSave: false,
+                    cancellationToken: cancellationToken);
 
-                await _inventoryTransactionService.CreateTransactionAsync(new CreateTransactionRequest
-                {
-                    InventoryId = request.InventoryId,
-                    Type = TransactionType.Import,
-                    Reason = TransactionReason.PackageAssemblyProduce,
-                    Notes = $"Package assembly produce for definition {package.ReliefPackageDefinitionId}",
-                    Items =
+                await _campaignInventoryService.CreateTransactionAsync(
+                    campaignId,
+                    TransactionType.Import,
+                    TransactionReason.PackageAssemblyProduce,
                     [
                         new TransactionItemRequest
                         {
@@ -721,8 +708,11 @@ namespace ReliefManagementSystem.Application.Services
                             Quantity = request.QuantityToAssemble,
                             Notes = $"Produced package output for definition {package.ReliefPackageDefinitionId}"
                         }
-                    ]
-                }, autoSave: false, cancellationToken);
+                    ],
+                    notes: $"Package assembly produce for definition {package.ReliefPackageDefinitionId}",
+                    reliefPackageDefinitionId: package.ReliefPackageDefinitionId,
+                    autoSave: false,
+                    cancellationToken: cancellationToken);
 
                 var assembly = new ReliefPackageAssembly
                 {
@@ -1296,6 +1286,9 @@ namespace ReliefManagementSystem.Application.Services
             if (delivery.Status == HouseholdFulfillmentStatus.Delivered)
                 throw new InvalidOperationException("Delivery already completed.");
 
+            var package = await _unitOfWork.ReliefPackageDefinitions.GetByIdWithItemsAsync(delivery.ReliefPackageDefinitionId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Relief package definition '{delivery.ReliefPackageDefinitionId}' was not found.");
+
             if (reliefPackageDefinitionId.HasValue)
             {
                 var pkg = await _unitOfWork.ReliefPackageDefinitions.GetByIdAsync(reliefPackageDefinitionId.Value)
@@ -1303,6 +1296,8 @@ namespace ReliefManagementSystem.Application.Services
                 if (pkg.CampaignId != campaignId)
                     throw new InvalidOperationException("Relief package does not belong to campaign.");
                 delivery.ReliefPackageDefinitionId = reliefPackageDefinitionId.Value;
+                package = await _unitOfWork.ReliefPackageDefinitions.GetByIdWithItemsAsync(reliefPackageDefinitionId.Value, cancellationToken)
+                    ?? throw new KeyNotFoundException($"Relief package definition '{reliefPackageDefinitionId.Value}' was not found.");
             }
 
             if (campaignTeamId.HasValue)
@@ -1313,32 +1308,62 @@ namespace ReliefManagementSystem.Application.Services
                 delivery.CampaignTeamId = campaignTeamId;
             }
 
-            foreach (var proofItem in proofs)
+            await _unitOfWork.BeginTransactionAsync(cancellationToken);
+            try
             {
-                await _unitOfWork.HouseholdDeliveryProofs.AddAsync(new HouseholdDeliveryProof
+                await _campaignInventoryService.CreateTransactionAsync(
+                    campaignId,
+                    TransactionType.Export,
+                    TransactionReason.Other,
+                    [
+                        new TransactionItemRequest
+                        {
+                            SupplyItemId = package.OutputSupplyItemId,
+                            Quantity = 1,
+                            Notes = $"Household delivery consume package output for delivery {delivery.HouseholdDeliveryId}"
+                        }
+                    ],
+                    notes: $"Household delivery completion consume package for delivery {delivery.HouseholdDeliveryId}",
+                    campaignTeamId: delivery.CampaignTeamId ?? campaignTeamId,
+                    distributionPointId: delivery.DistributionPointId,
+                    householdDeliveryId: delivery.HouseholdDeliveryId,
+                    reliefPackageDefinitionId: delivery.ReliefPackageDefinitionId,
+                    autoSave: false,
+                    cancellationToken: cancellationToken);
+
+                foreach (var proofItem in proofs)
                 {
-                    HouseholdDeliveryProofId = Guid.NewGuid(),
-                    HouseholdDeliveryId = delivery.HouseholdDeliveryId,
-                    FileUrl = proofItem.FileUrl.Trim(),
-                    FileType = proofItem.FileType,
-                    Note = proofItem.Note,
-                    CapturedAt = DateTime.UtcNow,
-                    CapturedByUserId = _currentUser.UserId
-                });
+                    await _unitOfWork.HouseholdDeliveryProofs.AddAsync(new HouseholdDeliveryProof
+                    {
+                        HouseholdDeliveryProofId = Guid.NewGuid(),
+                        HouseholdDeliveryId = delivery.HouseholdDeliveryId,
+                        FileUrl = proofItem.FileUrl.Trim(),
+                        FileType = proofItem.FileType,
+                        Note = proofItem.Note,
+                        CapturedAt = DateTime.UtcNow,
+                        CapturedByUserId = _currentUser.UserId
+                    });
+                }
+
+                delivery.Status = HouseholdFulfillmentStatus.Delivered;
+                delivery.DeliveredAt = DateTime.UtcNow;
+                delivery.DeliveredByUserId = _currentUser.UserId;
+                delivery.Notes = notes ?? delivery.Notes;
+                await _unitOfWork.HouseholdDeliveries.UpdateAsync(delivery);
+
+                var household = await _unitOfWork.CampaignHouseholds.GetByIdAsync(delivery.CampaignHouseholdId)
+                    ?? throw new KeyNotFoundException($"Campaign household '{delivery.CampaignHouseholdId}' was not found.");
+                household.FulfillmentStatus = HouseholdFulfillmentStatus.Delivered;
+                await _unitOfWork.CampaignHouseholds.UpdateAsync(household);
+
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
             }
-
-            delivery.Status = HouseholdFulfillmentStatus.Delivered;
-            delivery.DeliveredAt = DateTime.UtcNow;
-            delivery.DeliveredByUserId = _currentUser.UserId;
-            delivery.Notes = notes ?? delivery.Notes;
-            await _unitOfWork.HouseholdDeliveries.UpdateAsync(delivery);
-
-            var household = await _unitOfWork.CampaignHouseholds.GetByIdAsync(delivery.CampaignHouseholdId)
-                ?? throw new KeyNotFoundException($"Campaign household '{delivery.CampaignHouseholdId}' was not found.");
-            household.FulfillmentStatus = HouseholdFulfillmentStatus.Delivered;
-            await _unitOfWork.CampaignHouseholds.UpdateAsync(household);
-
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                throw;
+            }
 
             var saved = await _unitOfWork.HouseholdDeliveries.GetByIdWithProofsAsync(householdDeliveryId, cancellationToken)
                 ?? throw new KeyNotFoundException("Household delivery was not found after completion.");
