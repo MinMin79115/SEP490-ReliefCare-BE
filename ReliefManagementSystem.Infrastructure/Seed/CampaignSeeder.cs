@@ -49,6 +49,98 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                 await context.Campaigns.AddAsync(rescueCampaign);
             }
 
+            var reliefTeams = await context.Teams
+                .Include(t => t.TeamMembers)
+                .Where(t => t.TeamType == TeamType.Relief && t.Status == TeamStatus.Active)
+                .ToListAsync();
+
+            foreach (var reliefTeam in reliefTeams)
+            {
+                var existingCampaignTeam = await context.Set<CampaignTeam>()
+                    .FirstOrDefaultAsync(ct => ct.CampaignId == rescueCampaign.CampaignId && ct.TeamId == reliefTeam.TeamId);
+
+                if (existingCampaignTeam is not null)
+                {
+                    continue;
+                }
+
+                var role = reliefTeam.Name switch
+                {
+                    var name when name.Contains("Y Tế", StringComparison.OrdinalIgnoreCase) => CampaignTeamRole.Medical,
+                    var name when name.Contains("Logistics", StringComparison.OrdinalIgnoreCase) => CampaignTeamRole.Logistics,
+                    _ => CampaignTeamRole.Relief
+                };
+
+                await context.Set<CampaignTeam>().AddAsync(new CampaignTeam
+                {
+                    CampaignTeamId = Guid.NewGuid(),
+                    CampaignId = rescueCampaign.CampaignId,
+                    TeamId = reliefTeam.TeamId,
+                    Role = role,
+                    Status = CampaignTeamStatus.Active,
+                    AssignedAt = now,
+                    IsDelete = false
+                });
+            }
+
+            var seededTaskTeam = reliefTeams.FirstOrDefault(t => t.Name == "Đội Cứu Hộ Khẩn Cấp ĐN-01");
+
+            if (seededTaskTeam != null)
+            {
+                var campaignTeam = await context.Set<CampaignTeam>()
+                    .FirstOrDefaultAsync(ct => ct.CampaignId == rescueCampaign.CampaignId && ct.TeamId == seededTaskTeam.TeamId);
+
+                if (campaignTeam is null)
+                    throw new Exception("Seeded task team must be attached to the rescue campaign before seeding campaign tasks.");
+
+                var seededTask = await context.CampaignTasks
+                    .Include(x => x.MemberTasks)
+                    .FirstOrDefaultAsync(x => x.CampaignTeamId == campaignTeam.CampaignTeamId && x.Title == "Tuyến giao hàng cô lập Đà Nẵng - Seed");
+
+                if (seededTask is null)
+                {
+                    seededTask = new CampaignTask
+                    {
+                        CampaignTaskId = Guid.NewGuid(),
+                        CampaignTeamId = campaignTeam.CampaignTeamId,
+                        Title = "Tuyến giao hàng cô lập Đà Nẵng - Seed",
+                        Description = "Task seed để test relief campaign task API và member assignment trên local.",
+                        StartDate = now,
+                        DueDate = now.AddDays(2),
+                        CreatedBy = adminUser.Id,
+                        Status = CampaignTaskStatus.Planned,
+                        Priority = TaskPriority.High,
+                        CreatedAt = now
+                    };
+
+                    await context.CampaignTasks.AddAsync(seededTask);
+                }
+
+                var teamMemberUserId = seededTaskTeam.TeamMembers
+                    .OrderBy(tm => tm.JoinedAt)
+                    .Select(tm => tm.UserId)
+                    .FirstOrDefault();
+
+                if (teamMemberUserId != Guid.Empty)
+                {
+                    var volunteerProfile = await context.VolunteerProfiles
+                        .FirstOrDefaultAsync(vp => vp.UserId == teamMemberUserId);
+
+                    if (volunteerProfile != null && !seededTask.MemberTasks.Any(mt => mt.VolunteerProfileId == volunteerProfile.VolunteerProfileId))
+                    {
+                        seededTask.MemberTasks.Add(new MemberTask
+                        {
+                            MemberTaskId = Guid.NewGuid(),
+                            VolunteerProfileId = volunteerProfile.VolunteerProfileId,
+                            SubTaskTitle = "Liên hệ và xác minh tuyến giao - Seed",
+                            TaskNote = "Subtask seed để test member task assignment/detail.",
+                            AssignedAt = now,
+                            Status = MemberTaskStatus.Assigned
+                        });
+                    }
+                }
+            }
+
             var fundraisingCampaign = await context.Campaigns
                 .Include(c => c.ResourceGoals)
                 .FirstOrDefaultAsync(c => c.Name == "Quỹ hỗ trợ khẩn cấp miền Trung");

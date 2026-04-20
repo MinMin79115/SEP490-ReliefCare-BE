@@ -96,6 +96,16 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(result);
         }
 
+        [HttpPost("{id:guid}/extract-budget")]
+        public async Task<IActionResult> ExtractBudget(
+            Guid id,
+            [FromBody] ExtractCampaignBudgetRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _campaignService.ExtractBudgetAsync(id, request, cancellationToken);
+            return Ok(result);
+        }
+
         [HttpPost("{id:guid}/teams")]
         public async Task<IActionResult> AssignTeam(
             Guid id,
