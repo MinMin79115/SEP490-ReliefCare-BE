@@ -365,6 +365,26 @@ namespace ReliefManagementSystem.Application.Services
         {
             await EnsureRescueTeamTypeAsync(dto.TeamId, cancellationToken);
 
+            var activeBatch = await _unitOfWork.RescueBatches.GetActiveByTeamIdAsync(dto.TeamId, cancellationToken);
+            var currentBatchVehicleId = activeBatch?.Items
+                .Where(i => i.Status == RescueBatchItemStatus.Pending || i.Status == RescueBatchItemStatus.InProgress)
+                .SelectMany(i => i.RescueRequest?.RescueOperations ?? Enumerable.Empty<RescueOperation>())
+                .Where(o => o.TeamId == dto.TeamId && o.VehicleId.HasValue)
+                .OrderByDescending(o => o.StartedAt)
+                .Select(o => o.VehicleId)
+                .FirstOrDefault();
+
+            var effectiveVehicleId = dto.VehicleId;
+            if (currentBatchVehicleId.HasValue)
+            {
+                if (dto.VehicleId.HasValue && dto.VehicleId.Value != currentBatchVehicleId.Value)
+                {
+                    throw new InvalidOperationException("Team đang dùng xe khác trong active batch. Không thể đổi xe khi batch chưa hoàn tất.");
+                }
+
+                effectiveVehicleId = currentBatchVehicleId;
+            }
+
             var request = await _unitOfWork.RescueRequests.GetByIdAsync(requestId, cancellationToken);
             if (request == null)
                 throw new InvalidOperationException($"Rescue request {requestId} not found");
@@ -386,16 +406,18 @@ namespace ReliefManagementSystem.Application.Services
                 throw new InvalidOperationException("Team does not belong to dispatched station or assignment is not approved.");
 
             Vehicle? assignedVehicle = null;
-            if (dto.VehicleId.HasValue)
+            if (effectiveVehicleId.HasValue)
             {
-                assignedVehicle = await _unitOfWork.Vehicles.GetByIdWithDetailsAsync(dto.VehicleId.Value);
+                assignedVehicle = await _unitOfWork.Vehicles.GetByIdWithDetailsAsync(effectiveVehicleId.Value);
                 if (assignedVehicle == null || assignedVehicle.IsDeleted)
                     throw new InvalidOperationException("Vehicle not found.");
 
                 if (!assignedVehicle.ReliefStationId.HasValue || assignedVehicle.ReliefStationId.Value != stationOperation.ReliefStationId!.Value)
                     throw new InvalidOperationException("Vehicle does not belong to dispatched station.");
 
-                if (assignedVehicle.Status != VehicleStatus.Free)
+                var reusingBatchVehicle = currentBatchVehicleId.HasValue && assignedVehicle.VehicleId == currentBatchVehicleId.Value;
+
+                if (assignedVehicle.Status != VehicleStatus.Free && !reusingBatchVehicle)
                     throw new InvalidOperationException("Vehicle is not available.");
 
                 if (assignedVehicle.TeamId.HasValue && assignedVehicle.TeamId.Value != dto.TeamId)
@@ -403,7 +425,7 @@ namespace ReliefManagementSystem.Application.Services
             }
 
             stationOperation.TeamId = dto.TeamId;
-            stationOperation.VehicleId = dto.VehicleId;
+            stationOperation.VehicleId = effectiveVehicleId;
             stationOperation.Status = RescueOperationStatus.Assigned;
             stationOperation.Note = dto.Note;
 

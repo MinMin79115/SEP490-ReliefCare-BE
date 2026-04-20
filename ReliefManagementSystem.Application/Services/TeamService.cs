@@ -448,6 +448,30 @@ namespace ReliefManagementSystem.Application.Services
             return MapToTeamDetailResponse(team);
         }
 
+        public async Task<List<AssignedCampaignInfo>> GetAssignedCampaignsAsync(
+            Guid teamId,
+            CancellationToken cancellationToken)
+        {
+            var team = await _unitOfWork.Teams.GetByIdWithDetailsAsync(teamId);
+
+            if (team == null)
+                throw new TeamNotFoundException();
+
+            return team.CampaignTeams
+                .Where(ct => !ct.IsDelete)
+                .OrderByDescending(ct => ct.AssignedAt)
+                .Select(ct => new AssignedCampaignInfo
+                {
+                    CampaignId = ct.CampaignId,
+                    CampaignName = ct.Campaign.Name,
+                    CampaignType = (int)ct.Campaign.Type,
+                    CampaignTeamId = ct.CampaignTeamId,
+                    Status = (int)ct.Status,
+                    Role = (int)ct.Role
+                })
+                .ToList();
+        }
+
         //Moderator add volunteer into team
         public async Task<TeamMemberResponse> AddMemberDirectlyAsync(
             Guid teamId,
@@ -801,6 +825,19 @@ namespace ReliefManagementSystem.Application.Services
                     }).ToList() ?? new List<SkillInfo>(),
                     JoinedAt = tm.JoinedAt
                 }).ToList(),
+                AssignedCampaigns = team.CampaignTeams
+                    .Where(ct => !ct.IsDelete)
+                    .OrderByDescending(ct => ct.AssignedAt)
+                    .Select(ct => new AssignedCampaignInfo
+                    {
+                        CampaignId = ct.CampaignId,
+                        CampaignName = ct.Campaign.Name,
+                        CampaignType = (int)ct.Campaign.Type,
+                        CampaignTeamId = ct.CampaignTeamId,
+                        Status = (int)ct.Status,
+                        Role = (int)ct.Role
+                    })
+                    .ToList(),
                 CreatedAt = team.CreatedAt,
                 UpdatedAt = team.UpdatedAt
             };
