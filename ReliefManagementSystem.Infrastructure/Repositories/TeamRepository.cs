@@ -30,6 +30,8 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             return await _dbSet
                 .Include(t => t.Moderator)
                 .Include(t => t.Leader)
+                .Include(t => t.CampaignTeams)
+                    .ThenInclude(ct => ct.Campaign)
                 .Include(t => t.ReliefStationTeams)
                     .ThenInclude(rst => rst.ReliefStation)
                 .Include(t => t.TeamMembers)
