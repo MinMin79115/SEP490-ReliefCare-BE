@@ -108,6 +108,13 @@ namespace ReliefManagementSystem.Application.Services
                     throw new InvalidOperationException("Distribution point does not belong to campaign.");
             }
 
+            if (request.CampaignTeamId.HasValue)
+            {
+                var teams = await _unitOfWork.Campaigns.GetCampaignTeamsAsync(campaignId, cancellationToken);
+                if (!teams.Any(t => t.CampaignTeamId == request.CampaignTeamId.Value))
+                    throw new KeyNotFoundException($"Campaign team '{request.CampaignTeamId}' was not found in this campaign.");
+            }
+
             var packageId = request.ReliefPackageDefinitionId;
             if (!packageId.HasValue)
             {
@@ -161,7 +168,7 @@ namespace ReliefManagementSystem.Application.Services
                 CampaignId = campaignId,
                 CampaignHouseholdId = household.CampaignHouseholdId,
                 DistributionPointId = household.DistributionPointId,
-                CampaignTeamId = request.CampaignTeamId,
+                CampaignTeamId = null,
                 ReliefPackageDefinitionId = packageId.Value,
                 DeliveryMode = request.DeliveryMode,
                 CashSupportAmount = package.CashSupportAmount ?? 0,
@@ -186,7 +193,11 @@ namespace ReliefManagementSystem.Application.Services
         {
             await EnsureReliefCampaignAsync(campaignId, cancellationToken);
 
-            IEnumerable<CampaignHousehold> query = await _unitOfWork.CampaignHouseholds.GetByCampaignAsync(campaignId, cancellationToken);
+            IQueryable<CampaignHousehold> query = _unitOfWork.CampaignHouseholds.GetQueryable()
+                .Include(x => x.DistributionPoint)
+                .Include(x => x.CampaignTeam)
+                    .ThenInclude(ct => ct.Team)
+                .Where(x => x.CampaignId == campaignId);
 
             if (request.Status.HasValue)
                 query = query.Where(x => x.FulfillmentStatus == request.Status.Value);
@@ -215,11 +226,11 @@ namespace ReliefManagementSystem.Application.Services
 
             var pageIndex = request.PageIndex <= 0 ? 1 : request.PageIndex;
             var pageSize = request.PageSize <= 0 ? 10 : request.PageSize;
-            var ordered = query.OrderByDescending(x => x.CreatedAt).ToList();
-            var totalCount = ordered.Count;
-            var items = ordered.Skip((pageIndex - 1) * pageSize).Take(pageSize).Select(MapCampaignHousehold).ToList();
+            query = query.OrderByDescending(x => x.CreatedAt);
+            var paged = await Pagination<CampaignHousehold>.ToPagedList(query, pageIndex, pageSize);
+            var items = paged.Items!.Select(MapCampaignHousehold).ToList();
 
-            return new Pagination<CampaignHouseholdResponse>(items, totalCount, pageIndex, pageSize);
+            return new Pagination<CampaignHouseholdResponse>(items, paged.TotalCount, paged.CurrentPage, paged.PageSize);
         }
 
         public async Task<CampaignHouseholdResponse> UpdateCampaignHouseholdAsync(
@@ -330,11 +341,11 @@ namespace ReliefManagementSystem.Application.Services
             CancellationToken cancellationToken = default)
         {
             await EnsureReliefCampaignAsync(campaignId, cancellationToken);
-            IEnumerable<HouseholdDelivery> query = await _unitOfWork.HouseholdDeliveries.GetByChecklistAsync(
+            IQueryable<HouseholdDelivery> query = (await _unitOfWork.HouseholdDeliveries.GetByChecklistAsync(
                 campaignId,
                 request.CampaignTeamId,
                 request.Status,
-                cancellationToken);
+                cancellationToken)).AsQueryable();
 
             query = ApplyDeliveryFilters(query, request);
 
@@ -353,8 +364,11 @@ namespace ReliefManagementSystem.Application.Services
                     HouseholdCode = x.CampaignHousehold?.HouseholdCode ?? string.Empty,
                     HeadOfHouseholdName = x.CampaignHousehold?.HeadOfHouseholdName ?? string.Empty,
                     CampaignTeamId = x.CampaignTeamId,
+                    CampaignTeamName = x.CampaignTeam?.Team?.Name,
                     DistributionPointId = x.DistributionPointId,
+                    DistributionPointName = x.DistributionPoint?.Name,
                     ReliefPackageDefinitionId = x.ReliefPackageDefinitionId,
+                    ReliefPackageDefinitionName = x.ReliefPackageDefinition?.Name ?? string.Empty,
                     DeliveryMode = x.DeliveryMode,
                     Status = x.Status,
                     ScheduledAt = x.ScheduledAt,
@@ -420,10 +434,20 @@ namespace ReliefManagementSystem.Application.Services
                 query = query.Where(x => x.ReliefStationId == request.ReliefStationId.Value);
 
             if (request.CampaignTeamId.HasValue)
-                query = query.Where(x => x.CampaignTeamId == request.CampaignTeamId.Value);
+            {
+                var teamId = request.CampaignTeamId.Value;
+                query = query.Where(x =>
+                    x.CampaignTeamId == teamId ||
+                    x.Households.Any(h => h.CampaignTeamId == teamId) ||
+                    x.Deliveries.Any(d => d.CampaignTeamId == teamId) ||
+                    _unitOfWork.SupplyShortageRequests.GetQueryable().Any(s => s.DistributionPointId == x.DistributionPointId && s.CampaignTeamId == teamId));
+            }
 
             if (request.IsActive.HasValue)
                 query = query.Where(x => x.IsActive == request.IsActive.Value);
+
+            if (request.DeliveryMode.HasValue)
+                query = query.Where(x => x.DeliveryMode == request.DeliveryMode.Value);
 
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
@@ -990,17 +1014,18 @@ namespace ReliefManagementSystem.Application.Services
         {
             await EnsureReliefCampaignAsync(campaignId, cancellationToken);
 
-            IEnumerable<HouseholdDelivery> query = await _unitOfWork.HouseholdDeliveries.GetByCampaignAsync(campaignId, cancellationToken);
+            IQueryable<HouseholdDelivery> query = _unitOfWork.HouseholdDeliveries.GetQueryable()
+                .Where(x => x.CampaignId == campaignId);
 
             query = ApplyDeliveryFilters(query, request);
 
             var pageIndex = request.PageIndex <= 0 ? 1 : request.PageIndex;
             var pageSize = request.PageSize <= 0 ? 10 : request.PageSize;
-            var ordered = query.OrderByDescending(x => x.ScheduledAt).ToList();
-            var totalCount = ordered.Count;
-            var mapped = ordered.Skip((pageIndex - 1) * pageSize).Take(pageSize).Select(MapHouseholdDelivery).ToList();
+            query = query.OrderByDescending(x => x.ScheduledAt);
+            var paged = await Pagination<HouseholdDelivery>.ToPagedList(query, pageIndex, pageSize);
+            var mapped = paged.Items!.Select(MapHouseholdDelivery).ToList();
 
-            return new Pagination<HouseholdDeliveryResponse>(mapped, totalCount, pageIndex, pageSize);
+            return new Pagination<HouseholdDeliveryResponse>(mapped, paged.TotalCount, paged.CurrentPage, paged.PageSize);
         }
 
         public async Task<HouseholdDeliveryResponse> GetDeliveryByIdAsync(
@@ -1127,25 +1152,42 @@ namespace ReliefManagementSystem.Application.Services
             return MapShortage(saved);
         }
 
-        public async Task<IReadOnlyList<SupplyShortageRequestResponse>> GetShortageRequestsAsync(
+        public async Task<Pagination<SupplyShortageRequestResponse>> GetShortageRequestsAsync(
             Guid campaignId,
-            SupplyShortageRequestStatus? status,
+            SupplyShortageRequestQueryRequest request,
             CancellationToken cancellationToken = default)
         {
             await EnsureReliefCampaignAsync(campaignId, cancellationToken);
 
-            List<SupplyShortageRequest> items;
-            if (status.HasValue)
+            IQueryable<SupplyShortageRequest> query = _unitOfWork.SupplyShortageRequests.GetQueryable()
+                .Where(x => x.CampaignId == campaignId);
+
+            if (request.Status.HasValue)
+                query = query.Where(x => x.Status == request.Status.Value);
+
+            if (request.DistributionPointId.HasValue)
+                query = query.Where(x => x.DistributionPointId == request.DistributionPointId.Value);
+
+            if (request.CampaignTeamId.HasValue)
+                query = query.Where(x => x.CampaignTeamId == request.CampaignTeamId.Value);
+
+            if (request.RequestedByUserId.HasValue)
+                query = query.Where(x => x.RequestedByUserId == request.RequestedByUserId.Value);
+
+            if (!string.IsNullOrWhiteSpace(request.Search))
             {
-                items = await _unitOfWork.SupplyShortageRequests.GetByStatusAsync(status.Value, cancellationToken);
-                items = items.Where(x => x.CampaignId == campaignId).ToList();
-            }
-            else
-            {
-                items = await _unitOfWork.SupplyShortageRequests.GetByCampaignAsync(campaignId, cancellationToken);
+                var keyword = request.Search.Trim();
+                query = query.Where(x =>
+                    (x.Reason ?? string.Empty).Contains(keyword) ||
+                    (x.DistributionPoint != null && x.DistributionPoint.Name.Contains(keyword)) ||
+                    (x.CampaignTeam != null && x.CampaignTeam.Team != null && x.CampaignTeam.Team.Name.Contains(keyword)) ||
+                    x.Items.Any(i => (i.SupplyItem != null && i.SupplyItem.Name.Contains(keyword)) || (i.Note ?? string.Empty).Contains(keyword)));
             }
 
-            return items.Select(MapShortage).ToList();
+            query = query.OrderByDescending(x => x.RequestedAt);
+            var paged = await Pagination<SupplyShortageRequest>.ToPagedList(query, request.PageIndex, request.PageSize);
+            var mapped = paged.Items!.Select(MapShortage).ToList();
+            return new Pagination<SupplyShortageRequestResponse>(mapped, paged.TotalCount, paged.CurrentPage, paged.PageSize);
         }
 
         public async Task<SupplyShortageRequestResponse> ApproveShortageRequestAsync(
@@ -1265,7 +1307,7 @@ namespace ReliefManagementSystem.Application.Services
             return campaign;
         }
 
-        private static IEnumerable<HouseholdDelivery> ApplyDeliveryFilters(IEnumerable<HouseholdDelivery> query, DeliveryQueryRequest request)
+        private static IQueryable<HouseholdDelivery> ApplyDeliveryFilters(IQueryable<HouseholdDelivery> query, DeliveryQueryRequest request)
         {
             if (request.CampaignTeamId.HasValue)
                 query = query.Where(x => x.CampaignTeamId == request.CampaignTeamId.Value);
@@ -1436,7 +1478,9 @@ namespace ReliefManagementSystem.Application.Services
             CampaignHouseholdId = x.CampaignHouseholdId,
             CampaignId = x.CampaignId,
             DistributionPointId = x.DistributionPointId,
+            DistributionPointName = x.DistributionPoint?.Name,
             CampaignTeamId = x.CampaignTeamId,
+            CampaignTeamName = x.CampaignTeam?.Team?.Name,
             HouseholdCode = x.HouseholdCode,
             HeadOfHouseholdName = x.HeadOfHouseholdName,
             ContactPhone = x.ContactPhone,
@@ -1457,6 +1501,7 @@ namespace ReliefManagementSystem.Application.Services
             CampaignId = x.CampaignId,
             ReliefStationId = x.ReliefStationId,
             CampaignTeamId = x.CampaignTeamId,
+            CampaignTeamName = x.CampaignTeam?.Team?.Name,
             LocationId = x.LocationId,
             Name = x.Name,
             Address = x.Address,
@@ -1465,7 +1510,22 @@ namespace ReliefManagementSystem.Application.Services
             DeliveryMode = x.DeliveryMode,
             StartsAt = x.StartsAt,
             EndsAt = x.EndsAt,
-            IsActive = x.IsActive
+            IsActive = x.IsActive,
+            AssignedHouseholdCount = x.Households.Count,
+            PendingDeliveryCount = x.Deliveries.Count(d => d.Status != HouseholdFulfillmentStatus.Delivered),
+            TotalDeliveryCount = x.Deliveries.Count,
+            AssignedTeams = x.Households
+                .Where(h => h.CampaignTeam != null)
+                .Select(h => h.CampaignTeam!)
+                .Concat(x.Deliveries.Where(d => d.CampaignTeam != null).Select(d => d.CampaignTeam!))
+                .GroupBy(t => t.CampaignTeamId)
+                .Select(g => new DistributionPointTeamSummaryResponse
+                {
+                    CampaignTeamId = g.Key,
+                    CampaignTeamName = g.Select(t => t.Team?.Name).FirstOrDefault(name => !string.IsNullOrWhiteSpace(name)) ?? string.Empty
+                })
+                .OrderBy(t => t.CampaignTeamName)
+                .ToList()
         };
 
         private static ReliefPackageDefinitionResponse MapPackage(ReliefPackageDefinition x) => new()
@@ -1526,13 +1586,17 @@ namespace ReliefManagementSystem.Application.Services
             SupplyShortageRequestId = x.SupplyShortageRequestId,
             CampaignId = x.CampaignId,
             DistributionPointId = x.DistributionPointId,
+            DistributionPointName = x.DistributionPoint?.Name,
             CampaignTeamId = x.CampaignTeamId,
+            CampaignTeamName = x.CampaignTeam?.Team?.Name,
             RequestedByUserId = x.RequestedByUserId,
+            RequestedByUserName = x.RequestedByUser?.DisplayName ?? x.RequestedByUser?.UserName,
             Status = x.Status,
             Reason = x.Reason,
             RequestedAt = x.RequestedAt,
             ReviewedAt = x.ReviewedAt,
             ReviewedByUserId = x.ReviewedByUserId,
+            ReviewedByUserName = x.ReviewedByUser?.DisplayName ?? x.ReviewedByUser?.UserName,
             ReviewNote = x.ReviewNote,
             Items = x.Items.Select(i => new SupplyShortageRequestItemResponse
             {

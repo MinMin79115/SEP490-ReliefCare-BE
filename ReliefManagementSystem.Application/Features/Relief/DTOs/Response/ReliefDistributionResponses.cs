@@ -8,7 +8,9 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Response
         public Guid CampaignHouseholdId { get; set; }
         public Guid CampaignId { get; set; }
         public Guid? DistributionPointId { get; set; }
+        public string? DistributionPointName { get; set; }
         public Guid? CampaignTeamId { get; set; }
+        public string? CampaignTeamName { get; set; }
         public string HouseholdCode { get; set; } = string.Empty;
         public string HeadOfHouseholdName { get; set; } = string.Empty;
         public string? ContactPhone { get; set; }
@@ -31,8 +33,11 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Response
         public string HouseholdCode { get; set; } = string.Empty;
         public string HeadOfHouseholdName { get; set; } = string.Empty;
         public Guid? CampaignTeamId { get; set; }
+        public string? CampaignTeamName { get; set; }
         public Guid? DistributionPointId { get; set; }
+        public string? DistributionPointName { get; set; }
         public Guid ReliefPackageDefinitionId { get; set; }
+        public string ReliefPackageDefinitionName { get; set; } = string.Empty;
         public DeliveryMode DeliveryMode { get; set; }
         public HouseholdFulfillmentStatus Status { get; set; }
         public DateTime ScheduledAt { get; set; }
@@ -47,6 +52,7 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Response
         public Guid CampaignId { get; set; }
         public Guid ReliefStationId { get; set; }
         public Guid? CampaignTeamId { get; set; }
+        public string? CampaignTeamName { get; set; }
         public Guid? LocationId { get; set; }
         public string Name { get; set; } = string.Empty;
         public string? Address { get; set; }
@@ -56,6 +62,16 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Response
         public DateTime StartsAt { get; set; }
         public DateTime? EndsAt { get; set; }
         public bool IsActive { get; set; }
+        public int AssignedHouseholdCount { get; set; }
+        public int PendingDeliveryCount { get; set; }
+        public int TotalDeliveryCount { get; set; }
+        public List<DistributionPointTeamSummaryResponse> AssignedTeams { get; set; } = [];
+    }
+
+    public class DistributionPointTeamSummaryResponse
+    {
+        public Guid CampaignTeamId { get; set; }
+        public string CampaignTeamName { get; set; } = string.Empty;
     }
 
     public class ReliefPackageDefinitionResponse
@@ -136,13 +152,17 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Response
         public Guid SupplyShortageRequestId { get; set; }
         public Guid CampaignId { get; set; }
         public Guid? DistributionPointId { get; set; }
+        public string? DistributionPointName { get; set; }
         public Guid? CampaignTeamId { get; set; }
+        public string? CampaignTeamName { get; set; }
         public Guid RequestedByUserId { get; set; }
+        public string? RequestedByUserName { get; set; }
         public SupplyShortageRequestStatus Status { get; set; }
         public string? Reason { get; set; }
         public DateTime RequestedAt { get; set; }
         public DateTime? ReviewedAt { get; set; }
         public Guid? ReviewedByUserId { get; set; }
+        public string? ReviewedByUserName { get; set; }
         public string? ReviewNote { get; set; }
         public List<SupplyShortageRequestItemResponse> Items { get; set; } = [];
     }

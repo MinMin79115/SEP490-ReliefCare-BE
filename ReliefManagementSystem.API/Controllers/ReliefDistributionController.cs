@@ -193,11 +193,11 @@ namespace ReliefManagementSystem.API.Controllers
             => Ok(await _reliefDistributionService.CreateShortageRequestAsync(campaignId, request, cancellationToken));
 
         [HttpGet("shortage-requests")]
-        public async Task<IActionResult> GetShortageRequests(
+        public async Task<ActionResult<Pagination<SupplyShortageRequestResponse>>> GetShortageRequests(
             Guid campaignId,
-            [FromQuery] SupplyShortageRequestStatus? status,
+            [FromQuery] SupplyShortageRequestQueryRequest request,
             CancellationToken cancellationToken)
-            => Ok(await _reliefDistributionService.GetShortageRequestsAsync(campaignId, status, cancellationToken));
+            => Ok(await _reliefDistributionService.GetShortageRequestsAsync(campaignId, request, cancellationToken));
 
         [HttpPatch("shortage-requests/{shortageRequestId:guid}/approve")]
         public async Task<IActionResult> ApproveShortageRequest(

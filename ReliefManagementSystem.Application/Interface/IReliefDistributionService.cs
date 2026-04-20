@@ -134,9 +134,9 @@ namespace ReliefManagementSystem.Application.Interface
             CreateSupplyShortageRequest request,
             CancellationToken cancellationToken = default);
 
-        Task<IReadOnlyList<SupplyShortageRequestResponse>> GetShortageRequestsAsync(
+        Task<Pagination<SupplyShortageRequestResponse>> GetShortageRequestsAsync(
             Guid campaignId,
-            SupplyShortageRequestStatus? status,
+            SupplyShortageRequestQueryRequest request,
             CancellationToken cancellationToken = default);
 
         Task<SupplyShortageRequestResponse> ApproveShortageRequestAsync(
