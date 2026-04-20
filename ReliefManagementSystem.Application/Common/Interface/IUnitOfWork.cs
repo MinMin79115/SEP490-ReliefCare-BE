@@ -64,6 +64,9 @@ namespace ReliefManagementSystem.Application.Common.Interface
 
         // Campaign (stub for validation — full module TBD)
         ICampaignRepository Campaigns { get; }
+        ICampaignBudgetTransferRepository CampaignBudgetTransfers { get; }
+        ICampaignTaskRepository CampaignTasks { get; }
+        IMemberTaskRepository MemberTasks { get; }
         ICampaignInventoryRepository CampaignInventories { get; }
         ICampaignInventoryStockRepository CampaignInventoryStocks { get; }
         ICampaignInventoryTransactionRepository CampaignInventoryTransactions { get; }
@@ -88,6 +91,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
 
         INotificationRepository Notifications { get; }
         IAttachmentRepository Attachments { get; }
+        IGenericRepository<AuditLog> AuditLogs { get; }
         IGenericRepository<RequestVerification> RequestVerifications { get; }
         IGenericRepository<DisasterAnalysisLog> DisasterAnalysisLogs { get; }
         Task<int> SaveChangesAsync(

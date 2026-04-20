@@ -62,6 +62,7 @@ namespace ReliefManagementSystem.Infrastructure.Data
 
         // Campaign Management
         public DbSet<Campaign> Campaigns { get; set; }
+        public DbSet<CampaignBudgetTransfer> CampaignBudgetTransfers { get; set; }
         public DbSet<CampaignInventory> CampaignInventories { get; set; }
         public DbSet<CampaignInventoryStock> CampaignInventoryStocks { get; set; }
         public DbSet<CampaignInventoryTransaction> CampaignInventoryTransactions { get; set; }
@@ -805,6 +806,37 @@ namespace ReliefManagementSystem.Infrastructure.Data
             builder.Entity<CampaignTeam>()
                 .HasIndex(ct => new { ct.CampaignId, ct.TeamId })
                 .IsUnique();
+
+            builder.Entity<CampaignBudgetTransfer>()
+                .HasKey(x => x.CampaignBudgetTransferId);
+
+            builder.Entity<CampaignBudgetTransfer>()
+                .Property(x => x.Note)
+                .HasMaxLength(1000);
+
+            builder.Entity<CampaignBudgetTransfer>()
+                .ToTable(t => t.HasCheckConstraint("CK_CampaignBudgetTransfers_Amount_Positive", "\"Amount\" > 0"));
+
+            builder.Entity<CampaignBudgetTransfer>()
+                .HasOne(x => x.SourceCampaign)
+                .WithMany(c => c.OutgoingBudgetTransfers)
+                .HasForeignKey(x => x.SourceCampaignId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<CampaignBudgetTransfer>()
+                .HasOne(x => x.TargetCampaign)
+                .WithMany(c => c.IncomingBudgetTransfers)
+                .HasForeignKey(x => x.TargetCampaignId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<CampaignBudgetTransfer>()
+                .HasOne(x => x.TransferredByUser)
+                .WithMany()
+                .HasForeignKey(x => x.TransferredByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<CampaignBudgetTransfer>()
+                .HasIndex(x => new { x.SourceCampaignId, x.TargetCampaignId, x.TransferredAt });
 
             // CampaignInventory Configuration
             builder.Entity<CampaignInventory>()

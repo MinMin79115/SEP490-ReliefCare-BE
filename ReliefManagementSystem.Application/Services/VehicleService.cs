@@ -113,14 +113,14 @@ namespace ReliefManagementSystem.Application.Services
                 throw new Exception("Không thấy phương tiện");
             }
 
-            if (isModerator)
-            {
-                var moderatorStationId = await GetModeratorStationIdAsync(userId, cancellationToken);
-                if (vehicle.ReliefStationId != moderatorStationId)
-                {
-                    throw new Exception("Bạn chỉ được xem phương tiện trong trạm của mình");
-                }
-            }
+            //if (isModerator)
+            //{
+            //    var moderatorStationId = await GetModeratorStationIdAsync(userId, cancellationToken);
+            //    if (vehicle.ReliefStationId != moderatorStationId)
+            //    {
+            //        throw new Exception("Bạn chỉ được xem phương tiện trong trạm của mình");
+            //    }
+            //}
 
             return MapToResponse(vehicle);
         }
