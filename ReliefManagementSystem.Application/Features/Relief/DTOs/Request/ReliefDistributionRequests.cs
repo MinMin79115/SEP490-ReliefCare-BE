@@ -169,6 +169,9 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         [Required]
         public Guid? OutputSupplyItemId { get; set; }
 
+        [Range(0, double.MaxValue)]
+        public decimal? CashSupportAmount { get; set; }
+
         public bool IsDefault { get; set; }
         public bool IsActive { get; set; } = true;
 
@@ -186,6 +189,8 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         public string? Description { get; set; }
 
         public Guid? OutputSupplyItemId { get; set; }
+        [Range(0, double.MaxValue)]
+        public decimal? CashSupportAmount { get; set; }
         public bool? IsDefault { get; set; }
         public bool? IsActive { get; set; }
         public List<ReliefPackageDefinitionItemRequest>? Items { get; set; }
@@ -223,6 +228,8 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
     {
         public Guid? ReliefPackageDefinitionId { get; set; }
         public Guid? CampaignTeamId { get; set; }
+        [Range(0, double.MaxValue)]
+        public decimal? CashSupportAmount { get; set; }
         public string? Notes { get; set; }
         public string? ProofNote { get; set; }
 
@@ -252,6 +259,8 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         public Guid HouseholdDeliveryId { get; set; }
         public Guid? ReliefPackageDefinitionId { get; set; }
         public Guid? CampaignTeamId { get; set; }
+        [Range(0, double.MaxValue)]
+        public decimal? CashSupportAmount { get; set; }
         public string? Notes { get; set; }
         [Required]
         [MinLength(1)]

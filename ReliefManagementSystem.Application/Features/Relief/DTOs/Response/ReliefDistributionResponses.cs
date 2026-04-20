@@ -65,6 +65,7 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Response
         public Guid OutputSupplyItemId { get; set; }
         public string OutputSupplyItemName { get; set; } = string.Empty;
         public string OutputUnit { get; set; } = string.Empty;
+        public decimal CashSupportAmount { get; set; }
         public string Name { get; set; } = string.Empty;
         public string? Description { get; set; }
         public bool IsDefault { get; set; }
@@ -96,6 +97,7 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Response
         public Guid? DeliveredByUserId { get; set; }
         public DeliveryMode DeliveryMode { get; set; }
         public HouseholdFulfillmentStatus Status { get; set; }
+        public decimal CashSupportAmount { get; set; }
         public DateTime ScheduledAt { get; set; }
         public DateTime? DeliveredAt { get; set; }
         public string? Notes { get; set; }

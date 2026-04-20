@@ -5,6 +5,7 @@ using ReliefManagementSystem.Application.Features.Campaign.Dtos.Responses;
 using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Domain.Enum;
+using System.Text.Json;
 
 namespace ReliefManagementSystem.Application.Services
 {
@@ -294,6 +295,99 @@ namespace ReliefManagementSystem.Application.Services
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return await BuildCampaignResponseAsync(campaign, cancellationToken);
+        }
+
+        public async Task<CampaignBudgetTransferResponse> ExtractBudgetAsync(Guid fundraisingCampaignId, ExtractCampaignBudgetRequest request, CancellationToken cancellationToken = default)
+        {
+            if (request.Amount <= 0)
+                throw new InvalidOperationException("Extract amount must be greater than zero.");
+
+            var source = await _unitOfWork.Campaigns.GetWithDetailsAsync(fundraisingCampaignId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Campaign '{fundraisingCampaignId}' was not found.");
+
+            var target = await _unitOfWork.Campaigns.GetWithDetailsAsync(request.TargetReliefCampaignId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Campaign '{request.TargetReliefCampaignId}' was not found.");
+
+            if (source.Type != CampaignType.Fundraising)
+                throw new InvalidOperationException("Source campaign must be a fundraising campaign.");
+
+            if (target.Type != CampaignType.Relief)
+                throw new InvalidOperationException("Target campaign must be a relief campaign.");
+
+            var sourceRemaining = source.BudgetTotal - source.BudgetSpent;
+            if (request.Amount > sourceRemaining)
+            {
+                await LogFinancialFailureAsync(
+                    "CampaignBudgetTransfer",
+                    "ExtractFailed",
+                    fundraisingCampaignId.ToString(),
+                    new
+                    {
+                        fundraisingCampaignId,
+                        request.TargetReliefCampaignId,
+                        request.Amount,
+                        sourceRemaining,
+                        Message = "Insufficient fundraising campaign balance for extraction."
+                    },
+                    cancellationToken);
+
+                throw new InvalidOperationException("Extract amount exceeds the fundraising campaign balance.");
+            }
+
+            await _unitOfWork.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                source.BudgetSpent += request.Amount;
+                target.BudgetTotal += request.Amount;
+
+                var transfer = new CampaignBudgetTransfer
+                {
+                    CampaignBudgetTransferId = Guid.NewGuid(),
+                    SourceCampaignId = source.CampaignId,
+                    TargetCampaignId = target.CampaignId,
+                    Amount = request.Amount,
+                    TransferredByUserId = _currentUserService.UserId,
+                    TransferredAt = DateTime.UtcNow,
+                    Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim()
+                };
+
+                await _unitOfWork.CampaignBudgetTransfers.AddAsync(transfer);
+                await _unitOfWork.Campaigns.UpdateAsync(source);
+                await _unitOfWork.Campaigns.UpdateAsync(target);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+                return new CampaignBudgetTransferResponse
+                {
+                    CampaignBudgetTransferId = transfer.CampaignBudgetTransferId,
+                    SourceCampaignId = transfer.SourceCampaignId,
+                    TargetCampaignId = transfer.TargetCampaignId,
+                    Amount = transfer.Amount,
+                    TransferredByUserId = transfer.TransferredByUserId,
+                    TransferredAt = transfer.TransferredAt,
+                    Note = transfer.Note,
+                    SourceRemainingBudget = source.BudgetTotal - source.BudgetSpent,
+                    TargetRemainingBudget = target.BudgetTotal - target.BudgetSpent
+                };
+            }
+            catch (Exception ex)
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                await LogFinancialFailureAsync(
+                    "CampaignBudgetTransfer",
+                    "ExtractFailed",
+                    fundraisingCampaignId.ToString(),
+                    new
+                    {
+                        fundraisingCampaignId,
+                        request.TargetReliefCampaignId,
+                        request.Amount,
+                        request.Note,
+                        Exception = ex.Message
+                    },
+                    cancellationToken);
+                throw;
+            }
         }
 
         public async Task<CampaignTeamResponse> AssignTeamAsync(Guid campaignId, AssignCampaignTeamRequest request, CancellationToken cancellationToken = default)
@@ -717,6 +811,22 @@ namespace ReliefManagementSystem.Application.Services
 
         private static bool CanEditCampaign(Domain.Entities.Campaign campaign)
             => GetEditableStatuses(campaign.Type).Contains(campaign.Status);
+
+        private async Task LogFinancialFailureAsync(string entityName, string action, string primaryKey, object payload, CancellationToken cancellationToken)
+        {
+            await _unitOfWork.AuditLogs.AddAsync(new AuditLog
+            {
+                AuditLogId = Guid.NewGuid(),
+                EntityName = entityName,
+                Action = action,
+                Timestamp = DateTime.UtcNow,
+                UserId = _currentUserService.UserId,
+                PrimaryKey = primaryKey,
+                NewValues = JsonSerializer.Serialize(payload)
+            });
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
 
         private static string GetEditabilityErrorMessage(Domain.Entities.Campaign campaign)
             => campaign.Type switch

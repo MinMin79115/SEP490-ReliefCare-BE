@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Domain.Enum;
+using System.Text.Json;
 
 namespace ReliefManagementSystem.Application.Services
 {
@@ -142,6 +143,7 @@ namespace ReliefManagementSystem.Application.Services
                 existingActiveDelivery.ReliefPackageDefinitionId = packageId.Value;
                 existingActiveDelivery.DeliveryMode = request.DeliveryMode;
                 existingActiveDelivery.ScheduledAt = request.ScheduledAt ?? existingActiveDelivery.ScheduledAt;
+                existingActiveDelivery.CashSupportAmount = package.CashSupportAmount ?? 0;
                 existingActiveDelivery.Notes = request.Notes;
                 existingActiveDelivery.Status = HouseholdFulfillmentStatus.Pending;
 
@@ -162,6 +164,7 @@ namespace ReliefManagementSystem.Application.Services
                 CampaignTeamId = request.CampaignTeamId,
                 ReliefPackageDefinitionId = packageId.Value,
                 DeliveryMode = request.DeliveryMode,
+                CashSupportAmount = package.CashSupportAmount ?? 0,
                 Status = HouseholdFulfillmentStatus.Pending,
                 ScheduledAt = request.ScheduledAt ?? DateTime.UtcNow,
                 Notes = request.Notes,
@@ -565,6 +568,7 @@ namespace ReliefManagementSystem.Application.Services
                 OutputSupplyItemId = outputSupplyItem.SupplyItemId,
                 Name = request.Name.Trim(),
                 Description = request.Description?.Trim(),
+                CashSupportAmount = request.CashSupportAmount ?? 0,
                 IsDefault = request.IsDefault,
                 IsActive = request.IsActive,
                 CreatedAt = DateTime.UtcNow,
@@ -842,6 +846,14 @@ namespace ReliefManagementSystem.Application.Services
             if (request.Description is not null)
                 package.Description = string.IsNullOrWhiteSpace(request.Description) ? null : request.Description.Trim();
 
+            if (request.CashSupportAmount.HasValue)
+            {
+                if (request.CashSupportAmount.Value < 0)
+                    throw new InvalidOperationException("CashSupportAmount cannot be negative.");
+
+                package.CashSupportAmount = request.CashSupportAmount.Value;
+            }
+
             if (request.OutputSupplyItemId.HasValue)
             {
                 if (request.OutputSupplyItemId.Value == Guid.Empty)
@@ -945,6 +957,7 @@ namespace ReliefManagementSystem.Application.Services
                 householdDeliveryId,
                 request.ReliefPackageDefinitionId,
                 request.CampaignTeamId,
+                request.CashSupportAmount,
                 request.Notes,
                 [new CompleteHouseholdDeliveryProofRequest
                 {
@@ -1011,6 +1024,7 @@ namespace ReliefManagementSystem.Application.Services
                         item.HouseholdDeliveryId,
                         item.ReliefPackageDefinitionId,
                         item.CampaignTeamId,
+                        item.CashSupportAmount,
                         item.Notes,
                         item.Proofs,
                         cancellationToken);
@@ -1276,6 +1290,7 @@ namespace ReliefManagementSystem.Application.Services
             Guid householdDeliveryId,
             Guid? reliefPackageDefinitionId,
             Guid? campaignTeamId,
+            decimal? cashSupportAmount,
             string? notes,
             IReadOnlyCollection<CompleteHouseholdDeliveryProofRequest> proofs,
             CancellationToken cancellationToken)
@@ -1304,6 +1319,7 @@ namespace ReliefManagementSystem.Application.Services
                 delivery.ReliefPackageDefinitionId = reliefPackageDefinitionId.Value;
                 package = await _unitOfWork.ReliefPackageDefinitions.GetByIdWithItemsAsync(reliefPackageDefinitionId.Value, cancellationToken)
                     ?? throw new KeyNotFoundException($"Relief package definition '{reliefPackageDefinitionId.Value}' was not found.");
+                delivery.CashSupportAmount = package.CashSupportAmount ?? 0;
             }
 
             if (campaignTeamId.HasValue)
@@ -1314,9 +1330,30 @@ namespace ReliefManagementSystem.Application.Services
                 delivery.CampaignTeamId = campaignTeamId;
             }
 
+            if (cashSupportAmount.HasValue)
+            {
+                if (cashSupportAmount.Value < 0)
+                    throw new InvalidOperationException("CashSupportAmount cannot be negative.");
+
+                delivery.CashSupportAmount = cashSupportAmount.Value;
+            }
+
             await _unitOfWork.BeginTransactionAsync(cancellationToken);
             try
             {
+                var campaign = await _unitOfWork.Campaigns.GetWithDetailsAsync(campaignId, cancellationToken)
+                    ?? throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
+
+                var totalDistributionMoney = delivery.CashSupportAmount;
+                var reliefCampaignBalance = campaign.BudgetTotal - campaign.BudgetSpent;
+
+                if (totalDistributionMoney > reliefCampaignBalance)
+                {
+                    await _unitOfWork.RollbackTransactionAsync(cancellationToken);
+                    await LogDistributionFailureAsync(delivery, package, totalDistributionMoney, reliefCampaignBalance, cancellationToken);
+                    throw new InvalidOperationException("Insufficient balance. Please extract more funds from fundraising campaign or create a new fundraising campaign.");
+                }
+
                 await _campaignInventoryService.CreateTransactionAsync(
                     campaignId,
                     TransactionType.Export,
@@ -1336,6 +1373,9 @@ namespace ReliefManagementSystem.Application.Services
                     reliefPackageDefinitionId: delivery.ReliefPackageDefinitionId,
                     autoSave: false,
                     cancellationToken: cancellationToken);
+
+                campaign.BudgetSpent += totalDistributionMoney;
+                await _unitOfWork.Campaigns.UpdateAsync(campaign);
 
                 foreach (var proofItem in proofs)
                 {
@@ -1420,6 +1460,7 @@ namespace ReliefManagementSystem.Application.Services
             OutputSupplyItemId = x.OutputSupplyItemId,
             OutputSupplyItemName = x.OutputSupplyItem?.Name ?? string.Empty,
             OutputUnit = x.OutputSupplyItem?.Unit ?? string.Empty,
+            CashSupportAmount = x.CashSupportAmount ?? 0,
             Name = x.Name,
             Description = x.Description,
             IsDefault = x.IsDefault,
@@ -1449,6 +1490,7 @@ namespace ReliefManagementSystem.Application.Services
             DeliveredByUserId = x.DeliveredByUserId,
             DeliveryMode = x.DeliveryMode,
             Status = x.Status,
+            CashSupportAmount = x.CashSupportAmount,
             ScheduledAt = x.ScheduledAt,
             DeliveredAt = x.DeliveredAt,
             Notes = x.Notes,
@@ -1510,6 +1552,32 @@ namespace ReliefManagementSystem.Application.Services
                 QuantityConsumed = d.QuantityConsumed
             }).ToList()
         };
+
+        private async Task LogDistributionFailureAsync(HouseholdDelivery delivery, ReliefPackageDefinition package, decimal totalDistributionMoney, decimal reliefCampaignBalance, CancellationToken cancellationToken)
+        {
+            await _unitOfWork.AuditLogs.AddAsync(new AuditLog
+            {
+                AuditLogId = Guid.NewGuid(),
+                EntityName = "HouseholdDelivery",
+                Action = "DistributionFailed",
+                Timestamp = DateTime.UtcNow,
+                UserId = _currentUser.UserId,
+                PrimaryKey = delivery.HouseholdDeliveryId.ToString(),
+                NewValues = JsonSerializer.Serialize(new
+                {
+                    delivery.HouseholdDeliveryId,
+                    delivery.CampaignId,
+                    delivery.ReliefPackageDefinitionId,
+                    PackageName = package.Name,
+                    Quantity = 1,
+                    TotalMoneyUsed = totalDistributionMoney,
+                    ReliefCampaignBalance = reliefCampaignBalance,
+                    Message = "Insufficient balance. Please extract more funds from fundraising campaign or create a new fundraising campaign."
+                })
+            });
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
 
         private static void ValidateStationAttachedToCampaign(Campaign campaign, Guid reliefStationId)
         {
