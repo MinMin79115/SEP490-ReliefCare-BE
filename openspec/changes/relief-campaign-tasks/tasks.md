@@ -6,22 +6,22 @@
 
 ## 2. Relief campaign task business rules
 
-- [ ] 2.1 Enforce that tasks can only be created for relief campaigns and valid campaign teams within the same campaign
-- [ ] 2.2 Implement the relief task status transition map (`Planned`, `InProgress`, `Blocked`, `Completed`, `Cancelled`)
-- [ ] 2.3 Gate execution-side transitions so they are only allowed when the parent relief campaign is `Active`
-- [ ] 2.4 Ensure task completion and cancellation do not directly mutate stock, allocation, transfer, delivery, or household fulfillment records
+- [x] 2.1 Enforce that tasks can only be created for relief campaigns and valid campaign teams within the same campaign
+- [x] 2.2 Implement the relief task status transition map (`Planned`, `InProgress`, `Blocked`, `Completed`, `Cancelled`)
+- [x] 2.3 Gate execution-side transitions so they are only allowed when the parent relief campaign is `Active`
+- [x] 2.4 Ensure task completion and cancellation do not directly mutate stock, allocation, transfer, delivery, or household fulfillment records
 
 ## 3. Task API surface
 
-- [ ] 3.1 Add endpoints to create, list, get detail, update, change status, and cancel/delete campaign tasks
-- [ ] 3.2 Add task list filters for campaign team and task status
-- [ ] 3.3 Return frontend-friendly task responses with team context and scheduling fields
+- [x] 3.1 Add endpoints to create, list, get detail, update, change status, and cancel/delete campaign tasks
+- [x] 3.2 Add task list filters for campaign team and task status
+- [x] 3.3 Return frontend-friendly task responses with team context and scheduling fields
 
 ## 4. Optional member assignment layer
 
-- [ ] 4.1 Add member task DTOs and service methods for assigning member subtasks under a campaign task
-- [ ] 4.2 Validate that assigned members belong to the owning campaign team
-- [ ] 4.3 Ensure member subtask status does not auto-complete the parent campaign task
+- [x] 4.1 Add member task DTOs and service methods for assigning member subtasks under a campaign task
+- [x] 4.2 Validate that assigned members belong to the owning campaign team
+- [x] 4.3 Ensure member subtask status does not auto-complete the parent campaign task
 
 ## 5. Validation and verification
 

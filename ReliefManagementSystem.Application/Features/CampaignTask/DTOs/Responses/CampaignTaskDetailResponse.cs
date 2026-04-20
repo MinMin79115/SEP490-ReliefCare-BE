@@ -6,5 +6,6 @@ namespace ReliefManagementSystem.Application.Features.CampaignTask.DTOs.Response
     {
         public int MemberTaskCount { get; set; }
         public int CompletedMemberTaskCount { get; set; }
+        public List<MemberTaskResponse> MemberTasks { get; set; } = [];
     }
 }

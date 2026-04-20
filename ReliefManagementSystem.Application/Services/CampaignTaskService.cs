@@ -115,6 +115,40 @@ namespace ReliefManagementSystem.Application.Services
             return MapSummary(task, campaign.CampaignId, task.CampaignTeam.Team?.Name);
         }
 
+        public async Task<MemberTaskResponse> AssignMemberAsync(Guid campaignTaskId, AssignMemberTaskRequest request, CancellationToken cancellationToken = default)
+        {
+            var task = await _unitOfWork.CampaignTasks.GetByIdWithDetailsAsync(campaignTaskId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Campaign task '{campaignTaskId}' was not found.");
+
+            await GetReliefCampaignAsync(task.CampaignTeam.CampaignId, cancellationToken);
+            ValidateTaskEditable(task.Status);
+
+            var volunteerProfile = await _unitOfWork.VolunteerProfiles.GetByIdWithSkillsAndUserAsync(request.VolunteerProfileId)
+                ?? throw new KeyNotFoundException($"Volunteer profile '{request.VolunteerProfileId}' was not found.");
+
+            var isMember = await _unitOfWork.TeamMembers.IsMemberAsync(task.CampaignTeam.TeamId, volunteerProfile.UserId);
+            if (!isMember)
+            {
+                throw new InvalidOperationException("Assigned volunteer must belong to the owning campaign team.");
+            }
+
+            var memberTask = new MemberTask
+            {
+                MemberTaskId = Guid.NewGuid(),
+                CampaignTaskId = task.CampaignTaskId,
+                VolunteerProfileId = volunteerProfile.VolunteerProfileId,
+                SubTaskTitle = request.SubTaskTitle.Trim(),
+                TaskNote = string.IsNullOrWhiteSpace(request.TaskNote) ? null : request.TaskNote.Trim(),
+                AssignedAt = DateTime.UtcNow,
+                Status = MemberTaskStatus.Assigned
+            };
+
+            await _unitOfWork.MemberTasks.AddAsync(memberTask);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return MapMemberTask(memberTask, ResolveVolunteerDisplayName(volunteerProfile));
+        }
+
         public async Task DeleteAsync(Guid campaignTaskId, CancellationToken cancellationToken = default)
         {
             var task = await _unitOfWork.CampaignTasks.GetByIdWithDetailsAsync(campaignTaskId, cancellationToken)
@@ -240,7 +274,28 @@ namespace ReliefManagementSystem.Application.Services
                 CreatedBy = task.CreatedBy,
                 CreatedAt = task.CreatedAt,
                 MemberTaskCount = task.MemberTasks.Count,
-                CompletedMemberTaskCount = task.MemberTasks.Count(x => x.Status == MemberTaskStatus.Completed)
+                CompletedMemberTaskCount = task.MemberTasks.Count(x => x.Status == MemberTaskStatus.Completed),
+                MemberTasks = task.MemberTasks.Select(x => MapMemberTask(x, ResolveVolunteerDisplayName(x.VolunteerProfile))).ToList()
             };
+
+        private static MemberTaskResponse MapMemberTask(MemberTask memberTask, string? volunteerName)
+            => new()
+            {
+                MemberTaskId = memberTask.MemberTaskId,
+                CampaignTaskId = memberTask.CampaignTaskId,
+                VolunteerProfileId = memberTask.VolunteerProfileId,
+                VolunteerName = volunteerName ?? string.Empty,
+                SubTaskTitle = memberTask.SubTaskTitle,
+                TaskNote = memberTask.TaskNote,
+                AssignedAt = memberTask.AssignedAt,
+                CompletedAt = memberTask.CompletedAt,
+                Status = memberTask.Status
+            };
+
+        private static string ResolveVolunteerDisplayName(VolunteerProfile? volunteerProfile)
+            => volunteerProfile?.User?.DisplayName
+                ?? volunteerProfile?.User?.UserName
+                ?? volunteerProfile?.User?.Email
+                ?? string.Empty;
     }
 }
