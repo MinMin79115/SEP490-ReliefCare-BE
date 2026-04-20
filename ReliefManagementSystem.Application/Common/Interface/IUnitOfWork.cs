@@ -64,6 +64,8 @@ namespace ReliefManagementSystem.Application.Common.Interface
 
         // Campaign (stub for validation — full module TBD)
         ICampaignRepository Campaigns { get; }
+        ICampaignTaskRepository CampaignTasks { get; }
+        IMemberTaskRepository MemberTasks { get; }
         ICampaignInventoryRepository CampaignInventories { get; }
         ICampaignInventoryStockRepository CampaignInventoryStocks { get; }
         ICampaignInventoryTransactionRepository CampaignInventoryTransactions { get; }
