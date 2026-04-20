@@ -167,7 +167,7 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         public string? Description { get; set; }
 
         [Required]
-        public Guid OutputSupplyItemId { get; set; }
+        public Guid? OutputSupplyItemId { get; set; }
 
         public bool IsDefault { get; set; }
         public bool IsActive { get; set; } = true;

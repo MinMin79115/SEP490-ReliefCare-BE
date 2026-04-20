@@ -520,8 +520,11 @@ namespace ReliefManagementSystem.Application.Services
         {
             await EnsureReliefCampaignAsync(campaignId, cancellationToken);
 
-            var outputSupplyItem = await _unitOfWork.SupplyItems.GetByIdAsync(request.OutputSupplyItemId)
-                ?? throw new KeyNotFoundException($"Output supply item '{request.OutputSupplyItemId}' was not found.");
+            if (!request.OutputSupplyItemId.HasValue || request.OutputSupplyItemId.Value == Guid.Empty)
+                throw new InvalidOperationException("OutputSupplyItemId is required.");
+
+            var outputSupplyItem = await _unitOfWork.SupplyItems.GetByIdAsync(request.OutputSupplyItemId.Value)
+                ?? throw new KeyNotFoundException($"Output supply item '{request.OutputSupplyItemId.Value}' was not found.");
 
             var duplicateSupplyItems = request.Items.GroupBy(x => x.SupplyItemId).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
             if (duplicateSupplyItems.Count != 0)
@@ -531,14 +534,14 @@ namespace ReliefManagementSystem.Application.Services
             var packageCategorySupplyItemIds = existingDefinitions
                 .Select(x => x.OutputSupplyItemId)
                 .ToHashSet();
-            packageCategorySupplyItemIds.Add(request.OutputSupplyItemId);
+            packageCategorySupplyItemIds.Add(request.OutputSupplyItemId.Value);
 
             foreach (var item in request.Items)
             {
                 if (!await _unitOfWork.SupplyItems.ExistsAsync(item.SupplyItemId))
                     throw new KeyNotFoundException($"Supply item '{item.SupplyItemId}' was not found.");
 
-                if (item.SupplyItemId == request.OutputSupplyItemId)
+                if (item.SupplyItemId == request.OutputSupplyItemId.Value)
                     throw new InvalidOperationException("Output supply item cannot be used as a package component.");
 
                 if (packageCategorySupplyItemIds.Contains(item.SupplyItemId))
@@ -841,6 +844,9 @@ namespace ReliefManagementSystem.Application.Services
 
             if (request.OutputSupplyItemId.HasValue)
             {
+                if (request.OutputSupplyItemId.Value == Guid.Empty)
+                    throw new InvalidOperationException("OutputSupplyItemId cannot be an empty GUID.");
+
                 var outputSupplyItem = await _unitOfWork.SupplyItems.GetByIdAsync(request.OutputSupplyItemId.Value)
                     ?? throw new KeyNotFoundException($"Output supply item '{request.OutputSupplyItemId.Value}' was not found.");
                 package.OutputSupplyItemId = outputSupplyItem.SupplyItemId;
