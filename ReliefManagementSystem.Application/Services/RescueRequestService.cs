@@ -385,9 +385,32 @@ namespace ReliefManagementSystem.Application.Services
             if (stationTeamAssignment == null || stationTeamAssignment.Status != ReliefTeamAssignmentStatus.Approved)
                 throw new InvalidOperationException("Team does not belong to dispatched station or assignment is not approved.");
 
+            Vehicle? assignedVehicle = null;
+            if (dto.VehicleId.HasValue)
+            {
+                assignedVehicle = await _unitOfWork.Vehicles.GetByIdWithDetailsAsync(dto.VehicleId.Value);
+                if (assignedVehicle == null || assignedVehicle.IsDeleted)
+                    throw new InvalidOperationException("Vehicle not found.");
+
+                if (!assignedVehicle.ReliefStationId.HasValue || assignedVehicle.ReliefStationId.Value != stationOperation.ReliefStationId!.Value)
+                    throw new InvalidOperationException("Vehicle does not belong to dispatched station.");
+
+                if (assignedVehicle.Status != VehicleStatus.Free)
+                    throw new InvalidOperationException("Vehicle is not available.");
+
+                if (assignedVehicle.TeamId.HasValue && assignedVehicle.TeamId.Value != dto.TeamId)
+                    throw new InvalidOperationException("Vehicle is assigned to another team.");
+            }
+
             stationOperation.TeamId = dto.TeamId;
+            stationOperation.VehicleId = dto.VehicleId;
             stationOperation.Status = RescueOperationStatus.Assigned;
             stationOperation.Note = dto.Note;
+
+            if (assignedVehicle != null)
+            {
+                assignedVehicle.Status = VehicleStatus.Busy;
+            }
 
             request.RescueRequestStatus = RescueRequestStatus.Assigned;
             request.UpdatedAt = DateTime.UtcNow;
@@ -644,6 +667,15 @@ namespace ReliefManagementSystem.Application.Services
 
             operation.Status = RescueOperationStatus.RescueCompleted;
             operation.EndedAt = now;
+
+            if (operation.VehicleId.HasValue)
+            {
+                var vehicle = await _unitOfWork.Vehicles.GetByIdAsync(operation.VehicleId.Value);
+                if (vehicle != null && !vehicle.IsDeleted)
+                {
+                    vehicle.Status = VehicleStatus.Free;
+                }
+            }
 
             if (!string.IsNullOrWhiteSpace(dto.Note))
             {
@@ -1387,6 +1419,15 @@ namespace ReliefManagementSystem.Application.Services
             if (dto.Status == RescueOperationStatus.Closed || dto.Status == RescueOperationStatus.Cancelled)
             {
                 operation.EndedAt = now;
+
+                if (operation.VehicleId.HasValue)
+                {
+                    var vehicle = await _unitOfWork.Vehicles.GetByIdAsync(operation.VehicleId.Value);
+                    if (vehicle != null && !vehicle.IsDeleted)
+                    {
+                        vehicle.Status = VehicleStatus.Free;
+                    }
+                }
             }
 
             if (!string.IsNullOrWhiteSpace(dto.Note))
@@ -1885,7 +1926,10 @@ namespace ReliefManagementSystem.Application.Services
                 {
                     RescueOperationId = ro.RescueOperationId,
                     TeamId = ro.TeamId,
+                    VehicleId = ro.VehicleId,
                     TeamName = ro.Team?.Name,
+                    VehicleName = ro.Vehicle?.VehicleType?.TypeName,
+                    VehicleLicensePlate = ro.Vehicle?.LicensePlate,
                     StationName = ro.ReliefStation?.Name,
                     Status = ro.Status.ToString(),
                     StartedAt = ro.StartedAt,
@@ -1936,6 +1980,9 @@ namespace ReliefManagementSystem.Application.Services
                 RescueOperationId = activeOperation.RescueOperationId,
                 TeamId = activeOperation.TeamId.Value,
                 TeamName = activeOperation.Team.Name,
+                VehicleId = activeOperation.VehicleId,
+                VehicleName = activeOperation.Vehicle?.VehicleType?.TypeName,
+                VehicleLicensePlate = activeOperation.Vehicle?.LicensePlate,
                 OperationStatus = activeOperation.Status.ToString(),
                 CurrentLatitude = latestTracking?.Latitude,
                 CurrentLongitude = latestTracking?.Longitude,

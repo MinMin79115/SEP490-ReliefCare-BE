@@ -7,6 +7,8 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Request
         [Required]
         public Guid TeamId { get; set; }
 
+        public Guid? VehicleId { get; set; }
+
         public string? Note { get; set; }
     }
 }

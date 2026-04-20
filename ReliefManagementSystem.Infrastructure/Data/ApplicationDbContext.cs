@@ -1518,6 +1518,11 @@ namespace ReliefManagementSystem.Infrastructure.Data
                     .HasForeignKey(ro => ro.TeamId)
                     .OnDelete(DeleteBehavior.SetNull);
 
+                entity.HasOne(ro => ro.Vehicle)
+                    .WithMany()
+                    .HasForeignKey(ro => ro.VehicleId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
                 entity.HasOne(ro => ro.ReliefStation)
                     .WithMany()
                     .HasForeignKey(ro => ro.ReliefStationId)

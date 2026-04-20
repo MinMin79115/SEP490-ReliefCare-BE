@@ -63,6 +63,9 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                         .ThenInclude(t => t.RescueBatches)
                             .ThenInclude(b => b.Items)
                 .Include(r => r.RescueOperations)
+                    .ThenInclude(ro => ro.Vehicle)
+                        .ThenInclude(v => v.VehicleType)
+                .Include(r => r.RescueOperations)
                     .ThenInclude(ro => ro.ReliefStation)
                 .FirstOrDefaultAsync(cancellationToken);
         }
@@ -120,6 +123,9 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                         .ThenInclude(t => t.RescueBatches)
                             .ThenInclude(b => b.Items)
                 .Include(r => r.RescueOperations)
+                    .ThenInclude(ro => ro.Vehicle)
+                        .ThenInclude(v => v.VehicleType)
+                .Include(r => r.RescueOperations)
                     .ThenInclude(ro => ro.ReliefStation)
                 .ToListAsync(cancellationToken);
         }
@@ -150,6 +156,9 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                     .ThenInclude(ro => ro.Team)
                         .ThenInclude(t => t.RescueBatches)
                             .ThenInclude(b => b.Items)
+                .Include(r => r.RescueOperations)
+                    .ThenInclude(ro => ro.Vehicle)
+                        .ThenInclude(v => v.VehicleType)
                 .Include(r => r.RescueOperations)
                     .ThenInclude(ro => ro.ReliefStation)
                 .Include(r => r.Verifications)
