@@ -523,11 +523,26 @@ namespace ReliefManagementSystem.Application.Services
         {
             await EnsureReliefCampaignAsync(campaignId, cancellationToken);
 
-            if (!request.OutputSupplyItemId.HasValue || request.OutputSupplyItemId.Value == Guid.Empty)
-                throw new InvalidOperationException("OutputSupplyItemId is required.");
-
-            var outputSupplyItem = await _unitOfWork.SupplyItems.GetByIdAsync(request.OutputSupplyItemId.Value)
-                ?? throw new KeyNotFoundException($"Output supply item '{request.OutputSupplyItemId.Value}' was not found.");
+            SupplyItem outputSupplyItem;
+            if (request.OutputSupplyItemId.HasValue && request.OutputSupplyItemId.Value != Guid.Empty)
+            {
+                outputSupplyItem = await _unitOfWork.SupplyItems.GetByIdAsync(request.OutputSupplyItemId.Value)
+                    ?? throw new KeyNotFoundException($"Output supply item '{request.OutputSupplyItemId.Value}' was not found.");
+            }
+            else
+            {
+                // Auto-create an output supply item representing this package
+                outputSupplyItem = new SupplyItem
+                {
+                    SupplyItemId = Guid.NewGuid(),
+                    Name = $"Gói: {request.Name.Trim()}",
+                    Description = $"Mục hàng đầu ra tự động tạo cho gói hỗ trợ '{request.Name.Trim()}'",
+                    Category = SupplyCategory.Khac,
+                    Unit = "gói",
+                    CreatedAt = DateTime.UtcNow
+                };
+                await _unitOfWork.SupplyItems.AddAsync(outputSupplyItem);
+            }
 
             var duplicateSupplyItems = request.Items.GroupBy(x => x.SupplyItemId).Where(g => g.Count() > 1).Select(g => g.Key).ToList();
             if (duplicateSupplyItems.Count != 0)

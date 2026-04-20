@@ -166,7 +166,6 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         [MaxLength(1000)]
         public string? Description { get; set; }
 
-        [Required]
         public Guid? OutputSupplyItemId { get; set; }
 
         [Range(0, double.MaxValue)]
