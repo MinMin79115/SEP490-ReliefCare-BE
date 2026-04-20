@@ -100,6 +100,9 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Respons
     public class RescueCompletedRequestSummaryDto
     {
         public Guid RequestId { get; set; }
+        public Guid? VehicleId { get; set; }
+        public string? VehicleName { get; set; }
+        public string? VehicleLicensePlate { get; set; }
         public string? Address { get; set; }
         public string DisasterType { get; set; } = null!;
 

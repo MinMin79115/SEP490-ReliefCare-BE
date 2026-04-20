@@ -18,6 +18,8 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .Include(b => b.Items)
                     .ThenInclude(i => i.RescueRequest)
                         .ThenInclude(r => r.RescueOperations)
+                            .ThenInclude(ro => ro.Vehicle)
+                                .ThenInclude(v => v.VehicleType)
                 .OrderByDescending(b => b.CreatedAt)
                 .FirstOrDefaultAsync(ct);
         }
@@ -37,6 +39,8 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .Include(b => b.Items)
                     .ThenInclude(i => i.RescueRequest)
                         .ThenInclude(r => r.RescueOperations)
+                            .ThenInclude(ro => ro.Vehicle)
+                                .ThenInclude(v => v.VehicleType)
                 .FirstOrDefaultAsync(ct);
         }
 
@@ -58,6 +62,8 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .Include(b => b.Items)
                     .ThenInclude(i => i.RescueRequest)
                         .ThenInclude(r => r.RescueOperations)
+                            .ThenInclude(ro => ro.Vehicle)
+                                .ThenInclude(v => v.VehicleType)
                 .ToListAsync(ct);
 
             return (items, totalCount);

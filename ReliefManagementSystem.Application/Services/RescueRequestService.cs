@@ -2086,6 +2086,21 @@ namespace ReliefManagementSystem.Application.Services
                         IsAutoAssigned = i.IsAutoAssigned,
                         DistanceKm = i.DistanceKm,
                         EstimatedMinutes = i.EstimatedMinutes,
+                        VehicleId = i.RescueRequest?.RescueOperations?
+                            .Where(ro => ro.TeamId == batch.TeamId)
+                            .OrderByDescending(ro => ro.StartedAt)
+                            .Select(ro => ro.VehicleId)
+                            .FirstOrDefault(),
+                        VehicleName = i.RescueRequest?.RescueOperations?
+                            .Where(ro => ro.TeamId == batch.TeamId)
+                            .OrderByDescending(ro => ro.StartedAt)
+                            .Select(ro => ro.Vehicle != null ? ro.Vehicle.VehicleType != null ? ro.Vehicle.VehicleType.TypeName : null : null)
+                            .FirstOrDefault(),
+                        VehicleLicensePlate = i.RescueRequest?.RescueOperations?
+                            .Where(ro => ro.TeamId == batch.TeamId)
+                            .OrderByDescending(ro => ro.StartedAt)
+                            .Select(ro => ro.Vehicle != null ? ro.Vehicle.LicensePlate : null)
+                            .FirstOrDefault(),
                         Status = i.Status,
                         CreatedAt = i.CreatedAt
                     })
@@ -2374,9 +2389,17 @@ namespace ReliefManagementSystem.Application.Services
                     .Select(i =>
                     {
                         requestMap.TryGetValue(i.RescueRequestId, out var rr);
+                        var teamOperation = rr?.RescueOperations?
+                            .Where(ro => ro.TeamId == teamId)
+                            .OrderByDescending(ro => ro.StartedAt)
+                            .FirstOrDefault();
+
                         return new RescueCompletedRequestSummaryDto
                         {
                             RequestId = i.RescueRequestId,
+                            VehicleId = teamOperation?.VehicleId,
+                            VehicleName = teamOperation?.Vehicle?.VehicleType?.TypeName,
+                            VehicleLicensePlate = teamOperation?.Vehicle?.LicensePlate,
                             Address = rr?.Address,
                             DisasterType = rr?.DisasterType.ToString() ?? "-",
                             RescueRequestType = rr?.RescueRequestType.ToString(),
