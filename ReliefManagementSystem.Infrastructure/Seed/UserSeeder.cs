@@ -17,6 +17,9 @@ namespace ReliefManagementSystem.Infrastructure.Seed
             UserManager<ApplicationUser> userManager,
             ApplicationDbContext context)
         {
+            static DateTime UtcDate(int year, int month, int day)
+                => new(year, month, day, 0, 0, 0, DateTimeKind.Utc);
+
             await CreateUserAsync(
                 userManager,
                 context,
@@ -192,6 +195,43 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                 userName: "user10",
                 password: "User@123",
                 role: Role.User);
+
+            // Volunteer chưa gán team - đầy đủ user + volunteer profile
+            var volunteerSeedData = new (string Email, string UserName, string Password, string DisplayName, string PhoneNumber, string Address, string Gender, DateTime DateOfBirth, string Description, int YearsOfExperience, TeamRolePreference PreferredRole, VolunteerType VolunteerType)[]
+            {
+                ("volunteer.free1@system.com", "volunteer.free1", "Volunteer@123", "Nguyễn Hoàng Anh", "0901000001", "Hải Châu, Đà Nẵng", "Male", UtcDate(1998, 3, 12), "Tình nguyện viên hỗ trợ cứu hộ đường bộ và sơ cấp cứu cơ bản.", 2, TeamRolePreference.Member, VolunteerType.Campaign),
+                ("volunteer.free2@system.com", "volunteer.free2", "Volunteer@123", "Trần Minh Châu", "0901000002", "Sơn Trà, Đà Nẵng", "Female", UtcDate(1999, 7, 24), "Có kinh nghiệm hỗ trợ phân luồng và hậu cần tại điểm sơ tán.", 1, TeamRolePreference.Member, VolunteerType.Campaign),
+                ("volunteer.free3@system.com", "volunteer.free3", "Volunteer@123", "Lê Quang Huy", "0901000003", "Ngũ Hành Sơn, Đà Nẵng", "Male", UtcDate(1995, 11, 3), "Từng tham gia đội ứng cứu cộng đồng mùa mưa bão.", 3, TeamRolePreference.Driver, VolunteerType.Permanent),
+                ("volunteer.free4@system.com", "volunteer.free4", "Volunteer@123", "Phạm Thu Hà", "0901000004", "Liên Chiểu, Đà Nẵng", "Female", UtcDate(1997, 1, 15), "Có kỹ năng điều phối nhu yếu phẩm và hỗ trợ điểm cứu trợ.", 4, TeamRolePreference.Member, VolunteerType.Permanent),
+                ("volunteer.free5@system.com", "volunteer.free5", "Volunteer@123", "Đặng Quốc Bảo", "0901000005", "Phú Vang, Huế", "Male", UtcDate(1996, 9, 9), "Tình nguyện viên hỗ trợ vận chuyển người dân trong vùng ngập.", 5, TeamRolePreference.Driver, VolunteerType.Permanent),
+                ("volunteer.free6@system.com", "volunteer.free6", "Volunteer@123", "Bùi Ngọc Mai", "0901000006", "TP Huế, Huế", "Female", UtcDate(2000, 4, 18), "Hỗ trợ tiếp nhận, hướng dẫn người dân tại điểm tập kết an toàn.", 1, TeamRolePreference.Member, VolunteerType.Campaign),
+                ("volunteer.free7@system.com", "volunteer.free7", "Volunteer@123", "Võ Thành Công", "0901000007", "Hương Trà, Huế", "Male", UtcDate(1994, 12, 1), "Có kinh nghiệm lái xe bán tải, hỗ trợ di chuyển hàng cứu trợ.", 6, TeamRolePreference.Driver, VolunteerType.Permanent),
+                ("volunteer.free8@system.com", "volunteer.free8", "Volunteer@123", "Ngô Thị Lan", "0901000008", "Phong Điền, Huế", "Female", UtcDate(1998, 6, 27), "Hỗ trợ sơ cứu và chăm sóc nhóm yếu thế tại hiện trường.", 2, TeamRolePreference.Member, VolunteerType.Campaign),
+                ("volunteer.free9@system.com", "volunteer.free9", "Volunteer@123", "Hồ Gia Khánh", "0901000009", "Điện Bàn, Quảng Nam", "Male", UtcDate(1993, 2, 14), "Tình nguyện viên phản ứng nhanh, có thể làm đầu mối nhóm nhỏ.", 7, TeamRolePreference.Leader, VolunteerType.Permanent),
+                ("volunteer.free10@system.com", "volunteer.free10", "Volunteer@123", "Phan Mỹ Duyên", "0901000010", "Hòa Vang, Đà Nẵng", "Female", UtcDate(2001, 8, 5), "Tham gia hỗ trợ cứu trợ khẩn cấp và phân phát nhu yếu phẩm.", 1, TeamRolePreference.Member, VolunteerType.Campaign)
+            };
+
+            foreach (var volunteer in volunteerSeedData)
+            {
+                await CreateUserAsync(
+                    userManager,
+                    context,
+                    email: volunteer.Email,
+                    userName: volunteer.UserName,
+                    password: volunteer.Password,
+                    role: Role.Volunteer,
+                    displayName: volunteer.DisplayName,
+                    phoneNumber: volunteer.PhoneNumber,
+                    address: volunteer.Address,
+                    gender: volunteer.Gender,
+                    dateOfBirth: volunteer.DateOfBirth,
+                    volunteerDescription: volunteer.Description,
+                    volunteerYearsOfExperience: volunteer.YearsOfExperience,
+                    volunteerPreferredRole: volunteer.PreferredRole,
+                    volunteerType: volunteer.VolunteerType,
+                    volunteerVerificationStatus: VerificationStatus.Approved,
+                    volunteerStatus: VolunteerStatus.Active);
+            }
         }
 
         private static async Task CreateUserAsync(
@@ -201,7 +241,18 @@ namespace ReliefManagementSystem.Infrastructure.Seed
             string userName,
             string password,
             Role role,
-            LocationLevel? managerLevel = null)
+            LocationLevel? managerLevel = null,
+            string? displayName = null,
+            string? phoneNumber = null,
+            string? address = null,
+            string? gender = null,
+            DateTime? dateOfBirth = null,
+            string? volunteerDescription = null,
+            int? volunteerYearsOfExperience = null,
+            TeamRolePreference volunteerPreferredRole = TeamRolePreference.Member,
+            VolunteerType volunteerType = VolunteerType.Campaign,
+            VerificationStatus volunteerVerificationStatus = VerificationStatus.Pending,
+            VolunteerStatus volunteerStatus = VolunteerStatus.Active)
         {
             // ⭐ KIỂM TRA CẢ EMAIL VÀ USERNAME
             var existingUserByEmail = await userManager.FindByEmailAsync(email);
@@ -215,7 +266,12 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                 Id = Guid.NewGuid(),
                 Email = email,
                 UserName = userName,
-                EmailConfirmed = true
+                EmailConfirmed = true,
+                DisplayName = displayName ?? userName,
+                PhoneNumber = phoneNumber,
+                Address = address,
+                Gender = gender,
+                DateOfBirth = dateOfBirth
             };
 
             var result = await userManager.CreateAsync(user, password);
@@ -235,8 +291,16 @@ namespace ReliefManagementSystem.Infrastructure.Seed
                 {
                     context.VolunteerProfiles.Add(new VolunteerProfile
                     {
+                        VolunteerProfileId = Guid.NewGuid(),
                         UserId = user.Id,
-                        VerificationStatus = VerificationStatus.Pending
+                        VerificationStatus = volunteerVerificationStatus,
+                        Status = volunteerStatus,
+                        CreatedAt = DateTime.UtcNow,
+                        VerifiedAt = volunteerVerificationStatus == VerificationStatus.Approved ? DateTime.UtcNow : null,
+                        Descriptions = volunteerDescription,
+                        YearsOfExperience = volunteerYearsOfExperience,
+                        PreferredTeamRole = volunteerPreferredRole,
+                        VolunteerType = volunteerType
                     });
 
                     await context.SaveChangesAsync();
