@@ -459,7 +459,7 @@ namespace ReliefManagementSystem.Application.Services
             var results = new List<CampaignTeamResponse>();
             foreach (var item in items)
             {
-                var memberCount = await _unitOfWork.Teams.GetAvailablePeopleCountByTeamAsync(item.TeamId, cancellationToken);
+                var memberCount = await _unitOfWork.Teams.GetTeamMemberCountAsync(item.TeamId, cancellationToken);
                 results.Add(new CampaignTeamResponse
                 {
                     CampaignTeamId = item.CampaignTeamId,
