@@ -20,6 +20,9 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Respons
     {
         public Guid RescueBatchItemId { get; set; }
         public Guid RescueRequestId { get; set; }
+        public Guid? VehicleId { get; set; }
+        public string? VehicleName { get; set; }
+        public string? VehicleLicensePlate { get; set; }
         public string? DisasterType { get; set; }
         public string? RescueRequestType { get; set; }
         public string? RescueRequestStatus { get; set; }
