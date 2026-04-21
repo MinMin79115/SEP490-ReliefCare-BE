@@ -34,6 +34,12 @@ namespace ReliefManagementSystem.Application.Interface
             UpdateCampaignHouseholdRequest request,
             CancellationToken cancellationToken = default);
 
+        Task<CampaignHouseholdResponse> UpdateCampaignHouseholdStatusAsync(
+            Guid campaignId,
+            Guid campaignHouseholdId,
+            UpdateCampaignHouseholdStatusRequest request,
+            CancellationToken cancellationToken = default);
+
         Task DeleteCampaignHouseholdAsync(
             Guid campaignId,
             Guid campaignHouseholdId,

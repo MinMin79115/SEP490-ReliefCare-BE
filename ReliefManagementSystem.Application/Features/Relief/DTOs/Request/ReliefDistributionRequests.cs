@@ -62,6 +62,7 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         public Guid? DistributionPointId { get; set; }
         public Guid? CampaignTeamId { get; set; }
         public bool? IsIsolated { get; set; }
+        public bool? IsAssigned { get; set; }
     }
 
     public class DeliveryQueryRequest : ReliefPagedQueryRequest
@@ -109,6 +110,14 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         public DeliveryMode? DeliveryMode { get; set; }
         public Guid? DistributionPointId { get; set; }
         public Guid? CampaignTeamId { get; set; }
+        public string? Notes { get; set; }
+    }
+
+    public class UpdateCampaignHouseholdStatusRequest
+    {
+        [Required]
+        public HouseholdFulfillmentStatus Status { get; set; }
+
         public string? Notes { get; set; }
     }
 

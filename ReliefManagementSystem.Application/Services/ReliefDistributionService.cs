@@ -211,6 +211,11 @@ namespace ReliefManagementSystem.Application.Services
             if (request.CampaignTeamId.HasValue)
                 query = query.Where(x => x.CampaignTeamId == request.CampaignTeamId.Value);
 
+            if (request.IsAssigned.HasValue)
+                query = request.IsAssigned.Value
+                    ? query.Where(x => x.CampaignTeamId != null)
+                    : query.Where(x => x.CampaignTeamId == null);
+
             if (request.IsIsolated.HasValue)
                 query = query.Where(x => x.IsIsolated == request.IsIsolated.Value);
 
@@ -312,6 +317,31 @@ namespace ReliefManagementSystem.Application.Services
 
             await _unitOfWork.CampaignHouseholds.UpdateAsync(household);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+            return MapCampaignHousehold(household);
+        }
+
+        public async Task<CampaignHouseholdResponse> UpdateCampaignHouseholdStatusAsync(
+            Guid campaignId,
+            Guid campaignHouseholdId,
+            UpdateCampaignHouseholdStatusRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            await EnsureReliefCampaignAsync(campaignId, cancellationToken);
+
+            var household = await _unitOfWork.CampaignHouseholds.GetByIdWithDeliveriesAsync(campaignHouseholdId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Campaign household '{campaignHouseholdId}' was not found.");
+
+            if (household.CampaignId != campaignId)
+                throw new InvalidOperationException("Household does not belong to campaign.");
+
+            household.FulfillmentStatus = request.Status;
+
+            if (request.Notes is not null)
+                household.Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim();
+
+            await _unitOfWork.CampaignHouseholds.UpdateAsync(household);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
             return MapCampaignHousehold(household);
         }
 
