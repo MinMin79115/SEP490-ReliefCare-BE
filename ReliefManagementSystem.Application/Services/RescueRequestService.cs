@@ -496,7 +496,11 @@ namespace ReliefManagementSystem.Application.Services
             var activeBatch = await _unitOfWork.RescueBatches.GetActiveByTeamIdAsync(dto.TeamId, cancellationToken)
                 ?? throw new InvalidOperationException("No active rescue batch found for team after assign.");
 
-            var itemsByRequestId = activeBatch.Items.ToDictionary(i => i.RescueRequestId, i => i);
+            var itemsByRequestId = activeBatch.Items
+                .GroupBy(i => i.RescueRequestId)
+                .ToDictionary(
+                    g => g.Key,
+                    g => g.OrderByDescending(x => x.CreatedAt).First());
             var orderedIds = preview.ProposedRequestIdsInOrder
                 .Where(itemsByRequestId.ContainsKey)
                 .Concat(activeBatch.Items.Where(i => !preview.ProposedRequestIdsInOrder.Contains(i.RescueRequestId))
