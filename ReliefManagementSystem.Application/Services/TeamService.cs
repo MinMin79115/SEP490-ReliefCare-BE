@@ -814,6 +814,7 @@ namespace ReliefManagementSystem.Application.Services
                 Members = team.TeamMembers.Select(tm => new TeamMemberInfo
                 {
                     UserId = tm.UserId,
+                    VolunteerProfileId = tm.User.VolunteerProfile?.VolunteerProfileId,
                     DisplayName = tm.User.DisplayName ?? tm.User.UserName ?? "Unknown",
                     Email = tm.User.Email ?? "",
                     Role = tm.RoleTeam,
