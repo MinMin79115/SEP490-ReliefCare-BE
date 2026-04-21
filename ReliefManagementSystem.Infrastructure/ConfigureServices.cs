@@ -37,7 +37,6 @@ namespace ReliefManagementSystem.Infrastructure
             services.AddScoped<ICurrentUserService, CurrentUserService>();
             services.AddScoped<IImageService, CloudinaryImageService>();
             services.AddScoped<IEmailService, BrevoEmailService>();
-            services.AddScoped<IDisasterRiskAssessor, RuleBasedDisasterRiskAssessor>();
             services.AddScoped<IRealtimeTokenService, CentrifugoRealtimeTokenService>();
             services.AddHttpClient<INotificationRealtimePublisher, NotificationRealtimePublisher>((serviceProvider, client) =>
             {
@@ -96,6 +95,7 @@ namespace ReliefManagementSystem.Infrastructure
             services.AddHttpClient<IGoongDistanceService, GoongDistanceService>();
             services.AddHttpClient<IGoongRouteService, GoongRouteService>();
             services.AddHttpClient<IWeatherService, WeatherService>();
+            services.AddHttpClient<IDisasterForecastService, VisualCrossingForecastService>();
             services.AddHttpClient<ILlmAnalysisService, OpenAiCompatibleLlmAnalysisService>();
             services.AddHttpClient<IPayOsGateway, PayOsGateway>();
             return services;

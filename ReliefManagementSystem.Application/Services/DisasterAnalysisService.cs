@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Options;
 using ReliefManagementSystem.Application.Common.Interface;
 using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Application.Features.DisasterAnalysis.DTOs.Request;
@@ -5,7 +6,6 @@ using ReliefManagementSystem.Application.Features.DisasterAnalysis.DTOs.Response
 using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Domain.Enum;
-using Microsoft.Extensions.Options;
 using System.Text.Json;
 
 namespace ReliefManagementSystem.Application.Services
@@ -13,23 +13,21 @@ namespace ReliefManagementSystem.Application.Services
     public class DisasterAnalysisService : IDisasterAnalysisService
     {
         private readonly IWeatherService _weatherService;
-        private readonly IDisasterRiskAssessor _disasterRiskAssessor;
+        private readonly IDisasterForecastService _forecastService;
         private readonly ILlmAnalysisService _llmAnalysisService;
         private readonly IUnitOfWork _unitOfWork;
-        private readonly DisasterAnalysisSettings _settings;
 
         public DisasterAnalysisService(
             IWeatherService weatherService,
-            IDisasterRiskAssessor disasterRiskAssessor,
+            IDisasterForecastService forecastService,
             ILlmAnalysisService llmAnalysisService,
             IUnitOfWork unitOfWork,
             IOptions<DisasterAnalysisSettings> options)
         {
             _weatherService = weatherService;
-            _disasterRiskAssessor = disasterRiskAssessor;
+            _forecastService = forecastService;
             _llmAnalysisService = llmAnalysisService;
             _unitOfWork = unitOfWork;
-            _settings = options.Value;
         }
 
         public async Task<AnalyzeDisasterRiskResponse> AnalyzeAsync(
@@ -47,31 +45,13 @@ namespace ReliefManagementSystem.Application.Services
                 request.Longitude,
                 cancellationToken);
 
-            var supportedDisasterTypes = GetSupportedDisasterTypes(_settings.IncludeEarthquakeInAutoDetect).ToList();
-            var allAssessments = supportedDisasterTypes
-                .Select(disasterType => _disasterRiskAssessor.Assess(
-                    weather,
-                    disasterType,
-                    locationName,
-                    request.AdditionalContext))
-                .OrderByDescending(x => x.OverallRiskScore)
-                .ThenByDescending(x => x.TriggerFactors.Count)
-                .ToList();
+            var forecast = await _forecastService.GetFloodForecastAsync(
+                request.Latitude,
+                request.Longitude,
+                14,
+                cancellationToken);
 
             var requestedDisasterType = request.DisasterType;
-            var primaryAssessment = requestedDisasterType.HasValue
-                ? allAssessments.FirstOrDefault(x => x.DisasterType == requestedDisasterType.Value)
-                : allAssessments.FirstOrDefault();
-
-            if (primaryAssessment == null)
-            {
-                throw new InvalidOperationException("No disaster assessment could be generated from the current weather data.");
-            }
-
-            var riskRanking = allAssessments
-                .Take(Math.Clamp(_settings.TopRiskCount, 1, Math.Max(1, allAssessments.Count)))
-                .ToList();
-
             var analysisMode = requestedDisasterType.HasValue ? "Focused" : "AutoDetect";
 
             LlmDisasterAnalysisResult? llmResult = null;
@@ -80,8 +60,11 @@ namespace ReliefManagementSystem.Application.Services
             try
             {
                 llmResult = await _llmAnalysisService.AnalyzeRiskAsync(
-                    primaryAssessment,
-                    riskRanking,
+                    weather,
+                    forecast,
+                    locationName,
+                    requestedDisasterType?.ToString(),
+                    request.AdditionalContext,
                     request.Model,
                     cancellationToken);
             }
@@ -96,17 +79,17 @@ namespace ReliefManagementSystem.Application.Services
                 Latitude = request.Latitude,
                 Longitude = request.Longitude,
                 LocationName = locationName,
-                DisasterType = primaryAssessment.DisasterType,
+                DisasterType = requestedDisasterType ?? DisasterType.Flood,
                 RequestedModel = string.IsNullOrWhiteSpace(request.Model) ? null : request.Model.Trim(),
                 AdditionalContext = request.AdditionalContext,
-                WeatherSnapshotJson = JsonSerializer.Serialize(weather),
-                HeuristicRiskScore = primaryAssessment.OverallRiskScore,
-                HeuristicRiskLevel = primaryAssessment.RiskLevel,
-                AssessmentConfidence = primaryAssessment.AssessmentConfidence,
-                DataLimitationNote = primaryAssessment.DataLimitationNote,
-                TriggerFactorsJson = JsonSerializer.Serialize(primaryAssessment.TriggerFactors),
-                PotentialScenariosJson = JsonSerializer.Serialize(primaryAssessment.PotentialScenarios),
-                TopThreatsJson = JsonSerializer.Serialize(primaryAssessment.TopThreats),
+                WeatherSnapshotJson = JsonSerializer.Serialize(new { current = weather, forecast }),
+                HeuristicRiskScore = 0,
+                HeuristicRiskLevel = "AI-First",
+                AssessmentConfidence = "ModelDependent",
+                DataLimitationNote = "Kết quả được AI diễn giải trực tiếp từ dữ liệu thời tiết và forecast, không đi qua heuristic scoring ở backend.",
+                TriggerFactorsJson = JsonSerializer.Serialize(Array.Empty<string>()),
+                PotentialScenariosJson = JsonSerializer.Serialize(llmResult?.PotentialScenarios ?? BuildFallbackScenarios(forecast)),
+                TopThreatsJson = JsonSerializer.Serialize(Array.Empty<string>()),
                 LlmProvider = llmResult?.ProviderName,
                 LlmModel = llmResult?.ModelUsed,
                 PromptVersion = llmResult?.PromptVersion,
@@ -125,10 +108,8 @@ namespace ReliefManagementSystem.Application.Services
                 LocationName = locationName,
                 AnalysisMode = analysisMode,
                 RequestedDisasterType = requestedDisasterType?.ToString(),
-                PrimaryDisasterType = primaryAssessment.DisasterType.ToString(),
                 Weather = WeatherSnapshotDto.From(weather),
-                RiskRanking = riskRanking.Select(MapRiskRanking).ToList(),
-                Heuristic = primaryAssessment.ToDto(),
+                Forecast = FloodForecastDto.From(forecast),
                 Ai = new AiDisasterNarrativeDto
                 {
                     Succeeded = llmResult != null,
@@ -136,40 +117,73 @@ namespace ReliefManagementSystem.Application.Services
                     Model = llmResult?.ModelUsed,
                     PromptVersion = llmResult?.PromptVersion,
                     AnalyzedAt = llmResult?.AnalyzedAt,
-                    PrimaryRiskType = primaryAssessment.DisasterType.ToString(),
-                    Summary = llmResult?.Summary,
-                    DetailedAnalysis = llmResult?.DetailedAnalysis,
-                    Recommendations = llmResult?.Recommendations?.ToList() ?? new List<string>(),
-                    PotentialScenarios = llmResult?.PotentialScenarios?.ToList() ?? primaryAssessment.PotentialScenarios.ToList(),
-                    ErrorMessage = llmError
+                    RequestedRiskType = requestedDisasterType?.ToString(),
+                    Summary = llmResult?.Summary ?? BuildFallbackSummary(requestedDisasterType, forecast),
+                    DetailedAnalysis = llmResult?.DetailedAnalysis ?? BuildFallbackDetailedAnalysis(forecast),
+                    Recommendations = llmResult?.Recommendations?.ToList() ?? BuildFallbackRecommendations(forecast),
+                    PotentialScenarios = llmResult?.PotentialScenarios?.ToList() ?? BuildFallbackScenarios(forecast),
+                    DetectedConcerns = llmResult?.DetectedConcerns?.ToList() ?? BuildDetectedConcerns(forecast),
+                    ErrorMessage = llmError == null ? null : "Không thể tạo phần phân tích AI từ mô hình trong lần gọi này. Hệ thống đang trả về tóm tắt tối thiểu từ dữ liệu thời tiết thô."
                 }
             };
         }
 
-        private static DisasterRiskRankingDto MapRiskRanking(DisasterRiskAssessment assessment)
+        private static string BuildFallbackSummary(DisasterType? requestedDisasterType, WeatherForecastResult forecast)
         {
-            return new DisasterRiskRankingDto
+            var peakDay = forecast.Days.OrderByDescending(x => x.PrecipMm).ThenByDescending(x => x.PrecipProbability).FirstOrDefault();
+            var target = requestedDisasterType?.ToString() ?? "rủi ro thời tiết";
+
+            return peakDay == null
+                ? $"AI chưa phản hồi kịp. Hệ thống đang trả về dữ liệu thời tiết tham khảo để bạn tự xem xu hướng {target.ToLowerInvariant()} trong 14 ngày tới."
+                : $"AI chưa phản hồi kịp. Dựa trên forecast thô, thời điểm cần lưu ý nhất hiện quanh ngày {peakDay.Date:dd/MM}, khi lượng mưa dự báo khoảng {peakDay.PrecipMm:0.##} mm.";
+        }
+
+        private static string BuildFallbackDetailedAnalysis(WeatherForecastResult forecast)
+        {
+            var firstWindow = forecast.Days.Take(3).ToList();
+            var midWindow = forecast.Days.Skip(3).Take(4).ToList();
+            var lateWindow = forecast.Days.Skip(7).Take(7).ToList();
+
+            return $"Trong 1-3 ngày tới, lượng mưa cộng dồn khoảng {firstWindow.Sum(x => x.PrecipMm):0.##} mm. " +
+                   $"Giai đoạn 4-7 ngày tiếp theo có tổng mưa khoảng {midWindow.Sum(x => x.PrecipMm):0.##} mm. " +
+                   $"Ở nửa sau chu kỳ dự báo, tổng mưa khoảng {lateWindow.Sum(x => x.PrecipMm):0.##} mm. " +
+                   "Đây là phần tóm tắt tối thiểu từ dữ liệu forecast, không phải diễn giải hoàn chỉnh từ mô hình AI.";
+        }
+
+        private static List<string> BuildFallbackRecommendations(WeatherForecastResult forecast)
+        {
+            var peakDay = forecast.Days.OrderByDescending(x => x.PrecipMm).ThenByDescending(x => x.PrecipProbability).FirstOrDefault();
+
+            return new List<string>
             {
-                DisasterType = assessment.DisasterType.ToString(),
-                RiskScore = assessment.OverallRiskScore,
-                RiskLevel = assessment.RiskLevel,
-                AssessmentConfidence = assessment.AssessmentConfidence,
-                TriggerFactors = assessment.TriggerFactors.ToList(),
-                TopThreats = assessment.TopThreats.ToList()
+                "Theo dõi cập nhật forecast hằng ngày, đặc biệt tại các khu vực trũng thấp và điểm ngập quen thuộc.",
+                peakDay == null
+                    ? "Chuẩn bị phương án điều phối cơ bản theo dữ liệu forecast hiện có."
+                    : $"Ưu tiên rà soát năng lực ứng phó trước ngày {peakDay.Date:dd/MM}, là thời điểm forecast có mưa đáng chú ý nhất.",
+                "Kiểm tra trước các tuyến đường tiếp cận, điểm sơ tán tạm và nhu yếu phẩm dự phòng nếu mưa kéo dài hơn dự kiến."
             };
         }
 
-        private static IEnumerable<DisasterType> GetSupportedDisasterTypes(bool includeEarthquakeInAutoDetect)
+        private static List<string> BuildFallbackScenarios(WeatherForecastResult forecast)
         {
-            yield return DisasterType.Flood;
-            yield return DisasterType.Storm;
-            yield return DisasterType.Landslide;
-            yield return DisasterType.Fire;
+            var peakDay = forecast.Days.OrderByDescending(x => x.PrecipMm).ThenByDescending(x => x.PrecipProbability).FirstOrDefault();
+            return peakDay == null
+                ? new List<string>()
+                : new List<string>
+                {
+                    $"Nếu mưa tập trung hơn dự kiến quanh ngày {peakDay.Date:dd/MM}, một số khu vực trũng thấp có thể bị ảnh hưởng trước.",
+                    "Nếu các đợt mưa nối tiếp nhau trong nhiều ngày, việc tiếp cận hiện trường và điều phối cứu trợ có thể chậm hơn bình thường."
+                };
+        }
 
-            if (includeEarthquakeInAutoDetect)
-            {
-                yield return DisasterType.Earthquake;
-            }
+        private static List<string> BuildDetectedConcerns(WeatherForecastResult forecast)
+        {
+            var concerns = new List<string>();
+            if (forecast.Days.Sum(x => x.PrecipMm) >= 50) concerns.Add("Mưa tích lũy nhiều ngày");
+            if (forecast.Days.Any(x => x.PrecipMm >= 20)) concerns.Add("Có ngày mưa nổi bật");
+            if (forecast.Days.Count(x => x.PrecipProbability >= 70) >= 3) concerns.Add("Xác suất mưa cao lặp lại");
+            if (forecast.Days.Any(x => x.WindGustKph >= 35)) concerns.Add("Có gió giật cần lưu ý");
+            return concerns;
         }
 
         private static void ValidateRequest(AnalyzeDisasterRiskRequest request)

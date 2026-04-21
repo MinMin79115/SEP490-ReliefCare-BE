@@ -153,6 +153,9 @@ builder.Services.Configure<GoongSettings>(
 builder.Services.Configure<WeatherApiSettings>(
     builder.Configuration.GetSection("WeatherApi"));
 
+builder.Services.Configure<VisualCrossingSettings>(
+    builder.Configuration.GetSection("VisualCrossing"));
+
 builder.Services.Configure<DisasterAnalysisSettings>(
     builder.Configuration.GetSection("DisasterAnalysis"));
 
