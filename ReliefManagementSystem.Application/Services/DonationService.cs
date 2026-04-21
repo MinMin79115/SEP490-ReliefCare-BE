@@ -6,6 +6,7 @@ using ReliefManagementSystem.Application.Features.Donation.DTOs.Response;
 using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Domain.Enum;
+using Microsoft.Extensions.Logging;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
@@ -22,19 +23,22 @@ namespace ReliefManagementSystem.Application.Services
         private readonly IPayOsGateway _payOsGateway;
         private readonly ICampaignService _campaignService;
         private readonly IFundService _fundService;
+        private readonly ILogger<DonationService> _logger;
 
         public DonationService(
             IUnitOfWork unitOfWork,
             ICurrentUserService currentUserService,
             IPayOsGateway payOsGateway,
             ICampaignService campaignService,
-            IFundService fundService)
+            IFundService fundService,
+            ILogger<DonationService> logger)
         {
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
             _payOsGateway = payOsGateway;
             _campaignService = campaignService;
             _fundService = fundService;
+            _logger = logger;
         }
 
         public async Task<CreateDonationCheckoutResponse> CreateCheckoutAsync(CreateDonationCheckoutRequest request, CancellationToken cancellationToken = default)
@@ -161,18 +165,30 @@ namespace ReliefManagementSystem.Application.Services
         {
             if (IsWebhookRegistrationProbe(request))
             {
+                _logger.LogInformation("PayOS webhook ignored as registration probe. OrderCode={OrderCode}", request.Data?.OrderCode);
                 return;
             }
 
             var isValid = _payOsGateway.VerifyWebhook(request);
             if (!isValid)
             {
+                _logger.LogWarning(
+                    "PayOS webhook signature invalid. OrderCode={OrderCode}, Reference={Reference}, TopCode={TopCode}, Success={Success}, Signature={Signature}",
+                    request.Data?.OrderCode,
+                    request.Data?.Reference,
+                    request.Code,
+                    request.Success,
+                    request.Signature);
                 return;
             }
 
             var donation = await _unitOfWork.Donations.GetByPayOsOrderCodeAsync(request.Data.OrderCode, cancellationToken);
             if (donation is null)
             {
+                _logger.LogWarning(
+                    "PayOS webhook could not find donation by order code. OrderCode={OrderCode}, Reference={Reference}",
+                    request.Data.OrderCode,
+                    request.Data.Reference);
                 return;
             }
 
@@ -180,6 +196,11 @@ namespace ReliefManagementSystem.Application.Services
                 .ExistsByProviderAndReferenceAsync(PayOsProvider, request.Data.Reference, cancellationToken);
             if (isDuplicate)
             {
+                _logger.LogInformation(
+                    "PayOS webhook ignored duplicate reference. DonationId={DonationId}, OrderCode={OrderCode}, Reference={Reference}",
+                    donation.DonationId,
+                    request.Data.OrderCode,
+                    request.Data.Reference);
                 return;
             }
 
@@ -220,6 +241,16 @@ namespace ReliefManagementSystem.Application.Services
 
             var previousStatus = donation.Status;
             donation.Status = MapStatusFromPayOs(request, donation.ExpiresAt);
+            _logger.LogInformation(
+                "PayOS webhook mapped donation status. DonationId={DonationId}, OrderCode={OrderCode}, PreviousStatus={PreviousStatus}, NewStatus={NewStatus}, TopCode={TopCode}, Success={Success}, DataCode={DataCode}, DataDesc={DataDesc}",
+                donation.DonationId,
+                request.Data.OrderCode,
+                previousStatus,
+                donation.Status,
+                request.Code,
+                request.Success,
+                request.Data.Code,
+                request.Data.Desc);
             if (donation.Status != DonationStatus.Pending)
             {
                 donation.ProcessedAt = DateTime.UtcNow;
@@ -227,6 +258,13 @@ namespace ReliefManagementSystem.Application.Services
 
             await _unitOfWork.Donations.UpdateAsync(donation);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            _logger.LogInformation(
+                "PayOS webhook persisted donation update. DonationId={DonationId}, OrderCode={OrderCode}, Status={Status}, ProcessedAt={ProcessedAt}",
+                donation.DonationId,
+                donation.PayOsOrderCode,
+                donation.Status,
+                donation.ProcessedAt);
 
             await AdjustCampaignProgressAsync(donation, previousStatus, donation.Status, cancellationToken);
         }

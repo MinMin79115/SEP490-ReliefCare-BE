@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
 using ReliefManagementSystem.Application.Features.Donation.DTOs.Request;
 using ReliefManagementSystem.Application.Interface;
 
@@ -10,10 +11,12 @@ namespace ReliefManagementSystem.API.Controllers
     public class DonationController : ControllerBase
     {
         private readonly IDonationService _donationService;
+        private readonly ILogger<DonationController> _logger;
 
-        public DonationController(IDonationService donationService)
+        public DonationController(IDonationService donationService, ILogger<DonationController> logger)
         {
             _donationService = donationService;
+            _logger = logger;
         }
 
         [HttpPost("checkout")]
@@ -80,10 +83,35 @@ namespace ReliefManagementSystem.API.Controllers
         {
             try
             {
+                _logger.LogInformation(
+                    "PayOS webhook received. TopCode={TopCode}, Success={Success}, OrderCode={OrderCode}, DataCode={DataCode}, DataDesc={DataDesc}, Reference={Reference}, PaymentLinkId={PaymentLinkId}",
+                    request.Code,
+                    request.Success,
+                    request.Data?.OrderCode,
+                    request.Data?.Code,
+                    request.Data?.Desc,
+                    request.Data?.Reference,
+                    request.Data?.PaymentLinkId);
+
                 await _donationService.HandlePayOsWebhookAsync(request, cancellationToken);
+
+                _logger.LogInformation(
+                    "PayOS webhook handled successfully. OrderCode={OrderCode}, Reference={Reference}",
+                    request.Data?.OrderCode,
+                    request.Data?.Reference);
             }
-            catch
+            catch (Exception ex)
             {
+                _logger.LogError(
+                    ex,
+                    "PayOS webhook handling failed. TopCode={TopCode}, Success={Success}, OrderCode={OrderCode}, DataCode={DataCode}, DataDesc={DataDesc}, Reference={Reference}, PaymentLinkId={PaymentLinkId}",
+                    request.Code,
+                    request.Success,
+                    request.Data?.OrderCode,
+                    request.Data?.Code,
+                    request.Data?.Desc,
+                    request.Data?.Reference,
+                    request.Data?.PaymentLinkId);
             }
 
             return Ok(new { message = "Webhook processed" });

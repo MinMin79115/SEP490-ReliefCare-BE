@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 using ReliefManagementSystem.Application.Common.Exceptions.Donation;
 using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Application.Features.Donation.DTOs.Request;
@@ -15,11 +16,13 @@ namespace ReliefManagementSystem.Infrastructure.Payments
     {
         private readonly HttpClient _httpClient;
         private readonly PayOsSettings _settings;
+        private readonly ILogger<PayOsGateway> _logger;
 
-        public PayOsGateway(HttpClient httpClient, IOptions<PayOsSettings> options)
+        public PayOsGateway(HttpClient httpClient, IOptions<PayOsSettings> options, ILogger<PayOsGateway> logger)
         {
             _httpClient = httpClient;
             _settings = options.Value;
+            _logger = logger;
 
             _httpClient.BaseAddress ??= new Uri("https://api-merchant.payos.vn");
             if (!_httpClient.DefaultRequestHeaders.Contains("x-client-id"))
@@ -134,6 +137,7 @@ namespace ReliefManagementSystem.Infrastructure.Payments
         {
             if (request?.Data is null || string.IsNullOrWhiteSpace(request.Signature))
             {
+                _logger.LogWarning("PayOS webhook missing data or signature.");
                 return false;
             }
 
@@ -159,8 +163,18 @@ namespace ReliefManagementSystem.Infrastructure.Payments
 
             var canonical = string.Join("&", map.Select(kv => $"{kv.Key}={kv.Value}"));
             var expected = ComputeSignature(canonical, _settings.ChecksumKey);
+            var isMatch = string.Equals(expected, request.Signature, StringComparison.OrdinalIgnoreCase);
+            if (!isMatch)
+            {
+                _logger.LogWarning(
+                    "PayOS webhook signature mismatch. OrderCode={OrderCode}, Canonical={Canonical}, ExpectedSignature={ExpectedSignature}, ReceivedSignature={ReceivedSignature}",
+                    request.Data.OrderCode,
+                    canonical,
+                    expected,
+                    request.Signature);
+            }
 
-            return string.Equals(expected, request.Signature, StringComparison.OrdinalIgnoreCase);
+            return isMatch;
         }
 
         private static void EnsureSuccess(HttpResponseMessage response, string body)
