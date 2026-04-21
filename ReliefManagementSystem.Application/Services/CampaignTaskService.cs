@@ -73,7 +73,7 @@ namespace ReliefManagementSystem.Application.Services
             await GetReliefCampaignAsync(campaignId, cancellationToken);
 
             var currentUserId = _currentUser.UserId ?? throw new UnauthorizedAccessException("User is not authenticated.");
-            var volunteerProfile = await _unitOfWork.VolunteerProfiles.GetByUserIdAsync(currentUserId, cancellationToken)
+            var volunteerProfile = await _unitOfWork.VolunteerProfiles.GetByUserIdAsync(currentUserId)
                 ?? throw new KeyNotFoundException("Volunteer profile for current user was not found.");
 
             var query = _unitOfWork.MemberTasks.GetQueryable()
