@@ -549,17 +549,18 @@ namespace ReliefManagementSystem.Application.Services
                 throw new InvalidOperationException($"Duplicate supply items in package: {string.Join(", ", duplicateSupplyItems)}");
 
             var existingDefinitions = await _unitOfWork.ReliefPackageDefinitions.GetByCampaignAsync(campaignId, cancellationToken);
+            var outputSupplyItemId = outputSupplyItem.SupplyItemId;
             var packageCategorySupplyItemIds = existingDefinitions
                 .Select(x => x.OutputSupplyItemId)
                 .ToHashSet();
-            packageCategorySupplyItemIds.Add(request.OutputSupplyItemId.Value);
+            packageCategorySupplyItemIds.Add(outputSupplyItemId);
 
             foreach (var item in request.Items)
             {
                 if (!await _unitOfWork.SupplyItems.ExistsAsync(item.SupplyItemId))
                     throw new KeyNotFoundException($"Supply item '{item.SupplyItemId}' was not found.");
 
-                if (item.SupplyItemId == request.OutputSupplyItemId.Value)
+                if (item.SupplyItemId == outputSupplyItemId)
                     throw new InvalidOperationException("Output supply item cannot be used as a package component.");
 
                 if (packageCategorySupplyItemIds.Contains(item.SupplyItemId))
