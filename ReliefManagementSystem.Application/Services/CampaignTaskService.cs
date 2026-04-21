@@ -226,8 +226,47 @@ namespace ReliefManagementSystem.Application.Services
             await _unitOfWork.MemberTasks.UpdateAsync(memberTask);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
+            // Auto-transition parent task based on subtask progress
+            await AutoUpdateParentTaskStatusAsync(task, cancellationToken);
+
             var volunteerProfile = await _unitOfWork.VolunteerProfiles.GetByIdWithSkillsAndUserAsync(memberTask.VolunteerProfileId);
             return MapMemberTask(memberTask, ResolveVolunteerDisplayName(volunteerProfile));
+        }
+
+        private async Task AutoUpdateParentTaskStatusAsync(CampaignTask task, CancellationToken cancellationToken)
+        {
+            // Reload member tasks to get fresh statuses
+            var memberTasks = await _unitOfWork.MemberTasks.GetByCampaignTaskIdAsync(task.CampaignTaskId, cancellationToken);
+            if (memberTasks.Count == 0) return;
+
+            var allTerminal = memberTasks.All(mt => mt.Status is MemberTaskStatus.Completed or MemberTaskStatus.Cancelled);
+            var anyInProgress = memberTasks.Any(mt => mt.Status is MemberTaskStatus.InProgress);
+            var anyFailed = memberTasks.Any(mt => mt.Status is MemberTaskStatus.Failed);
+
+            CampaignTaskStatus? newStatus = null;
+
+            if (allTerminal && task.Status != CampaignTaskStatus.Completed)
+            {
+                // All subtasks done → auto-complete parent
+                newStatus = CampaignTaskStatus.Completed;
+            }
+            else if (anyFailed && task.Status == CampaignTaskStatus.InProgress)
+            {
+                // A subtask failed → block parent
+                newStatus = CampaignTaskStatus.Blocked;
+            }
+            else if (anyInProgress && task.Status == CampaignTaskStatus.Planned)
+            {
+                // First subtask started → auto-start parent
+                newStatus = CampaignTaskStatus.InProgress;
+            }
+
+            if (newStatus.HasValue && newStatus.Value != task.Status)
+            {
+                task.Status = newStatus.Value;
+                await _unitOfWork.CampaignTasks.UpdateAsync(task);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
         }
 
         public async Task DeleteAsync(Guid campaignTaskId, CancellationToken cancellationToken = default)
