@@ -168,7 +168,7 @@ namespace ReliefManagementSystem.Application.Services
                 CampaignId = campaignId,
                 CampaignHouseholdId = household.CampaignHouseholdId,
                 DistributionPointId = household.DistributionPointId,
-                CampaignTeamId = null,
+                CampaignTeamId = request.CampaignTeamId,
                 ReliefPackageDefinitionId = packageId.Value,
                 DeliveryMode = request.DeliveryMode,
                 CashSupportAmount = package.CashSupportAmount ?? 0,
