@@ -5,6 +5,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
 {
     public interface ISupplyShortageRequestRepository : IGenericRepository<SupplyShortageRequest>
     {
+        IQueryable<SupplyShortageRequest> GetQueryable();
         Task<List<SupplyShortageRequest>> GetByCampaignAsync(Guid campaignId, CancellationToken cancellationToken = default);
         Task<List<SupplyShortageRequest>> GetByCampaignTeamAsync(Guid campaignTeamId, CancellationToken cancellationToken = default);
         Task<List<SupplyShortageRequest>> GetByStatusAsync(SupplyShortageRequestStatus status, CancellationToken cancellationToken = default);

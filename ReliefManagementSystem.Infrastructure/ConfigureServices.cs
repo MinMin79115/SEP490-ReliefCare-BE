@@ -72,6 +72,8 @@ namespace ReliefManagementSystem.Infrastructure
             services.AddScoped<IReliefStationTeamRepository, ReliefStationTeamRepository>();
             // Supply Allocation repositories
             services.AddScoped<ISupplyAllocationRepository, SupplyAllocationRepository>();
+            services.AddScoped<IReliefPackageAssemblyRepository, ReliefPackageAssemblyRepository>();
+            services.AddScoped<IReliefPackageAssemblyDetailRepository, ReliefPackageAssemblyDetailRepository>();
             services.AddScoped<ICampaignRepository, CampaignRepository>();
             services.AddScoped<ICampaignVolunteerRegistrationRepository, CampaignVolunteerRegistrationRepository>();
             services.AddScoped<IDonationRepository, DonationRepository>();

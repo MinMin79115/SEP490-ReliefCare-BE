@@ -53,5 +53,17 @@ namespace ReliefManagementSystem.API.Controllers
         [HttpPatch("{id:guid}/cancel")]
         public async Task<IActionResult> Cancel(Guid id, [FromBody] CancelSupplyTransferRequest request, CancellationToken cancellationToken)
             => Ok(await _transferService.CancelAsync(id, request, cancellationToken));
+
+        [HttpPut("{id:guid}/evidence-urls")]
+        public async Task<IActionResult> ReplaceEvidenceUrls(Guid id, [FromBody] ReplaceSupplyTransferEvidenceUrlsRequest request, CancellationToken cancellationToken)
+            => Ok(await _transferService.ReplaceEvidenceUrlsAsync(id, request, cancellationToken));
+
+        [HttpPost("{id:guid}/evidences")]
+        public async Task<IActionResult> AppendEvidenceUrls(Guid id, [FromBody] AppendSupplyTransferEvidenceUrlsRequest request, CancellationToken cancellationToken)
+            => Ok(await _transferService.AppendEvidenceUrlsAsync(id, request, cancellationToken));
+
+        [HttpPost("{id:guid}/documents")]
+        public async Task<IActionResult> AddDocument(Guid id, [FromBody] CreateSupplyTransferDocumentRequest request, CancellationToken cancellationToken)
+            => Ok(await _transferService.AddDocumentAsync(id, request, cancellationToken));
     }
 }

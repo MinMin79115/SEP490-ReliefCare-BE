@@ -37,6 +37,8 @@ namespace ReliefManagementSystem.Application.Features.Team.DTOs.Response
 
         public List<TeamMemberInfo> Members { get; set; } = new();
 
+        public List<AssignedCampaignInfo> AssignedCampaigns { get; set; } = new();
+
         public DateTime CreatedAt { get; set; }
 
         public DateTime? UpdatedAt { get; set; }
@@ -61,6 +63,7 @@ namespace ReliefManagementSystem.Application.Features.Team.DTOs.Response
     public class TeamMemberInfo
     {
         public Guid UserId { get; set; }
+        public Guid? VolunteerProfileId { get; set; }
         public string DisplayName { get; set; } = null!;
         public string Email { get; set; } = null!;
         public TeamRole Role { get; set; }
@@ -75,5 +78,15 @@ namespace ReliefManagementSystem.Application.Features.Team.DTOs.Response
         public string Code { get; set; } = null!;
         public string Name { get; set; } = null!;
         public string? Description { get; set; }
+    }
+
+    public class AssignedCampaignInfo
+    {
+        public Guid CampaignId { get; set; }
+        public string CampaignName { get; set; } = null!;
+        public int CampaignType { get; set; }
+        public Guid CampaignTeamId { get; set; }
+        public int Status { get; set; }
+        public int Role { get; set; }
     }
 }

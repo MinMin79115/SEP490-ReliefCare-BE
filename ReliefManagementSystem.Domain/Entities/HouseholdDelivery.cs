@@ -18,6 +18,7 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public DateTime ScheduledAt { get; set; }
         public DateTime? DeliveredAt { get; set; }
+        public decimal CashSupportAmount { get; set; }
         public string? Notes { get; set; }
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 

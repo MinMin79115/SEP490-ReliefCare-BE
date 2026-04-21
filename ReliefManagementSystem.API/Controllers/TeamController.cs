@@ -113,6 +113,16 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(result);
         }
 
+        // GET /api/team/{id}/assigned-campaigns
+        [HttpGet("{id:guid}/assigned-campaigns")]
+        [Authorize]
+        [SwaggerOperation(OperationId = "GetAssignedCampaignsByTeam", Description = "Lấy danh sách chiến dịch mà team đang được gán")]
+        public async Task<IActionResult> GetAssignedCampaigns(Guid id, CancellationToken cancellationToken)
+        {
+            var result = await _teamService.GetAssignedCampaignsAsync(id, cancellationToken);
+            return Ok(result);
+        }
+
         // GET /api/team/{id}/members
         [HttpGet("{id:guid}/members")]
         [SwaggerOperation(OperationId = "GetTeamMembers", Description = "Lấy danh sách members của team")]

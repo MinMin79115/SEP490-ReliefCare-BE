@@ -32,6 +32,12 @@ namespace ReliefManagementSystem.Application.Features.InventoryTransaction.DTOs.
         [MaxLength(500)]
         public string? Notes { get; set; }
 
+        [MaxLength(100)]
+        public string? ImportBatchCode { get; set; }
+
+        [MaxLength(200)]
+        public string? SourceReference { get; set; }
+
         /// <summary>Line items — at least one required.</summary>
         [Required]
         [MinLength(1, ErrorMessage = "At least one item is required.")]
@@ -52,5 +58,10 @@ namespace ReliefManagementSystem.Application.Features.InventoryTransaction.DTOs.
         /// <summary>Optional per-item note.</summary>
         [MaxLength(200)]
         public string? Notes { get; set; }
+
+        [Range(typeof(decimal), "0", "79228162514264337593543950335", ErrorMessage = "UnitCost must be non-negative.")]
+        public decimal? UnitCost { get; set; }
+
+        public DateTime? ExpiryDate { get; set; }
     }
 }

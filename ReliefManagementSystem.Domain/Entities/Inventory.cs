@@ -20,5 +20,6 @@ namespace ReliefManagementSystem.Domain.Entities
         public ReliefStation ReliefStation { get; set; } = null!;
         public ICollection<InventoryStock> InventoryItems { get; set; } = new List<InventoryStock>();
         public ICollection<InventoryTransaction> InventoryTransactions { get; set; } = new List<InventoryTransaction>();
+        public ICollection<ReliefPackageAssembly> ReliefPackageAssemblies { get; set; } = new List<ReliefPackageAssembly>();
     }
 }

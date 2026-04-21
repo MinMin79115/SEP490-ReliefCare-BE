@@ -12,6 +12,17 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
         {
         }
 
+        public IQueryable<SupplyShortageRequest> GetQueryable()
+            => _context.SupplyShortageRequests
+                .Include(x => x.DistributionPoint)
+                .Include(x => x.CampaignTeam)
+                    .ThenInclude(ct => ct.Team)
+                .Include(x => x.RequestedByUser)
+                .Include(x => x.ReviewedByUser)
+                .Include(x => x.Items)
+                    .ThenInclude(i => i.SupplyItem)
+                .AsQueryable();
+
         public async Task<List<SupplyShortageRequest>> GetByCampaignAsync(Guid campaignId, CancellationToken cancellationToken = default)
         {
             return await _context.SupplyShortageRequests

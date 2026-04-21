@@ -12,10 +12,23 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
         {
         }
 
+        public IQueryable<HouseholdDelivery> GetQueryable()
+            => _context.HouseholdDeliveries
+                .Include(x => x.CampaignHousehold)
+                .Include(x => x.DistributionPoint)
+                .Include(x => x.CampaignTeam)
+                    .ThenInclude(ct => ct.Team)
+                .Include(x => x.ReliefPackageDefinition)
+                .Include(x => x.Proofs)
+                .AsQueryable();
+
         public async Task<List<HouseholdDelivery>> GetByCampaignAsync(Guid campaignId, CancellationToken cancellationToken = default)
         {
             return await _context.HouseholdDeliveries
                 .Include(x => x.CampaignHousehold)
+                .Include(x => x.DistributionPoint)
+                .Include(x => x.CampaignTeam)
+                    .ThenInclude(ct => ct.Team)
                 .Include(x => x.ReliefPackageDefinition)
                 .Where(x => x.CampaignId == campaignId)
                 .OrderByDescending(x => x.ScheduledAt)
@@ -26,6 +39,9 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
         {
             return await _context.HouseholdDeliveries
                 .Include(x => x.CampaignHousehold)
+                .Include(x => x.DistributionPoint)
+                .Include(x => x.CampaignTeam)
+                    .ThenInclude(ct => ct.Team)
                 .Include(x => x.ReliefPackageDefinition)
                 .Where(x => x.CampaignTeamId == campaignTeamId)
                 .OrderByDescending(x => x.ScheduledAt)
@@ -41,6 +57,8 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             var query = _context.HouseholdDeliveries
                 .Include(x => x.CampaignHousehold)
                 .Include(x => x.DistributionPoint)
+                .Include(x => x.CampaignTeam)
+                    .ThenInclude(ct => ct.Team)
                 .Include(x => x.ReliefPackageDefinition)
                 .Include(x => x.Proofs)
                 .Where(x => x.CampaignId == campaignId)
@@ -66,6 +84,8 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             return await _context.HouseholdDeliveries
                 .Include(x => x.CampaignHousehold)
                 .Include(x => x.DistributionPoint)
+                .Include(x => x.CampaignTeam)
+                    .ThenInclude(ct => ct.Team)
                 .Include(x => x.ReliefPackageDefinition)
                     .ThenInclude(p => p.Items)
                         .ThenInclude(i => i.SupplyItem)

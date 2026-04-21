@@ -23,6 +23,7 @@ namespace ReliefManagementSystem.Application.Features.Campaign.Dtos.Responses
         public CampaignType Type { get; set; }
         public CampaignCompletionRule CompletionRule { get; set; }
         public bool AllowOverTarget { get; set; }
+        public List<CampaignStatus> AllowedNextStatuses { get; set; } = new();
 
         public DateTime CreatedAt { get; set; }
 

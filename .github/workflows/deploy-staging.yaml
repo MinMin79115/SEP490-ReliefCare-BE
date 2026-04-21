@@ -43,8 +43,8 @@ jobs:
           SERVICES="["
           FIRST=true
 
-          # Check reliefcare-api changes (API, Application, Domain, Infrastructure, compose files)
-          if echo "$CHANGED_FILES" | grep -E "^ReliefManagementSystem\.(API|Application|Domain|Infrastructure)/|^compose" > /dev/null; then
+          # Check reliefcare-api changes (API, Application, Domain, Infrastructure, compose files, centrifugo config)
+          if echo "$CHANGED_FILES" | grep -E "^ReliefManagementSystem\.(API|Application|Domain|Infrastructure)/|^compose|^centrifugo/" > /dev/null; then
             echo "reliefcare-api=true" >> $GITHUB_OUTPUT
             if [ "$FIRST" = true ]; then
               SERVICES="${SERVICES}\"reliefcare-api\""
@@ -130,8 +130,12 @@ jobs:
       LLM_PROVIDER_API_KEY: ${{ secrets.STAGING_LLM_PROVIDER_API_KEY }}
       PAYOS_CLIENT_ID: ${{ secrets.STAGING_PAYOS_CLIENT_ID }}
       PAYOS_API_KEY: ${{ secrets.STAGING_PAYOS_API_KEY }}
+      PAYOS_RETURN_URL: ${{ secrets.STAGING_PAYOS_RETURN }}
+      PAYOS_CANCEL_URL: ${{ secrets.STAGING_PAYOS_CANCEL }}
       PAYOS_CHECKSUM_KEY: ${{ secrets.STAGING_PAYOS_CHECKSUM_KEY }}
       PGADMIN_PASSWORD: ${{ secrets.STAGING_PGADMIN_PASSWORD }}
+      CENTRIFUGO_API_KEY: ${{ secrets.STAGING_CENTRIFUGO_API_KEY }}
+      CENTRIFUGO_SECRET: ${{ secrets.STAGING_CENTRIFUGO_SECRET }}
     steps:
       - name: Checkout
         uses: actions/checkout@v3
@@ -150,6 +154,54 @@ jobs:
           $repoLower = "${{ github.repository }}".ToLower()
           "REGISTRY=ghcr.io/$repoLower" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           "IMAGE_TAG=${{ github.sha }}" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+
+      - name: Generate Centrifugo Staging Config
+        shell: powershell
+        run: |
+          if ([string]::IsNullOrWhiteSpace($env:CENTRIFUGO_API_KEY)) {
+            throw "Missing STAGING_CENTRIFUGO_API_KEY secret"
+          }
+
+          if ([string]::IsNullOrWhiteSpace($env:CENTRIFUGO_SECRET)) {
+            throw "Missing STAGING_CENTRIFUGO_SECRET secret"
+          }
+
+          $configPath = "centrifugo/config.staging.json"
+          $content = Get-Content $configPath -Raw
+          $content = $content.Replace("__CENTRIFUGO_API_KEY__", $env:CENTRIFUGO_API_KEY)
+          $content = $content.Replace("__CENTRIFUGO_SECRET__", $env:CENTRIFUGO_SECRET)
+          Set-Content -Path $configPath -Value $content -NoNewline
+
+      - name: Validate Staging Realtime Config
+        shell: powershell
+        run: |
+          $composeText = Get-Content "compose.staging.yaml" -Raw
+
+          if ($composeText -notmatch 'Centrifugo__PublicWebsocketUrl:\s+"wss://staging\.reliefhub\.info\.vn"') {
+            throw "compose.staging.yaml is missing the expected hard-coded Centrifugo__PublicWebsocketUrl"
+          }
+
+          if ($composeText -notmatch 'Centrifugo__BaseUrl:\s+"http://centrifugo:8000"') {
+            throw "compose.staging.yaml is missing Centrifugo__BaseUrl"
+          }
+
+          if ($composeText -notmatch 'Centrifugo__Issuer:\s+"ReliefCare\.API"') {
+            throw "compose.staging.yaml is missing Centrifugo__Issuer"
+          }
+
+          if ($composeText -notmatch 'Centrifugo__Audience:\s+"ReliefCare\.Realtime"') {
+            throw "compose.staging.yaml is missing Centrifugo__Audience"
+          }
+
+          if ($composeText -notmatch 'Centrifugo__HttpApiKey:\s+\$\{CENTRIFUGO_API_KEY\}') {
+            throw "compose.staging.yaml is missing Centrifugo__HttpApiKey interpolation"
+          }
+
+          if ($composeText -notmatch 'Centrifugo__ClientTokenSecret:\s+\$\{CENTRIFUGO_SECRET\}') {
+            throw "compose.staging.yaml is missing Centrifugo__ClientTokenSecret interpolation"
+          }
+
+          Write-Host "✅ Staging realtime compose config looks valid"
 
       - name: Free Disk Space Before Deploy
         shell: powershell
@@ -183,11 +235,17 @@ jobs:
           Write-Host "Pulling latest images..."
           docker compose -p reliefcare-staging -f compose.staging.yaml pull
 
+          Write-Host "Resolved Centrifugo websocket URL in compose:"
+          docker compose -p reliefcare-staging -f compose.staging.yaml config | Select-String "Centrifugo__PublicWebsocketUrl|Centrifugo__BaseUrl|Centrifugo__Issuer|Centrifugo__Audience"
+
           Write-Host "Deploying core services first..."
-          docker compose -p reliefcare-staging -f compose.staging.yaml up -d postgres reliefcare-api pgadmin
+          docker compose -p reliefcare-staging -f compose.staging.yaml up -d postgres centrifugo reliefcare-api pgadmin
 
           Write-Host "Running API image after deploy:"
           docker inspect reliefcare-api --format='{{.Config.Image}}'
+
+          Write-Host "Realtime env inside API container:"
+          docker inspect reliefcare-api --format='{{range .Config.Env}}{{println .}}{{end}}' | Select-String "Centrifugo__"
 
       - name: Wait for Healthcheck
         shell: powershell
@@ -195,6 +253,30 @@ jobs:
           Write-Host "Waiting for services to be ready..."
           Start-Sleep -Seconds 15
           docker compose -p reliefcare-staging -f compose.staging.yaml ps
+
+          $centrifugoHealthy = $false
+
+          for ($retry = 1; $retry -le 10; $retry++) {
+            try {
+              $centrifugoResponse = Invoke-WebRequest -Uri "http://127.0.0.1:8000/health" -UseBasicParsing -TimeoutSec 10
+              if ($centrifugoResponse.StatusCode -ge 200 -and $centrifugoResponse.StatusCode -lt 300) {
+                Write-Host "✅ Centrifugo is healthy!"
+                $centrifugoHealthy = $true
+                break
+              }
+            }
+            catch {
+              Write-Host "⏳ Waiting for Centrifugo... ($retry/10)"
+            }
+
+            Start-Sleep -Seconds 5
+          }
+
+          if (-not $centrifugoHealthy) {
+            Write-Host "❌ Centrifugo health check failed"
+            docker compose -p reliefcare-staging -f compose.staging.yaml logs centrifugo
+            exit 1
+          }
 
           $maxRetries = 10
           $isHealthy = $false

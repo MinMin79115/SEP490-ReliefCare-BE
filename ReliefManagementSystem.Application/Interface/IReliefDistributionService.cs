@@ -1,5 +1,6 @@
 using ReliefManagementSystem.Application.Features.Relief.DTOs.Request;
 using ReliefManagementSystem.Application.Features.Relief.DTOs.Response;
+using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Domain.Enum;
 
 namespace ReliefManagementSystem.Application.Interface
@@ -17,15 +18,31 @@ namespace ReliefManagementSystem.Application.Interface
             AssignHouseholdRequest request,
             CancellationToken cancellationToken = default);
 
-        Task<IReadOnlyList<CampaignHouseholdResponse>> GetCampaignHouseholdsAsync(
+        Task<Pagination<CampaignHouseholdResponse>> GetCampaignHouseholdsAsync(
             Guid campaignId,
-            HouseholdFulfillmentStatus? status,
+            HouseholdQueryRequest request,
             CancellationToken cancellationToken = default);
 
-        Task<IReadOnlyList<HouseholdChecklistItemResponse>> GetChecklistAsync(
+        Task<Pagination<HouseholdChecklistItemResponse>> GetChecklistAsync(
             Guid campaignId,
-            Guid? campaignTeamId,
-            HouseholdFulfillmentStatus? status,
+            DeliveryQueryRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<CampaignHouseholdResponse> UpdateCampaignHouseholdAsync(
+            Guid campaignId,
+            Guid campaignHouseholdId,
+            UpdateCampaignHouseholdRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<CampaignHouseholdResponse> UpdateCampaignHouseholdStatusAsync(
+            Guid campaignId,
+            Guid campaignHouseholdId,
+            UpdateCampaignHouseholdStatusRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task DeleteCampaignHouseholdAsync(
+            Guid campaignId,
+            Guid campaignHouseholdId,
             CancellationToken cancellationToken = default);
 
         Task<DistributionPointResponse> CreateDistributionPointAsync(
@@ -33,8 +50,20 @@ namespace ReliefManagementSystem.Application.Interface
             CreateDistributionPointRequest request,
             CancellationToken cancellationToken = default);
 
-        Task<IReadOnlyList<DistributionPointResponse>> GetDistributionPointsAsync(
+        Task<Pagination<DistributionPointResponse>> GetDistributionPointsAsync(
             Guid campaignId,
+            DistributionPointQueryRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<DistributionPointResponse> UpdateDistributionPointAsync(
+            Guid campaignId,
+            Guid distributionPointId,
+            UpdateDistributionPointRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<DistributionPointResponse> DeleteDistributionPointAsync(
+            Guid campaignId,
+            Guid distributionPointId,
             CancellationToken cancellationToken = default);
 
         Task<ReliefPackageDefinitionResponse> CreateReliefPackageDefinitionAsync(
@@ -42,8 +71,47 @@ namespace ReliefManagementSystem.Application.Interface
             CreateReliefPackageDefinitionRequest request,
             CancellationToken cancellationToken = default);
 
-        Task<IReadOnlyList<ReliefPackageDefinitionResponse>> GetReliefPackageDefinitionsAsync(
+        Task<Pagination<ReliefPackageDefinitionResponse>> GetReliefPackageDefinitionsAsync(
             Guid campaignId,
+            ReliefPackageQueryRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<ReliefPackageDefinitionResponse> UpdateReliefPackageDefinitionAsync(
+            Guid campaignId,
+            Guid reliefPackageDefinitionId,
+            UpdateReliefPackageDefinitionRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<ReliefPackageDefinitionResponse> DeleteReliefPackageDefinitionAsync(
+            Guid campaignId,
+            Guid reliefPackageDefinitionId,
+            CancellationToken cancellationToken = default);
+
+        Task<ReliefPackageAssemblyAvailabilityResponse> GetPackageAssemblyAvailabilityAsync(
+            Guid campaignId,
+            Guid reliefPackageDefinitionId,
+            Guid reliefStationId,
+            Guid inventoryId,
+            CancellationToken cancellationToken = default);
+
+        Task<ReliefPackageAssemblyResponse> AssembleReliefPackageAsync(
+            Guid campaignId,
+            Guid reliefPackageDefinitionId,
+            AssembleReliefPackageRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<ReliefPackageAssemblyResponse>> GetPackageAssemblyHistoryByCampaignAsync(
+            Guid campaignId,
+            CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<ReliefPackageAssemblyResponse>> GetPackageAssemblyHistoryByStationAsync(
+            Guid campaignId,
+            Guid reliefStationId,
+            CancellationToken cancellationToken = default);
+
+        Task<IReadOnlyList<ReliefPackageAssemblyResponse>> GetPackageAssemblyHistoryByDefinitionAsync(
+            Guid campaignId,
+            Guid reliefPackageDefinitionId,
             CancellationToken cancellationToken = default);
 
         Task<HouseholdDeliveryResponse> CompleteHouseholdDeliveryAsync(
@@ -52,14 +120,29 @@ namespace ReliefManagementSystem.Application.Interface
             CompleteHouseholdDeliveryRequest request,
             CancellationToken cancellationToken = default);
 
+        Task<Pagination<HouseholdDeliveryResponse>> GetDeliveriesAsync(
+            Guid campaignId,
+            DeliveryQueryRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<HouseholdDeliveryResponse> GetDeliveryByIdAsync(
+            Guid campaignId,
+            Guid householdDeliveryId,
+            CancellationToken cancellationToken = default);
+
+        Task<BatchCompleteHouseholdDeliveryResponse> CompleteHouseholdDeliveriesBatchAsync(
+            Guid campaignId,
+            CompleteHouseholdDeliveryBatchRequest request,
+            CancellationToken cancellationToken = default);
+
         Task<SupplyShortageRequestResponse> CreateShortageRequestAsync(
             Guid campaignId,
             CreateSupplyShortageRequest request,
             CancellationToken cancellationToken = default);
 
-        Task<IReadOnlyList<SupplyShortageRequestResponse>> GetShortageRequestsAsync(
+        Task<Pagination<SupplyShortageRequestResponse>> GetShortageRequestsAsync(
             Guid campaignId,
-            SupplyShortageRequestStatus? status,
+            SupplyShortageRequestQueryRequest request,
             CancellationToken cancellationToken = default);
 
         Task<SupplyShortageRequestResponse> ApproveShortageRequestAsync(

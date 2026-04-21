@@ -55,6 +55,8 @@ namespace ReliefManagementSystem.Application.Common.Interface
         IDistributionPointRepository DistributionPoints { get; }
         IReliefPackageDefinitionRepository ReliefPackageDefinitions { get; }
         IReliefPackageDefinitionItemRepository ReliefPackageDefinitionItems { get; }
+        IReliefPackageAssemblyRepository ReliefPackageAssemblies { get; }
+        IReliefPackageAssemblyDetailRepository ReliefPackageAssemblyDetails { get; }
         IHouseholdDeliveryRepository HouseholdDeliveries { get; }
         IHouseholdDeliveryProofRepository HouseholdDeliveryProofs { get; }
         ISupplyShortageRequestRepository SupplyShortageRequests { get; }
@@ -62,6 +64,12 @@ namespace ReliefManagementSystem.Application.Common.Interface
 
         // Campaign (stub for validation — full module TBD)
         ICampaignRepository Campaigns { get; }
+        ICampaignBudgetTransferRepository CampaignBudgetTransfers { get; }
+        ICampaignTaskRepository CampaignTasks { get; }
+        IMemberTaskRepository MemberTasks { get; }
+        ICampaignInventoryRepository CampaignInventories { get; }
+        ICampaignInventoryStockRepository CampaignInventoryStocks { get; }
+        ICampaignInventoryTransactionRepository CampaignInventoryTransactions { get; }
         ICampaignVolunteerRegistrationRepository CampaignVolunteerRegistrations { get; }
         IDonationRepository Donations { get; }
         IFundRepository Funds { get; }
@@ -83,6 +91,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
 
         INotificationRepository Notifications { get; }
         IAttachmentRepository Attachments { get; }
+        IGenericRepository<AuditLog> AuditLogs { get; }
         IGenericRepository<RequestVerification> RequestVerifications { get; }
         IGenericRepository<DisasterAnalysisLog> DisasterAnalysisLogs { get; }
         Task<int> SaveChangesAsync(
@@ -95,6 +104,8 @@ namespace ReliefManagementSystem.Application.Common.Interface
         Task CommitTransactionAsync(CancellationToken cancellationToken = default);
 
         Task RollbackTransactionAsync(CancellationToken cancellationToken = default);
+
+        void ClearChangeTracker();
 
     }
 }

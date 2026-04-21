@@ -47,6 +47,8 @@ namespace ReliefManagementSystem.Application
             services.AddScoped<IPriorityCriteriaService, PriorityCriteriaService>();
             services.AddScoped<IDonationService, DonationService>();
             services.AddScoped<ICampaignService, CampaignService>();
+            services.AddScoped<ICampaignTaskService, CampaignTaskService>();
+            services.AddScoped<ICampaignInventoryService, CampaignInventoryService>();
             services.AddScoped<IProcurementService, ProcurementService>();
             services.AddScoped<IFundService, FundService>();
             services.AddScoped<IReliefDistributionService, ReliefDistributionService>();

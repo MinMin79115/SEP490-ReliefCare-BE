@@ -22,6 +22,7 @@ namespace ReliefManagementSystem.Application.Interface
         Task<bool> RemoveMemberAsync(Guid teamId, Guid userId, Guid moderatorId, CancellationToken cancellationToken);
         Task<List<TeamDetailResponse>> GetMyTeamsWithMembersAsync(Guid moderatorId, CancellationToken cancellationToken);
         Task<TeamDetailResponse> GetVolunteerTeamAsync(Guid userId, CancellationToken cancellationToken);
+        Task<List<AssignedCampaignInfo>> GetAssignedCampaignsAsync(Guid teamId, CancellationToken cancellationToken);
         Task<TeamMemberResponse> AddMemberDirectlyAsync(Guid teamId, AddMemberRequest request, Guid moderatorId, CancellationToken cancellationToken);
         Task<AddMembersResponse> AddMembersDirectlyAsync(Guid teamId, AddMembersRequest request, Guid moderatorId, CancellationToken cancellationToken);
         Task<TeamMemberResponse> PromoteMemberToLeaderAsync(Guid teamId, Guid userId, CancellationToken cancellationToken);

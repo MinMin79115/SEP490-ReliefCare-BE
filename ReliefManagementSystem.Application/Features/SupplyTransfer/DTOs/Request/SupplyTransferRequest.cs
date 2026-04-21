@@ -1,3 +1,4 @@
+using ReliefManagementSystem.Domain.Enum;
 using System.ComponentModel.DataAnnotations;
 
 namespace ReliefManagementSystem.Application.Features.SupplyTransfer.DTOs.Request
@@ -28,7 +29,6 @@ namespace ReliefManagementSystem.Application.Features.SupplyTransfer.DTOs.Reques
     public class ShipSupplyTransferRequest
     {
         public Guid? VehicleId { get; set; }
-        public Guid? DriverUserId { get; set; }
         [MaxLength(1000)] public string? Notes { get; set; }
         public List<string> EvidenceUrls { get; set; } = [];
     }
@@ -51,5 +51,36 @@ namespace ReliefManagementSystem.Application.Features.SupplyTransfer.DTOs.Reques
     {
         [MaxLength(1000)] public string? Notes { get; set; }
         public List<string> EvidenceUrls { get; set; } = [];
+    }
+
+    public class ReplaceSupplyTransferEvidenceUrlsRequest
+    {
+        public List<string> EvidenceUrls { get; set; } = [];
+    }
+
+    public class AppendSupplyTransferEvidenceUrlsRequest
+    {
+        public List<string> EvidenceUrls { get; set; } = [];
+    }
+
+    public class CreateSupplyTransferDocumentRequest
+    {
+        [Required]
+        public SupplyTransferDocumentType DocumentType { get; set; }
+
+        [Required]
+        [MaxLength(2000)]
+        public string FileUrl { get; set; } = string.Empty;
+
+        [MaxLength(255)]
+        public string? FileName { get; set; }
+
+        [MaxLength(100)]
+        public string? ContentType { get; set; }
+
+        public long? FileSizeBytes { get; set; }
+
+        [MaxLength(1000)]
+        public string? Notes { get; set; }
     }
 }

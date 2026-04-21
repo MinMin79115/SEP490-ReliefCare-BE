@@ -12,6 +12,9 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
         {
         }
 
+        public IQueryable<CampaignHousehold> GetQueryable()
+            => _context.CampaignHouseholds.AsQueryable();
+
         public async Task<List<CampaignHousehold>> GetByCampaignAsync(Guid campaignId, CancellationToken cancellationToken = default)
         {
             return await _context.CampaignHouseholds

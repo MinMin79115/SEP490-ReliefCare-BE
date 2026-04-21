@@ -19,6 +19,8 @@ namespace ReliefManagementSystem.Application.Features.InventoryTransaction.DTOs.
         public DateTime CreatedAt { get; set; }
         public Guid CreatedBy { get; set; }
         public string CreatedByName { get; set; } = null!;
+        public string? ImportBatchCode { get; set; }
+        public string? SourceReference { get; set; }
         public string? Notes { get; set; }
         public IReadOnlyList<TransactionItemResponse> Items { get; set; } = [];
     }
@@ -31,6 +33,8 @@ namespace ReliefManagementSystem.Application.Features.InventoryTransaction.DTOs.
         public string SupplyItemName { get; set; } = null!;
         public string SupplyItemUnit { get; set; } = null!;
         public int Quantity { get; set; }
+        public decimal? UnitCost { get; set; }
+        public DateTime? ExpiryDate { get; set; }
         public string? Notes { get; set; }
     }
 
@@ -49,6 +53,8 @@ namespace ReliefManagementSystem.Application.Features.InventoryTransaction.DTOs.
         public int TotalItems { get; set; }
         public DateTime CreatedAt { get; set; }
         public string CreatedByName { get; set; } = null!;
+        public string? ImportBatchCode { get; set; }
+        public string? SourceReference { get; set; }
         public string? Notes { get; set; }
     }
 }

@@ -63,6 +63,8 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
         public IDistributionPointRepository DistributionPoints { get; }
         public IReliefPackageDefinitionRepository ReliefPackageDefinitions { get; }
         public IReliefPackageDefinitionItemRepository ReliefPackageDefinitionItems { get; }
+        public IReliefPackageAssemblyRepository ReliefPackageAssemblies { get; }
+        public IReliefPackageAssemblyDetailRepository ReliefPackageAssemblyDetails { get; }
         public IHouseholdDeliveryRepository HouseholdDeliveries { get; }
         public IHouseholdDeliveryProofRepository HouseholdDeliveryProofs { get; }
         public ISupplyShortageRequestRepository SupplyShortageRequests { get; }
@@ -70,6 +72,12 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
 
         // Campaign (stub for validation — full module TBD)
         public ICampaignRepository Campaigns { get; }
+        public ICampaignBudgetTransferRepository CampaignBudgetTransfers { get; }
+        public ICampaignTaskRepository CampaignTasks { get; }
+        public IMemberTaskRepository MemberTasks { get; }
+        public ICampaignInventoryRepository CampaignInventories { get; }
+        public ICampaignInventoryStockRepository CampaignInventoryStocks { get; }
+        public ICampaignInventoryTransactionRepository CampaignInventoryTransactions { get; }
         public ICampaignVolunteerRegistrationRepository CampaignVolunteerRegistrations { get; }
         public IDonationRepository Donations { get; }
         public IFundRepository Funds { get; }
@@ -90,6 +98,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
 
         public INotificationRepository Notifications { get; }
         public IAttachmentRepository Attachments { get; }
+        public IGenericRepository<AuditLog> AuditLogs { get; }
         public IGenericRepository<RequestVerification> RequestVerifications { get; }
         public IGenericRepository<DisasterAnalysisLog> DisasterAnalysisLogs { get; }
 
@@ -125,11 +134,19 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             DistributionPoints = new DistributionPointRepository(_context);
             ReliefPackageDefinitions = new ReliefPackageDefinitionRepository(_context);
             ReliefPackageDefinitionItems = new ReliefPackageDefinitionItemRepository(_context);
+            ReliefPackageAssemblies = new ReliefPackageAssemblyRepository(_context);
+            ReliefPackageAssemblyDetails = new ReliefPackageAssemblyDetailRepository(_context);
             HouseholdDeliveries = new HouseholdDeliveryRepository(_context);
             HouseholdDeliveryProofs = new HouseholdDeliveryProofRepository(_context);
             SupplyShortageRequests = new SupplyShortageRequestRepository(_context);
             SupplyShortageRequestItems = new SupplyShortageRequestItemRepository(_context);
             Campaigns = new CampaignRepository(_context);
+            CampaignBudgetTransfers = new CampaignBudgetTransferRepository(_context);
+            CampaignTasks = new CampaignTaskRepository(_context);
+            MemberTasks = new MemberTaskRepository(_context);
+            CampaignInventories = new CampaignInventoryRepository(_context);
+            CampaignInventoryStocks = new CampaignInventoryStockRepository(_context);
+            CampaignInventoryTransactions = new CampaignInventoryTransactionRepository(_context);
             CampaignVolunteerRegistrations = new CampaignVolunteerRegistrationRepository(_context);
             Donations = new DonationRepository(_context);
             Funds = new FundRepository(_context);
@@ -145,6 +162,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             RescueOperations = new RescueOperationRepository(_context);
             Notifications = new NotificationRepository(_context);
             Attachments = new AttachmentRepository(_context);
+            AuditLogs = new GenericRepository<AuditLog>(_context);
             RequestVerifications = new GenericRepository<RequestVerification>(_context);
             DisasterAnalysisLogs = new GenericRepository<DisasterAnalysisLog>(_context);
         }
@@ -189,6 +207,11 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             await _currentTransaction.RollbackAsync(cancellationToken);
             await _currentTransaction.DisposeAsync();
             _currentTransaction = null;
+        }
+
+        public void ClearChangeTracker()
+        {
+            _context.ChangeTracker.Clear();
         }
 
         public void Dispose()

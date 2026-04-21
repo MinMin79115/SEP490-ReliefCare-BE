@@ -143,8 +143,8 @@ services:
       PayOs__ClientId: ${PAYOS_CLIENT_ID:-}
       PayOs__ApiKey: ${PAYOS_API_KEY:-}
       PayOs__ChecksumKey: ${PAYOS_CHECKSUM_KEY:-}
-      PayOs__ReturnUrl: ${PAYOS_RETURN_URL:-http://localhost:5173/donation/return}
-      PayOs__CancelUrl: ${PAYOS_CANCEL_URL:-http://localhost:5173/donation/cancel}
+      PayOs__ReturnUrl: ${PAYOS_RETURN_URL:-https://relief-carevn.vercel.app/donate/return}
+      PayOs__CancelUrl: ${PAYOS_CANCEL_URL:-https://relief-carevn.vercel.app/donate/cancel}
       PayOs__ExpiredMinutes: ${PAYOS_EXPIRED_MINUTES:-15}
 
       # CORS
