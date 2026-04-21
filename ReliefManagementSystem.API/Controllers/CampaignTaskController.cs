@@ -88,6 +88,16 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(result);
         }
 
+        [HttpPatch("tasks/member-tasks/{memberTaskId:guid}/status")]
+        public async Task<ActionResult<MemberTaskResponse>> ChangeMemberTaskStatus(
+            Guid memberTaskId,
+            [FromBody] ChangeMemberTaskStatusRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _campaignTaskService.ChangeMemberTaskStatusAsync(memberTaskId, request, cancellationToken);
+            return Ok(result);
+        }
+
         [HttpDelete("tasks/{campaignTaskId:guid}")]
         public async Task<IActionResult> Delete(
             Guid campaignTaskId,
