@@ -50,6 +50,14 @@ namespace ReliefManagementSystem.API.Controllers
             CancellationToken cancellationToken)
             => Ok(await _reliefDistributionService.UpdateCampaignHouseholdAsync(campaignId, campaignHouseholdId, request, cancellationToken));
 
+        [HttpPatch("households/{campaignHouseholdId:guid}/status")]
+        public async Task<IActionResult> UpdateHouseholdStatus(
+            Guid campaignId,
+            Guid campaignHouseholdId,
+            [FromBody] UpdateCampaignHouseholdStatusRequest request,
+            CancellationToken cancellationToken)
+            => Ok(await _reliefDistributionService.UpdateCampaignHouseholdStatusAsync(campaignId, campaignHouseholdId, request, cancellationToken));
+
         [HttpDelete("households/{campaignHouseholdId:guid}")]
         public async Task<IActionResult> DeleteHousehold(
             Guid campaignId,

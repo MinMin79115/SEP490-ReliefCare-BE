@@ -14,5 +14,6 @@ namespace ReliefManagementSystem.Application.Interface
         Task<MemberTaskResponse> AssignMemberAsync(Guid campaignTaskId, AssignMemberTaskRequest request, CancellationToken cancellationToken = default);
         Task<List<MemberTaskResponse>> BulkAssignMembersAsync(Guid campaignTaskId, BulkAssignMembersTaskRequest request, CancellationToken cancellationToken = default);
         Task DeleteAsync(Guid campaignTaskId, CancellationToken cancellationToken = default);
+        Task<MemberTaskResponse> ChangeMemberTaskStatusAsync(Guid memberTaskId, ChangeMemberTaskStatusRequest request, CancellationToken cancellationToken = default);
     }
 }

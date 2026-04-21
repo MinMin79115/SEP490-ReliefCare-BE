@@ -205,6 +205,31 @@ namespace ReliefManagementSystem.Application.Services
             return results;
         }
 
+        public async Task<MemberTaskResponse> ChangeMemberTaskStatusAsync(Guid memberTaskId, ChangeMemberTaskStatusRequest request, CancellationToken cancellationToken = default)
+        {
+            var memberTask = await _unitOfWork.MemberTasks.GetByIdAsync(memberTaskId)
+                ?? throw new KeyNotFoundException($"Member task '{memberTaskId}' was not found.");
+
+            var task = await _unitOfWork.CampaignTasks.GetByIdWithDetailsAsync(memberTask.CampaignTaskId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Campaign task '{memberTask.CampaignTaskId}' was not found.");
+
+            await GetReliefCampaignAsync(task.CampaignTeam.CampaignId, cancellationToken);
+            ValidateMemberTaskStatusTransition(memberTask.Status, request.Status);
+
+            memberTask.Status = request.Status;
+
+            if (request.Status == MemberTaskStatus.Completed)
+            {
+                memberTask.CompletedAt = DateTime.UtcNow;
+            }
+
+            await _unitOfWork.MemberTasks.UpdateAsync(memberTask);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            var volunteerProfile = await _unitOfWork.VolunteerProfiles.GetByIdWithSkillsAndUserAsync(memberTask.VolunteerProfileId);
+            return MapMemberTask(memberTask, ResolveVolunteerDisplayName(volunteerProfile));
+        }
+
         public async Task DeleteAsync(Guid campaignTaskId, CancellationToken cancellationToken = default)
         {
             var task = await _unitOfWork.CampaignTasks.GetByIdWithDetailsAsync(campaignTaskId, cancellationToken)
@@ -283,6 +308,27 @@ namespace ReliefManagementSystem.Application.Services
             if (!valid)
             {
                 throw new InvalidOperationException($"Invalid campaign task status transition: {current} -> {next}.");
+            }
+        }
+
+        private static void ValidateMemberTaskStatusTransition(MemberTaskStatus current, MemberTaskStatus next)
+        {
+            if (current == next)
+            {
+                return;
+            }
+
+            var valid = current switch
+            {
+                MemberTaskStatus.Assigned => next is MemberTaskStatus.InProgress or MemberTaskStatus.Cancelled,
+                MemberTaskStatus.InProgress => next is MemberTaskStatus.Completed or MemberTaskStatus.Failed or MemberTaskStatus.Cancelled,
+                MemberTaskStatus.Failed => next is MemberTaskStatus.InProgress,
+                _ => false
+            };
+
+            if (!valid)
+            {
+                throw new InvalidOperationException($"Invalid member task status transition: {current} -> {next}.");
             }
         }
 
