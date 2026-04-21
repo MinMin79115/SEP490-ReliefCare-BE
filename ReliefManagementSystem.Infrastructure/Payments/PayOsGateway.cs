@@ -141,26 +141,7 @@ namespace ReliefManagementSystem.Infrastructure.Payments
                 return false;
             }
 
-            var dataElement = JsonSerializer.SerializeToElement(request.Data, JsonOptions());
-            var map = new SortedDictionary<string, string>(StringComparer.Ordinal);
-
-            foreach (var prop in dataElement.EnumerateObject())
-            {
-                if (prop.Value.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
-                {
-                    continue;
-                }
-
-                var value = prop.Value.ValueKind == JsonValueKind.String
-                    ? prop.Value.GetString()
-                    : prop.Value.GetRawText();
-
-                if (value is not null)
-                {
-                    map[prop.Name] = value;
-                }
-            }
-
+            var map = BuildWebhookSignatureMap(request.Data);
             var canonical = string.Join("&", map.Select(kv => $"{kv.Key}={kv.Value}"));
             var expected = ComputeSignature(canonical, _settings.ChecksumKey);
             var isMatch = string.Equals(expected, request.Signature, StringComparison.OrdinalIgnoreCase);
@@ -175,6 +156,29 @@ namespace ReliefManagementSystem.Infrastructure.Payments
             }
 
             return isMatch;
+        }
+
+        private static SortedDictionary<string, string> BuildWebhookSignatureMap(PayOsWebhookData data)
+        {
+            return new SortedDictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["accountNumber"] = data.AccountNumber ?? string.Empty,
+                ["amount"] = data.Amount.ToString(CultureInfo.InvariantCulture),
+                ["code"] = data.Code ?? string.Empty,
+                ["counterAccountBankId"] = data.CounterAccountBankId ?? string.Empty,
+                ["counterAccountBankName"] = data.CounterAccountBankName ?? string.Empty,
+                ["counterAccountName"] = data.CounterAccountName ?? string.Empty,
+                ["counterAccountNumber"] = data.CounterAccountNumber ?? string.Empty,
+                ["currency"] = data.Currency ?? string.Empty,
+                ["desc"] = data.Desc ?? string.Empty,
+                ["description"] = data.Description ?? string.Empty,
+                ["orderCode"] = data.OrderCode.ToString(CultureInfo.InvariantCulture),
+                ["paymentLinkId"] = data.PaymentLinkId ?? string.Empty,
+                ["reference"] = data.Reference ?? string.Empty,
+                ["transactionDateTime"] = data.TransactionDateTime ?? string.Empty,
+                ["virtualAccountName"] = data.VirtualAccountName ?? string.Empty,
+                ["virtualAccountNumber"] = data.VirtualAccountNumber ?? string.Empty,
+            };
         }
 
         private static void EnsureSuccess(HttpResponseMessage response, string body)
