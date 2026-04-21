@@ -1,5 +1,6 @@
 using ReliefManagementSystem.Application.Common.Interface;
 using ReliefManagementSystem.Application.Common.Models;
+using Microsoft.EntityFrameworkCore;
 using ReliefManagementSystem.Application.Features.CampaignTask.DTOs.Requests;
 using ReliefManagementSystem.Application.Features.CampaignTask.DTOs.Responses;
 using ReliefManagementSystem.Application.Interface;
@@ -65,6 +66,59 @@ namespace ReliefManagementSystem.Application.Services
 
             var mapped = items.Select(x => MapSummary(x, campaignId, x.CampaignTeam?.Team?.Name)).ToList();
             return new Pagination<CampaignTaskResponse>(mapped, totalCount, request.PageIndex, request.PageSize);
+        }
+
+        public async Task<Pagination<MyMemberTaskResponse>> GetMyMemberTasksAsync(Guid campaignId, MyMemberTaskQueryRequest request, CancellationToken cancellationToken = default)
+        {
+            await GetReliefCampaignAsync(campaignId, cancellationToken);
+
+            var currentUserId = _currentUser.UserId ?? throw new UnauthorizedAccessException("User is not authenticated.");
+            var volunteerProfile = await _unitOfWork.VolunteerProfiles.GetByUserIdAsync(currentUserId, cancellationToken)
+                ?? throw new KeyNotFoundException("Volunteer profile for current user was not found.");
+
+            var query = _unitOfWork.MemberTasks.GetQueryable()
+                .Where(x => x.VolunteerProfileId == volunteerProfile.VolunteerProfileId)
+                .Where(x => x.CampaignTask.CampaignTeam.CampaignId == campaignId);
+
+            if (request.Status.HasValue)
+                query = query.Where(x => x.Status == request.Status.Value);
+
+            if (request.CampaignTeamId.HasValue)
+                query = query.Where(x => x.CampaignTask.CampaignTeamId == request.CampaignTeamId.Value);
+
+            query = query.OrderByDescending(x => x.AssignedAt);
+
+            var pageIndex = request.PageIndex <= 0 ? 1 : request.PageIndex;
+            var pageSize = request.PageSize <= 0 ? 20 : request.PageSize;
+            var totalCount = await query.CountAsync(cancellationToken);
+            var items = await query
+                .Skip((pageIndex - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+            var mapped = items.Select(x => new MyMemberTaskResponse
+            {
+                MemberTaskId = x.MemberTaskId,
+                CampaignTaskId = x.CampaignTaskId,
+                CampaignId = x.CampaignTask.CampaignTeam.CampaignId,
+                CampaignTeamId = x.CampaignTask.CampaignTeamId,
+                CampaignTeamName = x.CampaignTask.CampaignTeam.Team?.Name ?? string.Empty,
+                CampaignTaskTitle = x.CampaignTask.Title,
+                CampaignTaskDescription = x.CampaignTask.Description,
+                StartDate = x.CampaignTask.StartDate,
+                DueDate = x.CampaignTask.DueDate,
+                CampaignTaskStatus = x.CampaignTask.Status,
+                Priority = x.CampaignTask.Priority,
+                VolunteerProfileId = x.VolunteerProfileId,
+                VolunteerName = ResolveVolunteerDisplayName(x.VolunteerProfile),
+                SubTaskTitle = x.SubTaskTitle,
+                TaskNote = x.TaskNote,
+                AssignedAt = x.AssignedAt,
+                CompletedAt = x.CompletedAt,
+                Status = x.Status,
+            }).ToList();
+
+            return new Pagination<MyMemberTaskResponse>(mapped, totalCount, pageIndex, pageSize);
         }
 
         public async Task<CampaignTaskDetailResponse> GetByIdAsync(Guid campaignTaskId, CancellationToken cancellationToken = default)
