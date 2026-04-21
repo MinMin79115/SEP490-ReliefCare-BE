@@ -126,6 +126,15 @@ services:
       WeatherApi__BaseUrl: ${WEATHER_API_BASE_URL:-https://api.weatherapi.com/v1}
       WeatherApi__ApiKey: ${WEATHER_API_KEY:-}
 
+      # Visual Crossing forecast for disaster analysis
+      VisualCrossing__BaseUrl: ${VISUAL_CROSSING_BASE_URL:-https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline}
+      VisualCrossing__ApiKey: ${VISUAL_CROSSING_API_KEY:-}
+      VisualCrossing__UnitGroup: ${VISUAL_CROSSING_UNIT_GROUP:-metric}
+      VisualCrossing__ForecastDays: ${VISUAL_CROSSING_FORECAST_DAYS:-14}
+      VisualCrossing__Include: ${VISUAL_CROSSING_INCLUDE:-days}
+      VisualCrossing__Elements: ${VISUAL_CROSSING_ELEMENTS:-datetime,tempmax,tempmin,precip,precipprob,precipcover,humidity,cloudcover,pressure,windspeed,windgust,visibility,severerisk,cape,cin,snow,snowdepth}
+      VisualCrossing__ExcludeNullValues: ${VISUAL_CROSSING_EXCLUDE_NULLS:-true}
+
       # Disaster Analysis
       DisasterAnalysis__TopRiskCount: ${DISASTER_ANALYSIS_TOP_RISK_COUNT:-3}
       DisasterAnalysis__IncludeEarthquakeInAutoDetect: ${DISASTER_ANALYSIS_INCLUDE_EARTHQUAKE_IN_AUTO_DETECT:-false}
