@@ -19,5 +19,15 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .OrderBy(x => x.AssignedAt)
                 .ToListAsync(cancellationToken);
         }
+
+        public IQueryable<MemberTask> GetQueryable()
+        {
+            return _context.MemberTasks
+                .Include(x => x.VolunteerProfile)
+                    .ThenInclude(v => v.User)
+                .Include(x => x.CampaignTask)
+                    .ThenInclude(t => t.CampaignTeam)
+                        .ThenInclude(ct => ct.Team);
+        }
     }
 }

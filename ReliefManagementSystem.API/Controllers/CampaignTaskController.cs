@@ -39,6 +39,16 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(result);
         }
 
+        [HttpGet("{campaignId:guid}/my-member-tasks")]
+        public async Task<ActionResult<Pagination<MyMemberTaskResponse>>> GetMyMemberTasks(
+            Guid campaignId,
+            [FromQuery] MyMemberTaskQueryRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _campaignTaskService.GetMyMemberTasksAsync(campaignId, request, cancellationToken);
+            return Ok(result);
+        }
+
         [HttpGet("tasks/{campaignTaskId:guid}")]
         public async Task<ActionResult<CampaignTaskDetailResponse>> GetById(
             Guid campaignTaskId,
