@@ -175,7 +175,7 @@ namespace ReliefManagementSystem.Application.Services
                 transfer.Status = SupplyTransferStatus.Shipping;
                 transfer.ShippedAt = DateTime.UtcNow;
                 transfer.VehicleId = request.VehicleId;
-                transfer.DriverUserId = request.DriverUserId;
+                transfer.DriverUserId = null;
                 transfer.Notes = AppendNotes(transfer.Notes, request.Notes);
                 transfer.EvidenceUrls = MergeEvidenceUrls(transfer.EvidenceUrls, request.EvidenceUrls);
                 await _unitOfWork.SupplyTransfers.UpdateAsync(transfer);
@@ -208,6 +208,9 @@ namespace ReliefManagementSystem.Application.Services
             var destinationInventory = await _unitOfWork.Inventories.GetActiveByReliefStationAsync(transfer.DestinationStationId, cancellationToken)
                 ?? throw new InvalidOperationException("Trạm đích chưa có inventory active.");
 
+            if (request.Items is null || request.Items.Count == 0)
+                throw new InvalidOperationException("At least one received item is required.");
+
             var actualBySupplyId = request.Items.ToDictionary(i => i.SupplyItemId);
             foreach (var item in transfer.Items)
             {
@@ -220,6 +223,15 @@ namespace ReliefManagementSystem.Application.Services
             await _unitOfWork.BeginTransactionAsync(cancellationToken);
             try
             {
+                foreach (var item in transfer.Items)
+                {
+                    await EnsureInventoryStockExistsAsync(destinationInventory.InventoryId, item.SupplyItemId, cancellationToken);
+                }
+
+                // Persist newly created destination stocks before creating import transaction,
+                // because CreateTransactionAsync reloads inventory stocks from the database.
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+
                 var transaction = await _inventoryTransactionService.CreateTransactionAsync(new CreateTransactionRequest
                 {
                     InventoryId = destinationInventory.InventoryId,
@@ -344,6 +356,25 @@ namespace ReliefManagementSystem.Application.Services
         private async Task<SupplyTransfer> LoadTransferForUpdateAsync(Guid transferId, CancellationToken cancellationToken)
             => await _unitOfWork.SupplyTransfers.GetByIdWithDetailsAsync(transferId, cancellationToken)
                ?? throw new KeyNotFoundException($"Supply transfer '{transferId}' was not found.");
+
+        private async Task EnsureInventoryStockExistsAsync(Guid inventoryId, Guid supplyItemId, CancellationToken cancellationToken)
+        {
+            var stock = await _unitOfWork.InventoryStocks.GetByInventoryAndSupplyItemAsync(inventoryId, supplyItemId, cancellationToken);
+            if (stock != null)
+            {
+                return;
+            }
+
+            await _unitOfWork.InventoryStocks.AddAsync(new InventoryStock
+            {
+                InventoryStockId = Guid.NewGuid(),
+                InventoryId = inventoryId,
+                SupplyItemId = supplyItemId,
+                CurrentQuantity = 0,
+                MinimumStockLevel = 0,
+                MaximumStockLevel = int.MaxValue
+            });
+        }
 
         private async Task<string> GenerateTransferCodeAsync(CancellationToken cancellationToken)
             => $"TRF-{DateTime.UtcNow:yyyyMMdd}-{(await _unitOfWork.SupplyTransfers.CountTodayAsync(cancellationToken)) + 1:D3}";

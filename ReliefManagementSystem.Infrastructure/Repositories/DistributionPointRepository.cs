@@ -12,7 +12,16 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
         }
 
         public IQueryable<DistributionPoint> GetQueryable()
-            => _context.DistributionPoints.AsQueryable();
+            => _context.DistributionPoints
+                .Include(x => x.CampaignTeam)
+                    .ThenInclude(ct => ct.Team)
+                .Include(x => x.Households)
+                    .ThenInclude(h => h.CampaignTeam)
+                        .ThenInclude(ct => ct.Team)
+                .Include(x => x.Deliveries)
+                    .ThenInclude(d => d.CampaignTeam)
+                        .ThenInclude(ct => ct.Team)
+                .AsQueryable();
 
         public async Task<List<DistributionPoint>> GetByCampaignAsync(Guid campaignId, CancellationToken cancellationToken = default)
         {

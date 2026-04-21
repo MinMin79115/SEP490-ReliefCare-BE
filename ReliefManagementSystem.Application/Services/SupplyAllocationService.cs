@@ -15,13 +15,16 @@ namespace ReliefManagementSystem.Application.Services
     {
         private readonly IUnitOfWork _unitOfWork;
         private readonly IInventoryTransactionService _inventoryTransactionService;
+        private readonly ICampaignInventoryService _campaignInventoryService;
 
         public SupplyAllocationService(
             IUnitOfWork unitOfWork,
-            IInventoryTransactionService inventoryTransactionService)
+            IInventoryTransactionService inventoryTransactionService,
+            ICampaignInventoryService campaignInventoryService)
         {
             _unitOfWork = unitOfWork;
             _inventoryTransactionService = inventoryTransactionService;
+            _campaignInventoryService = campaignInventoryService;
         }
 
         // ═══════════════════════════════════════════════════
@@ -199,6 +202,22 @@ namespace ReliefManagementSystem.Application.Services
                     }, autoSave: false, cancellationToken);
 
                     allocation.InventoryTransactionId = transaction.TransactionId;
+
+                    await _campaignInventoryService.CreateTransactionAsync(
+                        allocation.CampaignId,
+                        TransactionType.Import,
+                        TransactionReason.CampaignAllocation,
+                        allocation.Items.Select(item => new TransactionItemRequest
+                        {
+                            SupplyItemId = item.SupplyItemId,
+                            Quantity = item.Quantity,
+                            Notes = $"Allocation receipt {allocation.AllocationId}"
+                        }).ToList(),
+                        notes: $"Supply allocation approval receipt: {allocation.AllocationId}",
+                        supplyAllocationId: allocation.AllocationId,
+                        autoSave: false,
+                        cancellationToken: cancellationToken);
+
                     allocation.Status = request.Status;
                     await _unitOfWork.SupplyAllocations.UpdateAsync(allocation);
                     await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -222,6 +241,37 @@ namespace ReliefManagementSystem.Application.Services
                 await _unitOfWork.BeginTransactionAsync(cancellationToken);
                 try
                 {
+                    var campaignInventory = await _unitOfWork.CampaignInventories.GetByCampaignIdWithDetailsAsync(allocation.CampaignId, cancellationToken)
+                        ?? throw new InvalidOperationException("Campaign inventory does not exist for this allocation.");
+
+                    var campaignStocks = await _unitOfWork.CampaignInventoryStocks
+                        .GetByCampaignInventoryIdForUpdateAsync(campaignInventory.CampaignInventoryId, cancellationToken);
+
+                    foreach (var item in allocation.Items)
+                    {
+                        var campaignStock = campaignStocks.FirstOrDefault(x => x.SupplyItemId == item.SupplyItemId);
+                        if (campaignStock is null || campaignStock.CurrentQuantity < item.Quantity)
+                        {
+                            throw new InvalidOperationException(
+                                $"Cannot cancel allocation '{allocation.AllocationId}' because campaign stock for supply item '{item.SupplyItemId}' has already been consumed.");
+                        }
+                    }
+
+                    await _campaignInventoryService.CreateTransactionAsync(
+                        allocation.CampaignId,
+                        TransactionType.Export,
+                        TransactionReason.CampaignAllocation,
+                        allocation.Items.Select(item => new TransactionItemRequest
+                        {
+                            SupplyItemId = item.SupplyItemId,
+                            Quantity = item.Quantity,
+                            Notes = $"Allocation reversal {allocation.AllocationId}"
+                        }).ToList(),
+                        notes: $"Supply allocation cancellation deduction: {allocation.AllocationId}",
+                        supplyAllocationId: allocation.AllocationId,
+                        autoSave: false,
+                        cancellationToken: cancellationToken);
+
                     await _inventoryTransactionService.CreateTransactionAsync(new CreateTransactionRequest
                     {
                         InventoryId = allocation.SourceInventoryId,

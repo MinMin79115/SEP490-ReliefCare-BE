@@ -9,6 +9,7 @@ using ReliefManagementSystem.Domain.Enum;
 using System.Globalization;
 using System.Text;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 
 namespace ReliefManagementSystem.Application.Services
 {
@@ -38,6 +39,8 @@ namespace ReliefManagementSystem.Application.Services
 
         public async Task<CreateDonationCheckoutResponse> CreateCheckoutAsync(CreateDonationCheckoutRequest request, CancellationToken cancellationToken = default)
         {
+            const int maxCheckoutAttempts = 5;
+
             var campaign = await _unitOfWork.Campaigns.GetWithGoalsAsync(request.CampaignId, cancellationToken);
             if (campaign is null)
             {
@@ -64,56 +67,75 @@ namespace ReliefManagementSystem.Application.Services
                 throw new DonationInvalidStateException("Campaign không có mục tiêu Money để nhận donation.");
             }
 
-            var now = DateTime.UtcNow;
-            var expiresAt = now.AddMinutes(15);
-            var orderCode = BuildOrderCode(now);
-
             var amountInt = Convert.ToInt32(Math.Round(request.Amount, MidpointRounding.AwayFromZero));
             if (amountInt <= 0)
             {
                 throw new DonationInvalidStateException("Số tiền donation không hợp lệ.");
             }
 
-            var createResult = await _payOsGateway.CreatePaymentLinkAsync(
-                orderCode,
-                amountInt,
-                BuildDescription(orderCode),
-                request.DonorName,
-                null,
-                null,
-                expiresAt,
-                cancellationToken);
-
-            var donation = new Domain.Entities.Donation
+            var now = DateTime.UtcNow;
+            var expiresAt = now.AddMinutes(15);
+            for (var attempt = 1; attempt <= maxCheckoutAttempts; attempt++)
             {
-                DonationId = Guid.NewGuid(),
-                CampaignId = request.CampaignId,
-                DonorUserId = _currentUserService.UserId,
-                DonorName = request.DonorName.Trim(),
-                Amount = request.Amount,
-                Message = request.Message,
-                DonatedAt = now,
-                Status = DonationStatus.Pending,
-                TransactionRef = createResult.PaymentLinkId,
-                GatewayResponse = JsonSerializer.Serialize(createResult),
-                PayOsOrderCode = orderCode,
-                PayOsPaymentLinkId = createResult.PaymentLinkId,
-                CheckoutUrl = createResult.CheckoutUrl,
-                ExpiresAt = expiresAt
-            };
+                var orderCode = await GenerateUniqueOrderCodeAsync(cancellationToken);
 
-            await _unitOfWork.Donations.AddAsync(donation);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+                var createResult = await _payOsGateway.CreatePaymentLinkAsync(
+                    orderCode,
+                    amountInt,
+                    BuildDescription(orderCode),
+                    request.DonorName,
+                    null,
+                    null,
+                    expiresAt,
+                    cancellationToken);
 
-            return new CreateDonationCheckoutResponse
-            {
-                DonationId = donation.DonationId,
-                OrderCode = donation.PayOsOrderCode ?? 0,
-                PaymentLinkId = donation.PayOsPaymentLinkId,
-                CheckoutUrl = donation.CheckoutUrl ?? string.Empty,
-                ExpiresAt = donation.ExpiresAt,
-                Status = donation.Status
-            };
+                var donation = new Domain.Entities.Donation
+                {
+                    DonationId = Guid.NewGuid(),
+                    CampaignId = request.CampaignId,
+                    DonorUserId = _currentUserService.UserId,
+                    DonorName = request.DonorName.Trim(),
+                    Amount = request.Amount,
+                    Message = request.Message,
+                    DonatedAt = now,
+                    Status = DonationStatus.Pending,
+                    TransactionRef = createResult.PaymentLinkId,
+                    GatewayResponse = JsonSerializer.Serialize(createResult),
+                    PayOsOrderCode = orderCode,
+                    PayOsPaymentLinkId = createResult.PaymentLinkId,
+                    CheckoutUrl = createResult.CheckoutUrl,
+                    ExpiresAt = expiresAt
+                };
+
+                await _unitOfWork.Donations.AddAsync(donation);
+
+                try
+                {
+                    await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+                    return new CreateDonationCheckoutResponse
+                    {
+                        DonationId = donation.DonationId,
+                        OrderCode = donation.PayOsOrderCode ?? 0,
+                        PaymentLinkId = donation.PayOsPaymentLinkId,
+                        CheckoutUrl = donation.CheckoutUrl ?? string.Empty,
+                        ExpiresAt = donation.ExpiresAt,
+                        Status = donation.Status
+                    };
+                }
+                catch (Exception ex) when (IsPayOsOrderCodeUniqueViolation(ex) && attempt < maxCheckoutAttempts)
+                {
+                    _unitOfWork.ClearChangeTracker();
+                    continue;
+                }
+                catch (Exception ex) when (IsPayOsOrderCodeUniqueViolation(ex))
+                {
+                    _unitOfWork.ClearChangeTracker();
+                    throw new DonationInvalidStateException("Không thể tạo checkout donation do trùng mã giao dịch. Vui lòng thử lại.");
+                }
+            }
+
+            throw new DonationInvalidStateException("Không thể tạo checkout donation. Vui lòng thử lại.");
         }
 
         public async Task<DonationStatusResponse> GetStatusAsync(Guid donationId, CancellationToken cancellationToken = default)
@@ -288,6 +310,17 @@ namespace ReliefManagementSystem.Application.Services
                     CreatedAt = t.CreatedAt
                 }).ToList()
             };
+        }
+
+        public async Task<DonationStatusResponse> ReconcileByOrderCodeAsync(long orderCode, CancellationToken cancellationToken = default)
+        {
+            var donation = await _unitOfWork.Donations.GetByPayOsOrderCodeAsync(orderCode, cancellationToken);
+            if (donation is null)
+            {
+                throw new InvalidOperationException($"Donation with order code {orderCode} was not found.");
+            }
+
+            return await ReconcileAsync(donation.DonationId, cancellationToken);
         }
 
         public async Task<DonationStatusResponse> ReconcileAsync(Guid donationId, CancellationToken cancellationToken = default)
@@ -493,11 +526,43 @@ namespace ReliefManagementSystem.Application.Services
             request.ToDate = to;
         }
 
-        private static long BuildOrderCode(DateTime nowUtc)
+        private async Task<long> GenerateUniqueOrderCodeAsync(CancellationToken cancellationToken)
         {
-            var prefix = nowUtc.ToString("yyMMddHHmm", CultureInfo.InvariantCulture);
-            var random = Random.Shared.Next(10, 99);
-            return long.Parse(prefix + random, CultureInfo.InvariantCulture);
+            const int maxGenerateAttempts = 10;
+            for (var attempt = 1; attempt <= maxGenerateAttempts; attempt++)
+            {
+                var orderCode = BuildOrderCode();
+                var existing = await _unitOfWork.Donations.GetByPayOsOrderCodeAsync(orderCode, cancellationToken);
+                if (existing is null)
+                {
+                    return orderCode;
+                }
+            }
+
+            throw new DonationInvalidStateException("Không thể tạo mã giao dịch duy nhất. Vui lòng thử lại.");
+        }
+
+        private static long BuildOrderCode()
+        {
+            // Keep PayOS orderCode numeric and practical in length.
+            // Use current Unix time in seconds (10 digits) + 5 random digits => 15 digits total.
+            // This significantly reduces collisions for concurrent checkouts while staying shorter than the old 18-digit format.
+            var seconds = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var random = Random.Shared.Next(0, 100000);
+            return long.Parse($"{seconds}{random:D5}", CultureInfo.InvariantCulture);
+        }
+
+        private static bool IsPayOsOrderCodeUniqueViolation(Exception exception)
+        {
+            var message = exception.ToString();
+            if (string.IsNullOrWhiteSpace(message))
+            {
+                return false;
+            }
+
+            return Regex.IsMatch(message, @"IX_Donations_PayOsOrderCode", RegexOptions.IgnoreCase)
+                || Regex.IsMatch(message, @"PayOsOrderCode", RegexOptions.IgnoreCase)
+                   && Regex.IsMatch(message, @"unique|duplicate", RegexOptions.IgnoreCase);
         }
 
         private static DonationStatusResponse MapStatus(Domain.Entities.Donation donation)

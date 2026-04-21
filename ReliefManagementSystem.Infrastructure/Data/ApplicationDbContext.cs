@@ -62,6 +62,11 @@ namespace ReliefManagementSystem.Infrastructure.Data
 
         // Campaign Management
         public DbSet<Campaign> Campaigns { get; set; }
+        public DbSet<CampaignBudgetTransfer> CampaignBudgetTransfers { get; set; }
+        public DbSet<CampaignInventory> CampaignInventories { get; set; }
+        public DbSet<CampaignInventoryStock> CampaignInventoryStocks { get; set; }
+        public DbSet<CampaignInventoryTransaction> CampaignInventoryTransactions { get; set; }
+        public DbSet<CampaignInventoryTransactionItem> CampaignInventoryTransactionItems { get; set; }
         public DbSet<CampaignResourceGoal> CampaignResourceGoals { get; set; }
         public DbSet<CampaignStation> CampaignStations { get; set; }
         public DbSet<CampaignTeam> CampaignTeams { get; set; }
@@ -802,6 +807,126 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .HasIndex(ct => new { ct.CampaignId, ct.TeamId })
                 .IsUnique();
 
+            builder.Entity<CampaignBudgetTransfer>()
+                .HasKey(x => x.CampaignBudgetTransferId);
+
+            builder.Entity<CampaignBudgetTransfer>()
+                .Property(x => x.Note)
+                .HasMaxLength(1000);
+
+            builder.Entity<CampaignBudgetTransfer>()
+                .ToTable(t => t.HasCheckConstraint("CK_CampaignBudgetTransfers_Amount_Positive", "\"Amount\" > 0"));
+
+            builder.Entity<CampaignBudgetTransfer>()
+                .HasOne(x => x.SourceCampaign)
+                .WithMany(c => c.OutgoingBudgetTransfers)
+                .HasForeignKey(x => x.SourceCampaignId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<CampaignBudgetTransfer>()
+                .HasOne(x => x.TargetCampaign)
+                .WithMany(c => c.IncomingBudgetTransfers)
+                .HasForeignKey(x => x.TargetCampaignId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<CampaignBudgetTransfer>()
+                .HasOne(x => x.TransferredByUser)
+                .WithMany()
+                .HasForeignKey(x => x.TransferredByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<CampaignBudgetTransfer>()
+                .HasIndex(x => new { x.SourceCampaignId, x.TargetCampaignId, x.TransferredAt });
+
+            // CampaignInventory Configuration
+            builder.Entity<CampaignInventory>()
+                .HasKey(ci => ci.CampaignInventoryId);
+
+            builder.Entity<CampaignInventory>()
+                .HasOne(ci => ci.Campaign)
+                .WithOne(c => c.CampaignInventory)
+                .HasForeignKey<CampaignInventory>(ci => ci.CampaignId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<CampaignInventory>()
+                .HasIndex(ci => ci.CampaignId)
+                .IsUnique();
+
+            builder.Entity<CampaignInventoryStock>()
+                .HasKey(cis => cis.CampaignInventoryStockId);
+
+            builder.Entity<CampaignInventoryStock>()
+                .ToTable(t => t.HasCheckConstraint("CK_CampaignInventoryStocks_CurrentQuantity_NonNegative", "\"CurrentQuantity\" >= 0"));
+
+            builder.Entity<CampaignInventoryStock>()
+                .HasOne(cis => cis.CampaignInventory)
+                .WithMany(ci => ci.Stocks)
+                .HasForeignKey(cis => cis.CampaignInventoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<CampaignInventoryStock>()
+                .HasOne(cis => cis.SupplyItem)
+                .WithMany(si => si.CampaignInventoryStocks)
+                .HasForeignKey(cis => cis.SupplyItemId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<CampaignInventoryStock>()
+                .HasIndex(cis => new { cis.CampaignInventoryId, cis.SupplyItemId })
+                .IsUnique();
+
+            builder.Entity<CampaignInventoryTransaction>()
+                .HasKey(cit => cit.CampaignInventoryTransactionId);
+
+            builder.Entity<CampaignInventoryTransaction>()
+                .Property(cit => cit.TransactionCode)
+                .HasMaxLength(30)
+                .IsRequired();
+
+            builder.Entity<CampaignInventoryTransaction>()
+                .HasIndex(cit => cit.CampaignTeamId);
+
+            builder.Entity<CampaignInventoryTransaction>()
+                .HasIndex(cit => cit.DistributionPointId);
+
+            builder.Entity<CampaignInventoryTransaction>()
+                .HasIndex(cit => cit.HouseholdDeliveryId);
+
+            builder.Entity<CampaignInventoryTransaction>()
+                .HasIndex(cit => cit.ReliefPackageDefinitionId);
+
+            builder.Entity<CampaignInventoryTransaction>()
+                .HasOne(cit => cit.CampaignInventory)
+                .WithMany(ci => ci.Transactions)
+                .HasForeignKey(cit => cit.CampaignInventoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<CampaignInventoryTransaction>()
+                .HasOne(cit => cit.CreatedByUser)
+                .WithMany()
+                .HasForeignKey(cit => cit.CreatedBy)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<CampaignInventoryTransaction>()
+                .HasOne(cit => cit.SupplyAllocation)
+                .WithMany(sa => sa.CampaignInventoryTransactions)
+                .HasForeignKey(cit => cit.SupplyAllocationId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<CampaignInventoryTransactionItem>()
+                .HasKey(citi => citi.CampaignInventoryTransactionItemId);
+
+            builder.Entity<CampaignInventoryTransactionItem>()
+                .HasOne(citi => citi.CampaignInventoryTransaction)
+                .WithMany(cit => cit.Items)
+                .HasForeignKey(citi => citi.CampaignInventoryTransactionId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<CampaignInventoryTransactionItem>()
+                .HasOne(citi => citi.SupplyItem)
+                .WithMany(si => si.CampaignInventoryTransactionItems)
+                .HasForeignKey(citi => citi.SupplyItemId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // CampaignTask Configuration
             builder.Entity<CampaignTask>()
                 .HasKey(ct => ct.CampaignTaskId);
@@ -1423,6 +1548,11 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 entity.HasOne(ro => ro.Team)
                     .WithMany()
                     .HasForeignKey(ro => ro.TeamId)
+                    .OnDelete(DeleteBehavior.SetNull);
+
+                entity.HasOne(ro => ro.Vehicle)
+                    .WithMany()
+                    .HasForeignKey(ro => ro.VehicleId)
                     .OnDelete(DeleteBehavior.SetNull);
 
                 entity.HasOne(ro => ro.ReliefStation)

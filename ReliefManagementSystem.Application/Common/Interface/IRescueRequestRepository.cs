@@ -20,6 +20,10 @@ namespace ReliefManagementSystem.Application.Common.Interface
 
         Task<RescueRequest?> GetByIdForCompletionAsync(Guid id, CancellationToken cancellationToken = default);
 
+        Task<RescueRequest?> GetByIdForCancellationAsync(Guid id, CancellationToken cancellationToken = default);
+
+        Task<RescueRequest?> GetByIdForCancellationUpdateAsync(Guid id, CancellationToken cancellationToken = default);
+
         Task DetachTrackedAttachmentsAsync(Guid requestId, CancellationToken cancellationToken = default);
 
         Task<List<RescueRequest>> GetAllAsync(CancellationToken cancellationToken = default);

@@ -31,5 +31,17 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .Include(ro => ro.RescueRequest)
                 .ToListAsync(cancellationToken);
         }
+
+        public async Task<RescueOperation?> GetActiveByVehicleIdAsync(Guid vehicleId, CancellationToken cancellationToken = default)
+        {
+            return await _context.Set<RescueOperation>()
+                .Where(ro => ro.VehicleId == vehicleId)
+                .Where(ro => ro.Status != ReliefManagementSystem.Domain.Enum.RescueOperationStatus.RescueCompleted
+                    && ro.Status != ReliefManagementSystem.Domain.Enum.RescueOperationStatus.Closed
+                    && ro.Status != ReliefManagementSystem.Domain.Enum.RescueOperationStatus.Cancelled)
+                .Include(ro => ro.Team)
+                .OrderByDescending(ro => ro.StartedAt)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
     }
 }

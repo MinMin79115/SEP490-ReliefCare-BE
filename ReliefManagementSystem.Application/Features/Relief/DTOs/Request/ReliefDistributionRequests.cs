@@ -62,6 +62,7 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         public Guid? DistributionPointId { get; set; }
         public Guid? CampaignTeamId { get; set; }
         public bool? IsIsolated { get; set; }
+        public bool? IsAssigned { get; set; }
     }
 
     public class DeliveryQueryRequest : ReliefPagedQueryRequest
@@ -79,6 +80,7 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         public Guid? ReliefStationId { get; set; }
         public Guid? CampaignTeamId { get; set; }
         public bool? IsActive { get; set; }
+        public DeliveryMode? DeliveryMode { get; set; }
     }
 
     public class ReliefPackageQueryRequest : ReliefPagedQueryRequest
@@ -108,6 +110,14 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         public DeliveryMode? DeliveryMode { get; set; }
         public Guid? DistributionPointId { get; set; }
         public Guid? CampaignTeamId { get; set; }
+        public string? Notes { get; set; }
+    }
+
+    public class UpdateCampaignHouseholdStatusRequest
+    {
+        [Required]
+        public HouseholdFulfillmentStatus Status { get; set; }
+
         public string? Notes { get; set; }
     }
 
@@ -166,8 +176,10 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         [MaxLength(1000)]
         public string? Description { get; set; }
 
-        [Required]
-        public Guid OutputSupplyItemId { get; set; }
+        public Guid? OutputSupplyItemId { get; set; }
+
+        [Range(0, double.MaxValue)]
+        public decimal? CashSupportAmount { get; set; }
 
         public bool IsDefault { get; set; }
         public bool IsActive { get; set; } = true;
@@ -186,6 +198,8 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         public string? Description { get; set; }
 
         public Guid? OutputSupplyItemId { get; set; }
+        [Range(0, double.MaxValue)]
+        public decimal? CashSupportAmount { get; set; }
         public bool? IsDefault { get; set; }
         public bool? IsActive { get; set; }
         public List<ReliefPackageDefinitionItemRequest>? Items { get; set; }
@@ -223,6 +237,8 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
     {
         public Guid? ReliefPackageDefinitionId { get; set; }
         public Guid? CampaignTeamId { get; set; }
+        [Range(0, double.MaxValue)]
+        public decimal? CashSupportAmount { get; set; }
         public string? Notes { get; set; }
         public string? ProofNote { get; set; }
 
@@ -252,6 +268,8 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         public Guid HouseholdDeliveryId { get; set; }
         public Guid? ReliefPackageDefinitionId { get; set; }
         public Guid? CampaignTeamId { get; set; }
+        [Range(0, double.MaxValue)]
+        public decimal? CashSupportAmount { get; set; }
         public string? Notes { get; set; }
         [Required]
         [MinLength(1)]
@@ -274,6 +292,14 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         [Required]
         [MinLength(1)]
         public List<SupplyShortageItemRequest> Items { get; set; } = [];
+    }
+
+    public class SupplyShortageRequestQueryRequest : ReliefPagedQueryRequest
+    {
+        public SupplyShortageRequestStatus? Status { get; set; }
+        public Guid? DistributionPointId { get; set; }
+        public Guid? CampaignTeamId { get; set; }
+        public Guid? RequestedByUserId { get; set; }
     }
 
     public class SupplyShortageItemRequest

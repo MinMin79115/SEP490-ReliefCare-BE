@@ -34,6 +34,12 @@ namespace ReliefManagementSystem.Application.Interface
             UpdateCampaignHouseholdRequest request,
             CancellationToken cancellationToken = default);
 
+        Task<CampaignHouseholdResponse> UpdateCampaignHouseholdStatusAsync(
+            Guid campaignId,
+            Guid campaignHouseholdId,
+            UpdateCampaignHouseholdStatusRequest request,
+            CancellationToken cancellationToken = default);
+
         Task DeleteCampaignHouseholdAsync(
             Guid campaignId,
             Guid campaignHouseholdId,
@@ -134,9 +140,9 @@ namespace ReliefManagementSystem.Application.Interface
             CreateSupplyShortageRequest request,
             CancellationToken cancellationToken = default);
 
-        Task<IReadOnlyList<SupplyShortageRequestResponse>> GetShortageRequestsAsync(
+        Task<Pagination<SupplyShortageRequestResponse>> GetShortageRequestsAsync(
             Guid campaignId,
-            SupplyShortageRequestStatus? status,
+            SupplyShortageRequestQueryRequest request,
             CancellationToken cancellationToken = default);
 
         Task<SupplyShortageRequestResponse> ApproveShortageRequestAsync(

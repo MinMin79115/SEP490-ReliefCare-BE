@@ -34,6 +34,9 @@ namespace ReliefManagementSystem.Domain.Entities
         public Guid? SupplyTransferId { get; set; }
         public SupplyTransfer? SupplyTransfer { get; set; }
 
+        public string? ImportBatchCode { get; set; }
+        public string? SourceReference { get; set; }
+
         public SupplyAllocation? SupplyAllocation { get; set; } // Liên kết 1-1 với phiếu cấp phát
 
         public ICollection<InventoryTransactionItem> Items { get; set; } = new List<InventoryTransactionItem>();

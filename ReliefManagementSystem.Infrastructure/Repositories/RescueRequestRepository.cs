@@ -63,6 +63,9 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                         .ThenInclude(t => t.RescueBatches)
                             .ThenInclude(b => b.Items)
                 .Include(r => r.RescueOperations)
+                    .ThenInclude(ro => ro.Vehicle)
+                        .ThenInclude(v => v.VehicleType)
+                .Include(r => r.RescueOperations)
                     .ThenInclude(ro => ro.ReliefStation)
                 .FirstOrDefaultAsync(cancellationToken);
         }
@@ -72,6 +75,21 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             return await _context.Set<RescueRequest>()
                 .Where(r => r.RequestId == id)
                 .Include(r => r.RescueOperations)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        public async Task<RescueRequest?> GetByIdForCancellationAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            return await _context.Set<RescueRequest>()
+                .Where(r => r.RequestId == id)
+                .Include(r => r.Verifications)
+                .FirstOrDefaultAsync(cancellationToken);
+        }
+
+        public async Task<RescueRequest?> GetByIdForCancellationUpdateAsync(Guid id, CancellationToken cancellationToken = default)
+        {
+            return await _context.Set<RescueRequest>()
+                .Where(r => r.RequestId == id)
                 .FirstOrDefaultAsync(cancellationToken);
         }
 
@@ -105,6 +123,9 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                         .ThenInclude(t => t.RescueBatches)
                             .ThenInclude(b => b.Items)
                 .Include(r => r.RescueOperations)
+                    .ThenInclude(ro => ro.Vehicle)
+                        .ThenInclude(v => v.VehicleType)
+                .Include(r => r.RescueOperations)
                     .ThenInclude(ro => ro.ReliefStation)
                 .ToListAsync(cancellationToken);
         }
@@ -135,6 +156,9 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                     .ThenInclude(ro => ro.Team)
                         .ThenInclude(t => t.RescueBatches)
                             .ThenInclude(b => b.Items)
+                .Include(r => r.RescueOperations)
+                    .ThenInclude(ro => ro.Vehicle)
+                        .ThenInclude(v => v.VehicleType)
                 .Include(r => r.RescueOperations)
                     .ThenInclude(ro => ro.ReliefStation)
                 .Include(r => r.Verifications)

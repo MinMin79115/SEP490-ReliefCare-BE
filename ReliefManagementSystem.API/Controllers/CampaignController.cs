@@ -41,6 +41,13 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(result);
         }
 
+        [HttpGet("{id:guid}/inventory-balance")]
+        public async Task<IActionResult> GetInventoryBalance(Guid id, CancellationToken cancellationToken)
+        {
+            var result = await _campaignService.GetInventoryBalanceAsync(id, cancellationToken);
+            return Ok(result);
+        }
+
         [AllowAnonymous]
         [HttpGet("{id:guid}/summary")]
         public async Task<IActionResult> GetPublicSummary(Guid id, CancellationToken cancellationToken)
@@ -86,6 +93,16 @@ namespace ReliefManagementSystem.API.Controllers
             CancellationToken cancellationToken)
         {
             var result = await _campaignService.DetachStationAsync(id, reliefStationId, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpPost("{id:guid}/extract-budget")]
+        public async Task<IActionResult> ExtractBudget(
+            Guid id,
+            [FromBody] ExtractCampaignBudgetRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _campaignService.ExtractBudgetAsync(id, request, cancellationToken);
             return Ok(result);
         }
 

@@ -113,14 +113,14 @@ namespace ReliefManagementSystem.Application.Services
                 throw new Exception("Không thấy phương tiện");
             }
 
-            if (isModerator)
-            {
-                var moderatorStationId = await GetModeratorStationIdAsync(userId, cancellationToken);
-                if (vehicle.ReliefStationId != moderatorStationId)
-                {
-                    throw new Exception("Bạn chỉ được xem phương tiện trong trạm của mình");
-                }
-            }
+            //if (isModerator)
+            //{
+            //    var moderatorStationId = await GetModeratorStationIdAsync(userId, cancellationToken);
+            //    if (vehicle.ReliefStationId != moderatorStationId)
+            //    {
+            //        throw new Exception("Bạn chỉ được xem phương tiện trong trạm của mình");
+            //    }
+            //}
 
             return MapToResponse(vehicle);
         }
@@ -193,6 +193,22 @@ namespace ReliefManagementSystem.Application.Services
             CancellationToken cancellationToken = default)
         {
             var vehicles = await _unitOfWork.Vehicles.GetByCreatorAsync(userId);
+            return vehicles.Select(MapToResponse).ToList();
+        }
+
+        public async Task<IReadOnlyList<VehicleResponse>> GetAvailableVehiclesForModeratorAsync(
+            Guid userId,
+            CancellationToken cancellationToken = default)
+        {
+            var stationId = await GetModeratorStationIdAsync(userId, cancellationToken);
+
+            var vehicles = await _unitOfWork.Vehicles.GetQueryable()
+                .Where(v => v.ReliefStationId == stationId)
+                .Where(v => v.Status == VehicleStatus.Free)
+                .OrderBy(v => v.VehicleType!.TypeName)
+                .ThenBy(v => v.LicensePlate)
+                .ToListAsync(cancellationToken);
+
             return vehicles.Select(MapToResponse).ToList();
         }
 
@@ -422,6 +438,11 @@ namespace ReliefManagementSystem.Application.Services
 
         private VehicleResponse MapToResponse(Vehicle vehicle)
         {
+            var activeOperation = _unitOfWork.RescueOperations
+                .GetActiveByVehicleIdAsync(vehicle.VehicleId)
+                .GetAwaiter()
+                .GetResult();
+
             return new VehicleResponse
             {
                 VehicleId = vehicle.VehicleId,
@@ -434,6 +455,9 @@ namespace ReliefManagementSystem.Application.Services
                 ReliefStationName = vehicle.ReliefStation?.Name,
                 TeamId = vehicle.TeamId,
                 TeamName = vehicle.Team?.Name,
+                CurrentOperationId = activeOperation?.RescueOperationId,
+                CurrentUsingTeamId = activeOperation?.TeamId,
+                CurrentUsingTeamName = activeOperation?.Team?.Name,
                 Status = (int)vehicle.Status,
                 StatusName = vehicle.Status.ToString(),
                 CreatedAt = vehicle.CreatedAt,

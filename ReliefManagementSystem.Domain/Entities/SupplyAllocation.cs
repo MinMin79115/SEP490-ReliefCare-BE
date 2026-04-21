@@ -19,6 +19,7 @@ namespace ReliefManagementSystem.Domain.Entities
         // Giao dịch kho (xuất kho) liên quan đến lần cấp phát này
         public Guid? InventoryTransactionId { get; set; }
         public InventoryTransaction? InventoryTransaction { get; set; }
+        public ICollection<CampaignInventoryTransaction> CampaignInventoryTransactions { get; set; } = new List<CampaignInventoryTransaction>();
 
         // Navigation
         public Campaign Campaign { get; set; } = default!;

@@ -365,6 +365,26 @@ namespace ReliefManagementSystem.Application.Services
         {
             await EnsureRescueTeamTypeAsync(dto.TeamId, cancellationToken);
 
+            var activeBatch = await _unitOfWork.RescueBatches.GetActiveByTeamIdAsync(dto.TeamId, cancellationToken);
+            var currentBatchVehicleId = activeBatch?.Items
+                .Where(i => i.Status == RescueBatchItemStatus.Pending || i.Status == RescueBatchItemStatus.InProgress)
+                .SelectMany(i => i.RescueRequest?.RescueOperations ?? Enumerable.Empty<RescueOperation>())
+                .Where(o => o.TeamId == dto.TeamId && o.VehicleId.HasValue)
+                .OrderByDescending(o => o.StartedAt)
+                .Select(o => o.VehicleId)
+                .FirstOrDefault();
+
+            var effectiveVehicleId = dto.VehicleId;
+            if (currentBatchVehicleId.HasValue)
+            {
+                if (dto.VehicleId.HasValue && dto.VehicleId.Value != currentBatchVehicleId.Value)
+                {
+                    throw new InvalidOperationException("Team đang dùng xe khác trong active batch. Không thể đổi xe khi batch chưa hoàn tất.");
+                }
+
+                effectiveVehicleId = currentBatchVehicleId;
+            }
+
             var request = await _unitOfWork.RescueRequests.GetByIdAsync(requestId, cancellationToken);
             if (request == null)
                 throw new InvalidOperationException($"Rescue request {requestId} not found");
@@ -385,9 +405,34 @@ namespace ReliefManagementSystem.Application.Services
             if (stationTeamAssignment == null || stationTeamAssignment.Status != ReliefTeamAssignmentStatus.Approved)
                 throw new InvalidOperationException("Team does not belong to dispatched station or assignment is not approved.");
 
+            Vehicle? assignedVehicle = null;
+            if (effectiveVehicleId.HasValue)
+            {
+                assignedVehicle = await _unitOfWork.Vehicles.GetByIdWithDetailsAsync(effectiveVehicleId.Value);
+                if (assignedVehicle == null || assignedVehicle.IsDeleted)
+                    throw new InvalidOperationException("Vehicle not found.");
+
+                if (!assignedVehicle.ReliefStationId.HasValue || assignedVehicle.ReliefStationId.Value != stationOperation.ReliefStationId!.Value)
+                    throw new InvalidOperationException("Vehicle does not belong to dispatched station.");
+
+                var reusingBatchVehicle = currentBatchVehicleId.HasValue && assignedVehicle.VehicleId == currentBatchVehicleId.Value;
+
+                if (assignedVehicle.Status != VehicleStatus.Free && !reusingBatchVehicle)
+                    throw new InvalidOperationException("Vehicle is not available.");
+
+                if (assignedVehicle.TeamId.HasValue && assignedVehicle.TeamId.Value != dto.TeamId)
+                    throw new InvalidOperationException("Vehicle is assigned to another team.");
+            }
+
             stationOperation.TeamId = dto.TeamId;
+            stationOperation.VehicleId = effectiveVehicleId;
             stationOperation.Status = RescueOperationStatus.Assigned;
             stationOperation.Note = dto.Note;
+
+            if (assignedVehicle != null)
+            {
+                assignedVehicle.Status = VehicleStatus.Busy;
+            }
 
             request.RescueRequestStatus = RescueRequestStatus.Assigned;
             request.UpdatedAt = DateTime.UtcNow;
@@ -644,6 +689,15 @@ namespace ReliefManagementSystem.Application.Services
 
             operation.Status = RescueOperationStatus.RescueCompleted;
             operation.EndedAt = now;
+
+            if (operation.VehicleId.HasValue)
+            {
+                var vehicle = await _unitOfWork.Vehicles.GetByIdAsync(operation.VehicleId.Value);
+                if (vehicle != null && !vehicle.IsDeleted)
+                {
+                    vehicle.Status = VehicleStatus.Free;
+                }
+            }
 
             if (!string.IsNullOrWhiteSpace(dto.Note))
             {
@@ -1387,6 +1441,15 @@ namespace ReliefManagementSystem.Application.Services
             if (dto.Status == RescueOperationStatus.Closed || dto.Status == RescueOperationStatus.Cancelled)
             {
                 operation.EndedAt = now;
+
+                if (operation.VehicleId.HasValue)
+                {
+                    var vehicle = await _unitOfWork.Vehicles.GetByIdAsync(operation.VehicleId.Value);
+                    if (vehicle != null && !vehicle.IsDeleted)
+                    {
+                        vehicle.Status = VehicleStatus.Free;
+                    }
+                }
             }
 
             if (!string.IsNullOrWhiteSpace(dto.Note))
@@ -1885,7 +1948,10 @@ namespace ReliefManagementSystem.Application.Services
                 {
                     RescueOperationId = ro.RescueOperationId,
                     TeamId = ro.TeamId,
+                    VehicleId = ro.VehicleId,
                     TeamName = ro.Team?.Name,
+                    VehicleName = ro.Vehicle?.VehicleType?.TypeName,
+                    VehicleLicensePlate = ro.Vehicle?.LicensePlate,
                     StationName = ro.ReliefStation?.Name,
                     Status = ro.Status.ToString(),
                     StartedAt = ro.StartedAt,
@@ -1936,6 +2002,9 @@ namespace ReliefManagementSystem.Application.Services
                 RescueOperationId = activeOperation.RescueOperationId,
                 TeamId = activeOperation.TeamId.Value,
                 TeamName = activeOperation.Team.Name,
+                VehicleId = activeOperation.VehicleId,
+                VehicleName = activeOperation.Vehicle?.VehicleType?.TypeName,
+                VehicleLicensePlate = activeOperation.Vehicle?.LicensePlate,
                 OperationStatus = activeOperation.Status.ToString(),
                 CurrentLatitude = latestTracking?.Latitude,
                 CurrentLongitude = latestTracking?.Longitude,
@@ -2039,6 +2108,21 @@ namespace ReliefManagementSystem.Application.Services
                         IsAutoAssigned = i.IsAutoAssigned,
                         DistanceKm = i.DistanceKm,
                         EstimatedMinutes = i.EstimatedMinutes,
+                        VehicleId = i.RescueRequest?.RescueOperations?
+                            .Where(ro => ro.TeamId == batch.TeamId)
+                            .OrderByDescending(ro => ro.StartedAt)
+                            .Select(ro => ro.VehicleId)
+                            .FirstOrDefault(),
+                        VehicleName = i.RescueRequest?.RescueOperations?
+                            .Where(ro => ro.TeamId == batch.TeamId)
+                            .OrderByDescending(ro => ro.StartedAt)
+                            .Select(ro => ro.Vehicle != null ? ro.Vehicle.VehicleType != null ? ro.Vehicle.VehicleType.TypeName : null : null)
+                            .FirstOrDefault(),
+                        VehicleLicensePlate = i.RescueRequest?.RescueOperations?
+                            .Where(ro => ro.TeamId == batch.TeamId)
+                            .OrderByDescending(ro => ro.StartedAt)
+                            .Select(ro => ro.Vehicle != null ? ro.Vehicle.LicensePlate : null)
+                            .FirstOrDefault(),
                         Status = i.Status,
                         CreatedAt = i.CreatedAt
                     })
@@ -2173,7 +2257,7 @@ namespace ReliefManagementSystem.Application.Services
             CancelRescueRequestDto dto,
             CancellationToken cancellationToken = default)
         {
-            var request = await _unitOfWork.RescueRequests.GetByIdAsync(requestId, cancellationToken);
+            var request = await _unitOfWork.RescueRequests.GetByIdForCancellationUpdateAsync(requestId, cancellationToken);
             if (request == null)
                 throw new InvalidOperationException($"Rescue request {requestId} not found.");
 
@@ -2187,8 +2271,12 @@ namespace ReliefManagementSystem.Application.Services
             if (string.IsNullOrWhiteSpace(dto?.Reason))
                 throw new InvalidOperationException("Vui long cung cap ly do huy.");
 
+            await _unitOfWork.RescueRequests.DetachTrackedAttachmentsAsync(request.RequestId, cancellationToken);
+
+            var now = DateTime.UtcNow;
+
             request.RescueRequestStatus = RescueRequestStatus.Cancelled;
-            request.UpdatedAt = DateTime.UtcNow;
+            request.UpdatedAt = now;
 
             var cancelVerification = new RequestVerification
             {
@@ -2201,9 +2289,10 @@ namespace ReliefManagementSystem.Application.Services
                     ? "Người dân tự hủy yêu cầu."
                     : $"Người dân tự hủy yêu cầu. Lý do: {dto.Reason}",
                 VerifiedBy = userId,
-                VerifiedAt = DateTime.UtcNow
+                VerifiedAt = now
             };
-            request.Verifications.Add(cancelVerification);
+
+            await _unitOfWork.RequestVerifications.AddAsync(cancelVerification);
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
             return await GetRescueRequestByIdAsync(requestId, cancellationToken);
@@ -2322,9 +2411,17 @@ namespace ReliefManagementSystem.Application.Services
                     .Select(i =>
                     {
                         requestMap.TryGetValue(i.RescueRequestId, out var rr);
+                        var teamOperation = rr?.RescueOperations?
+                            .Where(ro => ro.TeamId == teamId)
+                            .OrderByDescending(ro => ro.StartedAt)
+                            .FirstOrDefault();
+
                         return new RescueCompletedRequestSummaryDto
                         {
                             RequestId = i.RescueRequestId,
+                            VehicleId = teamOperation?.VehicleId,
+                            VehicleName = teamOperation?.Vehicle?.VehicleType?.TypeName,
+                            VehicleLicensePlate = teamOperation?.Vehicle?.LicensePlate,
                             Address = rr?.Address,
                             DisasterType = rr?.DisasterType.ToString() ?? "-",
                             RescueRequestType = rr?.RescueRequestType.ToString(),

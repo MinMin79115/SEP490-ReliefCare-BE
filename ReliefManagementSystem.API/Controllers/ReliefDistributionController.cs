@@ -50,6 +50,14 @@ namespace ReliefManagementSystem.API.Controllers
             CancellationToken cancellationToken)
             => Ok(await _reliefDistributionService.UpdateCampaignHouseholdAsync(campaignId, campaignHouseholdId, request, cancellationToken));
 
+        [HttpPatch("households/{campaignHouseholdId:guid}/status")]
+        public async Task<IActionResult> UpdateHouseholdStatus(
+            Guid campaignId,
+            Guid campaignHouseholdId,
+            [FromBody] UpdateCampaignHouseholdStatusRequest request,
+            CancellationToken cancellationToken)
+            => Ok(await _reliefDistributionService.UpdateCampaignHouseholdStatusAsync(campaignId, campaignHouseholdId, request, cancellationToken));
+
         [HttpDelete("households/{campaignHouseholdId:guid}")]
         public async Task<IActionResult> DeleteHousehold(
             Guid campaignId,
@@ -193,11 +201,11 @@ namespace ReliefManagementSystem.API.Controllers
             => Ok(await _reliefDistributionService.CreateShortageRequestAsync(campaignId, request, cancellationToken));
 
         [HttpGet("shortage-requests")]
-        public async Task<IActionResult> GetShortageRequests(
+        public async Task<ActionResult<Pagination<SupplyShortageRequestResponse>>> GetShortageRequests(
             Guid campaignId,
-            [FromQuery] SupplyShortageRequestStatus? status,
+            [FromQuery] SupplyShortageRequestQueryRequest request,
             CancellationToken cancellationToken)
-            => Ok(await _reliefDistributionService.GetShortageRequestsAsync(campaignId, status, cancellationToken));
+            => Ok(await _reliefDistributionService.GetShortageRequestsAsync(campaignId, request, cancellationToken));
 
         [HttpPatch("shortage-requests/{shortageRequestId:guid}/approve")]
         public async Task<IActionResult> ApproveShortageRequest(

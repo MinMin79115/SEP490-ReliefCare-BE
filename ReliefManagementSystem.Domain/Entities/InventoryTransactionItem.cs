@@ -16,6 +16,10 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public int Quantity { get; set; }
 
+        public decimal? UnitCost { get; set; }
+
+        public DateTime? ExpiryDate { get; set; }
+
         public string? Notes { get; set; }
 
         // Navigation

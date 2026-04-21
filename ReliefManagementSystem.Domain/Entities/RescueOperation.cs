@@ -15,6 +15,7 @@ namespace ReliefManagementSystem.Domain.Entities
         public Guid RescueRequestId { get; set; }
 
         public Guid? TeamId { get; set; }
+        public Guid? VehicleId { get; set; }
         public Guid? ReliefStationId { get; set; }
 
         public DateTime StartedAt { get; set; }
@@ -25,6 +26,7 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public RescueRequest RescueRequest { get; set; } = default!;
         public Team? Team { get; set; }
+        public Vehicle? Vehicle { get; set; }
         public ReliefStation? ReliefStation { get; set; }
         public ICollection<TeamTrackingPoint> TrackingPoints { get; set; } = new List<TeamTrackingPoint>();
     }

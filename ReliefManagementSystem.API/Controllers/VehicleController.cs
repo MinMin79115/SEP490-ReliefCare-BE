@@ -146,6 +146,28 @@ namespace ReliefManagementSystem.API.Controllers
             }
         }
 
+        // GET /api/vehicle/available-for-dispatch
+        [HttpGet("available-for-dispatch")]
+        [Authorize(Roles = "Moderator")]
+        [SwaggerOperation(
+            OperationId = "GetAvailableVehiclesForDispatch",
+            Summary = "Lấy danh sách xe không bận để điều phối cứu hộ",
+            Description = "Chỉ Moderator được gọi. Backend tự scope theo trạm hiện tại của moderator và chỉ trả về xe có Status = Free để dùng trong màn hình assign team + vehicle cho rescue request."
+        )]
+        public async Task<IActionResult> GetAvailableVehiclesForDispatch(CancellationToken cancellationToken)
+        {
+            try
+            {
+                var userId = GetCurrentUserId();
+                var result = await _vehicleService.GetAvailableVehiclesForModeratorAsync(userId, cancellationToken);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
+
         // PUT /api/vehicle/{id}
         [HttpPut("{id:guid}")]
         [SwaggerOperation(
