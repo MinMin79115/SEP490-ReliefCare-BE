@@ -290,9 +290,11 @@ using (var scope = app.Services.CreateScope())
     await TeamSeeder.SeedAsync(context);
     await LocationExcelSeeder.SeedAsync(context);
     await ReliefStationSeeder.SeedAsync(context);
+    await SupplyItemSeeder.SeedAsync(context);
     await VehicleTypeSeeder.SeedAsync(context);
     await VehicleSeeder.SeedAsync(context);
     await CampaignSeeder.SeedAsync(context);
+    await ReliefPackageTestCampaignSeeder.SeedAsync(context);
     await ManagerProfileSeeder.SeedAsync(context);
     await PriorityCriteriaSeeder.SeedAsync(context);
     logger.LogInformation("Database seeding completed.");

@@ -63,6 +63,7 @@ namespace ReliefManagementSystem.Application.Features.Team.DTOs.Response
     public class TeamMemberInfo
     {
         public Guid UserId { get; set; }
+        public Guid? VolunteerProfileId { get; set; }
         public string DisplayName { get; set; } = null!;
         public string Email { get; set; } = null!;
         public TeamRole Role { get; set; }

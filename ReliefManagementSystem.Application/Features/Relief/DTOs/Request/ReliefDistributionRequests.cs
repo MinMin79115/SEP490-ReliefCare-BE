@@ -79,6 +79,7 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         public Guid? ReliefStationId { get; set; }
         public Guid? CampaignTeamId { get; set; }
         public bool? IsActive { get; set; }
+        public DeliveryMode? DeliveryMode { get; set; }
     }
 
     public class ReliefPackageQueryRequest : ReliefPagedQueryRequest
@@ -282,6 +283,14 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         [Required]
         [MinLength(1)]
         public List<SupplyShortageItemRequest> Items { get; set; } = [];
+    }
+
+    public class SupplyShortageRequestQueryRequest : ReliefPagedQueryRequest
+    {
+        public SupplyShortageRequestStatus? Status { get; set; }
+        public Guid? DistributionPointId { get; set; }
+        public Guid? CampaignTeamId { get; set; }
+        public Guid? RequestedByUserId { get; set; }
     }
 
     public class SupplyShortageItemRequest

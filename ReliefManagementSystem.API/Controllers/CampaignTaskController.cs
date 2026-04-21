@@ -78,6 +78,16 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(result);
         }
 
+        [HttpPost("tasks/{campaignTaskId:guid}/members/bulk")]
+        public async Task<ActionResult<List<MemberTaskResponse>>> BulkAssignMembers(
+            Guid campaignTaskId,
+            [FromBody] BulkAssignMembersTaskRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _campaignTaskService.BulkAssignMembersAsync(campaignTaskId, request, cancellationToken);
+            return Ok(result);
+        }
+
         [HttpDelete("tasks/{campaignTaskId:guid}")]
         public async Task<IActionResult> Delete(
             Guid campaignTaskId,

@@ -388,6 +388,7 @@ namespace ReliefManagementSystem.Application.Services
             return members.Select(m => new TeamMemberInfo
             {
                 UserId = m.UserId,
+                VolunteerProfileId = m.User.VolunteerProfile?.VolunteerProfileId,
                 DisplayName = m.User.DisplayName ?? m.User.UserName ?? m.User.Email ?? "Unknown",
                 Email = m.User.Email ?? "",
                 Role = m.RoleTeam,
