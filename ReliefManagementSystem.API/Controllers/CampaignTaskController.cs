@@ -39,6 +39,16 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(result);
         }
 
+        [HttpGet("{campaignId:guid}/my-member-tasks")]
+        public async Task<ActionResult<Pagination<MyMemberTaskResponse>>> GetMyMemberTasks(
+            Guid campaignId,
+            [FromQuery] MyMemberTaskQueryRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _campaignTaskService.GetMyMemberTasksAsync(campaignId, request, cancellationToken);
+            return Ok(result);
+        }
+
         [HttpGet("tasks/{campaignTaskId:guid}")]
         public async Task<ActionResult<CampaignTaskDetailResponse>> GetById(
             Guid campaignTaskId,
@@ -85,6 +95,16 @@ namespace ReliefManagementSystem.API.Controllers
             CancellationToken cancellationToken)
         {
             var result = await _campaignTaskService.BulkAssignMembersAsync(campaignTaskId, request, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpPatch("tasks/member-tasks/{memberTaskId:guid}/status")]
+        public async Task<ActionResult<MemberTaskResponse>> ChangeMemberTaskStatus(
+            Guid memberTaskId,
+            [FromBody] ChangeMemberTaskStatusRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _campaignTaskService.ChangeMemberTaskStatusAsync(memberTaskId, request, cancellationToken);
             return Ok(result);
         }
 

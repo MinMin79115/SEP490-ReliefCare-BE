@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 using ReliefManagementSystem.Application.Common.Exceptions.Donation;
 using ReliefManagementSystem.Application.Common.Models;
 using ReliefManagementSystem.Application.Features.Donation.DTOs.Request;
@@ -15,11 +16,13 @@ namespace ReliefManagementSystem.Infrastructure.Payments
     {
         private readonly HttpClient _httpClient;
         private readonly PayOsSettings _settings;
+        private readonly ILogger<PayOsGateway> _logger;
 
-        public PayOsGateway(HttpClient httpClient, IOptions<PayOsSettings> options)
+        public PayOsGateway(HttpClient httpClient, IOptions<PayOsSettings> options, ILogger<PayOsGateway> logger)
         {
             _httpClient = httpClient;
             _settings = options.Value;
+            _logger = logger;
 
             _httpClient.BaseAddress ??= new Uri("https://api-merchant.payos.vn");
             if (!_httpClient.DefaultRequestHeaders.Contains("x-client-id"))
@@ -134,33 +137,48 @@ namespace ReliefManagementSystem.Infrastructure.Payments
         {
             if (request?.Data is null || string.IsNullOrWhiteSpace(request.Signature))
             {
+                _logger.LogWarning("PayOS webhook missing data or signature.");
                 return false;
             }
 
-            var dataElement = JsonSerializer.SerializeToElement(request.Data, JsonOptions());
-            var map = new SortedDictionary<string, string>(StringComparer.Ordinal);
-
-            foreach (var prop in dataElement.EnumerateObject())
-            {
-                if (prop.Value.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
-                {
-                    continue;
-                }
-
-                var value = prop.Value.ValueKind == JsonValueKind.String
-                    ? prop.Value.GetString()
-                    : prop.Value.GetRawText();
-
-                if (value is not null)
-                {
-                    map[prop.Name] = value;
-                }
-            }
-
+            var map = BuildWebhookSignatureMap(request.Data);
             var canonical = string.Join("&", map.Select(kv => $"{kv.Key}={kv.Value}"));
             var expected = ComputeSignature(canonical, _settings.ChecksumKey);
+            var isMatch = string.Equals(expected, request.Signature, StringComparison.OrdinalIgnoreCase);
+            if (!isMatch)
+            {
+                _logger.LogWarning(
+                    "PayOS webhook signature mismatch. OrderCode={OrderCode}, Canonical={Canonical}, ExpectedSignature={ExpectedSignature}, ReceivedSignature={ReceivedSignature}",
+                    request.Data.OrderCode,
+                    canonical,
+                    expected,
+                    request.Signature);
+            }
 
-            return string.Equals(expected, request.Signature, StringComparison.OrdinalIgnoreCase);
+            return isMatch;
+        }
+
+        private static SortedDictionary<string, string> BuildWebhookSignatureMap(PayOsWebhookData data)
+        {
+            return new SortedDictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["accountNumber"] = data.AccountNumber ?? string.Empty,
+                ["amount"] = data.Amount.ToString(CultureInfo.InvariantCulture),
+                ["code"] = data.Code ?? string.Empty,
+                ["counterAccountBankId"] = data.CounterAccountBankId ?? string.Empty,
+                ["counterAccountBankName"] = data.CounterAccountBankName ?? string.Empty,
+                ["counterAccountName"] = data.CounterAccountName ?? string.Empty,
+                ["counterAccountNumber"] = data.CounterAccountNumber ?? string.Empty,
+                ["currency"] = data.Currency ?? string.Empty,
+                ["desc"] = data.Desc ?? string.Empty,
+                ["description"] = data.Description ?? string.Empty,
+                ["orderCode"] = data.OrderCode.ToString(CultureInfo.InvariantCulture),
+                ["paymentLinkId"] = data.PaymentLinkId ?? string.Empty,
+                ["reference"] = data.Reference ?? string.Empty,
+                ["transactionDateTime"] = data.TransactionDateTime ?? string.Empty,
+                ["virtualAccountName"] = data.VirtualAccountName ?? string.Empty,
+                ["virtualAccountNumber"] = data.VirtualAccountNumber ?? string.Empty,
+            };
         }
 
         private static void EnsureSuccess(HttpResponseMessage response, string body)

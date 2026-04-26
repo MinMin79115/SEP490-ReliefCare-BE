@@ -76,10 +76,17 @@ services:
       Goong__ApiKey: ${GOONG_API_KEY:-}
       WeatherApi__BaseUrl: "https://api.weatherapi.com/v1"
       WeatherApi__ApiKey: ${WEATHER_API_KEY:-}
+      VisualCrossing__BaseUrl: "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline"
+      VisualCrossing__ApiKey: ${VISUAL_CROSSING_API_KEY:-}
+      VisualCrossing__UnitGroup: "metric"
+      VisualCrossing__ForecastDays: "14"
+      VisualCrossing__Include: "days"
+      VisualCrossing__Elements: "datetime,tempmax,tempmin,precip,precipprob,precipcover,humidity,cloudcover,pressure,windspeed,windgust,visibility,severerisk,cape,cin,snow,snowdepth"
+      VisualCrossing__ExcludeNullValues: "true"
       LlmProvider__BaseUrl: "https://api.apipro.me/v1"
       LlmProvider__ApiKey: ${LLM_PROVIDER_API_KEY:-}
       LlmProvider__ProviderName: "APIPro"
-      LlmProvider__DefaultModel: "claude-haiku-4.5"
+      LlmProvider__DefaultModel: "gpt-5.4"
       LlmProvider__ChatCompletionsPath: "/chat/completions"
       LlmProvider__Temperature: "0.2"
       LlmProvider__MaxTokens: "600"
@@ -120,6 +127,7 @@ services:
       start_period: 240s
     networks:
       - reliefcare-staging
+
 
   # -----------------------------------------------------------
   # pgAdmin 4 - Quản lý database staging
@@ -182,6 +190,9 @@ networks:
 
 
  
+ 
+
+
 
 
 

@@ -1,5 +1,6 @@
 using ReliefManagementSystem.Application.Common.Interface;
 using ReliefManagementSystem.Application.Common.Models;
+using Microsoft.EntityFrameworkCore;
 using ReliefManagementSystem.Application.Features.CampaignTask.DTOs.Requests;
 using ReliefManagementSystem.Application.Features.CampaignTask.DTOs.Responses;
 using ReliefManagementSystem.Application.Interface;
@@ -65,6 +66,59 @@ namespace ReliefManagementSystem.Application.Services
 
             var mapped = items.Select(x => MapSummary(x, campaignId, x.CampaignTeam?.Team?.Name)).ToList();
             return new Pagination<CampaignTaskResponse>(mapped, totalCount, request.PageIndex, request.PageSize);
+        }
+
+        public async Task<Pagination<MyMemberTaskResponse>> GetMyMemberTasksAsync(Guid campaignId, MyMemberTaskQueryRequest request, CancellationToken cancellationToken = default)
+        {
+            await GetReliefCampaignAsync(campaignId, cancellationToken);
+
+            var currentUserId = _currentUser.UserId ?? throw new UnauthorizedAccessException("User is not authenticated.");
+            var volunteerProfile = await _unitOfWork.VolunteerProfiles.GetByUserIdAsync(currentUserId)
+                ?? throw new KeyNotFoundException("Volunteer profile for current user was not found.");
+
+            var query = _unitOfWork.MemberTasks.GetQueryable()
+                .Where(x => x.VolunteerProfileId == volunteerProfile.VolunteerProfileId)
+                .Where(x => x.CampaignTask.CampaignTeam.CampaignId == campaignId);
+
+            if (request.Status.HasValue)
+                query = query.Where(x => x.Status == request.Status.Value);
+
+            if (request.CampaignTeamId.HasValue)
+                query = query.Where(x => x.CampaignTask.CampaignTeamId == request.CampaignTeamId.Value);
+
+            query = query.OrderByDescending(x => x.AssignedAt);
+
+            var pageIndex = request.PageIndex <= 0 ? 1 : request.PageIndex;
+            var pageSize = request.PageSize <= 0 ? 20 : request.PageSize;
+            var totalCount = await query.CountAsync(cancellationToken);
+            var items = await query
+                .Skip((pageIndex - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+            var mapped = items.Select(x => new MyMemberTaskResponse
+            {
+                MemberTaskId = x.MemberTaskId,
+                CampaignTaskId = x.CampaignTaskId,
+                CampaignId = x.CampaignTask.CampaignTeam.CampaignId,
+                CampaignTeamId = x.CampaignTask.CampaignTeamId,
+                CampaignTeamName = x.CampaignTask.CampaignTeam.Team?.Name ?? string.Empty,
+                CampaignTaskTitle = x.CampaignTask.Title,
+                CampaignTaskDescription = x.CampaignTask.Description,
+                StartDate = x.CampaignTask.StartDate,
+                DueDate = x.CampaignTask.DueDate,
+                CampaignTaskStatus = x.CampaignTask.Status,
+                Priority = x.CampaignTask.Priority,
+                VolunteerProfileId = x.VolunteerProfileId,
+                VolunteerName = ResolveVolunteerDisplayName(x.VolunteerProfile),
+                SubTaskTitle = x.SubTaskTitle,
+                TaskNote = x.TaskNote,
+                AssignedAt = x.AssignedAt,
+                CompletedAt = x.CompletedAt,
+                Status = x.Status,
+            }).ToList();
+
+            return new Pagination<MyMemberTaskResponse>(mapped, totalCount, pageIndex, pageSize);
         }
 
         public async Task<CampaignTaskDetailResponse> GetByIdAsync(Guid campaignTaskId, CancellationToken cancellationToken = default)
@@ -205,6 +259,70 @@ namespace ReliefManagementSystem.Application.Services
             return results;
         }
 
+        public async Task<MemberTaskResponse> ChangeMemberTaskStatusAsync(Guid memberTaskId, ChangeMemberTaskStatusRequest request, CancellationToken cancellationToken = default)
+        {
+            var memberTask = await _unitOfWork.MemberTasks.GetByIdAsync(memberTaskId)
+                ?? throw new KeyNotFoundException($"Member task '{memberTaskId}' was not found.");
+
+            var task = await _unitOfWork.CampaignTasks.GetByIdWithDetailsAsync(memberTask.CampaignTaskId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Campaign task '{memberTask.CampaignTaskId}' was not found.");
+
+            await GetReliefCampaignAsync(task.CampaignTeam.CampaignId, cancellationToken);
+            ValidateMemberTaskStatusTransition(memberTask.Status, request.Status);
+
+            memberTask.Status = request.Status;
+
+            if (request.Status == MemberTaskStatus.Completed)
+            {
+                memberTask.CompletedAt = DateTime.UtcNow;
+            }
+
+            await _unitOfWork.MemberTasks.UpdateAsync(memberTask);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            // Auto-transition parent task based on subtask progress
+            await AutoUpdateParentTaskStatusAsync(task, cancellationToken);
+
+            var volunteerProfile = await _unitOfWork.VolunteerProfiles.GetByIdWithSkillsAndUserAsync(memberTask.VolunteerProfileId);
+            return MapMemberTask(memberTask, ResolveVolunteerDisplayName(volunteerProfile));
+        }
+
+        private async Task AutoUpdateParentTaskStatusAsync(CampaignTask task, CancellationToken cancellationToken)
+        {
+            // Reload member tasks to get fresh statuses
+            var memberTasks = await _unitOfWork.MemberTasks.GetByCampaignTaskIdAsync(task.CampaignTaskId, cancellationToken);
+            if (memberTasks.Count == 0) return;
+
+            var allTerminal = memberTasks.All(mt => mt.Status is MemberTaskStatus.Completed or MemberTaskStatus.Cancelled);
+            var anyInProgress = memberTasks.Any(mt => mt.Status is MemberTaskStatus.InProgress);
+            var anyFailed = memberTasks.Any(mt => mt.Status is MemberTaskStatus.Failed);
+
+            CampaignTaskStatus? newStatus = null;
+
+            if (allTerminal && task.Status != CampaignTaskStatus.Completed)
+            {
+                // All subtasks done → auto-complete parent
+                newStatus = CampaignTaskStatus.Completed;
+            }
+            else if (anyFailed && task.Status == CampaignTaskStatus.InProgress)
+            {
+                // A subtask failed → block parent
+                newStatus = CampaignTaskStatus.Blocked;
+            }
+            else if (anyInProgress && task.Status == CampaignTaskStatus.Planned)
+            {
+                // First subtask started → auto-start parent
+                newStatus = CampaignTaskStatus.InProgress;
+            }
+
+            if (newStatus.HasValue && newStatus.Value != task.Status)
+            {
+                task.Status = newStatus.Value;
+                await _unitOfWork.CampaignTasks.UpdateAsync(task);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+        }
+
         public async Task DeleteAsync(Guid campaignTaskId, CancellationToken cancellationToken = default)
         {
             var task = await _unitOfWork.CampaignTasks.GetByIdWithDetailsAsync(campaignTaskId, cancellationToken)
@@ -283,6 +401,27 @@ namespace ReliefManagementSystem.Application.Services
             if (!valid)
             {
                 throw new InvalidOperationException($"Invalid campaign task status transition: {current} -> {next}.");
+            }
+        }
+
+        private static void ValidateMemberTaskStatusTransition(MemberTaskStatus current, MemberTaskStatus next)
+        {
+            if (current == next)
+            {
+                return;
+            }
+
+            var valid = current switch
+            {
+                MemberTaskStatus.Assigned => next is MemberTaskStatus.InProgress or MemberTaskStatus.Cancelled,
+                MemberTaskStatus.InProgress => next is MemberTaskStatus.Completed or MemberTaskStatus.Failed or MemberTaskStatus.Cancelled,
+                MemberTaskStatus.Failed => next is MemberTaskStatus.InProgress,
+                _ => false
+            };
+
+            if (!valid)
+            {
+                throw new InvalidOperationException($"Invalid member task status transition: {current} -> {next}.");
             }
         }
 

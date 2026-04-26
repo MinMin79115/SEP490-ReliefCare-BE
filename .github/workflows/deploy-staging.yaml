@@ -127,6 +127,7 @@ jobs:
       CLOUDINARY_API_SECRET: ${{ secrets.STAGING_CLOUDINARY_API_SECRET }}
       GOONG_API_KEY: ${{ secrets.STAGING_GOONG_API_KEY }}
       WEATHER_API_KEY: ${{ secrets.STAGING_WEATHER_API_KEY }}
+      VISUAL_CROSSING_API_KEY: ${{ secrets.STAGING_VISUAL_CROSSING_API_KEY }}
       LLM_PROVIDER_API_KEY: ${{ secrets.STAGING_LLM_PROVIDER_API_KEY }}
       PAYOS_CLIENT_ID: ${{ secrets.STAGING_PAYOS_CLIENT_ID }}
       PAYOS_API_KEY: ${{ secrets.STAGING_PAYOS_API_KEY }}
@@ -222,15 +223,7 @@ jobs:
           Write-Host "Stopping existing staging stack..."
           docker compose -p reliefcare-staging -f compose.staging.yaml down
 
-          Write-Host "Removing staging Postgres volume only..."
-          $volumeName = "reliefcare-staging-postgres-data"
-          $volumeExists = docker volume ls -q --filter "name=^${volumeName}$"
-          if ($volumeExists) {
-            docker volume rm $volumeName
-          }
-          else {
-            Write-Host "Volume $volumeName does not exist. Skipping removal."
-          }
+          Write-Host "Keeping staging data volumes intact..."
 
           Write-Host "Pulling latest images..."
           docker compose -p reliefcare-staging -f compose.staging.yaml pull

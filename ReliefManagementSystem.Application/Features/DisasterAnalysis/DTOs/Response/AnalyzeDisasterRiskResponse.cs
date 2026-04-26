@@ -10,21 +10,9 @@ namespace ReliefManagementSystem.Application.Features.DisasterAnalysis.DTOs.Resp
         public string LocationName { get; set; } = string.Empty;
         public string AnalysisMode { get; set; } = "AutoDetect";
         public string? RequestedDisasterType { get; set; }
-        public string PrimaryDisasterType { get; set; } = string.Empty;
         public WeatherSnapshotDto Weather { get; set; } = new();
-        public List<DisasterRiskRankingDto> RiskRanking { get; set; } = new();
-        public HeuristicRiskAssessmentDto Heuristic { get; set; } = new();
+        public FloodForecastDto Forecast { get; set; } = new();
         public AiDisasterNarrativeDto Ai { get; set; } = new();
-    }
-
-    public class DisasterRiskRankingDto
-    {
-        public string DisasterType { get; set; } = string.Empty;
-        public int RiskScore { get; set; }
-        public string RiskLevel { get; set; } = string.Empty;
-        public string AssessmentConfidence { get; set; } = string.Empty;
-        public List<string> TriggerFactors { get; set; } = new();
-        public List<string> TopThreats { get; set; } = new();
     }
 
     public class WeatherSnapshotDto
@@ -56,15 +44,93 @@ namespace ReliefManagementSystem.Application.Features.DisasterAnalysis.DTOs.Resp
         }
     }
 
-    public class HeuristicRiskAssessmentDto
+    public class FloodForecastDto
     {
-        public int OverallRiskScore { get; set; }
-        public string RiskLevel { get; set; } = string.Empty;
-        public string AssessmentConfidence { get; set; } = string.Empty;
-        public string? DataLimitationNote { get; set; }
-        public List<string> TriggerFactors { get; set; } = new();
-        public List<string> PotentialScenarios { get; set; } = new();
-        public List<string> TopThreats { get; set; } = new();
+        public string ResolvedAddress { get; set; } = string.Empty;
+        public string TimeZone { get; set; } = string.Empty;
+        public int RequestedDays { get; set; }
+        public DateTime GeneratedAt { get; set; }
+        public double? QueryCost { get; set; }
+        public double TotalPrecipMm { get; set; }
+        public double MaxDailyPrecipMm { get; set; }
+        public DateTime? PeakRainDate { get; set; }
+        public int ConsecutiveRainyDaysPeak { get; set; }
+        public List<ForecastDayDto> Days { get; set; } = new();
+
+        public static FloodForecastDto From(WeatherForecastResult forecast)
+        {
+            var orderedDays = forecast.Days.OrderBy(x => x.Date).ToList();
+            var peakDay = orderedDays
+                .OrderByDescending(x => x.PrecipMm)
+                .ThenByDescending(x => x.PrecipProbability)
+                .FirstOrDefault();
+
+            var rainyStreak = 0;
+            var maxRainyStreak = 0;
+
+            foreach (var day in orderedDays)
+            {
+                if (day.PrecipMm >= 5 || day.PrecipProbability >= 60)
+                {
+                    rainyStreak++;
+                    maxRainyStreak = Math.Max(maxRainyStreak, rainyStreak);
+                }
+                else
+                {
+                    rainyStreak = 0;
+                }
+            }
+
+            return new FloodForecastDto
+            {
+                ResolvedAddress = forecast.ResolvedAddress,
+                TimeZone = forecast.TimeZone,
+                RequestedDays = forecast.RequestedDays,
+                GeneratedAt = forecast.GeneratedAt,
+                QueryCost = forecast.QueryCost,
+                TotalPrecipMm = orderedDays.Sum(x => x.PrecipMm),
+                MaxDailyPrecipMm = peakDay?.PrecipMm ?? 0,
+                PeakRainDate = peakDay?.Date,
+                ConsecutiveRainyDaysPeak = maxRainyStreak,
+                Days = orderedDays.Select(x => new ForecastDayDto
+                {
+                    Date = x.Date,
+                    TempMaxC = x.TempMaxC,
+                    TempMinC = x.TempMinC,
+                    PrecipMm = x.PrecipMm,
+                    PrecipProbability = x.PrecipProbability,
+                    PrecipCover = x.PrecipCover,
+                    Humidity = x.Humidity,
+                    Pressure = x.Pressure,
+                    WindSpeedKph = x.WindSpeedKph,
+                    WindGustKph = x.WindGustKph,
+                    VisibilityKm = x.VisibilityKm,
+                    SevereRisk = x.SevereRisk,
+                    Conditions = x.Conditions,
+                    Description = x.Description,
+                    PrecipTypes = x.PrecipTypes.ToList()
+                }).ToList()
+            };
+        }
+    }
+
+    public class ForecastDayDto
+    {
+        public DateTime Date { get; set; }
+        public double TempMaxC { get; set; }
+        public double TempMinC { get; set; }
+        public double PrecipMm { get; set; }
+        public double PrecipProbability { get; set; }
+        public double PrecipCover { get; set; }
+        public double Humidity { get; set; }
+        public double Pressure { get; set; }
+        public double WindSpeedKph { get; set; }
+        public double WindGustKph { get; set; }
+        public double VisibilityKm { get; set; }
+        public double SevereRisk { get; set; }
+        public string Conditions { get; set; } = string.Empty;
+        public string Description { get; set; } = string.Empty;
+        public List<string> PrecipTypes { get; set; } = new();
     }
 
     public class AiDisasterNarrativeDto
@@ -74,11 +140,12 @@ namespace ReliefManagementSystem.Application.Features.DisasterAnalysis.DTOs.Resp
         public string? Model { get; set; }
         public string? PromptVersion { get; set; }
         public DateTime? AnalyzedAt { get; set; }
-        public string? PrimaryRiskType { get; set; }
+        public string? RequestedRiskType { get; set; }
         public string? Summary { get; set; }
         public string? DetailedAnalysis { get; set; }
         public List<string> Recommendations { get; set; } = new();
         public List<string> PotentialScenarios { get; set; } = new();
+        public List<string> DetectedConcerns { get; set; } = new();
         public string? ErrorMessage { get; set; }
     }
 }

@@ -168,7 +168,7 @@ namespace ReliefManagementSystem.Application.Services
                 CampaignId = campaignId,
                 CampaignHouseholdId = household.CampaignHouseholdId,
                 DistributionPointId = household.DistributionPointId,
-                CampaignTeamId = null,
+                CampaignTeamId = request.CampaignTeamId,
                 ReliefPackageDefinitionId = packageId.Value,
                 DeliveryMode = request.DeliveryMode,
                 CashSupportAmount = package.CashSupportAmount ?? 0,
@@ -1442,19 +1442,25 @@ namespace ReliefManagementSystem.Application.Services
                     throw new InvalidOperationException("Insufficient balance. Please extract more funds from fundraising campaign or create a new fundraising campaign.");
                 }
 
+                var packageItems = package.Items?
+                    .Where(x => x.Quantity > 0)
+                    .Select(x => new TransactionItemRequest
+                    {
+                        SupplyItemId = x.SupplyItemId,
+                        Quantity = x.Quantity,
+                        Notes = $"Household delivery consume package component for delivery {delivery.HouseholdDeliveryId}"
+                    })
+                    .ToList() ?? [];
+
+                if (packageItems.Count == 0)
+                    throw new InvalidOperationException($"Relief package '{package.ReliefPackageDefinitionId}' has no component items to consume.");
+
                 await _campaignInventoryService.CreateTransactionAsync(
                     campaignId,
                     TransactionType.Export,
                     TransactionReason.Other,
-                    [
-                        new TransactionItemRequest
-                        {
-                            SupplyItemId = package.OutputSupplyItemId,
-                            Quantity = 1,
-                            Notes = $"Household delivery consume package output for delivery {delivery.HouseholdDeliveryId}"
-                        }
-                    ],
-                    notes: $"Household delivery completion consume package for delivery {delivery.HouseholdDeliveryId}",
+                    packageItems,
+                    notes: $"Household delivery completion consume package components for delivery {delivery.HouseholdDeliveryId}",
                     campaignTeamId: delivery.CampaignTeamId ?? campaignTeamId,
                     distributionPointId: delivery.DistributionPointId,
                     householdDeliveryId: delivery.HouseholdDeliveryId,
