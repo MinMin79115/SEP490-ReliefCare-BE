@@ -69,6 +69,8 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Respons
         public List<RequestVerificationDto> Verifications { get; set; } = new();
 
         public AssignedRescueTeamDto? AssignedRescueTeam { get; set; }
+
+        public List<RescueOperationSupplyDto> Supplies { get; set; } = new();
     }
 
     /// <summary>DTO cho attachment</summary>
@@ -110,6 +112,10 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Respons
 
         public string? VehicleLicensePlate { get; set; }
 
+        public List<AssignedVehicleDto> Vehicles { get; set; } = new();
+
+        public List<RescueOperationSupplyDto> Supplies { get; set; } = new();
+
         public string? StationName { get; set; }
 
         public string? Status { get; set; }
@@ -127,6 +133,8 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Respons
         public Guid? VehicleId { get; set; }
         public string? VehicleName { get; set; }
         public string? VehicleLicensePlate { get; set; }
+        public List<AssignedVehicleDto> Vehicles { get; set; } = new();
+        public List<RescueOperationSupplyDto> Supplies { get; set; } = new();
         public string OperationStatus { get; set; } = null!;
         public double? CurrentLatitude { get; set; }
         public double? CurrentLongitude { get; set; }
@@ -136,5 +144,29 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Respons
         public string? RoutePolyline { get; set; }
         public double? TotalDistanceKm { get; set; }
         public int? TotalEstimatedMinutes { get; set; }
+    }
+
+    public class AssignedVehicleDto
+    {
+        public Guid VehicleId { get; set; }
+        public string? VehicleName { get; set; }
+        public string? VehicleLicensePlate { get; set; }
+        public bool IsPrimary { get; set; }
+    }
+
+    public class RescueOperationSupplyDto
+    {
+        public Guid RescueOperationSupplyId { get; set; }
+        public Guid RescueOperationId { get; set; }
+        public Guid SourceInventoryId { get; set; }
+        public string? SourceInventoryName { get; set; }
+        public Guid SupplyItemId { get; set; }
+        public string? SupplyItemName { get; set; }
+        public int Quantity { get; set; }
+        public string? Unit { get; set; }
+        public string? Notes { get; set; }
+        public Guid? InventoryTransactionId { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public Guid? CreatedBy { get; set; }
     }
 }
