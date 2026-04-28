@@ -20,6 +20,10 @@ namespace ReliefManagementSystem.Domain.Entities
         public double Longitude { get; set; }
         public int HouseholdSize { get; set; }
         public bool IsIsolated { get; set; }
+        public int? FloodSeverityLevel { get; set; }
+        public int? IsolationSeverityLevel { get; set; }
+        public bool RequiresBoat { get; set; }
+        public bool RequiresLocalGuide { get; set; }
         public DeliveryMode DeliveryMode { get; set; } = DeliveryMode.PickupAtPoint;
 
         public HouseholdFulfillmentStatus FulfillmentStatus { get; set; } = HouseholdFulfillmentStatus.Pending;

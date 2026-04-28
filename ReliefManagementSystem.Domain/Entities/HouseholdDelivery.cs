@@ -30,5 +30,6 @@ namespace ReliefManagementSystem.Domain.Entities
         public ApplicationUser? DeliveredByUser { get; set; }
 
         public ICollection<HouseholdDeliveryProof> Proofs { get; set; } = new List<HouseholdDeliveryProof>();
+        public ICollection<MemberTaskDelivery> MemberTaskDeliveries { get; set; } = new List<MemberTaskDelivery>();
     }
 }

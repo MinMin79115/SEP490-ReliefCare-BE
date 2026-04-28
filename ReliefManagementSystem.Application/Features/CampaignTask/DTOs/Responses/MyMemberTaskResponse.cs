@@ -22,5 +22,6 @@ namespace ReliefManagementSystem.Application.Features.CampaignTask.DTOs.Response
         public DateTime? AssignedAt { get; set; }
         public DateTime? CompletedAt { get; set; }
         public MemberTaskStatus Status { get; set; }
+        public List<MemberTaskDeliveryResponse> Deliveries { get; set; } = [];
     }
 }

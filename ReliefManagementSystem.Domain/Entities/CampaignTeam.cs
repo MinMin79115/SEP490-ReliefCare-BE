@@ -21,6 +21,7 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public Campaign Campaign { get; set; } = default!;
         public Team Team { get; set; } = default!;
+        public ICollection<CampaignVehicle> CampaignVehicles { get; set; } = new List<CampaignVehicle>();
     }
 
 }

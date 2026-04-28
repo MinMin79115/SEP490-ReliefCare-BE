@@ -212,6 +212,11 @@ namespace ReliefManagementSystem.Application.Services
             return vehicles.Select(MapToResponse).ToList();
         }
 
+        public Task<IReadOnlyList<VehicleResponse>> GetAvailableVehiclesForTransferAsync(
+            Guid userId,
+            CancellationToken cancellationToken = default)
+            => GetAvailableVehiclesForModeratorAsync(userId, cancellationToken);
+
         // Update Vehicle
         public async Task<VehicleResponse> UpdateVehicleAsync(
             Guid id,

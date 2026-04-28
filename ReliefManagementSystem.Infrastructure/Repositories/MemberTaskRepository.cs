@@ -15,9 +15,29 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
         {
             return await _context.MemberTasks
                 .Include(x => x.VolunteerProfile)
+                .Include(x => x.MemberTaskDeliveries)
+                    .ThenInclude(d => d.HouseholdDelivery)
+                        .ThenInclude(h => h.CampaignHousehold)
                 .Where(x => x.CampaignTaskId == campaignTaskId)
                 .OrderBy(x => x.AssignedAt)
                 .ToListAsync(cancellationToken);
+        }
+
+        public async Task<MemberTask?> GetByIdWithDetailsAsync(Guid memberTaskId, CancellationToken cancellationToken = default)
+        {
+            return await _context.MemberTasks
+                .Include(x => x.VolunteerProfile)
+                    .ThenInclude(v => v.User)
+                .Include(x => x.CampaignTask)
+                    .ThenInclude(t => t.CampaignTeam)
+                        .ThenInclude(ct => ct.Team)
+                .Include(x => x.MemberTaskDeliveries)
+                    .ThenInclude(d => d.HouseholdDelivery)
+                        .ThenInclude(h => h.CampaignHousehold)
+                .Include(x => x.MemberTaskDeliveries)
+                    .ThenInclude(d => d.AssignedVolunteerProfile)
+                        .ThenInclude(v => v.User)
+                .FirstOrDefaultAsync(x => x.MemberTaskId == memberTaskId, cancellationToken);
         }
 
         public IQueryable<MemberTask> GetQueryable()
@@ -27,7 +47,10 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                     .ThenInclude(v => v.User)
                 .Include(x => x.CampaignTask)
                     .ThenInclude(t => t.CampaignTeam)
-                        .ThenInclude(ct => ct.Team);
+                        .ThenInclude(ct => ct.Team)
+                .Include(x => x.MemberTaskDeliveries)
+                    .ThenInclude(d => d.HouseholdDelivery)
+                        .ThenInclude(h => h.CampaignHousehold);
         }
     }
 }

@@ -116,9 +116,28 @@ namespace ReliefManagementSystem.Application.Services
                 AssignedAt = x.AssignedAt,
                 CompletedAt = x.CompletedAt,
                 Status = x.Status,
+                Deliveries = x.MemberTaskDeliveries.Select(MapMemberTaskDelivery).ToList(),
             }).ToList();
 
             return new Pagination<MyMemberTaskResponse>(mapped, totalCount, pageIndex, pageSize);
+        }
+
+        public async Task<List<MemberTaskDeliveryResponse>> GetMyMemberTaskDeliveriesAsync(Guid campaignId, CancellationToken cancellationToken = default)
+        {
+            await GetReliefCampaignAsync(campaignId, cancellationToken);
+
+            var currentUserId = _currentUser.UserId ?? throw new UnauthorizedAccessException("User is not authenticated.");
+            var volunteerProfile = await _unitOfWork.VolunteerProfiles.GetByUserIdAsync(currentUserId)
+                ?? throw new KeyNotFoundException("Volunteer profile for current user was not found.");
+
+            var deliveries = await _unitOfWork.MemberTaskDeliveries.GetQueryable()
+                .Where(x => x.MemberTask.CampaignTask.CampaignTeam.CampaignId == campaignId)
+                .Where(x => x.AssignedVolunteerProfileId == volunteerProfile.VolunteerProfileId ||
+                            (x.AssignedVolunteerProfileId == null && x.MemberTask.VolunteerProfileId == volunteerProfile.VolunteerProfileId))
+                .OrderBy(x => x.HouseholdDelivery.ScheduledAt)
+                .ToListAsync(cancellationToken);
+
+            return deliveries.Select(MapMemberTaskDelivery).ToList();
         }
 
         public async Task<CampaignTaskDetailResponse> GetByIdAsync(Guid campaignTaskId, CancellationToken cancellationToken = default)
@@ -127,6 +146,7 @@ namespace ReliefManagementSystem.Application.Services
                 ?? throw new KeyNotFoundException($"Campaign task '{campaignTaskId}' was not found.");
 
             var campaign = await GetReliefCampaignAsync(task.CampaignTeam.CampaignId, cancellationToken);
+            await EnsureCanAccessCampaignTaskAsync(task, cancellationToken);
 
             return MapDetail(task, campaign.CampaignId, task.CampaignTeam.Team?.Name);
         }
@@ -137,6 +157,7 @@ namespace ReliefManagementSystem.Application.Services
                 ?? throw new KeyNotFoundException($"Campaign task '{campaignTaskId}' was not found.");
 
             var campaign = await GetReliefCampaignAsync(task.CampaignTeam.CampaignId, cancellationToken);
+            await EnsureTeamLeaderOrCoordinatorAsync(task.CampaignTeam, cancellationToken);
             ValidateTaskEditable(task.Status);
             ValidateSchedule(request.StartDate, request.DueDate);
 
@@ -158,6 +179,7 @@ namespace ReliefManagementSystem.Application.Services
                 ?? throw new KeyNotFoundException($"Campaign task '{campaignTaskId}' was not found.");
 
             var campaign = await GetReliefCampaignAsync(task.CampaignTeam.CampaignId, cancellationToken);
+            await EnsureTeamLeaderOrCoordinatorAsync(task.CampaignTeam, cancellationToken);
             ValidateTaskStatusTransition(task.Status, request.Status);
             ValidateExecutionStateAllowed(campaign, request.Status);
 
@@ -175,6 +197,7 @@ namespace ReliefManagementSystem.Application.Services
                 ?? throw new KeyNotFoundException($"Campaign task '{campaignTaskId}' was not found.");
 
             await GetReliefCampaignAsync(task.CampaignTeam.CampaignId, cancellationToken);
+            await EnsureTeamLeaderOrCoordinatorAsync(task.CampaignTeam, cancellationToken);
             ValidateTaskEditable(task.Status);
 
             var volunteerProfile = await _unitOfWork.VolunteerProfiles.GetByIdWithSkillsAndUserAsync(request.VolunteerProfileId)
@@ -209,6 +232,7 @@ namespace ReliefManagementSystem.Application.Services
                 ?? throw new KeyNotFoundException($"Campaign task '{campaignTaskId}' was not found.");
 
             await GetReliefCampaignAsync(task.CampaignTeam.CampaignId, cancellationToken);
+            await EnsureTeamLeaderOrCoordinatorAsync(task.CampaignTeam, cancellationToken);
             ValidateTaskEditable(task.Status);
 
             if (request.Members is null || !request.Members.Any())
@@ -257,6 +281,250 @@ namespace ReliefManagementSystem.Application.Services
             }
 
             return results;
+        }
+
+        public async Task<List<MemberTaskResponse>> CreateMemberTasksFromHouseholdsAsync(Guid campaignTaskId, CreateMemberTaskFromHouseholdsRequest request, CancellationToken cancellationToken = default)
+        {
+            var task = await _unitOfWork.CampaignTasks.GetByIdWithDetailsAsync(campaignTaskId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Campaign task '{campaignTaskId}' was not found.");
+
+            await GetReliefCampaignAsync(task.CampaignTeam.CampaignId, cancellationToken);
+            await EnsureTeamLeaderOrCoordinatorAsync(task.CampaignTeam, cancellationToken);
+            ValidateTaskEditable(task.Status);
+
+            if (request.HouseholdDeliveryIds is null || request.HouseholdDeliveryIds.Count == 0)
+                throw new InvalidOperationException("At least one household delivery is required.");
+
+            var volunteerProfile = await _unitOfWork.VolunteerProfiles.GetByIdWithSkillsAndUserAsync(request.VolunteerProfileId)
+                ?? throw new KeyNotFoundException($"Volunteer profile '{request.VolunteerProfileId}' was not found.");
+
+            var isMember = await _unitOfWork.TeamMembers.IsMemberAsync(task.CampaignTeam.TeamId, volunteerProfile.UserId);
+            if (!isMember)
+                throw new InvalidOperationException("Assigned volunteer must belong to the owning campaign team.");
+
+            var deliveries = await _unitOfWork.HouseholdDeliveries.GetQueryable()
+                .Include(x => x.CampaignHousehold)
+                .Where(x => request.HouseholdDeliveryIds.Contains(x.HouseholdDeliveryId))
+                .ToListAsync(cancellationToken);
+
+            if (deliveries.Count != request.HouseholdDeliveryIds.Count)
+                throw new KeyNotFoundException("One or more household deliveries were not found.");
+
+            if (deliveries.Any(x => x.CampaignId != task.CampaignTeam.CampaignId))
+                throw new InvalidOperationException("All deliveries must belong to the same campaign as the task.");
+
+            var activeDeliveries = deliveries.Where(x => x.Status != HouseholdFulfillmentStatus.Delivered).ToList();
+            if (activeDeliveries.Count == 0)
+                throw new InvalidOperationException("All selected deliveries are already completed.");
+
+            var title = !string.IsNullOrWhiteSpace(request.SubTaskTitle)
+                ? request.SubTaskTitle!.Trim()
+                : $"Nhóm giao hàng {activeDeliveries.Count} hộ";
+
+            var note = !string.IsNullOrWhiteSpace(request.TaskNote)
+                ? request.TaskNote!.Trim()
+                : $"Subtask được tạo từ {activeDeliveries.Count} delivery thuộc campaign task {task.Title}.";
+
+            var memberTask = new MemberTask
+            {
+                MemberTaskId = Guid.NewGuid(),
+                CampaignTaskId = task.CampaignTaskId,
+                VolunteerProfileId = volunteerProfile.VolunteerProfileId,
+                SubTaskTitle = title,
+                TaskNote = note,
+                AssignedAt = DateTime.UtcNow,
+                Status = MemberTaskStatus.Assigned
+            };
+
+            await _unitOfWork.MemberTasks.AddAsync(memberTask);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            foreach (var delivery in activeDeliveries)
+            {
+                await _unitOfWork.MemberTaskDeliveries.AddAsync(new MemberTaskDelivery
+                {
+                    MemberTaskDeliveryId = Guid.NewGuid(),
+                    MemberTaskId = memberTask.MemberTaskId,
+                    HouseholdDeliveryId = delivery.HouseholdDeliveryId,
+                    AssignedVolunteerProfileId = volunteerProfile.VolunteerProfileId,
+                    Status = MemberTaskStatus.Assigned,
+                    Note = $"Mapped from task generation for delivery {delivery.HouseholdDeliveryId}"
+                });
+            }
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            var savedTask = await _unitOfWork.MemberTasks.GetByIdWithDetailsAsync(memberTask.MemberTaskId, cancellationToken)
+                ?? throw new KeyNotFoundException("Member task was not found after creation.");
+            return [MapMemberTask(savedTask, ResolveVolunteerDisplayName(volunteerProfile))];
+        }
+
+        public async Task<List<MemberTaskResponse>> BulkAssignDeliveriesToMembersAsync(Guid campaignTaskId, BulkAssignDeliveriesToMembersRequest request, CancellationToken cancellationToken = default)
+        {
+            var task = await _unitOfWork.CampaignTasks.GetByIdWithDetailsAsync(campaignTaskId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Campaign task '{campaignTaskId}' was not found.");
+
+            await GetReliefCampaignAsync(task.CampaignTeam.CampaignId, cancellationToken);
+            await EnsureTeamLeaderOrCoordinatorAsync(task.CampaignTeam, cancellationToken);
+            ValidateTaskEditable(task.Status);
+
+            if (request.Assignments is null || request.Assignments.Count == 0)
+                throw new InvalidOperationException("At least one assignment group is required.");
+
+            var results = new List<MemberTaskResponse>();
+
+            foreach (var assignment in request.Assignments)
+            {
+                var subTaskRequest = new CreateMemberTaskFromHouseholdsRequest
+                {
+                    VolunteerProfileId = assignment.VolunteerProfileId,
+                    HouseholdDeliveryIds = assignment.HouseholdDeliveryIds,
+                    SubTaskTitle = string.IsNullOrWhiteSpace(assignment.LineName)
+                        ? assignment.SubTaskTitle
+                        : string.IsNullOrWhiteSpace(assignment.SubTaskTitle)
+                            ? assignment.LineName
+                            : $"{assignment.LineName} - {assignment.SubTaskTitle}",
+                    TaskNote = assignment.TaskNote
+                };
+
+                var created = await CreateMemberTasksFromHouseholdsAsync(campaignTaskId, subTaskRequest, cancellationToken);
+                results.AddRange(created);
+            }
+
+            return results;
+        }
+
+        public async Task<List<MemberTaskDeliveryResponse>> AssignDeliveriesToMemberTaskAsync(Guid memberTaskId, AssignMemberTaskDeliveriesRequest request, CancellationToken cancellationToken = default)
+        {
+            var memberTask = await _unitOfWork.MemberTasks.GetByIdWithDetailsAsync(memberTaskId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Member task '{memberTaskId}' was not found.");
+
+            await EnsureTeamLeaderOrCoordinatorAsync(memberTask.CampaignTask.CampaignTeam, cancellationToken);
+            ValidateTaskEditable(memberTask.CampaignTask.Status);
+
+            var deliveries = await _unitOfWork.HouseholdDeliveries.GetByIdsAsync(request.HouseholdDeliveryIds, cancellationToken);
+            if (deliveries.Count != request.HouseholdDeliveryIds.Distinct().Count())
+                throw new KeyNotFoundException("One or more household deliveries were not found.");
+
+            if (deliveries.Any(x => x.CampaignId != memberTask.CampaignTask.CampaignTeam.CampaignId))
+                throw new InvalidOperationException("All deliveries must belong to the same campaign as the member task.");
+
+            var existingLinks = await _unitOfWork.MemberTaskDeliveries.GetByMemberTaskIdAsync(memberTaskId, cancellationToken);
+            var created = new List<MemberTaskDeliveryResponse>();
+
+            foreach (var delivery in deliveries)
+            {
+                if (delivery.Status == HouseholdFulfillmentStatus.Delivered)
+                    throw new InvalidOperationException($"Delivery '{delivery.HouseholdDeliveryId}' is already completed.");
+
+                if (existingLinks.Any(x => x.HouseholdDeliveryId == delivery.HouseholdDeliveryId))
+                    continue;
+
+                var link = new MemberTaskDelivery
+                {
+                    MemberTaskDeliveryId = Guid.NewGuid(),
+                    MemberTaskId = memberTaskId,
+                    HouseholdDeliveryId = delivery.HouseholdDeliveryId,
+                    AssignedVolunteerProfileId = request.AssignedVolunteerProfileId,
+                    Status = MemberTaskStatus.Assigned,
+                    Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim()
+                };
+
+                await _unitOfWork.MemberTaskDeliveries.AddAsync(link);
+                created.Add(MapMemberTaskDelivery(link, delivery));
+            }
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            return created;
+        }
+
+        public async Task<List<MemberTaskDeliveryResponse>> GetMemberTaskDeliveriesAsync(Guid memberTaskId, CancellationToken cancellationToken = default)
+        {
+            var memberTask = await _unitOfWork.MemberTasks.GetByIdWithDetailsAsync(memberTaskId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Member task '{memberTaskId}' was not found.");
+
+            await EnsureCanAccessMemberTaskAsync(memberTask, cancellationToken);
+
+            return memberTask.MemberTaskDeliveries.Select(MapMemberTaskDelivery).ToList();
+        }
+
+        public async Task<MemberTaskDeliveryResponse> ChangeMemberTaskDeliveryStatusAsync(Guid memberTaskDeliveryId, ChangeMemberTaskDeliveryStatusRequest request, CancellationToken cancellationToken = default)
+        {
+            var link = await _unitOfWork.MemberTaskDeliveries.GetQueryable()
+                .FirstOrDefaultAsync(x => x.MemberTaskDeliveryId == memberTaskDeliveryId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Member task delivery '{memberTaskDeliveryId}' was not found.");
+
+            await EnsureCanOperateMemberTaskDeliveryAsync(link, cancellationToken);
+
+            ValidateMemberTaskStatusTransition(link.Status, request.Status);
+            link.Status = request.Status;
+            link.Note = request.Note ?? link.Note;
+            if (request.Status == MemberTaskStatus.Completed)
+            {
+                link.CompletedAt = DateTime.UtcNow;
+                link.CompletedByUserId = _currentUser.UserId;
+            }
+
+            await _unitOfWork.MemberTaskDeliveries.UpdateAsync(link);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            var saved = await _unitOfWork.MemberTaskDeliveries.GetQueryable()
+                .FirstAsync(x => x.MemberTaskDeliveryId == memberTaskDeliveryId, cancellationToken);
+            await SyncMemberTaskStatusFromDeliveriesAsync(saved.MemberTaskId, cancellationToken);
+            return MapMemberTaskDelivery(saved);
+        }
+
+        public async Task<MemberTaskDeliveryResponse> CompleteMemberTaskDeliveryWithDeliveryAsync(Guid memberTaskDeliveryId, CompleteMemberTaskDeliveryWithDeliveryRequest request, CancellationToken cancellationToken = default)
+        {
+            var link = await _unitOfWork.MemberTaskDeliveries.GetQueryable()
+                .FirstOrDefaultAsync(x => x.MemberTaskDeliveryId == memberTaskDeliveryId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Member task delivery '{memberTaskDeliveryId}' was not found.");
+
+            await EnsureCanOperateMemberTaskDeliveryAsync(link, cancellationToken);
+
+            var delivery = await _unitOfWork.HouseholdDeliveries.GetByIdWithProofsAsync(link.HouseholdDeliveryId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Household delivery '{link.HouseholdDeliveryId}' was not found.");
+
+            if (delivery.Status == HouseholdFulfillmentStatus.Delivered)
+                throw new InvalidOperationException("Delivery already completed.");
+
+            delivery.Status = HouseholdFulfillmentStatus.Delivered;
+            delivery.DeliveredAt = DateTime.UtcNow;
+            delivery.DeliveredByUserId = _currentUser.UserId;
+            if (!string.IsNullOrWhiteSpace(request.DeliveryNote))
+                delivery.Notes = request.DeliveryNote.Trim();
+
+            await _unitOfWork.HouseholdDeliveryProofs.AddAsync(new HouseholdDeliveryProof
+            {
+                HouseholdDeliveryProofId = Guid.NewGuid(),
+                HouseholdDeliveryId = delivery.HouseholdDeliveryId,
+                FileUrl = request.ProofFileUrl.Trim(),
+                FileType = request.ProofContentType,
+                Note = request.ProofNote,
+                CapturedAt = DateTime.UtcNow,
+                CapturedByUserId = _currentUser.UserId
+            });
+
+            await _unitOfWork.HouseholdDeliveries.UpdateAsync(delivery);
+
+            var household = await _unitOfWork.CampaignHouseholds.GetByIdAsync(delivery.CampaignHouseholdId)
+                ?? throw new KeyNotFoundException($"Campaign household '{delivery.CampaignHouseholdId}' was not found.");
+            household.FulfillmentStatus = HouseholdFulfillmentStatus.Delivered;
+            await _unitOfWork.CampaignHouseholds.UpdateAsync(household);
+
+            link.Status = MemberTaskStatus.Completed;
+            link.CompletedAt = DateTime.UtcNow;
+            link.CompletedByUserId = _currentUser.UserId;
+            if (!string.IsNullOrWhiteSpace(request.DeliveryNote))
+                link.Note = request.DeliveryNote.Trim();
+
+            await _unitOfWork.MemberTaskDeliveries.UpdateAsync(link);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            await SyncMemberTaskStatusFromDeliveriesAsync(link.MemberTaskId, cancellationToken);
+
+            var saved = await _unitOfWork.MemberTaskDeliveries.GetQueryable()
+                .FirstAsync(x => x.MemberTaskDeliveryId == memberTaskDeliveryId, cancellationToken);
+            return MapMemberTaskDelivery(saved);
         }
 
         public async Task<MemberTaskResponse> ChangeMemberTaskStatusAsync(Guid memberTaskId, ChangeMemberTaskStatusRequest request, CancellationToken cancellationToken = default)
@@ -321,6 +589,86 @@ namespace ReliefManagementSystem.Application.Services
                 await _unitOfWork.CampaignTasks.UpdateAsync(task);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
             }
+        }
+
+        private async Task SyncMemberTaskStatusFromDeliveriesAsync(Guid memberTaskId, CancellationToken cancellationToken)
+        {
+            var memberTask = await _unitOfWork.MemberTasks.GetByIdWithDetailsAsync(memberTaskId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Member task '{memberTaskId}' was not found.");
+
+            if (memberTask.MemberTaskDeliveries.Count == 0)
+                return;
+
+            if (memberTask.MemberTaskDeliveries.All(x => x.Status == MemberTaskStatus.Completed))
+            {
+                memberTask.Status = MemberTaskStatus.Completed;
+                memberTask.CompletedAt = DateTime.UtcNow;
+                await _unitOfWork.MemberTasks.UpdateAsync(memberTask);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await AutoUpdateParentTaskStatusAsync(memberTask.CampaignTask, cancellationToken);
+            }
+            else if (memberTask.MemberTaskDeliveries.Any(x => x.Status == MemberTaskStatus.InProgress) && memberTask.Status == MemberTaskStatus.Assigned)
+            {
+                memberTask.Status = MemberTaskStatus.InProgress;
+                await _unitOfWork.MemberTasks.UpdateAsync(memberTask);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+            }
+        }
+
+        private async Task EnsureCanAccessCampaignTaskAsync(CampaignTask task, CancellationToken cancellationToken)
+        {
+            await EnsureCanAccessMemberTaskTeamAsync(task.CampaignTeam, null, cancellationToken);
+        }
+
+        private async Task EnsureCanAccessMemberTaskAsync(MemberTask memberTask, CancellationToken cancellationToken)
+        {
+            await EnsureCanAccessMemberTaskTeamAsync(memberTask.CampaignTask.CampaignTeam, memberTask.VolunteerProfileId, cancellationToken);
+        }
+
+        private async Task EnsureTeamLeaderOrCoordinatorAsync(CampaignTeam campaignTeam, CancellationToken cancellationToken)
+        {
+            var currentUserId = _currentUser.UserId ?? throw new UnauthorizedAccessException("User is not authenticated.");
+            var team = await _unitOfWork.Teams.GetByIdWithDetailsAsync(campaignTeam.TeamId)
+                ?? throw new KeyNotFoundException($"Team '{campaignTeam.TeamId}' was not found.");
+
+            if (team.LeaderId != currentUserId)
+                throw new UnauthorizedAccessException("Only the team leader or coordinator can perform this action.");
+        }
+
+        private async Task EnsureCanOperateMemberTaskDeliveryAsync(MemberTaskDelivery link, CancellationToken cancellationToken)
+        {
+            var currentUserId = _currentUser.UserId ?? throw new UnauthorizedAccessException("User is not authenticated.");
+            var team = await _unitOfWork.Teams.GetByIdWithDetailsAsync(link.MemberTask.CampaignTask.CampaignTeam.TeamId)
+                ?? throw new KeyNotFoundException($"Team '{link.MemberTask.CampaignTask.CampaignTeam.TeamId}' was not found.");
+
+            if (team.LeaderId == currentUserId)
+                return;
+
+            var volunteerProfile = await _unitOfWork.VolunteerProfiles.GetByUserIdAsync(currentUserId)
+                ?? throw new KeyNotFoundException("Volunteer profile for current user was not found.");
+
+            var assignedVolunteerId = link.AssignedVolunteerProfileId ?? link.MemberTask.VolunteerProfileId;
+            if (assignedVolunteerId != volunteerProfile.VolunteerProfileId)
+                throw new UnauthorizedAccessException("You are not allowed to update this assigned delivery.");
+        }
+
+        private async Task EnsureCanAccessMemberTaskTeamAsync(CampaignTeam campaignTeam, Guid? volunteerProfileId, CancellationToken cancellationToken)
+        {
+            var currentUserId = _currentUser.UserId ?? throw new UnauthorizedAccessException("User is not authenticated.");
+            var team = await _unitOfWork.Teams.GetByIdWithDetailsAsync(campaignTeam.TeamId)
+                ?? throw new KeyNotFoundException($"Team '{campaignTeam.TeamId}' was not found.");
+
+            if (team.LeaderId == currentUserId)
+                return;
+
+            if (volunteerProfileId.HasValue)
+            {
+                var volunteerProfile = await _unitOfWork.VolunteerProfiles.GetByUserIdAsync(currentUserId);
+                if (volunteerProfile?.VolunteerProfileId == volunteerProfileId.Value)
+                    return;
+            }
+
+            throw new UnauthorizedAccessException("You are not allowed to access this team task.");
         }
 
         public async Task DeleteAsync(Guid campaignTaskId, CancellationToken cancellationToken = default)
@@ -484,7 +832,30 @@ namespace ReliefManagementSystem.Application.Services
                 TaskNote = memberTask.TaskNote,
                 AssignedAt = memberTask.AssignedAt,
                 CompletedAt = memberTask.CompletedAt,
-                Status = memberTask.Status
+                Status = memberTask.Status,
+                Deliveries = memberTask.MemberTaskDeliveries.Select(MapMemberTaskDelivery).ToList()
+            };
+
+        private static MemberTaskDeliveryResponse MapMemberTaskDelivery(MemberTaskDelivery item)
+            => MapMemberTaskDelivery(item, item.HouseholdDelivery);
+
+        private static MemberTaskDeliveryResponse MapMemberTaskDelivery(MemberTaskDelivery item, HouseholdDelivery delivery)
+            => new()
+            {
+                MemberTaskDeliveryId = item.MemberTaskDeliveryId,
+                MemberTaskId = item.MemberTaskId,
+                HouseholdDeliveryId = item.HouseholdDeliveryId,
+                CampaignHouseholdId = delivery.CampaignHouseholdId,
+                HouseholdCode = delivery.CampaignHousehold?.HouseholdCode ?? string.Empty,
+                HeadOfHouseholdName = delivery.CampaignHousehold?.HeadOfHouseholdName ?? string.Empty,
+                Address = delivery.CampaignHousehold?.Address,
+                AssignedVolunteerProfileId = item.AssignedVolunteerProfileId,
+                AssignedVolunteerName = ResolveVolunteerDisplayName(item.AssignedVolunteerProfile),
+                Status = item.Status,
+                DeliveryStatus = delivery.Status,
+                ScheduledAt = delivery.ScheduledAt,
+                CompletedAt = item.CompletedAt,
+                Note = item.Note
             };
 
         private static string ResolveVolunteerDisplayName(VolunteerProfile? volunteerProfile)

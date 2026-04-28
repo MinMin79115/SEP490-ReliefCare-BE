@@ -75,10 +75,12 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
         public ICampaignBudgetTransferRepository CampaignBudgetTransfers { get; }
         public ICampaignTaskRepository CampaignTasks { get; }
         public IMemberTaskRepository MemberTasks { get; }
+        public IMemberTaskDeliveryRepository MemberTaskDeliveries { get; }
         public ICampaignInventoryRepository CampaignInventories { get; }
         public ICampaignInventoryStockRepository CampaignInventoryStocks { get; }
         public ICampaignInventoryTransactionRepository CampaignInventoryTransactions { get; }
         public ICampaignVolunteerRegistrationRepository CampaignVolunteerRegistrations { get; }
+        public IGenericRepository<CampaignVehicle> CampaignVehicles { get; }
         public IDonationRepository Donations { get; }
         public IFundRepository Funds { get; }
         public IPaymentTransactionRepository PaymentTransactions { get; }
@@ -100,6 +102,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
         public IAttachmentRepository Attachments { get; }
         public IGenericRepository<AuditLog> AuditLogs { get; }
         public IGenericRepository<RequestVerification> RequestVerifications { get; }
+        public IGenericRepository<RescueOperationSupply> RescueOperationSupplies { get; }
         public IGenericRepository<DisasterAnalysisLog> DisasterAnalysisLogs { get; }
 
         // Constructor
@@ -144,10 +147,12 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             CampaignBudgetTransfers = new CampaignBudgetTransferRepository(_context);
             CampaignTasks = new CampaignTaskRepository(_context);
             MemberTasks = new MemberTaskRepository(_context);
+            MemberTaskDeliveries = new MemberTaskDeliveryRepository(_context);
             CampaignInventories = new CampaignInventoryRepository(_context);
             CampaignInventoryStocks = new CampaignInventoryStockRepository(_context);
             CampaignInventoryTransactions = new CampaignInventoryTransactionRepository(_context);
             CampaignVolunteerRegistrations = new CampaignVolunteerRegistrationRepository(_context);
+            CampaignVehicles = new GenericRepository<CampaignVehicle>(_context);
             Donations = new DonationRepository(_context);
             Funds = new FundRepository(_context);
             PaymentTransactions = new PaymentTransactionRepository(_context);
@@ -164,6 +169,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             Attachments = new AttachmentRepository(_context);
             AuditLogs = new GenericRepository<AuditLog>(_context);
             RequestVerifications = new GenericRepository<RequestVerification>(_context);
+            RescueOperationSupplies = new GenericRepository<RescueOperationSupply>(_context);
             DisasterAnalysisLogs = new GenericRepository<DisasterAnalysisLog>(_context);
         }
 
