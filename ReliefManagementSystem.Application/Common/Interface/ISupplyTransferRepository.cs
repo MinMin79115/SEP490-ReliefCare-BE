@@ -9,6 +9,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
         Task<IReadOnlyList<SupplyTransfer>> GetByStatusAsync(SupplyTransferStatus status, CancellationToken cancellationToken = default);
         Task<IReadOnlyList<SupplyTransfer>> GetBySourceStationAsync(Guid stationId, CancellationToken cancellationToken = default);
         Task<IReadOnlyList<SupplyTransfer>> GetByDestinationStationAsync(Guid stationId, CancellationToken cancellationToken = default);
+        Task AddVehicleAssignmentAsync(SupplyTransferVehicle assignment, CancellationToken cancellationToken = default);
         Task<int> CountTodayAsync(CancellationToken cancellationToken = default);
     }
 }

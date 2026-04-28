@@ -3087,6 +3087,56 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.ToTable("SupplyTransferItems");
                 });
 
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.SupplyTransferVehicle", b =>
+                {
+                    b.Property<Guid>("SupplyTransferVehicleId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("ArrivedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("AssignedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("CancelledAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("DepartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("DriverUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Note")
+                        .HasMaxLength(1000)
+                        .HasColumnType("character varying(1000)");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<Guid>("SupplyTransferId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("VehicleId")
+                        .HasColumnType("uuid");
+
+                    b.HasKey("SupplyTransferVehicleId");
+
+                    b.HasIndex("DriverUserId");
+
+                    b.HasIndex("SupplyTransferId", "VehicleId")
+                        .IsUnique();
+
+                    b.HasIndex("VehicleId", "Status");
+
+                    b.ToTable("SupplyTransferVehicles");
+                });
+
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Team", b =>
                 {
                     b.Property<Guid>("TeamId")
@@ -4870,6 +4920,32 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Navigation("SupplyTransfer");
                 });
 
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.SupplyTransferVehicle", b =>
+                {
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.ApplicationUser", "DriverUser")
+                        .WithMany()
+                        .HasForeignKey("DriverUserId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.SupplyTransfer", "SupplyTransfer")
+                        .WithMany("SupplyTransferVehicles")
+                        .HasForeignKey("SupplyTransferId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.Vehicle", "Vehicle")
+                        .WithMany("SupplyTransferVehicles")
+                        .HasForeignKey("VehicleId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("DriverUser");
+
+                    b.Navigation("SupplyTransfer");
+
+                    b.Navigation("Vehicle");
+                });
+
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Team", b =>
                 {
                     b.HasOne("ReliefManagementSystem.Domain.Entities.ApplicationUser", "Moderator")
@@ -5299,6 +5375,8 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Navigation("InventoryTransactions");
 
                     b.Navigation("Items");
+
+                    b.Navigation("SupplyTransferVehicles");
                 });
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Team", b =>
@@ -5321,6 +5399,7 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Vehicle", b =>
                 {
                     b.Navigation("RescueOperationVehicles");
+                    b.Navigation("SupplyTransferVehicles");
 
                     b.Navigation("SupplyTransfers");
                 });

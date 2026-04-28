@@ -42,6 +42,18 @@ namespace ReliefManagementSystem.API.Controllers
         public async Task<IActionResult> Approve(Guid id, [FromBody] ApproveSupplyTransferRequest request, CancellationToken cancellationToken)
             => Ok(await _transferService.ApproveAsync(id, request, cancellationToken));
 
+        [HttpPatch("{id:guid}/vehicles")]
+        public async Task<IActionResult> AssignVehicles(Guid id, [FromBody] AssignSupplyTransferVehiclesRequest request, CancellationToken cancellationToken)
+            => Ok(await _transferService.AssignVehiclesAsync(id, request, cancellationToken));
+
+        [HttpDelete("{id:guid}/vehicles/{supplyTransferVehicleId:guid}")]
+        public async Task<IActionResult> RemoveVehicle(Guid id, Guid supplyTransferVehicleId, CancellationToken cancellationToken)
+            => Ok(await _transferService.RemoveVehicleAsync(id, supplyTransferVehicleId, cancellationToken));
+
+        [HttpPatch("{id:guid}/vehicles/{supplyTransferVehicleId:guid}/status")]
+        public async Task<IActionResult> UpdateVehicleStatus(Guid id, Guid supplyTransferVehicleId, [FromBody] UpdateSupplyTransferVehicleStatusRequest request, CancellationToken cancellationToken)
+            => Ok(await _transferService.UpdateVehicleStatusAsync(id, supplyTransferVehicleId, request, cancellationToken));
+
         [HttpPatch("{id:guid}/ship")]
         public async Task<IActionResult> Ship(Guid id, [FromBody] ShipSupplyTransferRequest request, CancellationToken cancellationToken)
             => Ok(await _transferService.ShipAsync(id, request, cancellationToken));

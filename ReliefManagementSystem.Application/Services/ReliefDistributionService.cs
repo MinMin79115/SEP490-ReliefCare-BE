@@ -59,6 +59,7 @@ namespace ReliefManagementSystem.Application.Services
                 {
                     CampaignHouseholdId = Guid.NewGuid(),
                     CampaignId = campaignId,
+                    LocationId = item.LocationId,
                     HouseholdCode = item.HouseholdCode.Trim(),
                     HeadOfHouseholdName = item.HeadOfHouseholdName.Trim(),
                     ContactPhone = item.ContactPhone?.Trim(),
@@ -67,6 +68,10 @@ namespace ReliefManagementSystem.Application.Services
                     Longitude = item.Longitude,
                     HouseholdSize = item.HouseholdSize,
                     IsIsolated = item.IsIsolated,
+                    FloodSeverityLevel = item.FloodSeverityLevel,
+                    IsolationSeverityLevel = item.IsolationSeverityLevel,
+                    RequiresBoat = item.RequiresBoat,
+                    RequiresLocalGuide = item.RequiresLocalGuide,
                     DeliveryMode = preferredMode,
                     FulfillmentStatus = HouseholdFulfillmentStatus.Pending,
                     CreatedAt = DateTime.UtcNow
@@ -99,6 +104,9 @@ namespace ReliefManagementSystem.Application.Services
 
             if (request.DeliveryMode == DeliveryMode.PickupAtPoint && !request.DistributionPointId.HasValue)
                 throw new InvalidOperationException("DistributionPointId is required for pickup mode.");
+
+            if (request.DeliveryMode == DeliveryMode.DoorToDoor && !request.CampaignTeamId.HasValue)
+                throw new InvalidOperationException("CampaignTeamId is required for door-to-door relief assignment.");
 
             if (request.DistributionPointId.HasValue)
             {
@@ -186,6 +194,113 @@ namespace ReliefManagementSystem.Application.Services
             return MapHouseholdDelivery(saved);
         }
 
+        public async Task<CampaignHouseholdResponse> AssignIsolatedHouseholdTeamAsync(
+            Guid campaignId,
+            Guid campaignHouseholdId,
+            AssignIsolatedHouseholdTeamRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            await EnsureReliefCampaignAsync(campaignId, cancellationToken);
+
+            var household = await _unitOfWork.CampaignHouseholds.GetQueryable()
+                .Include(x => x.CampaignTeam)
+                    .ThenInclude(ct => ct.Team)
+                .Include(x => x.Location)
+                .FirstOrDefaultAsync(x => x.CampaignHouseholdId == campaignHouseholdId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Campaign household '{campaignHouseholdId}' was not found.");
+
+            if (household.CampaignId != campaignId)
+                throw new InvalidOperationException("Household does not belong to campaign.");
+
+            if (!household.IsIsolated)
+                throw new InvalidOperationException("Only isolated households can be assigned with this endpoint.");
+
+            var teams = await _unitOfWork.Campaigns.GetCampaignTeamsAsync(campaignId, cancellationToken);
+            if (!teams.Any(t => t.CampaignTeamId == request.CampaignTeamId))
+                throw new KeyNotFoundException($"Campaign team '{request.CampaignTeamId}' was not found in this campaign.");
+
+            household.CampaignTeamId = request.CampaignTeamId;
+            household.DeliveryMode = request.KeepDoorToDoor ? DeliveryMode.DoorToDoor : household.DeliveryMode;
+            household.DistributionPointId = null;
+            household.Notes = string.IsNullOrWhiteSpace(request.Notes)
+                ? household.Notes
+                : string.Join(" | ", new[] { household.Notes, request.Notes?.Trim() }.Where(x => !string.IsNullOrWhiteSpace(x)));
+
+            await _unitOfWork.CampaignHouseholds.UpdateAsync(household);
+
+            var existingDeliveries = await _unitOfWork.HouseholdDeliveries.GetByCampaignAsync(campaignId, cancellationToken);
+            var existingActiveDelivery = existingDeliveries
+                .Where(x => x.CampaignHouseholdId == household.CampaignHouseholdId)
+                .OrderByDescending(x => x.CreatedAt)
+                .FirstOrDefault(x => x.Status != HouseholdFulfillmentStatus.Delivered);
+
+            if (existingActiveDelivery is not null)
+            {
+                existingActiveDelivery.CampaignTeamId = request.CampaignTeamId;
+                existingActiveDelivery.DistributionPointId = null;
+                existingActiveDelivery.DeliveryMode = DeliveryMode.DoorToDoor;
+                existingActiveDelivery.ScheduledAt = request.ScheduledAt ?? existingActiveDelivery.ScheduledAt;
+                if (!string.IsNullOrWhiteSpace(request.Notes))
+                    existingActiveDelivery.Notes = request.Notes?.Trim();
+
+                if (request.ReliefPackageDefinitionId.HasValue)
+                    existingActiveDelivery.ReliefPackageDefinitionId = request.ReliefPackageDefinitionId.Value;
+
+                await _unitOfWork.HouseholdDeliveries.UpdateAsync(existingActiveDelivery);
+            }
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            return MapCampaignHousehold(household);
+        }
+
+        public async Task<BulkAssignIsolatedHouseholdsResponse> BulkAssignIsolatedHouseholdTeamsAsync(
+            Guid campaignId,
+            BulkAssignIsolatedHouseholdsRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            await EnsureReliefCampaignAsync(campaignId, cancellationToken);
+
+            var response = new BulkAssignIsolatedHouseholdsResponse
+            {
+                TotalRequested = request.CampaignHouseholdIds.Count
+            };
+
+            foreach (var householdId in request.CampaignHouseholdIds.Distinct())
+            {
+                try
+                {
+                    var result = await AssignIsolatedHouseholdTeamAsync(campaignId, householdId, new AssignIsolatedHouseholdTeamRequest
+                    {
+                        CampaignTeamId = request.CampaignTeamId,
+                        ReliefPackageDefinitionId = request.ReliefPackageDefinitionId,
+                        ScheduledAt = request.ScheduledAt,
+                        KeepDoorToDoor = request.KeepDoorToDoor,
+                        Notes = request.Notes
+                    }, cancellationToken);
+
+                    response.Items.Add(new BulkAssignIsolatedHouseholdItemResponse
+                    {
+                        CampaignHouseholdId = householdId,
+                        IsSuccess = true,
+                        Household = result
+                    });
+                }
+                catch (Exception ex)
+                {
+                    response.Items.Add(new BulkAssignIsolatedHouseholdItemResponse
+                    {
+                        CampaignHouseholdId = householdId,
+                        IsSuccess = false,
+                        Error = ex.Message
+                    });
+                }
+            }
+
+            response.SuccessCount = response.Items.Count(x => x.IsSuccess);
+            response.FailureCount = response.Items.Count(x => !x.IsSuccess);
+            return response;
+        }
+
         public async Task<Pagination<CampaignHouseholdResponse>> GetCampaignHouseholdsAsync(
             Guid campaignId,
             HouseholdQueryRequest request,
@@ -219,6 +334,25 @@ namespace ReliefManagementSystem.Application.Services
             if (request.IsIsolated.HasValue)
                 query = query.Where(x => x.IsIsolated == request.IsIsolated.Value);
 
+            if (request.RequiresBoat.HasValue)
+                query = query.Where(x => x.RequiresBoat == request.RequiresBoat.Value);
+
+            if (request.RequiresLocalGuide.HasValue)
+                query = query.Where(x => x.RequiresLocalGuide == request.RequiresLocalGuide.Value);
+
+            if (request.MinFloodSeverityLevel.HasValue)
+                query = query.Where(x => (x.FloodSeverityLevel ?? 0) >= request.MinFloodSeverityLevel.Value);
+
+            if (request.MinIsolationSeverityLevel.HasValue)
+                query = query.Where(x => (x.IsolationSeverityLevel ?? 0) >= request.MinIsolationSeverityLevel.Value);
+
+            if (request.HasCoordinates.HasValue)
+            {
+                query = request.HasCoordinates.Value
+                    ? query.Where(x => x.Latitude != 0 || x.Longitude != 0)
+                    : query.Where(x => x.Latitude == 0 && x.Longitude == 0);
+            }
+
             if (!string.IsNullOrWhiteSpace(request.Search))
             {
                 var keyword = request.Search.Trim();
@@ -236,6 +370,234 @@ namespace ReliefManagementSystem.Application.Services
             var items = paged.Items!.Select(MapCampaignHousehold).ToList();
 
             return new Pagination<CampaignHouseholdResponse>(items, paged.TotalCount, paged.CurrentPage, paged.PageSize);
+        }
+
+        public async Task<ReliefCampaignPlanSummaryResponse> GetCampaignPlanSummaryAsync(
+            Guid campaignId,
+            CancellationToken cancellationToken = default)
+        {
+            await EnsureReliefCampaignAsync(campaignId, cancellationToken);
+
+            var households = await _unitOfWork.CampaignHouseholds.GetQueryable()
+                .Include(x => x.CampaignTeam)
+                    .ThenInclude(ct => ct.Team)
+                .Include(x => x.Location)
+                .Where(x => x.CampaignId == campaignId)
+                .ToListAsync(cancellationToken);
+
+            var distributionPoints = await _unitOfWork.DistributionPoints.GetQueryable()
+                .Include(x => x.Households)
+                .Include(x => x.Deliveries)
+                .Where(x => x.CampaignId == campaignId)
+                .ToListAsync(cancellationToken);
+
+            var totalHouseholds = households.Count;
+            var isolatedHouseholds = households.Count(x => x.IsIsolated);
+            var totalPopulation = households.Sum(x => x.HouseholdSize);
+            var pendingHouseholds = households.Count(x => x.FulfillmentStatus != HouseholdFulfillmentStatus.Delivered);
+            var floodSeverityScore = households
+                .Where(x => x.FloodSeverityLevel.HasValue)
+                .Select(x => x.FloodSeverityLevel!.Value)
+                .DefaultIfEmpty(0)
+                .Average();
+            var areaLocationDensities = households
+                .Where(x => x.Location != null)
+                .Select(x => x.Location!.PopulationDensity)
+                .Where(x => x > 0)
+                .ToList();
+
+            var averagePopulationDensity = areaLocationDensities.Count > 0
+                ? Math.Round(areaLocationDensities.Average(), 2)
+                : 0;
+
+            var suggestedTeamCount = CalculateSuggestedTeamCount(
+                totalHouseholds,
+                isolatedHouseholds,
+                totalPopulation,
+                averagePopulationDensity,
+                households);
+            var estimatedReliefPersonnel = CalculateEstimatedReliefPersonnel(suggestedTeamCount, totalPopulation);
+            var estimatedLocalVolunteers = CalculateEstimatedLocalVolunteers(isolatedHouseholds);
+            var estimatedBoatCount = CalculateEstimatedBoatCount(isolatedHouseholds, floodSeverityScore, households.Count(x => x.RequiresBoat));
+            var estimatedLifeJacketCount = CalculateEstimatedLifeJacketCount(
+                estimatedReliefPersonnel,
+                estimatedLocalVolunteers,
+                estimatedBoatCount);
+
+            var areaGroups = BuildAreaGroups(households);
+
+            var areaSummaries = areaGroups
+                .Select(group =>
+                {
+                    var groupItems = group.ToList();
+                    var householdCount = groupItems.Count;
+                    var areaIsolatedCount = groupItems.Count(x => x.IsIsolated);
+                    var areaPopulation = groupItems.Sum(x => x.HouseholdSize);
+                    var areaPendingCount = groupItems.Count(x => x.FulfillmentStatus != HouseholdFulfillmentStatus.Delivered);
+                    var areaDensity = group
+                        .Select(x => x.Location?.PopulationDensity ?? 0)
+                        .FirstOrDefault(x => x > 0);
+                    var areaFloodSeverity = groupItems
+                        .Where(x => x.FloodSeverityLevel.HasValue)
+                        .Select(x => x.FloodSeverityLevel!.Value)
+                        .DefaultIfEmpty(0)
+                        .Average();
+                    var areaRadiusKm = EstimateCoverageRadiusKm(groupItems);
+                    var areaSuggestedTeams = CalculateSuggestedTeamCount(
+                        householdCount,
+                        areaIsolatedCount,
+                        areaPopulation,
+                        areaDensity,
+                        groupItems);
+                    var areaEstimatedBoats = CalculateEstimatedBoatCount(areaIsolatedCount, areaFloodSeverity, groupItems.Count(x => x.RequiresBoat));
+                    var areaEstimatedLocalVolunteers = CalculateEstimatedLocalVolunteers(areaIsolatedCount);
+                    var areaAverageHouseholdSize = householdCount > 0
+                        ? Math.Round((decimal)areaPopulation / householdCount, 2)
+                        : 0;
+                    var recommendedOperationalMode = GetRecommendedOperationalMode(areaDensity, areaRadiusKm, areaIsolatedCount);
+                    var suggestedDistributionPointCount = CalculateSuggestedDistributionPointCount(householdCount, areaDensity, areaRadiusKm, areaIsolatedCount);
+                    var suggestedMobileTeamCount = CalculateSuggestedMobileTeamCount(areaSuggestedTeams, areaDensity, areaRadiusKm, areaIsolatedCount);
+
+                    return new ReliefPlanAreaSummaryResponse
+                    {
+                        AreaName = ResolveAreaName(groupItems),
+                        LocationId = groupItems.FirstOrDefault(x => x.LocationId.HasValue)?.LocationId,
+                        PopulationDensity = areaDensity,
+                        HouseholdCount = householdCount,
+                        IsolatedHouseholdCount = areaIsolatedCount,
+                        Population = areaPopulation,
+                        AverageHouseholdSize = areaAverageHouseholdSize,
+                        PendingHouseholds = areaPendingCount,
+                        EstimatedCoverageRadiusKm = Math.Round(areaRadiusKm, 2),
+                        TravelComplexityLabel = GetTravelComplexityLabel(areaRadiusKm, areaDensity, areaIsolatedCount),
+                        RecommendedOperationalMode = recommendedOperationalMode,
+                        RecommendedDeliveryStrategy = recommendedOperationalMode == "Ưu tiên điểm phát"
+                            ? "Tập trung phát tại điểm, gom hộ gần nhau"
+                            : "Đội cơ động gõ từng cụm, giao tận nơi cho hộ cô lập",
+                        SuggestedDistributionPointCount = suggestedDistributionPointCount,
+                        SuggestedMobileTeamCount = suggestedMobileTeamCount,
+                        SuggestedTeamCount = areaSuggestedTeams,
+                        EstimatedPackages = areaPendingCount,
+                        EstimatedBoatCount = areaEstimatedBoats,
+                        EstimatedLifeJacketCount = CalculateEstimatedLifeJacketCount(
+                            CalculateEstimatedReliefPersonnel(areaSuggestedTeams, areaPopulation),
+                            areaEstimatedLocalVolunteers,
+                            areaEstimatedBoats),
+                    };
+                })
+                .OrderByDescending(x => x.IsolatedHouseholdCount)
+                .ThenByDescending(x => x.HouseholdCount)
+                .ThenBy(x => x.AreaName)
+                .ToList();
+
+            var isolatedItems = households
+                .Where(x => x.IsIsolated)
+                .OrderByDescending(x => x.HouseholdSize)
+                .ThenBy(x => x.HeadOfHouseholdName)
+                .Select(x => new IsolatedHouseholdPlanItemResponse
+                {
+                    CampaignHouseholdId = x.CampaignHouseholdId,
+                    HouseholdCode = x.HouseholdCode,
+                    HeadOfHouseholdName = x.HeadOfHouseholdName,
+                    Address = x.Address,
+                    LocationId = x.LocationId,
+                    HouseholdSize = x.HouseholdSize,
+                    FloodSeverityLevel = x.FloodSeverityLevel,
+                    IsolationSeverityLevel = x.IsolationSeverityLevel,
+                    RequiresBoat = x.RequiresBoat,
+                    RequiresLocalGuide = x.RequiresLocalGuide,
+                    PriorityLabel = GetPriorityLabel(x.HouseholdSize),
+                    SuggestedSupportMode = GetSuggestedSupportMode(x),
+                    EstimatedReliefPersonnel = Math.Max(2, (int)Math.Ceiling(x.HouseholdSize / 2.0)),
+                    EstimatedBoatCount = CalculateEstimatedBoatCount(1, x.FloodSeverityLevel ?? 0, x.RequiresBoat ? 1 : 0),
+                    EstimatedLifeJacketCount = Math.Max(2, x.HouseholdSize),
+                    CampaignTeamName = x.CampaignTeam?.Team?.Name
+                })
+                .ToList();
+
+            var distributionPointSummaries = distributionPoints
+                .Select(x => new DistributionPointPlanSummaryResponse
+                {
+                    DistributionPointId = x.DistributionPointId,
+                    Name = x.Name,
+                    Address = x.Address,
+                    AssignedHouseholdCount = x.Households.Count,
+                    PendingDeliveryCount = x.Deliveries.Count(d => d.Status != HouseholdFulfillmentStatus.Delivered),
+                    SuggestedPersonnelCount = Math.Max(2, (int)Math.Ceiling(x.Households.Count / 25.0)),
+                    SuggestedLocalVolunteerCount = Math.Max(0, (int)Math.Ceiling(x.Households.Count(h => h.IsIsolated) / 5.0))
+                })
+                .OrderByDescending(x => x.PendingDeliveryCount)
+                .ThenBy(x => x.Name)
+                .ToList();
+
+            var resourceRequirements = new List<ReliefResourceRequirementResponse>
+            {
+                new()
+                {
+                    ResourceType = "Nhân lực",
+                    ResourceName = "Đội cứu trợ",
+                    EstimatedQuantity = suggestedTeamCount,
+                    Notes = "Gợi ý 1 đội cho mỗi 50 hộ cần hỗ trợ."
+                },
+                new()
+                {
+                    ResourceType = "Nhân lực",
+                    ResourceName = "Nhân sự cứu trợ",
+                    EstimatedQuantity = estimatedReliefPersonnel,
+                    Notes = "Ước tính theo quy mô dân số và số đội."
+                },
+                new()
+                {
+                    ResourceType = "Nhân lực",
+                    ResourceName = "TNV địa phương / dẫn đường",
+                    EstimatedQuantity = estimatedLocalVolunteers,
+                    Notes = "Ưu tiên bổ sung cho khu vực có hộ bị cô lập."
+                },
+                new()
+                {
+                    ResourceType = "Thiết bị",
+                    ResourceName = "Xuồng / ghe tiếp cận",
+                    EstimatedQuantity = estimatedBoatCount,
+                    Notes = "Gợi ý theo số hộ cô lập."
+                },
+                new()
+                {
+                    ResourceType = "Thiết bị",
+                    ResourceName = "Áo phao",
+                    EstimatedQuantity = estimatedLifeJacketCount,
+                    Notes = "Ước tính cho nhân lực chính, TNV địa phương và tổ tiếp cận."
+                },
+                new()
+                {
+                    ResourceType = "Hàng cứu trợ",
+                    ResourceName = "Gói cứu trợ dự kiến",
+                    EstimatedQuantity = pendingHouseholds,
+                    Notes = "Tạm tính mỗi hộ chờ phát tương ứng 1 gói cứu trợ."
+                }
+            };
+
+            return new ReliefCampaignPlanSummaryResponse
+            {
+                CampaignId = campaignId,
+                TotalHouseholds = totalHouseholds,
+                IsolatedHouseholds = isolatedHouseholds,
+                TotalPopulation = totalPopulation,
+                AveragePopulationDensity = averagePopulationDensity,
+                HighDensityAreaCount = areaSummaries.Count(x => x.PopulationDensity >= 1000),
+                MobileTeamPriorityAreaCount = areaSummaries.Count(x => x.RecommendedOperationalMode == "Ưu tiên đội cơ động"),
+                PickupPriorityAreaCount = areaSummaries.Count(x => x.RecommendedOperationalMode == "Ưu tiên điểm phát"),
+                DistributionPointCount = distributionPoints.Count,
+                PendingHouseholds = pendingHouseholds,
+                SuggestedTeamCount = suggestedTeamCount,
+                EstimatedReliefPersonnel = estimatedReliefPersonnel,
+                EstimatedLocalVolunteers = estimatedLocalVolunteers,
+                EstimatedBoatCount = estimatedBoatCount,
+                EstimatedLifeJacketCount = estimatedLifeJacketCount,
+                Areas = areaSummaries,
+                IsolatedHouseholdItems = isolatedItems,
+                DistributionPoints = distributionPointSummaries,
+                ResourceRequirements = resourceRequirements,
+            };
         }
 
         public async Task<CampaignHouseholdResponse> UpdateCampaignHouseholdAsync(
@@ -277,6 +639,9 @@ namespace ReliefManagementSystem.Application.Services
             if (request.Longitude.HasValue)
                 household.Longitude = request.Longitude.Value;
 
+            if (request.LocationId.HasValue)
+                household.LocationId = request.LocationId.Value;
+
             if (request.HouseholdSize.HasValue)
             {
                 if (request.HouseholdSize.Value <= 0)
@@ -286,6 +651,18 @@ namespace ReliefManagementSystem.Application.Services
 
             if (request.IsIsolated.HasValue)
                 household.IsIsolated = request.IsIsolated.Value;
+
+            if (request.FloodSeverityLevel.HasValue)
+                household.FloodSeverityLevel = request.FloodSeverityLevel.Value;
+
+            if (request.IsolationSeverityLevel.HasValue)
+                household.IsolationSeverityLevel = request.IsolationSeverityLevel.Value;
+
+            if (request.RequiresBoat.HasValue)
+                household.RequiresBoat = request.RequiresBoat.Value;
+
+            if (request.RequiresLocalGuide.HasValue)
+                household.RequiresLocalGuide = request.RequiresLocalGuide.Value;
 
             var nextDeliveryMode = request.DeliveryMode ?? household.DeliveryMode;
             if (!household.IsIsolated && nextDeliveryMode == DeliveryMode.DoorToDoor)
@@ -409,6 +786,58 @@ namespace ReliefManagementSystem.Application.Services
                 .ToList();
 
             return new Pagination<HouseholdChecklistItemResponse>(items, totalCount, pageIndex, pageSize);
+        }
+
+        public async Task<Pagination<TeamDeliveryWorklistItemResponse>> GetTeamDeliveryWorklistAsync(
+            Guid campaignId,
+            TeamDeliveryWorklistQueryRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            await EnsureReliefCampaignAsync(campaignId, cancellationToken);
+
+            IQueryable<HouseholdDelivery> query = _unitOfWork.HouseholdDeliveries.GetQueryable()
+                .Include(x => x.CampaignHousehold)
+                .Include(x => x.CampaignTeam)
+                    .ThenInclude(ct => ct.Team)
+                .Include(x => x.DistributionPoint)
+                .Where(x => x.CampaignId == campaignId);
+
+            query = ApplyDeliveryFilters(query, request);
+
+            if (request.IncludePendingOnly.GetValueOrDefault(true))
+                query = query.Where(x => x.Status != HouseholdFulfillmentStatus.Delivered);
+
+            if (request.RequiresBoat.HasValue)
+                query = query.Where(x => (x.CampaignHousehold != null && x.CampaignHousehold.RequiresBoat == request.RequiresBoat.Value));
+
+            if (request.RequiresLocalGuide.HasValue)
+                query = query.Where(x => (x.CampaignHousehold != null && x.CampaignHousehold.RequiresLocalGuide == request.RequiresLocalGuide.Value));
+
+            if (request.MinFloodSeverityLevel.HasValue)
+                query = query.Where(x => (x.CampaignHousehold != null && (x.CampaignHousehold.FloodSeverityLevel ?? 0) >= request.MinFloodSeverityLevel.Value));
+
+            if (request.MinIsolationSeverityLevel.HasValue)
+                query = query.Where(x => (x.CampaignHousehold != null && (x.CampaignHousehold.IsolationSeverityLevel ?? 0) >= request.MinIsolationSeverityLevel.Value));
+
+            if (request.PrioritizeIsolated.GetValueOrDefault())
+            {
+                query = query
+                    .OrderByDescending(x => x.CampaignHousehold != null && x.CampaignHousehold.IsIsolated)
+                    .ThenByDescending(x => x.CampaignHousehold != null ? (x.CampaignHousehold.IsolationSeverityLevel ?? 0) : 0)
+                    .ThenByDescending(x => x.CampaignHousehold != null ? (x.CampaignHousehold.FloodSeverityLevel ?? 0) : 0)
+                    .ThenBy(x => x.ScheduledAt);
+            }
+            else
+            {
+                query = query.OrderBy(x => x.ScheduledAt);
+            }
+
+            var pageIndex = request.PageIndex <= 0 ? 1 : request.PageIndex;
+            var pageSize = request.PageSize <= 0 ? 10 : request.PageSize;
+            var paged = await Pagination<HouseholdDelivery>.ToPagedList(query, pageIndex, pageSize);
+            var items = paged.Items!.Select(MapTeamDeliveryWorklistItem).ToList();
+
+            return new Pagination<TeamDeliveryWorklistItemResponse>(items, paged.TotalCount, paged.CurrentPage, paged.PageSize);
         }
 
         public async Task<DistributionPointResponse> CreateDistributionPointAsync(
@@ -1338,6 +1767,234 @@ namespace ReliefManagementSystem.Application.Services
             return campaign;
         }
 
+        private static List<List<CampaignHousehold>> BuildAreaGroups(IReadOnlyCollection<CampaignHousehold> households)
+        {
+            var grouped = new List<List<CampaignHousehold>>();
+
+            foreach (var household in households.OrderByDescending(x => x.IsIsolated).ThenByDescending(x => x.HouseholdSize))
+            {
+                var matchedGroup = grouped.FirstOrDefault(group => BelongsToSameArea(group[0], household));
+                if (matchedGroup is null)
+                {
+                    grouped.Add([household]);
+                    continue;
+                }
+
+                matchedGroup.Add(household);
+            }
+
+            return grouped;
+        }
+
+        private static bool BelongsToSameArea(CampaignHousehold seed, CampaignHousehold candidate)
+        {
+            if (seed.LocationId.HasValue && candidate.LocationId.HasValue && seed.LocationId == candidate.LocationId)
+                return true;
+
+            if (HasCoordinates(seed) && HasCoordinates(candidate))
+                return CalculateDistanceKm(seed.Latitude, seed.Longitude, candidate.Latitude, candidate.Longitude) <= 1.5d;
+
+            if (!string.IsNullOrWhiteSpace(seed.Address) && !string.IsNullOrWhiteSpace(candidate.Address))
+            {
+                var seedPrefix = NormalizeAreaAddress(seed.Address);
+                var candidatePrefix = NormalizeAreaAddress(candidate.Address);
+                return seedPrefix == candidatePrefix;
+            }
+
+            return false;
+        }
+
+        private static string ResolveAreaName(IReadOnlyCollection<CampaignHousehold> households)
+        {
+            var sample = households.First();
+
+            if (!string.IsNullOrWhiteSpace(sample.Location?.FullName))
+                return sample.Location.FullName;
+
+            if (!string.IsNullOrWhiteSpace(sample.Location?.Name))
+                return sample.Location.Name;
+
+            var coordinateGroup = households.Where(HasCoordinates).ToList();
+            if (coordinateGroup.Count > 0)
+            {
+                var centerLat = coordinateGroup.Average(x => x.Latitude);
+                var centerLng = coordinateGroup.Average(x => x.Longitude);
+                return $"Cụm tọa độ ({centerLat:F4}, {centerLng:F4})";
+            }
+
+            if (!string.IsNullOrWhiteSpace(sample.Address))
+                return NormalizeAreaAddress(sample.Address);
+
+            return "Chưa phân khu vực";
+        }
+
+        private static string NormalizeAreaAddress(string address)
+        {
+            var normalized = address.Trim();
+            var separators = new[] { ',', ';', '-' };
+            foreach (var separator in separators)
+            {
+                var index = normalized.IndexOf(separator);
+                if (index > 0)
+                {
+                    normalized = normalized[..index];
+                    break;
+                }
+            }
+
+            return normalized.Trim();
+        }
+
+        private static bool HasCoordinates(CampaignHousehold household)
+            => household.Latitude != 0 || household.Longitude != 0;
+
+        private static int CalculateSuggestedTeamCount(
+            int householdCount,
+            int isolatedHouseholdCount,
+            int population,
+            decimal populationDensity,
+            IReadOnlyCollection<CampaignHousehold> households)
+        {
+            if (householdCount <= 0)
+                return 0;
+
+            var baseTeams = (int)Math.Ceiling(householdCount / 50d);
+            var isolationFactor = isolatedHouseholdCount > 0
+                ? (int)Math.Ceiling(isolatedHouseholdCount / 12d)
+                : 0;
+            var populationFactor = population > 0
+                ? (int)Math.Ceiling(population / 180d)
+                : 0;
+            var densityFactor = populationDensity >= 3000
+                ? 1
+                : populationDensity >= 1000 ? 1 : 0;
+
+            var radiusKm = EstimateCoverageRadiusKm(households);
+            var spreadFactor = radiusKm >= 8
+                ? 2
+                : radiusKm >= 3 ? 1 : 0;
+
+            var floodFactor = households
+                .Where(x => x.FloodSeverityLevel.HasValue)
+                .Select(x => x.FloodSeverityLevel!.Value)
+                .DefaultIfEmpty(0)
+                .Average() >= 6 ? 1 : 0;
+
+            return Math.Max(baseTeams, baseTeams + isolationFactor + populationFactor + densityFactor + spreadFactor + floodFactor);
+        }
+
+        private static int CalculateEstimatedReliefPersonnel(int suggestedTeamCount, int population)
+            => Math.Max(suggestedTeamCount * 4, (int)Math.Ceiling(population / 25d));
+
+        private static int CalculateEstimatedLocalVolunteers(int isolatedHouseholdCount)
+            => isolatedHouseholdCount <= 0 ? 0 : Math.Max(1, (int)Math.Ceiling(isolatedHouseholdCount / 10d));
+
+        private static int CalculateEstimatedBoatCount(int isolatedHouseholdCount, double floodSeverityAverage, int requiredBoatCount)
+        {
+            var isolatedFactor = isolatedHouseholdCount <= 0 ? 0 : (int)Math.Ceiling(isolatedHouseholdCount / 6d);
+            var floodFactor = floodSeverityAverage >= 7 ? 2 : floodSeverityAverage >= 4 ? 1 : 0;
+            return Math.Max(requiredBoatCount, isolatedFactor + floodFactor);
+        }
+
+        private static int CalculateEstimatedLifeJacketCount(int reliefPersonnel, int localVolunteers, int boatCount)
+            => reliefPersonnel + localVolunteers + (boatCount * 2);
+
+        private static string GetPriorityLabel(int householdSize)
+            => householdSize >= 5 ? "Khẩn cấp" : householdSize >= 3 ? "Ưu tiên cao" : "Ưu tiên";
+
+        private static string GetSuggestedSupportMode(CampaignHousehold household)
+        {
+            if (household.RequiresBoat || (household.FloodSeverityLevel ?? 0) >= 6)
+                return "Đội cơ động đường thủy / giao tận nơi";
+
+            if ((household.IsolationSeverityLevel ?? 0) >= 5 || household.IsIsolated)
+                return "Đội cơ động / giao tận nơi";
+
+            return household.DeliveryMode == DeliveryMode.DoorToDoor ? "Giao tận nơi" : "Nhận tại điểm gần nhất";
+        }
+
+        private static string GetRecommendedOperationalMode(decimal populationDensity, double estimatedCoverageRadiusKm, int isolatedHouseholdCount)
+        {
+            if (populationDensity >= 1000 && estimatedCoverageRadiusKm <= 3 && isolatedHouseholdCount <= 3)
+                return "Ưu tiên điểm phát";
+
+            if (populationDensity < 1000 && (estimatedCoverageRadiusKm >= 3 || isolatedHouseholdCount > 0))
+                return "Ưu tiên đội cơ động";
+
+            return isolatedHouseholdCount >= 4 ? "Ưu tiên đội cơ động" : "Kết hợp điểm phát và đội cơ động";
+        }
+
+        private static int CalculateSuggestedDistributionPointCount(int householdCount, decimal populationDensity, double estimatedCoverageRadiusKm, int isolatedHouseholdCount)
+        {
+            if (householdCount <= 0)
+                return 0;
+
+            if (populationDensity >= 1000 && estimatedCoverageRadiusKm <= 3 && isolatedHouseholdCount <= 3)
+                return Math.Max(1, (int)Math.Ceiling(householdCount / 35d));
+
+            return 0;
+        }
+
+        private static int CalculateSuggestedMobileTeamCount(int suggestedTeamCount, decimal populationDensity, double estimatedCoverageRadiusKm, int isolatedHouseholdCount)
+        {
+            if (suggestedTeamCount <= 0)
+                return 0;
+
+            if (populationDensity < 1000 && estimatedCoverageRadiusKm >= 3)
+                return Math.Max(1, suggestedTeamCount);
+
+            if (isolatedHouseholdCount > 0)
+                return Math.Max(1, (int)Math.Ceiling(isolatedHouseholdCount / 4d));
+
+            return 0;
+        }
+
+        private static string GetTravelComplexityLabel(double estimatedCoverageRadiusKm, decimal populationDensity, int isolatedHouseholdCount)
+        {
+            if (isolatedHouseholdCount >= 5 || estimatedCoverageRadiusKm >= 8)
+                return "Phức tạp cao";
+
+            if (populationDensity >= 1000 || estimatedCoverageRadiusKm >= 3)
+                return "Phức tạp vừa";
+
+            return "Phức tạp thấp";
+        }
+
+        private static double EstimateCoverageRadiusKm(IReadOnlyCollection<CampaignHousehold> households)
+        {
+            var validCoordinates = households
+                .Where(x => x.Latitude != 0 || x.Longitude != 0)
+                .Select(x => new { x.Latitude, x.Longitude })
+                .ToList();
+
+            if (validCoordinates.Count <= 1)
+                return 0;
+
+            var minLat = validCoordinates.Min(x => x.Latitude);
+            var maxLat = validCoordinates.Max(x => x.Latitude);
+            var minLng = validCoordinates.Min(x => x.Longitude);
+            var maxLng = validCoordinates.Max(x => x.Longitude);
+
+            return CalculateDistanceKm(minLat, minLng, maxLat, maxLng);
+        }
+
+        private static double CalculateDistanceKm(double lat1, double lon1, double lat2, double lon2)
+        {
+            const double earthRadiusKm = 6371;
+            var dLat = DegreesToRadians(lat2 - lat1);
+            var dLon = DegreesToRadians(lon2 - lon1);
+
+            var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2) +
+                    Math.Cos(DegreesToRadians(lat1)) * Math.Cos(DegreesToRadians(lat2)) *
+                    Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+
+            var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+            return earthRadiusKm * c;
+        }
+
+        private static double DegreesToRadians(double degrees)
+            => degrees * Math.PI / 180d;
+
         private static IQueryable<HouseholdDelivery> ApplyDeliveryFilters(IQueryable<HouseholdDelivery> query, DeliveryQueryRequest request)
         {
             if (request.CampaignTeamId.HasValue)
@@ -1514,6 +2171,7 @@ namespace ReliefManagementSystem.Application.Services
         {
             CampaignHouseholdId = x.CampaignHouseholdId,
             CampaignId = x.CampaignId,
+            LocationId = x.LocationId,
             DistributionPointId = x.DistributionPointId,
             DistributionPointName = x.DistributionPoint?.Name,
             CampaignTeamId = x.CampaignTeamId,
@@ -1526,6 +2184,10 @@ namespace ReliefManagementSystem.Application.Services
             Longitude = x.Longitude,
             HouseholdSize = x.HouseholdSize,
             IsIsolated = x.IsIsolated,
+            FloodSeverityLevel = x.FloodSeverityLevel,
+            IsolationSeverityLevel = x.IsolationSeverityLevel,
+            RequiresBoat = x.RequiresBoat,
+            RequiresLocalGuide = x.RequiresLocalGuide,
             DeliveryMode = x.DeliveryMode,
             FulfillmentStatus = x.FulfillmentStatus,
             Notes = x.Notes,
@@ -1616,6 +2278,35 @@ namespace ReliefManagementSystem.Application.Services
                 CapturedAt = p.CapturedAt,
                 CapturedByUserId = p.CapturedByUserId
             }).ToList()
+        };
+
+        private static TeamDeliveryWorklistItemResponse MapTeamDeliveryWorklistItem(HouseholdDelivery x) => new()
+        {
+            HouseholdDeliveryId = x.HouseholdDeliveryId,
+            CampaignHouseholdId = x.CampaignHouseholdId,
+            CampaignId = x.CampaignId,
+            CampaignTeamId = x.CampaignTeamId,
+            CampaignTeamName = x.CampaignTeam?.Team?.Name,
+            DistributionPointId = x.DistributionPointId,
+            DistributionPointName = x.DistributionPoint?.Name,
+            HouseholdCode = x.CampaignHousehold?.HouseholdCode ?? string.Empty,
+            HeadOfHouseholdName = x.CampaignHousehold?.HeadOfHouseholdName ?? string.Empty,
+            ContactPhone = x.CampaignHousehold?.ContactPhone,
+            Address = x.CampaignHousehold?.Address,
+            Latitude = x.CampaignHousehold?.Latitude ?? 0,
+            Longitude = x.CampaignHousehold?.Longitude ?? 0,
+            HouseholdSize = x.CampaignHousehold?.HouseholdSize ?? 0,
+            IsIsolated = x.CampaignHousehold?.IsIsolated ?? false,
+            FloodSeverityLevel = x.CampaignHousehold?.FloodSeverityLevel,
+            IsolationSeverityLevel = x.CampaignHousehold?.IsolationSeverityLevel,
+            RequiresBoat = x.CampaignHousehold?.RequiresBoat ?? false,
+            RequiresLocalGuide = x.CampaignHousehold?.RequiresLocalGuide ?? false,
+            SuggestedSupportMode = x.CampaignHousehold is null ? string.Empty : GetSuggestedSupportMode(x.CampaignHousehold),
+            DeliveryMode = x.DeliveryMode,
+            Status = x.Status,
+            ScheduledAt = x.ScheduledAt,
+            Notes = x.Notes,
+            ProofCount = x.Proofs?.Count ?? 0
         };
 
         private static SupplyShortageRequestResponse MapShortage(SupplyShortageRequest x) => new()

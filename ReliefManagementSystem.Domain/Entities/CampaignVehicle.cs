@@ -13,6 +13,7 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public Guid VehicleId { get; set; }
         public Guid CampaignId { get; set; }
+        public Guid? CampaignTeamId { get; set; }
 
         public Guid? AssignedDriverId { get; set; }
 
@@ -25,6 +26,7 @@ namespace ReliefManagementSystem.Domain.Entities
         
         public virtual Vehicle Vehicle { get; set; } = default!;
         public virtual Campaign Campaign { get; set; } = default!;
+        public virtual CampaignTeam? CampaignTeam { get; set; }
         public virtual VolunteerProfile? Driver { get; set; }
     }
 }

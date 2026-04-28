@@ -12,6 +12,9 @@ namespace ReliefManagementSystem.Application.Interface
         Task<IReadOnlyList<SupplyTransferSummaryResponse>> GetBySourceStationAsync(Guid stationId, CancellationToken cancellationToken = default);
         Task<IReadOnlyList<SupplyTransferSummaryResponse>> GetByDestinationStationAsync(Guid stationId, CancellationToken cancellationToken = default);
         Task<SupplyTransferResponse> ApproveAsync(Guid transferId, ApproveSupplyTransferRequest request, CancellationToken cancellationToken = default);
+        Task<SupplyTransferResponse> AssignVehiclesAsync(Guid transferId, AssignSupplyTransferVehiclesRequest request, CancellationToken cancellationToken = default);
+        Task<SupplyTransferResponse> RemoveVehicleAsync(Guid transferId, Guid supplyTransferVehicleId, CancellationToken cancellationToken = default);
+        Task<SupplyTransferResponse> UpdateVehicleStatusAsync(Guid transferId, Guid supplyTransferVehicleId, UpdateSupplyTransferVehicleStatusRequest request, CancellationToken cancellationToken = default);
         Task<SupplyTransferResponse> ShipAsync(Guid transferId, ShipSupplyTransferRequest request, CancellationToken cancellationToken = default);
         Task<SupplyTransferResponse> ReceiveAsync(Guid transferId, ReceiveSupplyTransferRequest request, CancellationToken cancellationToken = default);
         Task<SupplyTransferResponse> CancelAsync(Guid transferId, CancelSupplyTransferRequest request, CancellationToken cancellationToken = default);

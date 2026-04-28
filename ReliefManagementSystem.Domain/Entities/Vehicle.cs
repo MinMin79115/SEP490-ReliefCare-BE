@@ -35,5 +35,6 @@ namespace ReliefManagementSystem.Domain.Entities
 
         public ICollection<SupplyTransfer> SupplyTransfers { get; set; } = new List<SupplyTransfer>();
         public ICollection<RescueOperationVehicle> RescueOperationVehicles { get; set; } = new List<RescueOperationVehicle>();
+        public ICollection<SupplyTransferVehicle> SupplyTransferVehicles { get; set; } = new List<SupplyTransferVehicle>();
     }
 }

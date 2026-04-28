@@ -107,6 +107,7 @@ namespace ReliefManagementSystem.API.Controllers
         }
 
         [HttpPost("{id:guid}/teams")]
+        [Authorize(Roles = "Manager,Moderator")]
         public async Task<IActionResult> AssignTeam(
             Guid id,
             [FromBody] AssignCampaignTeamRequest request,
@@ -117,27 +118,63 @@ namespace ReliefManagementSystem.API.Controllers
         }
 
         [HttpGet("{id:guid}/teams")]
+        [Authorize(Roles = "Manager,Moderator,Volunteer")]
         public async Task<IActionResult> GetTeams(Guid id, CancellationToken cancellationToken)
         {
             var result = await _campaignService.GetTeamsAsync(id, cancellationToken);
             return Ok(result);
         }
 
-        [HttpPatch("{id:guid}/teams/{teamId:guid}/status")]
+        [HttpPatch("{id:guid}/teams/{campaignTeamId:guid}/status")]
+        [Authorize(Roles = "Manager,Moderator")]
         public async Task<IActionResult> UpdateTeamStatus(
             Guid id,
-            Guid teamId,
+            Guid campaignTeamId,
             [FromBody] UpdateCampaignTeamStatusRequest request,
             CancellationToken cancellationToken)
         {
-            var result = await _campaignService.UpdateTeamStatusAsync(id, teamId, request, cancellationToken);
+            var result = await _campaignService.UpdateTeamStatusAsync(id, campaignTeamId, request, cancellationToken);
             return Ok(result);
         }
 
-        [HttpDelete("{id:guid}/teams/{teamId:guid}")]
-        public async Task<IActionResult> RemoveTeam(Guid id, Guid teamId, CancellationToken cancellationToken)
+        [HttpDelete("{id:guid}/teams/{campaignTeamId:guid}")]
+        [Authorize(Roles = "Manager,Moderator")]
+        public async Task<IActionResult> RemoveTeam(Guid id, Guid campaignTeamId, CancellationToken cancellationToken)
         {
-            await _campaignService.RemoveTeamAsync(id, teamId, cancellationToken);
+            await _campaignService.RemoveTeamAsync(id, campaignTeamId, cancellationToken);
+            return NoContent();
+        }
+
+        [HttpPost("{id:guid}/teams/{campaignTeamId:guid}/vehicles")]
+        [Authorize(Roles = "Manager,Moderator")]
+        public async Task<IActionResult> AssignVehicleToTeam(Guid id, Guid campaignTeamId, [FromBody] AssignCampaignVehicleRequest request, CancellationToken cancellationToken)
+        {
+            request.CampaignTeamId = campaignTeamId;
+            var result = await _campaignService.AssignVehicleToTeamAsync(id, request, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpGet("{id:guid}/vehicles")]
+        [Authorize(Roles = "Manager,Moderator,Volunteer")]
+        public async Task<IActionResult> GetCampaignVehicles(Guid id, [FromQuery] Guid? campaignTeamId, CancellationToken cancellationToken)
+        {
+            var result = await _campaignService.GetCampaignVehiclesAsync(id, campaignTeamId, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpPatch("{id:guid}/vehicles/{campaignVehicleId:guid}")]
+        [Authorize(Roles = "Manager,Moderator")]
+        public async Task<IActionResult> UpdateCampaignVehicle(Guid id, Guid campaignVehicleId, [FromBody] UpdateCampaignVehicleAssignmentRequest request, CancellationToken cancellationToken)
+        {
+            var result = await _campaignService.UpdateCampaignVehicleAssignmentAsync(id, campaignVehicleId, request, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpDelete("{id:guid}/vehicles/{campaignVehicleId:guid}")]
+        [Authorize(Roles = "Manager,Moderator")]
+        public async Task<IActionResult> RemoveCampaignVehicle(Guid id, Guid campaignVehicleId, CancellationToken cancellationToken)
+        {
+            await _campaignService.RemoveCampaignVehicleAssignmentAsync(id, campaignVehicleId, cancellationToken);
             return NoContent();
         }
 
