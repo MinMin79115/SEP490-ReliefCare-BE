@@ -72,6 +72,11 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .ToListAsync(cancellationToken);
         }
 
+        public async Task AddVehicleAssignmentAsync(SupplyTransferVehicle assignment, CancellationToken cancellationToken = default)
+        {
+            await _context.Set<SupplyTransferVehicle>().AddAsync(assignment, cancellationToken);
+        }
+
         public async Task<int> CountTodayAsync(CancellationToken cancellationToken = default)
         {
             var today = DateTime.UtcNow.Date;

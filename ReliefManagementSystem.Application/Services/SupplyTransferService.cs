@@ -305,7 +305,6 @@ namespace ReliefManagementSystem.Application.Services
                 }
                 transfer.Notes = AppendNotes(transfer.Notes, request.Notes);
                 transfer.EvidenceUrls = MergeEvidenceUrls(transfer.EvidenceUrls, request.EvidenceUrls);
-                await _unitOfWork.SupplyTransfers.UpdateAsync(transfer);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);
             }
@@ -336,9 +335,8 @@ namespace ReliefManagementSystem.Application.Services
                     var activeRescueOperation = await _unitOfWork.RescueOperations.GetActiveByVehicleIdAsync(vehicle.VehicleId, cancellationToken);
                     if (activeRescueOperation is not null) throw new InvalidOperationException("Xe đang được dùng trong luồng cứu hộ.");
                     vehicle.Status = VehicleStatus.Busy;
-                    transfer.SupplyTransferVehicles.Add(new SupplyTransferVehicle { SupplyTransferVehicleId = Guid.NewGuid(), SupplyTransferId = transfer.SupplyTransferId, VehicleId = item.VehicleId, DriverUserId = item.DriverUserId, Status = SupplyTransferVehicleStatus.Assigned, AssignedAt = DateTime.UtcNow, Note = item.Note });
+                    await _unitOfWork.SupplyTransfers.AddVehicleAssignmentAsync(new SupplyTransferVehicle { SupplyTransferVehicleId = Guid.NewGuid(), SupplyTransferId = transfer.SupplyTransferId, VehicleId = item.VehicleId, DriverUserId = item.DriverUserId, Status = SupplyTransferVehicleStatus.Assigned, AssignedAt = DateTime.UtcNow, Note = item.Note }, cancellationToken);
                 }
-                await _unitOfWork.SupplyTransfers.UpdateAsync(transfer);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);
             }
