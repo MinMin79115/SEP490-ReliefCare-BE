@@ -74,6 +74,7 @@ namespace ReliefManagementSystem.Infrastructure.Data
         public DbSet<CampaignTask> CampaignTasks { get; set; }
         public DbSet<CampaignVehicle> CampaignVehicles { get; set; }
         public DbSet<MemberTask> MemberTasks { get; set; }
+        public DbSet<MemberTaskDelivery> MemberTaskDeliveries { get; set; }
         
         public DbSet<CampaignTaskItem> CampaignTaskItems { get; set; }
         public DbSet<MemberTaskItem> MemberTaskItems { get; set; }
@@ -955,6 +956,12 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .OnDelete(DeleteBehavior.Cascade);
 
             builder.Entity<CampaignVehicle>()
+                .HasOne(cv => cv.CampaignTeam)
+                .WithMany(ct => ct.CampaignVehicles)
+                .HasForeignKey(cv => cv.CampaignTeamId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<CampaignVehicle>()
                 .HasOne(cv => cv.Driver)
                 .WithMany()
                 .HasForeignKey(cv => cv.AssignedDriverId)
@@ -975,6 +982,31 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .WithMany()
                 .HasForeignKey(mt => mt.VolunteerProfileId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<MemberTaskDelivery>()
+                .HasKey(mtd => mtd.MemberTaskDeliveryId);
+
+            builder.Entity<MemberTaskDelivery>()
+                .HasOne(mtd => mtd.MemberTask)
+                .WithMany(mt => mt.MemberTaskDeliveries)
+                .HasForeignKey(mtd => mtd.MemberTaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<MemberTaskDelivery>()
+                .HasOne(mtd => mtd.HouseholdDelivery)
+                .WithMany(hd => hd.MemberTaskDeliveries)
+                .HasForeignKey(mtd => mtd.HouseholdDeliveryId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<MemberTaskDelivery>()
+                .HasOne(mtd => mtd.AssignedVolunteerProfile)
+                .WithMany()
+                .HasForeignKey(mtd => mtd.AssignedVolunteerProfileId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<MemberTaskDelivery>()
+                .HasIndex(mtd => new { mtd.MemberTaskId, mtd.HouseholdDeliveryId })
+                .IsUnique();
 
             // CampaignTaskItem Configuration
             builder.Entity<CampaignTaskItem>()

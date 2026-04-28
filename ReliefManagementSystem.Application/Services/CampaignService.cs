@@ -554,6 +554,136 @@ namespace ReliefManagementSystem.Application.Services
             await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
+        public async Task<CampaignAssignedVehicleResponse> AssignVehicleToTeamAsync(Guid campaignId, AssignCampaignVehicleRequest request, CancellationToken cancellationToken = default)
+        {
+            var campaign = await _unitOfWork.Campaigns.GetWithDetailsAsync(campaignId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
+
+            if (campaign.Type != CampaignType.Relief)
+                throw new InvalidOperationException("Vehicle assignment is only available for relief campaigns.");
+
+            var campaignTeam = await _unitOfWork.Campaigns.GetCampaignTeamsAsync(campaignId, cancellationToken);
+            var matchedTeam = campaignTeam.FirstOrDefault(x => x.CampaignTeamId == request.CampaignTeamId)
+                ?? throw new KeyNotFoundException($"Campaign team '{request.CampaignTeamId}' was not found in campaign.");
+
+            var vehicle = await _unitOfWork.Vehicles.GetByIdAsync(request.VehicleId)
+                ?? throw new KeyNotFoundException($"Vehicle '{request.VehicleId}' was not found.");
+
+            var assignment = new CampaignVehicle
+            {
+                CampaignVehicleId = Guid.NewGuid(),
+                CampaignId = campaignId,
+                CampaignTeamId = request.CampaignTeamId,
+                VehicleId = request.VehicleId,
+                AssignedDriverId = request.AssignedDriverId,
+                StartDate = request.StartDate ?? DateTime.UtcNow,
+                EndDate = request.EndDate,
+                Status = request.Status,
+                Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim()
+            };
+
+            await _unitOfWork.CampaignVehicles.AddAsync(assignment);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return new CampaignAssignedVehicleResponse
+            {
+                CampaignVehicleId = assignment.CampaignVehicleId,
+                VehicleId = assignment.VehicleId,
+                LicensePlate = vehicle.LicensePlate,
+                VehicleTypeName = vehicle.VehicleType?.TypeName ?? string.Empty,
+                CampaignTeamId = assignment.CampaignTeamId,
+                AssignedDriverId = assignment.AssignedDriverId,
+                Status = assignment.Status,
+                StartDate = assignment.StartDate,
+                EndDate = assignment.EndDate,
+                Note = assignment.Note
+            };
+        }
+
+        public async Task<IReadOnlyList<CampaignAssignedVehicleResponse>> GetCampaignVehiclesAsync(Guid campaignId, Guid? campaignTeamId, CancellationToken cancellationToken = default)
+        {
+            if (!await _unitOfWork.Campaigns.ExistsAsync(campaignId))
+                throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
+
+            var assignments = await _unitOfWork.CampaignVehicles.GetAllAsync();
+            var vehicles = await _unitOfWork.Vehicles.GetAllAsync();
+
+            var filtered = assignments.Where(x => x.CampaignId == campaignId);
+            if (campaignTeamId.HasValue)
+                filtered = filtered.Where(x => x.CampaignTeamId == campaignTeamId.Value);
+
+            return filtered.Select(x =>
+            {
+                var vehicle = vehicles.FirstOrDefault(v => v.VehicleId == x.VehicleId);
+                return new CampaignAssignedVehicleResponse
+                {
+                    CampaignVehicleId = x.CampaignVehicleId,
+                    VehicleId = x.VehicleId,
+                    LicensePlate = vehicle?.LicensePlate ?? string.Empty,
+                    VehicleTypeName = vehicle?.VehicleType?.TypeName ?? string.Empty,
+                    CampaignTeamId = x.CampaignTeamId,
+                    AssignedDriverId = x.AssignedDriverId,
+                    Status = x.Status,
+                    StartDate = x.StartDate,
+                    EndDate = x.EndDate,
+                    Note = x.Note
+                };
+            }).ToList();
+        }
+
+        public async Task<CampaignAssignedVehicleResponse> UpdateCampaignVehicleAssignmentAsync(Guid campaignId, Guid campaignVehicleId, UpdateCampaignVehicleAssignmentRequest request, CancellationToken cancellationToken = default)
+        {
+            var assignment = await _unitOfWork.CampaignVehicles.GetByIdAsync(campaignVehicleId)
+                ?? throw new KeyNotFoundException($"Campaign vehicle assignment '{campaignVehicleId}' was not found.");
+
+            if (assignment.CampaignId != campaignId)
+                throw new InvalidOperationException("Campaign vehicle assignment does not belong to campaign.");
+
+            if (request.CampaignTeamId.HasValue)
+                assignment.CampaignTeamId = request.CampaignTeamId.Value;
+            if (request.AssignedDriverId.HasValue)
+                assignment.AssignedDriverId = request.AssignedDriverId.Value;
+            if (request.StartDate.HasValue)
+                assignment.StartDate = request.StartDate.Value;
+            if (request.EndDate.HasValue)
+                assignment.EndDate = request.EndDate.Value;
+            if (request.Status.HasValue)
+                assignment.Status = request.Status.Value;
+            if (request.Note is not null)
+                assignment.Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
+
+            await _unitOfWork.CampaignVehicles.UpdateAsync(assignment);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            var vehicle = await _unitOfWork.Vehicles.GetByIdAsync(assignment.VehicleId);
+
+            return new CampaignAssignedVehicleResponse
+            {
+                CampaignVehicleId = assignment.CampaignVehicleId,
+                VehicleId = assignment.VehicleId,
+                LicensePlate = vehicle?.LicensePlate ?? string.Empty,
+                VehicleTypeName = vehicle?.VehicleType?.TypeName ?? string.Empty,
+                CampaignTeamId = assignment.CampaignTeamId,
+                AssignedDriverId = assignment.AssignedDriverId,
+                Status = assignment.Status,
+                StartDate = assignment.StartDate,
+                EndDate = assignment.EndDate,
+                Note = assignment.Note
+            };
+        }
+
+        public async Task RemoveCampaignVehicleAssignmentAsync(Guid campaignId, Guid campaignVehicleId, CancellationToken cancellationToken = default)
+        {
+            var assignment = await _unitOfWork.CampaignVehicles.GetByIdAsync(campaignVehicleId)
+                ?? throw new KeyNotFoundException($"Campaign vehicle assignment '{campaignVehicleId}' was not found.");
+
+            if (assignment.CampaignId != campaignId)
+                throw new InvalidOperationException("Campaign vehicle assignment does not belong to campaign.");
+
+            await _unitOfWork.CampaignVehicles.DeleteAsync(assignment);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
         public async Task<CampaignVolunteerRegistrationResponse> RegisterVolunteerAsync(Guid campaignId, CancellationToken cancellationToken = default)
         {
             var campaign = await _unitOfWork.Campaigns.GetWithGoalsAsync(campaignId, cancellationToken)

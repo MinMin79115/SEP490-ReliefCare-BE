@@ -67,10 +67,12 @@ namespace ReliefManagementSystem.Application.Common.Interface
         ICampaignBudgetTransferRepository CampaignBudgetTransfers { get; }
         ICampaignTaskRepository CampaignTasks { get; }
         IMemberTaskRepository MemberTasks { get; }
+        IMemberTaskDeliveryRepository MemberTaskDeliveries { get; }
         ICampaignInventoryRepository CampaignInventories { get; }
         ICampaignInventoryStockRepository CampaignInventoryStocks { get; }
         ICampaignInventoryTransactionRepository CampaignInventoryTransactions { get; }
         ICampaignVolunteerRegistrationRepository CampaignVolunteerRegistrations { get; }
+        IGenericRepository<CampaignVehicle> CampaignVehicles { get; }
         IDonationRepository Donations { get; }
         IFundRepository Funds { get; }
         IPaymentTransactionRepository PaymentTransactions { get; }
