@@ -34,5 +34,6 @@ namespace ReliefManagementSystem.Domain.Entities
         public DateTime? UpdatedAt { get; set; }
 
         public ICollection<SupplyTransfer> SupplyTransfers { get; set; } = new List<SupplyTransfer>();
+        public ICollection<SupplyTransferVehicle> SupplyTransferVehicles { get; set; } = new List<SupplyTransferVehicle>();
     }
 }
