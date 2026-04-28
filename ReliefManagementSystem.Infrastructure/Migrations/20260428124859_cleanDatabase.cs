@@ -7,7 +7,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace ReliefManagementSystem.Infrastructure.Migrations
 {
     /// <inheritdoc />
-    public partial class CleanBaseline : Migration
+    public partial class cleanDatabase : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -179,6 +179,8 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     VehicleTypeId = table.Column<Guid>(type: "uuid", nullable: false),
                     TypeName = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: false),
                     DefaultCapacity = table.Column<int>(type: "integer", nullable: false),
+                    CapacityKind = table.Column<int>(type: "integer", nullable: false),
+                    CapacityUnit = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
                     Description = table.Column<string>(type: "text", nullable: true),
                     IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
@@ -516,6 +518,7 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     Message = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true),
                     ReferenceId = table.Column<Guid>(type: "uuid", nullable: true),
                     ReferenceType = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    MetadataJson = table.Column<string>(type: "character varying(4000)", maxLength: 4000, nullable: true),
                     IsRead = table.Column<bool>(type: "boolean", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     ReadAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
@@ -600,6 +603,7 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     ContactPhone = table.Column<string>(type: "text", nullable: true),
                     CreateBy = table.Column<Guid>(type: "uuid", nullable: false),
                     LeaderId = table.Column<Guid>(type: "uuid", nullable: true),
+                    TeamType = table.Column<int>(type: "integer", nullable: false),
                     Status = table.Column<int>(type: "integer", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
@@ -619,44 +623,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         principalTable: "AspNetUsers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.SetNull);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "Vehicles",
-                columns: table => new
-                {
-                    VehicleId = table.Column<Guid>(type: "uuid", nullable: false),
-                    VehicleTypeId = table.Column<Guid>(type: "uuid", nullable: false),
-                    ReliefStationId = table.Column<Guid>(type: "uuid", nullable: false),
-                    LicensePlate = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
-                    CreatedBy = table.Column<Guid>(type: "uuid", nullable: false),
-                    TeamUsed = table.Column<string>(type: "text", nullable: true),
-                    Status = table.Column<int>(type: "integer", nullable: false),
-                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Vehicles", x => x.VehicleId);
-                    table.ForeignKey(
-                        name: "FK_Vehicles_AspNetUsers_CreatedBy",
-                        column: x => x.CreatedBy,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_Vehicles_ReliefStations_ReliefStationId",
-                        column: x => x.ReliefStationId,
-                        principalTable: "ReliefStations",
-                        principalColumn: "ReliefStationId",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_Vehicles_VehicleTypes_VehicleTypeId",
-                        column: x => x.VehicleTypeId,
-                        principalTable: "VehicleTypes",
-                        principalColumn: "VehicleTypeId",
-                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -714,6 +680,61 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         column: x => x.SupplyItemId,
                         principalTable: "SupplyItems",
                         principalColumn: "SupplyItemId",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "CampaignBudgetTransfers",
+                columns: table => new
+                {
+                    CampaignBudgetTransferId = table.Column<Guid>(type: "uuid", nullable: false),
+                    SourceCampaignId = table.Column<Guid>(type: "uuid", nullable: false),
+                    TargetCampaignId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Amount = table.Column<decimal>(type: "numeric", nullable: false),
+                    TransferredByUserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    TransferredAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    Note = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CampaignBudgetTransfers", x => x.CampaignBudgetTransferId);
+                    table.CheckConstraint("CK_CampaignBudgetTransfers_Amount_Positive", "\"Amount\" > 0");
+                    table.ForeignKey(
+                        name: "FK_CampaignBudgetTransfers_AspNetUsers_TransferredByUserId",
+                        column: x => x.TransferredByUserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_CampaignBudgetTransfers_Campaigns_SourceCampaignId",
+                        column: x => x.SourceCampaignId,
+                        principalTable: "Campaigns",
+                        principalColumn: "CampaignId",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_CampaignBudgetTransfers_Campaigns_TargetCampaignId",
+                        column: x => x.TargetCampaignId,
+                        principalTable: "Campaigns",
+                        principalColumn: "CampaignId",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "CampaignInventories",
+                columns: table => new
+                {
+                    CampaignInventoryId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CampaignId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CampaignInventories", x => x.CampaignInventoryId);
+                    table.ForeignKey(
+                        name: "FK_CampaignInventories_Campaigns_CampaignId",
+                        column: x => x.CampaignId,
+                        principalTable: "Campaigns",
+                        principalColumn: "CampaignId",
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -838,8 +859,10 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 {
                     ReliefPackageDefinitionId = table.Column<Guid>(type: "uuid", nullable: false),
                     CampaignId = table.Column<Guid>(type: "uuid", nullable: false),
+                    OutputSupplyItemId = table.Column<Guid>(type: "uuid", nullable: false),
                     Name = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: false),
                     Description = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true),
+                    CashSupportAmount = table.Column<decimal>(type: "numeric", nullable: true),
                     IsDefault = table.Column<bool>(type: "boolean", nullable: false),
                     IsActive = table.Column<bool>(type: "boolean", nullable: false),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
@@ -853,6 +876,12 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         principalTable: "Campaigns",
                         principalColumn: "CampaignId",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ReliefPackageDefinitions_SupplyItems_OutputSupplyItemId",
+                        column: x => x.OutputSupplyItemId,
+                        principalTable: "SupplyItems",
+                        principalColumn: "SupplyItemId",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -1150,100 +1179,47 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "SupplyTransfers",
+                name: "Vehicles",
                 columns: table => new
                 {
-                    SupplyTransferId = table.Column<Guid>(type: "uuid", nullable: false),
-                    TransferCode = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
-                    SourceStationId = table.Column<Guid>(type: "uuid", nullable: false),
-                    DestinationStationId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Status = table.Column<string>(type: "text", nullable: false),
-                    RequestedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    ApprovedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    ShippedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    ReceivedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    RequestedBy = table.Column<Guid>(type: "uuid", nullable: false),
-                    ApprovedBy = table.Column<Guid>(type: "uuid", nullable: true),
-                    Notes = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true),
-                    EvidenceUrls = table.Column<string>(type: "text", nullable: false),
-                    VehicleId = table.Column<Guid>(type: "uuid", nullable: true),
-                    DriverUserId = table.Column<Guid>(type: "uuid", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_SupplyTransfers", x => x.SupplyTransferId);
-                    table.ForeignKey(
-                        name: "FK_SupplyTransfers_AspNetUsers_ApprovedBy",
-                        column: x => x.ApprovedBy,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_SupplyTransfers_AspNetUsers_DriverUserId",
-                        column: x => x.DriverUserId,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_SupplyTransfers_AspNetUsers_RequestedBy",
-                        column: x => x.RequestedBy,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_SupplyTransfers_ReliefStations_DestinationStationId",
-                        column: x => x.DestinationStationId,
-                        principalTable: "ReliefStations",
-                        principalColumn: "ReliefStationId",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_SupplyTransfers_ReliefStations_SourceStationId",
-                        column: x => x.SourceStationId,
-                        principalTable: "ReliefStations",
-                        principalColumn: "ReliefStationId",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_SupplyTransfers_Vehicles_VehicleId",
-                        column: x => x.VehicleId,
-                        principalTable: "Vehicles",
-                        principalColumn: "VehicleId",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "CampaignVehicles",
-                columns: table => new
-                {
-                    CampaignVehicleId = table.Column<Guid>(type: "uuid", nullable: false),
                     VehicleId = table.Column<Guid>(type: "uuid", nullable: false),
-                    CampaignId = table.Column<Guid>(type: "uuid", nullable: false),
-                    AssignedDriverId = table.Column<Guid>(type: "uuid", nullable: true),
-                    StartDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    EndDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    VehicleTypeId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ReliefStationId = table.Column<Guid>(type: "uuid", nullable: true),
+                    LicensePlate = table.Column<string>(type: "character varying(20)", maxLength: 20, nullable: false),
+                    CreatedBy = table.Column<Guid>(type: "uuid", nullable: false),
+                    TeamId = table.Column<Guid>(type: "uuid", nullable: true),
                     Status = table.Column<int>(type: "integer", nullable: false),
-                    Note = table.Column<string>(type: "text", nullable: true)
+                    IsDeleted = table.Column<bool>(type: "boolean", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    UpdatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_CampaignVehicles", x => x.CampaignVehicleId);
+                    table.PrimaryKey("PK_Vehicles", x => x.VehicleId);
                     table.ForeignKey(
-                        name: "FK_CampaignVehicles_Campaigns_CampaignId",
-                        column: x => x.CampaignId,
-                        principalTable: "Campaigns",
-                        principalColumn: "CampaignId",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_CampaignVehicles_Vehicles_VehicleId",
-                        column: x => x.VehicleId,
-                        principalTable: "Vehicles",
-                        principalColumn: "VehicleId",
+                        name: "FK_Vehicles_AspNetUsers_CreatedBy",
+                        column: x => x.CreatedBy,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_CampaignVehicles_VolunteerProfiles_AssignedDriverId",
-                        column: x => x.AssignedDriverId,
-                        principalTable: "VolunteerProfiles",
-                        principalColumn: "VolunteerProfileId",
-                        onDelete: ReferentialAction.SetNull);
+                        name: "FK_Vehicles_ReliefStations_ReliefStationId",
+                        column: x => x.ReliefStationId,
+                        principalTable: "ReliefStations",
+                        principalColumn: "ReliefStationId",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Vehicles_Teams_TeamId",
+                        column: x => x.TeamId,
+                        principalTable: "Teams",
+                        principalColumn: "TeamId",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_Vehicles_VehicleTypes_VehicleTypeId",
+                        column: x => x.VehicleTypeId,
+                        principalTable: "VehicleTypes",
+                        principalColumn: "VehicleTypeId",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -1292,6 +1268,33 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         principalTable: "VolunteerProfiles",
                         principalColumn: "VolunteerProfileId",
                         onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "CampaignInventoryStocks",
+                columns: table => new
+                {
+                    CampaignInventoryStockId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CampaignInventoryId = table.Column<Guid>(type: "uuid", nullable: false),
+                    SupplyItemId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CurrentQuantity = table.Column<int>(type: "integer", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CampaignInventoryStocks", x => x.CampaignInventoryStockId);
+                    table.CheckConstraint("CK_CampaignInventoryStocks_CurrentQuantity_NonNegative", "\"CurrentQuantity\" >= 0");
+                    table.ForeignKey(
+                        name: "FK_CampaignInventoryStocks_CampaignInventories_CampaignInvento~",
+                        column: x => x.CampaignInventoryId,
+                        principalTable: "CampaignInventories",
+                        principalColumn: "CampaignInventoryId",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_CampaignInventoryStocks_SupplyItems_SupplyItemId",
+                        column: x => x.SupplyItemId,
+                        principalTable: "SupplyItems",
+                        principalColumn: "SupplyItemId",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -1376,6 +1379,62 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "ReliefPackageAssemblies",
+                columns: table => new
+                {
+                    ReliefPackageAssemblyId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CampaignId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ReliefStationId = table.Column<Guid>(type: "uuid", nullable: false),
+                    InventoryId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ReliefPackageDefinitionId = table.Column<Guid>(type: "uuid", nullable: false),
+                    OutputSupplyItemId = table.Column<Guid>(type: "uuid", nullable: false),
+                    QuantityCreated = table.Column<int>(type: "integer", nullable: false),
+                    CreatedBy = table.Column<Guid>(type: "uuid", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    Notes = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ReliefPackageAssemblies", x => x.ReliefPackageAssemblyId);
+                    table.ForeignKey(
+                        name: "FK_ReliefPackageAssemblies_AspNetUsers_CreatedBy",
+                        column: x => x.CreatedBy,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ReliefPackageAssemblies_Campaigns_CampaignId",
+                        column: x => x.CampaignId,
+                        principalTable: "Campaigns",
+                        principalColumn: "CampaignId",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ReliefPackageAssemblies_Inventories_InventoryId",
+                        column: x => x.InventoryId,
+                        principalTable: "Inventories",
+                        principalColumn: "InventoryId",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ReliefPackageAssemblies_ReliefPackageDefinitions_ReliefPack~",
+                        column: x => x.ReliefPackageDefinitionId,
+                        principalTable: "ReliefPackageDefinitions",
+                        principalColumn: "ReliefPackageDefinitionId",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ReliefPackageAssemblies_ReliefStations_ReliefStationId",
+                        column: x => x.ReliefStationId,
+                        principalTable: "ReliefStations",
+                        principalColumn: "ReliefStationId",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ReliefPackageAssemblies_SupplyItems_OutputSupplyItemId",
+                        column: x => x.OutputSupplyItemId,
+                        principalTable: "SupplyItems",
+                        principalColumn: "SupplyItemId",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "ReliefPackageDefinitionItems",
                 columns: table => new
                 {
@@ -1400,42 +1459,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         principalTable: "SupplyItems",
                         principalColumn: "SupplyItemId",
                         onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "RescueOperations",
-                columns: table => new
-                {
-                    RescueOperationId = table.Column<Guid>(type: "uuid", nullable: false),
-                    RescueRequestId = table.Column<Guid>(type: "uuid", nullable: false),
-                    TeamId = table.Column<Guid>(type: "uuid", nullable: true),
-                    ReliefStationId = table.Column<Guid>(type: "uuid", nullable: true),
-                    StartedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    EndedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    Status = table.Column<int>(type: "integer", nullable: false),
-                    Note = table.Column<string>(type: "text", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_RescueOperations", x => x.RescueOperationId);
-                    table.ForeignKey(
-                        name: "FK_RescueOperations_ReliefStations_ReliefStationId",
-                        column: x => x.ReliefStationId,
-                        principalTable: "ReliefStations",
-                        principalColumn: "ReliefStationId",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_RescueOperations_RescueRequests_RescueRequestId",
-                        column: x => x.RescueRequestId,
-                        principalTable: "RescueRequests",
-                        principalColumn: "RequestId",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_RescueOperations_Teams_TeamId",
-                        column: x => x.TeamId,
-                        principalTable: "Teams",
-                        principalColumn: "TeamId",
-                        onDelete: ReferentialAction.SetNull);
                 });
 
             migrationBuilder.CreateTable(
@@ -1575,68 +1598,150 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "InventoryTransactions",
+                name: "CampaignVehicles",
                 columns: table => new
                 {
-                    TransactionId = table.Column<Guid>(type: "uuid", nullable: false),
-                    InventoryId = table.Column<Guid>(type: "uuid", nullable: false),
-                    TransactionCode = table.Column<string>(type: "text", nullable: false),
-                    Type = table.Column<int>(type: "integer", nullable: false),
-                    Reason = table.Column<int>(type: "integer", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    CreatedBy = table.Column<Guid>(type: "uuid", nullable: false),
-                    Notes = table.Column<string>(type: "text", nullable: true),
-                    SupplyTransferId = table.Column<Guid>(type: "uuid", nullable: true)
+                    CampaignVehicleId = table.Column<Guid>(type: "uuid", nullable: false),
+                    VehicleId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CampaignId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CampaignTeamId = table.Column<Guid>(type: "uuid", nullable: true),
+                    AssignedDriverId = table.Column<Guid>(type: "uuid", nullable: true),
+                    StartDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    EndDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    Status = table.Column<int>(type: "integer", nullable: false),
+                    Note = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_InventoryTransactions", x => x.TransactionId);
+                    table.PrimaryKey("PK_CampaignVehicles", x => x.CampaignVehicleId);
                     table.ForeignKey(
-                        name: "FK_InventoryTransactions_AspNetUsers_CreatedBy",
-                        column: x => x.CreatedBy,
+                        name: "FK_CampaignVehicles_CampaignTeams_CampaignTeamId",
+                        column: x => x.CampaignTeamId,
+                        principalTable: "CampaignTeams",
+                        principalColumn: "CampaignTeamId",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_CampaignVehicles_Campaigns_CampaignId",
+                        column: x => x.CampaignId,
+                        principalTable: "Campaigns",
+                        principalColumn: "CampaignId",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_CampaignVehicles_Vehicles_VehicleId",
+                        column: x => x.VehicleId,
+                        principalTable: "Vehicles",
+                        principalColumn: "VehicleId",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_CampaignVehicles_VolunteerProfiles_AssignedDriverId",
+                        column: x => x.AssignedDriverId,
+                        principalTable: "VolunteerProfiles",
+                        principalColumn: "VolunteerProfileId",
+                        onDelete: ReferentialAction.SetNull);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "RescueOperations",
+                columns: table => new
+                {
+                    RescueOperationId = table.Column<Guid>(type: "uuid", nullable: false),
+                    RescueRequestId = table.Column<Guid>(type: "uuid", nullable: false),
+                    TeamId = table.Column<Guid>(type: "uuid", nullable: true),
+                    VehicleId = table.Column<Guid>(type: "uuid", nullable: true),
+                    ReliefStationId = table.Column<Guid>(type: "uuid", nullable: true),
+                    StartedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    EndedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    Status = table.Column<int>(type: "integer", nullable: false),
+                    Note = table.Column<string>(type: "text", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_RescueOperations", x => x.RescueOperationId);
+                    table.ForeignKey(
+                        name: "FK_RescueOperations_ReliefStations_ReliefStationId",
+                        column: x => x.ReliefStationId,
+                        principalTable: "ReliefStations",
+                        principalColumn: "ReliefStationId",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_RescueOperations_RescueRequests_RescueRequestId",
+                        column: x => x.RescueRequestId,
+                        principalTable: "RescueRequests",
+                        principalColumn: "RequestId",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_RescueOperations_Teams_TeamId",
+                        column: x => x.TeamId,
+                        principalTable: "Teams",
+                        principalColumn: "TeamId",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_RescueOperations_Vehicles_VehicleId",
+                        column: x => x.VehicleId,
+                        principalTable: "Vehicles",
+                        principalColumn: "VehicleId",
+                        onDelete: ReferentialAction.SetNull);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "SupplyTransfers",
+                columns: table => new
+                {
+                    SupplyTransferId = table.Column<Guid>(type: "uuid", nullable: false),
+                    TransferCode = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false),
+                    SourceStationId = table.Column<Guid>(type: "uuid", nullable: false),
+                    DestinationStationId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Status = table.Column<string>(type: "text", nullable: false),
+                    RequestedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ApprovedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ShippedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ReceivedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    RequestedBy = table.Column<Guid>(type: "uuid", nullable: false),
+                    ApprovedBy = table.Column<Guid>(type: "uuid", nullable: true),
+                    Notes = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true),
+                    EvidenceUrls = table.Column<string>(type: "text", nullable: false),
+                    VehicleId = table.Column<Guid>(type: "uuid", nullable: true),
+                    DriverUserId = table.Column<Guid>(type: "uuid", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SupplyTransfers", x => x.SupplyTransferId);
+                    table.ForeignKey(
+                        name: "FK_SupplyTransfers_AspNetUsers_ApprovedBy",
+                        column: x => x.ApprovedBy,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_SupplyTransfers_AspNetUsers_DriverUserId",
+                        column: x => x.DriverUserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_SupplyTransfers_AspNetUsers_RequestedBy",
+                        column: x => x.RequestedBy,
                         principalTable: "AspNetUsers",
                         principalColumn: "Id",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_InventoryTransactions_Inventories_InventoryId",
-                        column: x => x.InventoryId,
-                        principalTable: "Inventories",
-                        principalColumn: "InventoryId",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_InventoryTransactions_SupplyTransfers_SupplyTransferId",
-                        column: x => x.SupplyTransferId,
-                        principalTable: "SupplyTransfers",
-                        principalColumn: "SupplyTransferId",
-                        onDelete: ReferentialAction.Restrict);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "SupplyTransferItems",
-                columns: table => new
-                {
-                    SupplyTransferItemId = table.Column<Guid>(type: "uuid", nullable: false),
-                    SupplyTransferId = table.Column<Guid>(type: "uuid", nullable: false),
-                    SupplyItemId = table.Column<Guid>(type: "uuid", nullable: false),
-                    RequestedQuantity = table.Column<int>(type: "integer", nullable: false),
-                    ActualQuantity = table.Column<int>(type: "integer", nullable: true),
-                    Notes = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_SupplyTransferItems", x => x.SupplyTransferItemId);
-                    table.ForeignKey(
-                        name: "FK_SupplyTransferItems_SupplyItems_SupplyItemId",
-                        column: x => x.SupplyItemId,
-                        principalTable: "SupplyItems",
-                        principalColumn: "SupplyItemId",
+                        name: "FK_SupplyTransfers_ReliefStations_DestinationStationId",
+                        column: x => x.DestinationStationId,
+                        principalTable: "ReliefStations",
+                        principalColumn: "ReliefStationId",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_SupplyTransferItems_SupplyTransfers_SupplyTransferId",
-                        column: x => x.SupplyTransferId,
-                        principalTable: "SupplyTransfers",
-                        principalColumn: "SupplyTransferId",
-                        onDelete: ReferentialAction.Cascade);
+                        name: "FK_SupplyTransfers_ReliefStations_SourceStationId",
+                        column: x => x.SourceStationId,
+                        principalTable: "ReliefStations",
+                        principalColumn: "ReliefStationId",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_SupplyTransfers_Vehicles_VehicleId",
+                        column: x => x.VehicleId,
+                        principalTable: "Vehicles",
+                        principalColumn: "VehicleId",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -1696,44 +1801,30 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "TeamTrackingPoints",
+                name: "ReliefPackageAssemblyDetails",
                 columns: table => new
                 {
-                    TeamTrackingPointId = table.Column<Guid>(type: "uuid", nullable: false),
-                    TeamId = table.Column<Guid>(type: "uuid", nullable: false),
-                    RescueBatchId = table.Column<Guid>(type: "uuid", nullable: true),
-                    RescueOperationId = table.Column<Guid>(type: "uuid", nullable: true),
-                    Latitude = table.Column<double>(type: "double precision", nullable: false),
-                    Longitude = table.Column<double>(type: "double precision", nullable: false),
-                    AccuracyMeters = table.Column<double>(type: "double precision", nullable: true),
-                    SpeedKph = table.Column<double>(type: "double precision", nullable: true),
-                    HeadingDegree = table.Column<double>(type: "double precision", nullable: true),
-                    Source = table.Column<string>(type: "text", nullable: false),
-                    CapturedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    CreatedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    Note = table.Column<string>(type: "text", nullable: true)
+                    ReliefPackageAssemblyDetailId = table.Column<Guid>(type: "uuid", nullable: false),
+                    ReliefPackageAssemblyId = table.Column<Guid>(type: "uuid", nullable: false),
+                    SupplyItemId = table.Column<Guid>(type: "uuid", nullable: false),
+                    QuantityConsumed = table.Column<int>(type: "integer", nullable: false),
+                    Unit = table.Column<string>(type: "character varying(50)", maxLength: 50, nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_TeamTrackingPoints", x => x.TeamTrackingPointId);
+                    table.PrimaryKey("PK_ReliefPackageAssemblyDetails", x => x.ReliefPackageAssemblyDetailId);
                     table.ForeignKey(
-                        name: "FK_TeamTrackingPoints_RescueBatches_RescueBatchId",
-                        column: x => x.RescueBatchId,
-                        principalTable: "RescueBatches",
-                        principalColumn: "RescueBatchId",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_TeamTrackingPoints_RescueOperations_RescueOperationId",
-                        column: x => x.RescueOperationId,
-                        principalTable: "RescueOperations",
-                        principalColumn: "RescueOperationId",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_TeamTrackingPoints_Teams_TeamId",
-                        column: x => x.TeamId,
-                        principalTable: "Teams",
-                        principalColumn: "TeamId",
+                        name: "FK_ReliefPackageAssemblyDetails_ReliefPackageAssemblies_Relief~",
+                        column: x => x.ReliefPackageAssemblyId,
+                        principalTable: "ReliefPackageAssemblies",
+                        principalColumn: "ReliefPackageAssemblyId",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_ReliefPackageAssemblyDetails_SupplyItems_SupplyItemId",
+                        column: x => x.SupplyItemId,
+                        principalTable: "SupplyItems",
+                        principalColumn: "SupplyItemId",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -1783,6 +1874,10 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     Longitude = table.Column<double>(type: "double precision", nullable: false),
                     HouseholdSize = table.Column<int>(type: "integer", nullable: false),
                     IsIsolated = table.Column<bool>(type: "boolean", nullable: false),
+                    FloodSeverityLevel = table.Column<int>(type: "integer", nullable: true),
+                    IsolationSeverityLevel = table.Column<int>(type: "integer", nullable: true),
+                    RequiresBoat = table.Column<bool>(type: "boolean", nullable: false),
+                    RequiresLocalGuide = table.Column<bool>(type: "boolean", nullable: false),
                     DeliveryMode = table.Column<string>(type: "text", nullable: false),
                     FulfillmentStatus = table.Column<string>(type: "text", nullable: false),
                     Notes = table.Column<string>(type: "text", nullable: true),
@@ -1869,156 +1964,208 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "InKindDonations",
+                name: "RescueOperationVehicles",
                 columns: table => new
                 {
-                    InKindDonationId = table.Column<Guid>(type: "uuid", nullable: false),
-                    CampaignId = table.Column<Guid>(type: "uuid", nullable: true),
-                    ReliefStationId = table.Column<Guid>(type: "uuid", nullable: false),
-                    DonorUserId = table.Column<Guid>(type: "uuid", nullable: true),
-                    IsAnonymous = table.Column<bool>(type: "boolean", nullable: false),
-                    DonorName = table.Column<string>(type: "text", nullable: true),
-                    DonorContact = table.Column<string>(type: "text", nullable: true),
-                    Message = table.Column<string>(type: "text", nullable: true),
-                    DonatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    Status = table.Column<string>(type: "text", nullable: false),
-                    InventoryTransactionId = table.Column<Guid>(type: "uuid", nullable: true)
+                    RescueOperationVehicleId = table.Column<Guid>(type: "uuid", nullable: false),
+                    RescueOperationId = table.Column<Guid>(type: "uuid", nullable: false),
+                    VehicleId = table.Column<Guid>(type: "uuid", nullable: false),
+                    IsPrimary = table.Column<bool>(type: "boolean", nullable: false),
+                    AssignedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    AssignedBy = table.Column<Guid>(type: "uuid", nullable: true),
+                    ReleasedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    Note = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_InKindDonations", x => x.InKindDonationId);
+                    table.PrimaryKey("PK_RescueOperationVehicles", x => x.RescueOperationVehicleId);
                     table.ForeignKey(
-                        name: "FK_InKindDonations_AspNetUsers_DonorUserId",
-                        column: x => x.DonorUserId,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
+                        name: "FK_RescueOperationVehicles_RescueOperations_RescueOperationId",
+                        column: x => x.RescueOperationId,
+                        principalTable: "RescueOperations",
+                        principalColumn: "RescueOperationId",
+                        onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_InKindDonations_Campaigns_CampaignId",
-                        column: x => x.CampaignId,
-                        principalTable: "Campaigns",
-                        principalColumn: "CampaignId",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_InKindDonations_InventoryTransactions_InventoryTransactionId",
-                        column: x => x.InventoryTransactionId,
-                        principalTable: "InventoryTransactions",
-                        principalColumn: "TransactionId",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_InKindDonations_ReliefStations_ReliefStationId",
-                        column: x => x.ReliefStationId,
-                        principalTable: "ReliefStations",
-                        principalColumn: "ReliefStationId",
+                        name: "FK_RescueOperationVehicles_Vehicles_VehicleId",
+                        column: x => x.VehicleId,
+                        principalTable: "Vehicles",
+                        principalColumn: "VehicleId",
                         onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
-                name: "InventoryTransactionItems",
+                name: "TeamTrackingPoints",
                 columns: table => new
                 {
-                    TransactionItemId = table.Column<Guid>(type: "uuid", nullable: false),
-                    TransactionId = table.Column<Guid>(type: "uuid", nullable: false),
-                    SupplyItemId = table.Column<Guid>(type: "uuid", nullable: false),
-                    Quantity = table.Column<int>(type: "integer", nullable: false),
-                    Notes = table.Column<string>(type: "text", nullable: true)
+                    TeamTrackingPointId = table.Column<Guid>(type: "uuid", nullable: false),
+                    TeamId = table.Column<Guid>(type: "uuid", nullable: false),
+                    RescueBatchId = table.Column<Guid>(type: "uuid", nullable: true),
+                    RescueOperationId = table.Column<Guid>(type: "uuid", nullable: true),
+                    Latitude = table.Column<double>(type: "double precision", nullable: false),
+                    Longitude = table.Column<double>(type: "double precision", nullable: false),
+                    AccuracyMeters = table.Column<double>(type: "double precision", nullable: true),
+                    SpeedKph = table.Column<double>(type: "double precision", nullable: true),
+                    HeadingDegree = table.Column<double>(type: "double precision", nullable: true),
+                    Source = table.Column<string>(type: "text", nullable: false),
+                    CapturedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedAtUtc = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    Note = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_InventoryTransactionItems", x => x.TransactionItemId);
+                    table.PrimaryKey("PK_TeamTrackingPoints", x => x.TeamTrackingPointId);
                     table.ForeignKey(
-                        name: "FK_InventoryTransactionItems_InventoryTransactions_Transaction~",
-                        column: x => x.TransactionId,
-                        principalTable: "InventoryTransactions",
-                        principalColumn: "TransactionId",
+                        name: "FK_TeamTrackingPoints_RescueBatches_RescueBatchId",
+                        column: x => x.RescueBatchId,
+                        principalTable: "RescueBatches",
+                        principalColumn: "RescueBatchId",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_TeamTrackingPoints_RescueOperations_RescueOperationId",
+                        column: x => x.RescueOperationId,
+                        principalTable: "RescueOperations",
+                        principalColumn: "RescueOperationId",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_TeamTrackingPoints_Teams_TeamId",
+                        column: x => x.TeamId,
+                        principalTable: "Teams",
+                        principalColumn: "TeamId",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "InventoryTransactions",
+                columns: table => new
+                {
+                    TransactionId = table.Column<Guid>(type: "uuid", nullable: false),
+                    InventoryId = table.Column<Guid>(type: "uuid", nullable: false),
+                    TransactionCode = table.Column<string>(type: "text", nullable: false),
+                    Type = table.Column<int>(type: "integer", nullable: false),
+                    Reason = table.Column<int>(type: "integer", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedBy = table.Column<Guid>(type: "uuid", nullable: false),
+                    Notes = table.Column<string>(type: "text", nullable: true),
+                    SupplyTransferId = table.Column<Guid>(type: "uuid", nullable: true),
+                    ImportBatchCode = table.Column<string>(type: "text", nullable: true),
+                    SourceReference = table.Column<string>(type: "text", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_InventoryTransactions", x => x.TransactionId);
+                    table.ForeignKey(
+                        name: "FK_InventoryTransactions_AspNetUsers_CreatedBy",
+                        column: x => x.CreatedBy,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_InventoryTransactions_Inventories_InventoryId",
+                        column: x => x.InventoryId,
+                        principalTable: "Inventories",
+                        principalColumn: "InventoryId",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_InventoryTransactionItems_SupplyItems_SupplyItemId",
+                        name: "FK_InventoryTransactions_SupplyTransfers_SupplyTransferId",
+                        column: x => x.SupplyTransferId,
+                        principalTable: "SupplyTransfers",
+                        principalColumn: "SupplyTransferId",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "SupplyTransferDocuments",
+                columns: table => new
+                {
+                    SupplyTransferDocumentId = table.Column<Guid>(type: "uuid", nullable: false),
+                    SupplyTransferId = table.Column<Guid>(type: "uuid", nullable: false),
+                    DocumentType = table.Column<string>(type: "text", nullable: false),
+                    Version = table.Column<int>(type: "integer", nullable: false),
+                    FileUrl = table.Column<string>(type: "character varying(2000)", maxLength: 2000, nullable: false),
+                    FileName = table.Column<string>(type: "character varying(255)", maxLength: 255, nullable: true),
+                    ContentType = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    FileSizeBytes = table.Column<long>(type: "bigint", nullable: true),
+                    IsCurrent = table.Column<bool>(type: "boolean", nullable: false),
+                    CreatedBy = table.Column<Guid>(type: "uuid", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    Notes = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SupplyTransferDocuments", x => x.SupplyTransferDocumentId);
+                    table.ForeignKey(
+                        name: "FK_SupplyTransferDocuments_SupplyTransfers_SupplyTransferId",
+                        column: x => x.SupplyTransferId,
+                        principalTable: "SupplyTransfers",
+                        principalColumn: "SupplyTransferId",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "SupplyTransferItems",
+                columns: table => new
+                {
+                    SupplyTransferItemId = table.Column<Guid>(type: "uuid", nullable: false),
+                    SupplyTransferId = table.Column<Guid>(type: "uuid", nullable: false),
+                    SupplyItemId = table.Column<Guid>(type: "uuid", nullable: false),
+                    RequestedQuantity = table.Column<int>(type: "integer", nullable: false),
+                    ActualQuantity = table.Column<int>(type: "integer", nullable: true),
+                    Notes = table.Column<string>(type: "character varying(500)", maxLength: 500, nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SupplyTransferItems", x => x.SupplyTransferItemId);
+                    table.ForeignKey(
+                        name: "FK_SupplyTransferItems_SupplyItems_SupplyItemId",
                         column: x => x.SupplyItemId,
                         principalTable: "SupplyItems",
                         principalColumn: "SupplyItemId",
                         onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_SupplyTransferItems_SupplyTransfers_SupplyTransferId",
+                        column: x => x.SupplyTransferId,
+                        principalTable: "SupplyTransfers",
+                        principalColumn: "SupplyTransferId",
+                        onDelete: ReferentialAction.Cascade);
                 });
 
             migrationBuilder.CreateTable(
-                name: "ProcurementOrders",
+                name: "SupplyTransferVehicles",
                 columns: table => new
                 {
-                    ProcurementOrderId = table.Column<Guid>(type: "uuid", nullable: false),
-                    CampaignId = table.Column<Guid>(type: "uuid", nullable: false),
-                    DestinationInventoryId = table.Column<Guid>(type: "uuid", nullable: false),
-                    OrderCode = table.Column<string>(type: "text", nullable: false),
+                    SupplyTransferVehicleId = table.Column<Guid>(type: "uuid", nullable: false),
+                    SupplyTransferId = table.Column<Guid>(type: "uuid", nullable: false),
+                    VehicleId = table.Column<Guid>(type: "uuid", nullable: false),
+                    DriverUserId = table.Column<Guid>(type: "uuid", nullable: true),
                     Status = table.Column<string>(type: "text", nullable: false),
-                    TotalEstimatedCost = table.Column<decimal>(type: "numeric", nullable: false),
-                    TotalActualCost = table.Column<decimal>(type: "numeric", nullable: true),
-                    SupplierName = table.Column<string>(type: "text", nullable: true),
-                    SupplierContact = table.Column<string>(type: "text", nullable: true),
-                    Notes = table.Column<string>(type: "text", nullable: true),
-                    ApprovalNote = table.Column<string>(type: "text", nullable: true),
-                    ReceiveNote = table.Column<string>(type: "text", nullable: true),
-                    CreatedBy = table.Column<Guid>(type: "uuid", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    ApprovedBy = table.Column<Guid>(type: "uuid", nullable: true),
-                    ApprovedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    ReceivedBy = table.Column<Guid>(type: "uuid", nullable: true),
-                    ReceivedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
-                    InventoryTransactionId = table.Column<Guid>(type: "uuid", nullable: true)
+                    AssignedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    DepartedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ArrivedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    CompletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    CancelledAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    Note = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_ProcurementOrders", x => x.ProcurementOrderId);
+                    table.PrimaryKey("PK_SupplyTransferVehicles", x => x.SupplyTransferVehicleId);
                     table.ForeignKey(
-                        name: "FK_ProcurementOrders_Campaigns_CampaignId",
-                        column: x => x.CampaignId,
-                        principalTable: "Campaigns",
-                        principalColumn: "CampaignId",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_ProcurementOrders_Inventories_DestinationInventoryId",
-                        column: x => x.DestinationInventoryId,
-                        principalTable: "Inventories",
-                        principalColumn: "InventoryId",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_ProcurementOrders_InventoryTransactions_InventoryTransactio~",
-                        column: x => x.InventoryTransactionId,
-                        principalTable: "InventoryTransactions",
-                        principalColumn: "TransactionId",
+                        name: "FK_SupplyTransferVehicles_AspNetUsers_DriverUserId",
+                        column: x => x.DriverUserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
                         onDelete: ReferentialAction.SetNull);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "SupplyAllocations",
-                columns: table => new
-                {
-                    AllocationId = table.Column<Guid>(type: "uuid", nullable: false),
-                    CampaignId = table.Column<Guid>(type: "uuid", nullable: false),
-                    SourceInventoryId = table.Column<Guid>(type: "uuid", nullable: false),
-                    AllocatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    Status = table.Column<int>(type: "integer", nullable: false),
-                    InventoryTransactionId = table.Column<Guid>(type: "uuid", nullable: true)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_SupplyAllocations", x => x.AllocationId);
                     table.ForeignKey(
-                        name: "FK_SupplyAllocations_Campaigns_CampaignId",
-                        column: x => x.CampaignId,
-                        principalTable: "Campaigns",
-                        principalColumn: "CampaignId",
+                        name: "FK_SupplyTransferVehicles_SupplyTransfers_SupplyTransferId",
+                        column: x => x.SupplyTransferId,
+                        principalTable: "SupplyTransfers",
+                        principalColumn: "SupplyTransferId",
                         onDelete: ReferentialAction.Cascade);
                     table.ForeignKey(
-                        name: "FK_SupplyAllocations_Inventories_SourceInventoryId",
-                        column: x => x.SourceInventoryId,
-                        principalTable: "Inventories",
-                        principalColumn: "InventoryId",
+                        name: "FK_SupplyTransferVehicles_Vehicles_VehicleId",
+                        column: x => x.VehicleId,
+                        principalTable: "Vehicles",
+                        principalColumn: "VehicleId",
                         onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
-                        name: "FK_SupplyAllocations_InventoryTransactions_InventoryTransactio~",
-                        column: x => x.InventoryTransactionId,
-                        principalTable: "InventoryTransactions",
-                        principalColumn: "TransactionId",
-                        onDelete: ReferentialAction.SetNull);
                 });
 
             migrationBuilder.CreateTable(
@@ -2036,6 +2183,7 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     Status = table.Column<string>(type: "text", nullable: false),
                     ScheduledAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
                     DeliveredAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    CashSupportAmount = table.Column<decimal>(type: "numeric", nullable: false),
                     Notes = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true),
                     CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false)
                 },
@@ -2109,6 +2257,270 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "InKindDonations",
+                columns: table => new
+                {
+                    InKindDonationId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CampaignId = table.Column<Guid>(type: "uuid", nullable: true),
+                    ReliefStationId = table.Column<Guid>(type: "uuid", nullable: false),
+                    DonorUserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    IsAnonymous = table.Column<bool>(type: "boolean", nullable: false),
+                    DonorName = table.Column<string>(type: "text", nullable: true),
+                    DonorContact = table.Column<string>(type: "text", nullable: true),
+                    Message = table.Column<string>(type: "text", nullable: true),
+                    DonatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    Status = table.Column<string>(type: "text", nullable: false),
+                    InventoryTransactionId = table.Column<Guid>(type: "uuid", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_InKindDonations", x => x.InKindDonationId);
+                    table.ForeignKey(
+                        name: "FK_InKindDonations_AspNetUsers_DonorUserId",
+                        column: x => x.DonorUserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_InKindDonations_Campaigns_CampaignId",
+                        column: x => x.CampaignId,
+                        principalTable: "Campaigns",
+                        principalColumn: "CampaignId",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_InKindDonations_InventoryTransactions_InventoryTransactionId",
+                        column: x => x.InventoryTransactionId,
+                        principalTable: "InventoryTransactions",
+                        principalColumn: "TransactionId",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_InKindDonations_ReliefStations_ReliefStationId",
+                        column: x => x.ReliefStationId,
+                        principalTable: "ReliefStations",
+                        principalColumn: "ReliefStationId",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "InventoryTransactionItems",
+                columns: table => new
+                {
+                    TransactionItemId = table.Column<Guid>(type: "uuid", nullable: false),
+                    TransactionId = table.Column<Guid>(type: "uuid", nullable: false),
+                    SupplyItemId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Quantity = table.Column<int>(type: "integer", nullable: false),
+                    UnitCost = table.Column<decimal>(type: "numeric", nullable: true),
+                    ExpiryDate = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    Notes = table.Column<string>(type: "text", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_InventoryTransactionItems", x => x.TransactionItemId);
+                    table.ForeignKey(
+                        name: "FK_InventoryTransactionItems_InventoryTransactions_Transaction~",
+                        column: x => x.TransactionId,
+                        principalTable: "InventoryTransactions",
+                        principalColumn: "TransactionId",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_InventoryTransactionItems_SupplyItems_SupplyItemId",
+                        column: x => x.SupplyItemId,
+                        principalTable: "SupplyItems",
+                        principalColumn: "SupplyItemId",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "ProcurementOrders",
+                columns: table => new
+                {
+                    ProcurementOrderId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CampaignId = table.Column<Guid>(type: "uuid", nullable: false),
+                    DestinationInventoryId = table.Column<Guid>(type: "uuid", nullable: false),
+                    OrderCode = table.Column<string>(type: "text", nullable: false),
+                    Status = table.Column<string>(type: "text", nullable: false),
+                    TotalEstimatedCost = table.Column<decimal>(type: "numeric", nullable: false),
+                    TotalActualCost = table.Column<decimal>(type: "numeric", nullable: true),
+                    SupplierName = table.Column<string>(type: "text", nullable: true),
+                    SupplierContact = table.Column<string>(type: "text", nullable: true),
+                    Notes = table.Column<string>(type: "text", nullable: true),
+                    ApprovalNote = table.Column<string>(type: "text", nullable: true),
+                    ReceiveNote = table.Column<string>(type: "text", nullable: true),
+                    CreatedBy = table.Column<Guid>(type: "uuid", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    ApprovedBy = table.Column<Guid>(type: "uuid", nullable: true),
+                    ApprovedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    ReceivedBy = table.Column<Guid>(type: "uuid", nullable: true),
+                    ReceivedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    InventoryTransactionId = table.Column<Guid>(type: "uuid", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ProcurementOrders", x => x.ProcurementOrderId);
+                    table.ForeignKey(
+                        name: "FK_ProcurementOrders_Campaigns_CampaignId",
+                        column: x => x.CampaignId,
+                        principalTable: "Campaigns",
+                        principalColumn: "CampaignId",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ProcurementOrders_Inventories_DestinationInventoryId",
+                        column: x => x.DestinationInventoryId,
+                        principalTable: "Inventories",
+                        principalColumn: "InventoryId",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_ProcurementOrders_InventoryTransactions_InventoryTransactio~",
+                        column: x => x.InventoryTransactionId,
+                        principalTable: "InventoryTransactions",
+                        principalColumn: "TransactionId",
+                        onDelete: ReferentialAction.SetNull);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "RescueOperationSupplies",
+                columns: table => new
+                {
+                    RescueOperationSupplyId = table.Column<Guid>(type: "uuid", nullable: false),
+                    RescueOperationId = table.Column<Guid>(type: "uuid", nullable: false),
+                    SourceInventoryId = table.Column<Guid>(type: "uuid", nullable: false),
+                    SupplyItemId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Quantity = table.Column<int>(type: "integer", nullable: false),
+                    Unit = table.Column<string>(type: "text", nullable: true),
+                    Notes = table.Column<string>(type: "text", nullable: true),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedBy = table.Column<Guid>(type: "uuid", nullable: true),
+                    InventoryTransactionId = table.Column<Guid>(type: "uuid", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_RescueOperationSupplies", x => x.RescueOperationSupplyId);
+                    table.ForeignKey(
+                        name: "FK_RescueOperationSupplies_Inventories_SourceInventoryId",
+                        column: x => x.SourceInventoryId,
+                        principalTable: "Inventories",
+                        principalColumn: "InventoryId",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_RescueOperationSupplies_InventoryTransactions_InventoryTran~",
+                        column: x => x.InventoryTransactionId,
+                        principalTable: "InventoryTransactions",
+                        principalColumn: "TransactionId",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_RescueOperationSupplies_RescueOperations_RescueOperationId",
+                        column: x => x.RescueOperationId,
+                        principalTable: "RescueOperations",
+                        principalColumn: "RescueOperationId",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_RescueOperationSupplies_SupplyItems_SupplyItemId",
+                        column: x => x.SupplyItemId,
+                        principalTable: "SupplyItems",
+                        principalColumn: "SupplyItemId",
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "SupplyAllocations",
+                columns: table => new
+                {
+                    AllocationId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CampaignId = table.Column<Guid>(type: "uuid", nullable: false),
+                    SourceInventoryId = table.Column<Guid>(type: "uuid", nullable: false),
+                    AllocatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    Status = table.Column<int>(type: "integer", nullable: false),
+                    InventoryTransactionId = table.Column<Guid>(type: "uuid", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_SupplyAllocations", x => x.AllocationId);
+                    table.ForeignKey(
+                        name: "FK_SupplyAllocations_Campaigns_CampaignId",
+                        column: x => x.CampaignId,
+                        principalTable: "Campaigns",
+                        principalColumn: "CampaignId",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_SupplyAllocations_Inventories_SourceInventoryId",
+                        column: x => x.SourceInventoryId,
+                        principalTable: "Inventories",
+                        principalColumn: "InventoryId",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_SupplyAllocations_InventoryTransactions_InventoryTransactio~",
+                        column: x => x.InventoryTransactionId,
+                        principalTable: "InventoryTransactions",
+                        principalColumn: "TransactionId",
+                        onDelete: ReferentialAction.SetNull);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "HouseholdDeliveryProofs",
+                columns: table => new
+                {
+                    HouseholdDeliveryProofId = table.Column<Guid>(type: "uuid", nullable: false),
+                    HouseholdDeliveryId = table.Column<Guid>(type: "uuid", nullable: false),
+                    FileUrl = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: false),
+                    FileType = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
+                    Note = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true),
+                    CapturedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CapturedByUserId = table.Column<Guid>(type: "uuid", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_HouseholdDeliveryProofs", x => x.HouseholdDeliveryProofId);
+                    table.ForeignKey(
+                        name: "FK_HouseholdDeliveryProofs_AspNetUsers_CapturedByUserId",
+                        column: x => x.CapturedByUserId,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.SetNull);
+                    table.ForeignKey(
+                        name: "FK_HouseholdDeliveryProofs_HouseholdDeliveries_HouseholdDelive~",
+                        column: x => x.HouseholdDeliveryId,
+                        principalTable: "HouseholdDeliveries",
+                        principalColumn: "HouseholdDeliveryId",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "MemberTaskDeliveries",
+                columns: table => new
+                {
+                    MemberTaskDeliveryId = table.Column<Guid>(type: "uuid", nullable: false),
+                    MemberTaskId = table.Column<Guid>(type: "uuid", nullable: false),
+                    HouseholdDeliveryId = table.Column<Guid>(type: "uuid", nullable: false),
+                    AssignedVolunteerProfileId = table.Column<Guid>(type: "uuid", nullable: true),
+                    Status = table.Column<int>(type: "integer", nullable: false),
+                    CompletedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: true),
+                    CompletedByUserId = table.Column<Guid>(type: "uuid", nullable: true),
+                    Note = table.Column<string>(type: "text", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_MemberTaskDeliveries", x => x.MemberTaskDeliveryId);
+                    table.ForeignKey(
+                        name: "FK_MemberTaskDeliveries_HouseholdDeliveries_HouseholdDeliveryId",
+                        column: x => x.HouseholdDeliveryId,
+                        principalTable: "HouseholdDeliveries",
+                        principalColumn: "HouseholdDeliveryId",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_MemberTaskDeliveries_MemberTasks_MemberTaskId",
+                        column: x => x.MemberTaskId,
+                        principalTable: "MemberTasks",
+                        principalColumn: "MemberTaskId",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_MemberTaskDeliveries_VolunteerProfiles_AssignedVolunteerPro~",
+                        column: x => x.AssignedVolunteerProfileId,
+                        principalTable: "VolunteerProfiles",
+                        principalColumn: "VolunteerProfileId",
+                        onDelete: ReferentialAction.SetNull);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "InKindDonationDetails",
                 columns: table => new
                 {
@@ -2165,6 +2577,47 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
+                name: "CampaignInventoryTransactions",
+                columns: table => new
+                {
+                    CampaignInventoryTransactionId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CampaignInventoryId = table.Column<Guid>(type: "uuid", nullable: false),
+                    TransactionCode = table.Column<string>(type: "character varying(30)", maxLength: 30, nullable: false),
+                    Type = table.Column<int>(type: "integer", nullable: false),
+                    Reason = table.Column<int>(type: "integer", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
+                    CreatedBy = table.Column<Guid>(type: "uuid", nullable: false),
+                    Notes = table.Column<string>(type: "text", nullable: true),
+                    SupplyAllocationId = table.Column<Guid>(type: "uuid", nullable: true),
+                    CampaignTeamId = table.Column<Guid>(type: "uuid", nullable: true),
+                    DistributionPointId = table.Column<Guid>(type: "uuid", nullable: true),
+                    HouseholdDeliveryId = table.Column<Guid>(type: "uuid", nullable: true),
+                    ReliefPackageDefinitionId = table.Column<Guid>(type: "uuid", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CampaignInventoryTransactions", x => x.CampaignInventoryTransactionId);
+                    table.ForeignKey(
+                        name: "FK_CampaignInventoryTransactions_AspNetUsers_CreatedBy",
+                        column: x => x.CreatedBy,
+                        principalTable: "AspNetUsers",
+                        principalColumn: "Id",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_CampaignInventoryTransactions_CampaignInventories_CampaignI~",
+                        column: x => x.CampaignInventoryId,
+                        principalTable: "CampaignInventories",
+                        principalColumn: "CampaignInventoryId",
+                        onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_CampaignInventoryTransactions_SupplyAllocations_SupplyAlloc~",
+                        column: x => x.SupplyAllocationId,
+                        principalTable: "SupplyAllocations",
+                        principalColumn: "AllocationId",
+                        onDelete: ReferentialAction.SetNull);
+                });
+
+            migrationBuilder.CreateTable(
                 name: "SupplyAllocationItems",
                 columns: table => new
                 {
@@ -2191,32 +2644,30 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "HouseholdDeliveryProofs",
+                name: "CampaignInventoryTransactionItems",
                 columns: table => new
                 {
-                    HouseholdDeliveryProofId = table.Column<Guid>(type: "uuid", nullable: false),
-                    HouseholdDeliveryId = table.Column<Guid>(type: "uuid", nullable: false),
-                    FileUrl = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: false),
-                    FileType = table.Column<string>(type: "character varying(100)", maxLength: 100, nullable: true),
-                    Note = table.Column<string>(type: "character varying(1000)", maxLength: 1000, nullable: true),
-                    CapturedAt = table.Column<DateTime>(type: "timestamp with time zone", nullable: false),
-                    CapturedByUserId = table.Column<Guid>(type: "uuid", nullable: true)
+                    CampaignInventoryTransactionItemId = table.Column<Guid>(type: "uuid", nullable: false),
+                    CampaignInventoryTransactionId = table.Column<Guid>(type: "uuid", nullable: false),
+                    SupplyItemId = table.Column<Guid>(type: "uuid", nullable: false),
+                    Quantity = table.Column<int>(type: "integer", nullable: false),
+                    Notes = table.Column<string>(type: "text", nullable: true)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_HouseholdDeliveryProofs", x => x.HouseholdDeliveryProofId);
+                    table.PrimaryKey("PK_CampaignInventoryTransactionItems", x => x.CampaignInventoryTransactionItemId);
                     table.ForeignKey(
-                        name: "FK_HouseholdDeliveryProofs_AspNetUsers_CapturedByUserId",
-                        column: x => x.CapturedByUserId,
-                        principalTable: "AspNetUsers",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.SetNull);
-                    table.ForeignKey(
-                        name: "FK_HouseholdDeliveryProofs_HouseholdDeliveries_HouseholdDelive~",
-                        column: x => x.HouseholdDeliveryId,
-                        principalTable: "HouseholdDeliveries",
-                        principalColumn: "HouseholdDeliveryId",
+                        name: "FK_CampaignInventoryTransactionItems_CampaignInventoryTransact~",
+                        column: x => x.CampaignInventoryTransactionId,
+                        principalTable: "CampaignInventoryTransactions",
+                        principalColumn: "CampaignInventoryTransactionId",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_CampaignInventoryTransactionItems_SupplyItems_SupplyItemId",
+                        column: x => x.SupplyItemId,
+                        principalTable: "SupplyItems",
+                        principalColumn: "SupplyItemId",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -2321,6 +2772,21 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 column: "RequestId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_CampaignBudgetTransfers_SourceCampaignId_TargetCampaignId_T~",
+                table: "CampaignBudgetTransfers",
+                columns: new[] { "SourceCampaignId", "TargetCampaignId", "TransferredAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CampaignBudgetTransfers_TargetCampaignId",
+                table: "CampaignBudgetTransfers",
+                column: "TargetCampaignId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CampaignBudgetTransfers_TransferredByUserId",
+                table: "CampaignBudgetTransfers",
+                column: "TransferredByUserId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_CampaignHouseholds_CampaignId_HouseholdCode",
                 table: "CampaignHouseholds",
                 columns: new[] { "CampaignId", "HouseholdCode" },
@@ -2340,6 +2806,68 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 name: "IX_CampaignHouseholds_LocationId",
                 table: "CampaignHouseholds",
                 column: "LocationId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CampaignInventories_CampaignId",
+                table: "CampaignInventories",
+                column: "CampaignId",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CampaignInventoryStocks_CampaignInventoryId_SupplyItemId",
+                table: "CampaignInventoryStocks",
+                columns: new[] { "CampaignInventoryId", "SupplyItemId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CampaignInventoryStocks_SupplyItemId",
+                table: "CampaignInventoryStocks",
+                column: "SupplyItemId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CampaignInventoryTransactionItems_CampaignInventoryTransact~",
+                table: "CampaignInventoryTransactionItems",
+                column: "CampaignInventoryTransactionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CampaignInventoryTransactionItems_SupplyItemId",
+                table: "CampaignInventoryTransactionItems",
+                column: "SupplyItemId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CampaignInventoryTransactions_CampaignInventoryId",
+                table: "CampaignInventoryTransactions",
+                column: "CampaignInventoryId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CampaignInventoryTransactions_CampaignTeamId",
+                table: "CampaignInventoryTransactions",
+                column: "CampaignTeamId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CampaignInventoryTransactions_CreatedBy",
+                table: "CampaignInventoryTransactions",
+                column: "CreatedBy");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CampaignInventoryTransactions_DistributionPointId",
+                table: "CampaignInventoryTransactions",
+                column: "DistributionPointId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CampaignInventoryTransactions_HouseholdDeliveryId",
+                table: "CampaignInventoryTransactions",
+                column: "HouseholdDeliveryId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CampaignInventoryTransactions_ReliefPackageDefinitionId",
+                table: "CampaignInventoryTransactions",
+                column: "ReliefPackageDefinitionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CampaignInventoryTransactions_SupplyAllocationId",
+                table: "CampaignInventoryTransactions",
+                column: "SupplyAllocationId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_CampaignResourceGoals_CampaignId_ResourceType",
@@ -2402,6 +2930,11 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 name: "IX_CampaignVehicles_CampaignId",
                 table: "CampaignVehicles",
                 column: "CampaignId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_CampaignVehicles_CampaignTeamId",
+                table: "CampaignVehicles",
+                column: "CampaignTeamId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_CampaignVehicles_VehicleId",
@@ -2625,6 +3158,22 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
+                name: "IX_MemberTaskDeliveries_AssignedVolunteerProfileId",
+                table: "MemberTaskDeliveries",
+                column: "AssignedVolunteerProfileId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MemberTaskDeliveries_HouseholdDeliveryId",
+                table: "MemberTaskDeliveries",
+                column: "HouseholdDeliveryId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_MemberTaskDeliveries_MemberTaskId_HouseholdDeliveryId",
+                table: "MemberTaskDeliveries",
+                columns: new[] { "MemberTaskId", "HouseholdDeliveryId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_MemberTaskItems_CampaignTaskItemId",
                 table: "MemberTaskItems",
                 column: "CampaignTaskItemId");
@@ -2727,6 +3276,47 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 column: "UserId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_ReliefPackageAssemblies_CampaignId",
+                table: "ReliefPackageAssemblies",
+                column: "CampaignId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ReliefPackageAssemblies_CreatedBy",
+                table: "ReliefPackageAssemblies",
+                column: "CreatedBy");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ReliefPackageAssemblies_InventoryId_CreatedAt",
+                table: "ReliefPackageAssemblies",
+                columns: new[] { "InventoryId", "CreatedAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ReliefPackageAssemblies_OutputSupplyItemId",
+                table: "ReliefPackageAssemblies",
+                column: "OutputSupplyItemId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ReliefPackageAssemblies_ReliefPackageDefinitionId_CreatedAt",
+                table: "ReliefPackageAssemblies",
+                columns: new[] { "ReliefPackageDefinitionId", "CreatedAt" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ReliefPackageAssemblies_ReliefStationId",
+                table: "ReliefPackageAssemblies",
+                column: "ReliefStationId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ReliefPackageAssemblyDetails_ReliefPackageAssemblyId_Supply~",
+                table: "ReliefPackageAssemblyDetails",
+                columns: new[] { "ReliefPackageAssemblyId", "SupplyItemId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ReliefPackageAssemblyDetails_SupplyItemId",
+                table: "ReliefPackageAssemblyDetails",
+                column: "SupplyItemId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_ReliefPackageDefinitionItems_ReliefPackageDefinitionId_Supp~",
                 table: "ReliefPackageDefinitionItems",
                 columns: new[] { "ReliefPackageDefinitionId", "SupplyItemId" },
@@ -2741,6 +3331,11 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 name: "IX_ReliefPackageDefinitions_CampaignId_Name",
                 table: "ReliefPackageDefinitions",
                 columns: new[] { "CampaignId", "Name" });
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ReliefPackageDefinitions_OutputSupplyItemId",
+                table: "ReliefPackageDefinitions",
+                column: "OutputSupplyItemId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ReliefStations_LocationId",
@@ -2807,6 +3402,42 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 name: "IX_RescueOperations_TeamId",
                 table: "RescueOperations",
                 column: "TeamId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RescueOperations_VehicleId",
+                table: "RescueOperations",
+                column: "VehicleId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RescueOperationSupplies_InventoryTransactionId",
+                table: "RescueOperationSupplies",
+                column: "InventoryTransactionId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RescueOperationSupplies_RescueOperationId",
+                table: "RescueOperationSupplies",
+                column: "RescueOperationId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RescueOperationSupplies_SourceInventoryId",
+                table: "RescueOperationSupplies",
+                column: "SourceInventoryId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RescueOperationSupplies_SupplyItemId",
+                table: "RescueOperationSupplies",
+                column: "SupplyItemId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RescueOperationVehicles_RescueOperationId_VehicleId",
+                table: "RescueOperationVehicles",
+                columns: new[] { "RescueOperationId", "VehicleId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_RescueOperationVehicles_VehicleId",
+                table: "RescueOperationVehicles",
+                column: "VehicleId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_RescueRequestPriorities_PriorityCriteriaId",
@@ -2900,6 +3531,19 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 column: "ReviewedByUserId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_SupplyTransferDocuments_SupplyTransferId_DocumentType",
+                table: "SupplyTransferDocuments",
+                columns: new[] { "SupplyTransferId", "DocumentType" },
+                unique: true,
+                filter: "\"IsCurrent\" = true");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SupplyTransferDocuments_SupplyTransferId_DocumentType_Versi~",
+                table: "SupplyTransferDocuments",
+                columns: new[] { "SupplyTransferId", "DocumentType", "Version" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
                 name: "IX_SupplyTransferItems_SupplyItemId",
                 table: "SupplyTransferItems",
                 column: "SupplyItemId");
@@ -2944,6 +3588,22 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 name: "IX_SupplyTransfers_VehicleId",
                 table: "SupplyTransfers",
                 column: "VehicleId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SupplyTransferVehicles_DriverUserId",
+                table: "SupplyTransferVehicles",
+                column: "DriverUserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SupplyTransferVehicles_SupplyTransferId_VehicleId",
+                table: "SupplyTransferVehicles",
+                columns: new[] { "SupplyTransferId", "VehicleId" },
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_SupplyTransferVehicles_VehicleId_Status",
+                table: "SupplyTransferVehicles",
+                columns: new[] { "VehicleId", "Status" });
 
             migrationBuilder.CreateIndex(
                 name: "IX_TeamJoinRequests_ReviewedBy",
@@ -3007,6 +3667,11 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 column: "ReliefStationId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_Vehicles_TeamId",
+                table: "Vehicles",
+                column: "TeamId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Vehicles_VehicleTypeId",
                 table: "Vehicles",
                 column: "VehicleTypeId");
@@ -3059,6 +3724,15 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 name: "AuditLogs");
 
             migrationBuilder.DropTable(
+                name: "CampaignBudgetTransfers");
+
+            migrationBuilder.DropTable(
+                name: "CampaignInventoryStocks");
+
+            migrationBuilder.DropTable(
+                name: "CampaignInventoryTransactionItems");
+
+            migrationBuilder.DropTable(
                 name: "CampaignResourceGoals");
 
             migrationBuilder.DropTable(
@@ -3095,6 +3769,9 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 name: "ManagerProfiles");
 
             migrationBuilder.DropTable(
+                name: "MemberTaskDeliveries");
+
+            migrationBuilder.DropTable(
                 name: "MemberTaskItems");
 
             migrationBuilder.DropTable(
@@ -3113,6 +3790,9 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 name: "RefreshTokens");
 
             migrationBuilder.DropTable(
+                name: "ReliefPackageAssemblyDetails");
+
+            migrationBuilder.DropTable(
                 name: "ReliefPackageDefinitionItems");
 
             migrationBuilder.DropTable(
@@ -3125,6 +3805,12 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 name: "RescueBatchItems");
 
             migrationBuilder.DropTable(
+                name: "RescueOperationSupplies");
+
+            migrationBuilder.DropTable(
+                name: "RescueOperationVehicles");
+
+            migrationBuilder.DropTable(
                 name: "RescueRequestPriorities");
 
             migrationBuilder.DropTable(
@@ -3134,7 +3820,13 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 name: "SupplyShortageRequestItems");
 
             migrationBuilder.DropTable(
+                name: "SupplyTransferDocuments");
+
+            migrationBuilder.DropTable(
                 name: "SupplyTransferItems");
+
+            migrationBuilder.DropTable(
+                name: "SupplyTransferVehicles");
 
             migrationBuilder.DropTable(
                 name: "TeamJoinRequests");
@@ -3155,13 +3847,16 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 name: "AspNetRoles");
 
             migrationBuilder.DropTable(
+                name: "CampaignInventoryTransactions");
+
+            migrationBuilder.DropTable(
                 name: "FundContributions");
 
             migrationBuilder.DropTable(
-                name: "HouseholdDeliveries");
+                name: "InKindDonations");
 
             migrationBuilder.DropTable(
-                name: "InKindDonations");
+                name: "HouseholdDeliveries");
 
             migrationBuilder.DropTable(
                 name: "CampaignTaskItems");
@@ -3174,6 +3869,9 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "ProcurementOrders");
+
+            migrationBuilder.DropTable(
+                name: "ReliefPackageAssemblies");
 
             migrationBuilder.DropTable(
                 name: "PriorityCriterias");
@@ -3191,13 +3889,13 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 name: "Skills");
 
             migrationBuilder.DropTable(
+                name: "CampaignInventories");
+
+            migrationBuilder.DropTable(
                 name: "Funds");
 
             migrationBuilder.DropTable(
                 name: "CampaignHouseholds");
-
-            migrationBuilder.DropTable(
-                name: "ReliefPackageDefinitions");
 
             migrationBuilder.DropTable(
                 name: "SupplyAllocationItems");
@@ -3210,6 +3908,9 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
             migrationBuilder.DropTable(
                 name: "Donations");
+
+            migrationBuilder.DropTable(
+                name: "ReliefPackageDefinitions");
 
             migrationBuilder.DropTable(
                 name: "RescueRequests");
@@ -3236,9 +3937,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 name: "Campaigns");
 
             migrationBuilder.DropTable(
-                name: "Teams");
-
-            migrationBuilder.DropTable(
                 name: "Inventories");
 
             migrationBuilder.DropTable(
@@ -3248,10 +3946,13 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                 name: "Vehicles");
 
             migrationBuilder.DropTable(
-                name: "AspNetUsers");
+                name: "Teams");
 
             migrationBuilder.DropTable(
                 name: "VehicleTypes");
+
+            migrationBuilder.DropTable(
+                name: "AspNetUsers");
 
             migrationBuilder.DropTable(
                 name: "ReliefStations");
