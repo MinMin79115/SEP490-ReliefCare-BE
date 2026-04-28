@@ -71,6 +71,8 @@ namespace ReliefManagementSystem.Domain.Entities
         public Guid? DriverUserId { get; set; }
         public ApplicationUser? DriverUser { get; set; }
 
+        public ICollection<SupplyTransferVehicle> SupplyTransferVehicles { get; set; } = new List<SupplyTransferVehicle>();
+
         public ICollection<SupplyTransferItem> Items { get; set; } = new List<SupplyTransferItem>();
         public ICollection<InventoryTransaction> InventoryTransactions { get; set; } = new List<InventoryTransaction>();
     }

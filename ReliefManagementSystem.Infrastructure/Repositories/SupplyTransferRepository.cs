@@ -19,6 +19,8 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .Include(t => t.ApprovedByUser)
                 .Include(t => t.DriverUser)
                 .Include(t => t.Vehicle)
+                .Include(t => t.SupplyTransferVehicles).ThenInclude(v => v.Vehicle).ThenInclude(v => v.VehicleType)
+                .Include(t => t.SupplyTransferVehicles).ThenInclude(v => v.DriverUser)
                 .Include(t => t.Documents)
                 .Include(t => t.Items).ThenInclude(i => i.SupplyItem)
                 .Include(t => t.InventoryTransactions)

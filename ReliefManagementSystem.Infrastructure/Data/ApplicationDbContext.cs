@@ -96,6 +96,7 @@ namespace ReliefManagementSystem.Infrastructure.Data
 
         // Supply Transfer (vận chuyển hàng giữa các trạm)
         public DbSet<SupplyTransfer> SupplyTransfers { get; set; }
+        public DbSet<SupplyTransferVehicle> SupplyTransferVehicles { get; set; }
         public DbSet<SupplyTransferDocument> SupplyTransferDocuments { get; set; }
         public DbSet<SupplyTransferItem> SupplyTransferItems { get; set; }
 
@@ -1427,6 +1428,24 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .HasForeignKey(st => st.DriverUserId)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            builder.Entity<SupplyTransferVehicle>()
+                .HasOne(stv => stv.SupplyTransfer)
+                .WithMany(st => st.SupplyTransferVehicles)
+                .HasForeignKey(stv => stv.SupplyTransferId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<SupplyTransferVehicle>()
+                .HasOne(stv => stv.Vehicle)
+                .WithMany(v => v.SupplyTransferVehicles)
+                .HasForeignKey(stv => stv.VehicleId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<SupplyTransferVehicle>()
+                .HasOne(stv => stv.DriverUser)
+                .WithMany()
+                .HasForeignKey(stv => stv.DriverUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             // Campaign – CreatedBy FK
             builder.Entity<Campaign>()
                 .HasOne<ApplicationUser>()
@@ -1928,6 +1947,15 @@ namespace ReliefManagementSystem.Infrastructure.Data
                     .WithMany()
                     .HasForeignKey(sti => sti.SupplyItemId)
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            builder.Entity<SupplyTransferVehicle>(entity =>
+            {
+                entity.HasKey(x => x.SupplyTransferVehicleId);
+                entity.Property(x => x.Status).HasConversion<string>().IsRequired();
+                entity.Property(x => x.Note).HasMaxLength(1000);
+                entity.HasIndex(x => new { x.SupplyTransferId, x.VehicleId }).IsUnique();
+                entity.HasIndex(x => new { x.VehicleId, x.Status });
             });
 
             // =========================

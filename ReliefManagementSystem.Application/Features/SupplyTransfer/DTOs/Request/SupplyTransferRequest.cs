@@ -29,8 +29,27 @@ namespace ReliefManagementSystem.Application.Features.SupplyTransfer.DTOs.Reques
     public class ShipSupplyTransferRequest
     {
         public Guid? VehicleId { get; set; }
+        public List<Guid> VehicleIds { get; set; } = [];
         [MaxLength(1000)] public string? Notes { get; set; }
         public List<string> EvidenceUrls { get; set; } = [];
+    }
+
+    public class AssignSupplyTransferVehiclesRequest
+    {
+        [Required, MinLength(1)] public List<AssignSupplyTransferVehicleItemRequest> Vehicles { get; set; } = [];
+    }
+
+    public class AssignSupplyTransferVehicleItemRequest
+    {
+        [Required] public Guid VehicleId { get; set; }
+        public Guid? DriverUserId { get; set; }
+        [MaxLength(1000)] public string? Note { get; set; }
+    }
+
+    public class UpdateSupplyTransferVehicleStatusRequest
+    {
+        [Required] public SupplyTransferVehicleStatus Status { get; set; }
+        [MaxLength(1000)] public string? Note { get; set; }
     }
 
     public class ReceiveSupplyTransferRequest

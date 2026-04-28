@@ -21,6 +21,7 @@ namespace ReliefManagementSystem.Application.Features.SupplyTransfer.DTOs.Respon
         public string? ApprovedByName { get; set; }
         public Guid? VehicleId { get; set; }
         public Guid? DriverUserId { get; set; }
+        public List<SupplyTransferVehicleResponse> Vehicles { get; set; } = [];
         public string? Notes { get; set; }
         public List<string> EvidenceUrls { get; set; } = [];
         public List<SupplyTransferDocumentResponse> Documents { get; set; } = [];
@@ -53,6 +54,23 @@ namespace ReliefManagementSystem.Application.Features.SupplyTransfer.DTOs.Respon
         public int RequestedQuantity { get; set; }
         public int? ActualQuantity { get; set; }
         public string? Notes { get; set; }
+    }
+
+    public class SupplyTransferVehicleResponse
+    {
+        public Guid SupplyTransferVehicleId { get; set; }
+        public Guid VehicleId { get; set; }
+        public string LicensePlate { get; set; } = string.Empty;
+        public Guid VehicleTypeId { get; set; }
+        public string VehicleTypeName { get; set; } = string.Empty;
+        public Guid? DriverUserId { get; set; }
+        public string? DriverName { get; set; }
+        public SupplyTransferVehicleStatus Status { get; set; }
+        public DateTime AssignedAt { get; set; }
+        public DateTime? DepartedAt { get; set; }
+        public DateTime? ArrivedAt { get; set; }
+        public DateTime? CompletedAt { get; set; }
+        public string? Note { get; set; }
     }
 
     public class SupplyTransferSummaryResponse
