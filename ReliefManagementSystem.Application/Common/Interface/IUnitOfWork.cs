@@ -95,6 +95,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
         IAttachmentRepository Attachments { get; }
         IGenericRepository<AuditLog> AuditLogs { get; }
         IGenericRepository<RequestVerification> RequestVerifications { get; }
+        IGenericRepository<RescueOperationSupply> RescueOperationSupplies { get; }
         IGenericRepository<DisasterAnalysisLog> DisasterAnalysisLogs { get; }
         Task<int> SaveChangesAsync(
         CancellationToken cancellationToken = default);

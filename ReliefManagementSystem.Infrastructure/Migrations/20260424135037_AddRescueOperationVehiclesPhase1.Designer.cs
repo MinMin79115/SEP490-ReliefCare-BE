@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using ReliefManagementSystem.Infrastructure.Data;
@@ -11,9 +12,11 @@ using ReliefManagementSystem.Infrastructure.Data;
 namespace ReliefManagementSystem.Infrastructure.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260424135037_AddRescueOperationVehiclesPhase1")]
+    partial class AddRescueOperationVehiclesPhase1
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -2558,52 +2561,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.ToTable("RescueOperations");
                 });
 
-            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.RescueOperationSupply", b =>
-                {
-                    b.Property<Guid>("RescueOperationSupplyId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime>("CreatedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("CreatedBy")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid?>("InventoryTransactionId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("text");
-
-                    b.Property<int>("Quantity")
-                        .HasColumnType("integer");
-
-                    b.Property<Guid>("RescueOperationId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("SourceInventoryId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("SupplyItemId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Unit")
-                        .HasColumnType("text");
-
-                    b.HasKey("RescueOperationSupplyId");
-
-                    b.HasIndex("InventoryTransactionId");
-
-                    b.HasIndex("RescueOperationId");
-
-                    b.HasIndex("SourceInventoryId");
-
-                    b.HasIndex("SupplyItemId");
-
-                    b.ToTable("RescueOperationSupplies");
-                });
-
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.RescueOperationVehicle", b =>
                 {
                     b.Property<Guid>("RescueOperationVehicleId")
@@ -3085,56 +3042,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.HasIndex("SupplyTransferId");
 
                     b.ToTable("SupplyTransferItems");
-                });
-
-            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.SupplyTransferVehicle", b =>
-                {
-                    b.Property<Guid>("SupplyTransferVehicleId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("uuid");
-
-                    b.Property<DateTime?>("ArrivedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime>("AssignedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("CancelledAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("CompletedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<DateTime?>("DepartedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<Guid?>("DriverUserId")
-                        .HasColumnType("uuid");
-
-                    b.Property<string>("Note")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<string>("Status")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<Guid>("SupplyTransferId")
-                        .HasColumnType("uuid");
-
-                    b.Property<Guid>("VehicleId")
-                        .HasColumnType("uuid");
-
-                    b.HasKey("SupplyTransferVehicleId");
-
-                    b.HasIndex("DriverUserId");
-
-                    b.HasIndex("SupplyTransferId", "VehicleId")
-                        .IsUnique();
-
-                    b.HasIndex("VehicleId", "Status");
-
-                    b.ToTable("SupplyTransferVehicles");
                 });
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Team", b =>
@@ -4632,40 +4539,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Navigation("Vehicle");
                 });
 
-            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.RescueOperationSupply", b =>
-                {
-                    b.HasOne("ReliefManagementSystem.Domain.Entities.InventoryTransaction", "InventoryTransaction")
-                        .WithMany()
-                        .HasForeignKey("InventoryTransactionId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("ReliefManagementSystem.Domain.Entities.RescueOperation", "RescueOperation")
-                        .WithMany("RescueOperationSupplies")
-                        .HasForeignKey("RescueOperationId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("ReliefManagementSystem.Domain.Entities.Inventory", "SourceInventory")
-                        .WithMany()
-                        .HasForeignKey("SourceInventoryId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.HasOne("ReliefManagementSystem.Domain.Entities.SupplyItem", "SupplyItem")
-                        .WithMany()
-                        .HasForeignKey("SupplyItemId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("InventoryTransaction");
-
-                    b.Navigation("RescueOperation");
-
-                    b.Navigation("SourceInventory");
-
-                    b.Navigation("SupplyItem");
-                });
-
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.RescueOperationVehicle", b =>
                 {
                     b.HasOne("ReliefManagementSystem.Domain.Entities.RescueOperation", "RescueOperation")
@@ -4918,32 +4791,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Navigation("SupplyItem");
 
                     b.Navigation("SupplyTransfer");
-                });
-
-            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.SupplyTransferVehicle", b =>
-                {
-                    b.HasOne("ReliefManagementSystem.Domain.Entities.ApplicationUser", "DriverUser")
-                        .WithMany()
-                        .HasForeignKey("DriverUserId")
-                        .OnDelete(DeleteBehavior.SetNull);
-
-                    b.HasOne("ReliefManagementSystem.Domain.Entities.SupplyTransfer", "SupplyTransfer")
-                        .WithMany("SupplyTransferVehicles")
-                        .HasForeignKey("SupplyTransferId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("ReliefManagementSystem.Domain.Entities.Vehicle", "Vehicle")
-                        .WithMany("SupplyTransferVehicles")
-                        .HasForeignKey("VehicleId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("DriverUser");
-
-                    b.Navigation("SupplyTransfer");
-
-                    b.Navigation("Vehicle");
                 });
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Team", b =>
@@ -5318,8 +5165,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.RescueOperation", b =>
                 {
-                    b.Navigation("RescueOperationSupplies");
-
                     b.Navigation("RescueOperationVehicles");
 
                     b.Navigation("TrackingPoints");
@@ -5375,8 +5220,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Navigation("InventoryTransactions");
 
                     b.Navigation("Items");
-
-                    b.Navigation("SupplyTransferVehicles");
                 });
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Team", b =>
@@ -5399,7 +5242,6 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Vehicle", b =>
                 {
                     b.Navigation("RescueOperationVehicles");
-                    b.Navigation("SupplyTransferVehicles");
 
                     b.Navigation("SupplyTransfers");
                 });

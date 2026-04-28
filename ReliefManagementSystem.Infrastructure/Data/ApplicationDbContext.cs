@@ -111,6 +111,8 @@ namespace ReliefManagementSystem.Infrastructure.Data
         public DbSet<Attachment> Attachments { get; set; }
         public DbSet<RequestVerification> RequestVerifications { get; set; }
         public DbSet<RescueOperation> RescueOperations { get; set; }
+        public DbSet<RescueOperationVehicle> RescueOperationVehicles { get; set; }
+        public DbSet<RescueOperationSupply> RescueOperationSupplies { get; set; }
         public DbSet<RescueRequestPriority> RescueRequestPriorities { get; set; }
         public DbSet<RescueBatch> RescueBatches { get; set; }
         public DbSet<RescueBatchItem> RescueBatchItems { get; set; }
@@ -1609,6 +1611,48 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 entity.HasOne(ro => ro.ReliefStation)
                     .WithMany()
                     .HasForeignKey(ro => ro.ReliefStationId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            builder.Entity<RescueOperationVehicle>(entity =>
+            {
+                entity.HasKey(x => x.RescueOperationVehicleId);
+
+                entity.HasOne(x => x.RescueOperation)
+                    .WithMany(x => x.RescueOperationVehicles)
+                    .HasForeignKey(x => x.RescueOperationId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.Vehicle)
+                    .WithMany(x => x.RescueOperationVehicles)
+                    .HasForeignKey(x => x.VehicleId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(x => new { x.RescueOperationId, x.VehicleId }).IsUnique();
+            });
+
+            builder.Entity<RescueOperationSupply>(entity =>
+            {
+                entity.HasKey(x => x.RescueOperationSupplyId);
+
+                entity.HasOne(x => x.RescueOperation)
+                    .WithMany(x => x.RescueOperationSupplies)
+                    .HasForeignKey(x => x.RescueOperationId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.SourceInventory)
+                    .WithMany()
+                    .HasForeignKey(x => x.SourceInventoryId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.SupplyItem)
+                    .WithMany()
+                    .HasForeignKey(x => x.SupplyItemId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.InventoryTransaction)
+                    .WithMany()
+                    .HasForeignKey(x => x.InventoryTransactionId)
                     .OnDelete(DeleteBehavior.SetNull);
             });
 

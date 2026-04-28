@@ -28,6 +28,8 @@ namespace ReliefManagementSystem.Domain.Entities
         public Team? Team { get; set; }
         public Vehicle? Vehicle { get; set; }
         public ReliefStation? ReliefStation { get; set; }
+        public ICollection<RescueOperationVehicle> RescueOperationVehicles { get; set; } = new List<RescueOperationVehicle>();
+        public ICollection<RescueOperationSupply> RescueOperationSupplies { get; set; } = new List<RescueOperationSupply>();
         public ICollection<TeamTrackingPoint> TrackingPoints { get; set; } = new List<TeamTrackingPoint>();
     }
 }

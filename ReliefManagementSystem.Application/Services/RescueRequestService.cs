@@ -9,6 +9,7 @@ using System.Threading.Tasks;
 using ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Request;
 using ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Response;
 using ReliefManagementSystem.Application.Features.Notification;
+using ReliefManagementSystem.Application.Features.InventoryTransaction.DTOs.Request;
 using ReliefManagementSystem.Domain.Enum;
 using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
@@ -23,6 +24,7 @@ namespace ReliefManagementSystem.Application.Services
         private readonly IGoongRouteService _goongRouteService;
         private readonly IWeatherService _weatherService;
         private readonly INotificationService _notificationService;
+        private readonly IInventoryTransactionService _inventoryTransactionService;
 
         public RescueRequestService(
             IUnitOfWork unitOfWork,
@@ -30,7 +32,8 @@ namespace ReliefManagementSystem.Application.Services
             IGoongDistanceService goongDistanceService,
             IGoongRouteService goongRouteService,
             IWeatherService weatherService,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            IInventoryTransactionService inventoryTransactionService)
         {
             _unitOfWork = unitOfWork;
             _currentUserService = currentUserService;
@@ -38,6 +41,7 @@ namespace ReliefManagementSystem.Application.Services
             _goongRouteService = goongRouteService;
             _weatherService = weatherService;
             _notificationService = notificationService;
+            _inventoryTransactionService = inventoryTransactionService;
         }
 
         public async Task<DistanceMatrixProbeResponse> ProbeDistanceMatrixAsync(
@@ -366,23 +370,34 @@ namespace ReliefManagementSystem.Application.Services
             await EnsureRescueTeamTypeAsync(dto.TeamId, cancellationToken);
 
             var activeBatch = await _unitOfWork.RescueBatches.GetActiveByTeamIdAsync(dto.TeamId, cancellationToken);
-            var currentBatchVehicleId = activeBatch?.Items
+            var currentBatchVehicleIds = activeBatch?.Items
                 .Where(i => i.Status == RescueBatchItemStatus.Pending || i.Status == RescueBatchItemStatus.InProgress)
                 .SelectMany(i => i.RescueRequest?.RescueOperations ?? Enumerable.Empty<RescueOperation>())
-                .Where(o => o.TeamId == dto.TeamId && o.VehicleId.HasValue)
+                .Where(o => o.TeamId == dto.TeamId)
                 .OrderByDescending(o => o.StartedAt)
-                .Select(o => o.VehicleId)
-                .FirstOrDefault();
+                .SelectMany(o => GetAssignedVehicles(o).Select(v => v.VehicleId))
+                .Distinct()
+                .ToList() ?? new List<Guid>();
 
-            var effectiveVehicleId = dto.VehicleId;
-            if (currentBatchVehicleId.HasValue)
+            var requestedVehicleIds = (dto.VehicleIds ?? new List<Guid>())
+                .Where(id => id != Guid.Empty)
+                .Distinct()
+                .ToList();
+
+            if (requestedVehicleIds.Count == 0 && dto.VehicleId.HasValue)
             {
-                if (dto.VehicleId.HasValue && dto.VehicleId.Value != currentBatchVehicleId.Value)
+                requestedVehicleIds.Add(dto.VehicleId.Value);
+            }
+
+            var effectiveVehicleIds = requestedVehicleIds;
+            if (currentBatchVehicleIds.Count > 0)
+            {
+                if (requestedVehicleIds.Count > 0 && !requestedVehicleIds.OrderBy(x => x).SequenceEqual(currentBatchVehicleIds.OrderBy(x => x)))
                 {
-                    throw new InvalidOperationException("Team đang dùng xe khác trong active batch. Không thể đổi xe khi batch chưa hoàn tất.");
+                    throw new InvalidOperationException("Team đang dùng bộ xe khác trong active batch. Không thể đổi xe khi batch chưa hoàn tất.");
                 }
 
-                effectiveVehicleId = currentBatchVehicleId;
+                effectiveVehicleIds = currentBatchVehicleIds;
             }
 
             var request = await _unitOfWork.RescueRequests.GetByIdAsync(requestId, cancellationToken);
@@ -405,34 +420,39 @@ namespace ReliefManagementSystem.Application.Services
             if (stationTeamAssignment == null || stationTeamAssignment.Status != ReliefTeamAssignmentStatus.Approved)
                 throw new InvalidOperationException("Team does not belong to dispatched station or assignment is not approved.");
 
-            Vehicle? assignedVehicle = null;
-            if (effectiveVehicleId.HasValue)
+            var assignedVehicles = new List<Vehicle>();
+            foreach (var vehicleId in effectiveVehicleIds)
             {
-                assignedVehicle = await _unitOfWork.Vehicles.GetByIdWithDetailsAsync(effectiveVehicleId.Value);
+                var assignedVehicle = await _unitOfWork.Vehicles.GetByIdWithDetailsAsync(vehicleId);
                 if (assignedVehicle == null || assignedVehicle.IsDeleted)
                     throw new InvalidOperationException("Vehicle not found.");
 
                 if (!assignedVehicle.ReliefStationId.HasValue || assignedVehicle.ReliefStationId.Value != stationOperation.ReliefStationId!.Value)
                     throw new InvalidOperationException("Vehicle does not belong to dispatched station.");
 
-                var reusingBatchVehicle = currentBatchVehicleId.HasValue && assignedVehicle.VehicleId == currentBatchVehicleId.Value;
+                var reusingBatchVehicle = currentBatchVehicleIds.Contains(assignedVehicle.VehicleId);
 
                 if (assignedVehicle.Status != VehicleStatus.Free && !reusingBatchVehicle)
                     throw new InvalidOperationException("Vehicle is not available.");
 
                 if (assignedVehicle.TeamId.HasValue && assignedVehicle.TeamId.Value != dto.TeamId)
                     throw new InvalidOperationException("Vehicle is assigned to another team.");
+
+                assignedVehicles.Add(assignedVehicle);
             }
 
             stationOperation.TeamId = dto.TeamId;
-            stationOperation.VehicleId = effectiveVehicleId;
+            stationOperation.VehicleId = effectiveVehicleIds.FirstOrDefault();
             stationOperation.Status = RescueOperationStatus.Assigned;
             stationOperation.Note = dto.Note;
 
-            if (assignedVehicle != null)
+            foreach (var assignedVehicle in assignedVehicles)
             {
                 assignedVehicle.Status = VehicleStatus.Busy;
             }
+
+            SyncRescueOperationVehicles(stationOperation, effectiveVehicleIds, dto.Note);
+            await SyncRescueOperationSuppliesAsync(stationOperation, dto.Supplies, dto.Note, cancellationToken);
 
             request.RescueRequestStatus = RescueRequestStatus.Assigned;
             request.UpdatedAt = DateTime.UtcNow;
@@ -490,6 +510,8 @@ namespace ReliefManagementSystem.Application.Services
             await AssignTeamToRescueAsync(requestId, new AssignRescueTeamRequestDto
             {
                 TeamId = dto.TeamId,
+                VehicleId = dto.VehicleId,
+                VehicleIds = dto.VehicleIds,
                 Note = dto.Note
             }, cancellationToken);
 
@@ -694,9 +716,9 @@ namespace ReliefManagementSystem.Application.Services
             operation.Status = RescueOperationStatus.RescueCompleted;
             operation.EndedAt = now;
 
-            if (operation.VehicleId.HasValue)
+            foreach (var vehicleId in GetAssignedVehicles(operation).Select(v => v.VehicleId).Distinct())
             {
-                var vehicle = await _unitOfWork.Vehicles.GetByIdAsync(operation.VehicleId.Value);
+                var vehicle = await _unitOfWork.Vehicles.GetByIdAsync(vehicleId);
                 if (vehicle != null && !vehicle.IsDeleted)
                 {
                     vehicle.Status = VehicleStatus.Free;
@@ -1446,9 +1468,9 @@ namespace ReliefManagementSystem.Application.Services
             {
                 operation.EndedAt = now;
 
-                if (operation.VehicleId.HasValue)
+                foreach (var vehicleId in GetAssignedVehicles(operation).Select(v => v.VehicleId).Distinct())
                 {
-                    var vehicle = await _unitOfWork.Vehicles.GetByIdAsync(operation.VehicleId.Value);
+                    var vehicle = await _unitOfWork.Vehicles.GetByIdAsync(vehicleId);
                     if (vehicle != null && !vehicle.IsDeleted)
                     {
                         vehicle.Status = VehicleStatus.Free;
@@ -1956,6 +1978,8 @@ namespace ReliefManagementSystem.Application.Services
                     TeamName = ro.Team?.Name,
                     VehicleName = ro.Vehicle?.VehicleType?.TypeName,
                     VehicleLicensePlate = ro.Vehicle?.LicensePlate,
+                    Vehicles = MapAssignedVehicles(ro),
+                    Supplies = MapOperationSupplies(ro),
                     StationName = ro.ReliefStation?.Name,
                     Status = ro.Status.ToString(),
                     StartedAt = ro.StartedAt,
@@ -1971,7 +1995,8 @@ namespace ReliefManagementSystem.Application.Services
                     VerifiedBy = v.VerifiedBy,
                     VerifiedAt = v.VerifiedAt
                 }).ToList(),
-                AssignedRescueTeam = BuildAssignedRescueTeamDto(request)
+                AssignedRescueTeam = BuildAssignedRescueTeamDto(request),
+                Supplies = request.RescueOperations.SelectMany(MapOperationSupplies).ToList()
             };
         }
 
@@ -2009,6 +2034,8 @@ namespace ReliefManagementSystem.Application.Services
                 VehicleId = activeOperation.VehicleId,
                 VehicleName = activeOperation.Vehicle?.VehicleType?.TypeName,
                 VehicleLicensePlate = activeOperation.Vehicle?.LicensePlate,
+                Vehicles = MapAssignedVehicles(activeOperation),
+                Supplies = MapOperationSupplies(activeOperation),
                 OperationStatus = activeOperation.Status.ToString(),
                 CurrentLatitude = latestTracking?.Latitude,
                 CurrentLongitude = latestTracking?.Longitude,
@@ -2127,6 +2154,16 @@ namespace ReliefManagementSystem.Application.Services
                             .OrderByDescending(ro => ro.StartedAt)
                             .Select(ro => ro.Vehicle != null ? ro.Vehicle.LicensePlate : null)
                             .FirstOrDefault(),
+                        Vehicles = i.RescueRequest?.RescueOperations?
+                            .Where(ro => ro.TeamId == batch.TeamId)
+                            .OrderByDescending(ro => ro.StartedAt)
+                            .Select(ro => MapAssignedVehicles(ro))
+                            .FirstOrDefault() ?? new List<AssignedVehicleDto>(),
+                        Supplies = i.RescueRequest?.RescueOperations?
+                            .Where(ro => ro.TeamId == batch.TeamId)
+                            .OrderByDescending(ro => ro.StartedAt)
+                            .Select(ro => MapOperationSupplies(ro))
+                            .FirstOrDefault() ?? new List<RescueOperationSupplyDto>(),
                         Status = i.Status,
                         CreatedAt = i.CreatedAt
                     })
@@ -2426,6 +2463,7 @@ namespace ReliefManagementSystem.Application.Services
                             VehicleId = teamOperation?.VehicleId,
                             VehicleName = teamOperation?.Vehicle?.VehicleType?.TypeName,
                             VehicleLicensePlate = teamOperation?.Vehicle?.LicensePlate,
+                            Vehicles = teamOperation != null ? MapAssignedVehicles(teamOperation) : new List<AssignedVehicleDto>(),
                             Address = rr?.Address,
                             DisasterType = rr?.DisasterType.ToString() ?? "-",
                             RescueRequestType = rr?.RescueRequestType.ToString(),
@@ -2454,6 +2492,164 @@ namespace ReliefManagementSystem.Application.Services
         {
             public required ReliefStation Station { get; set; }
             public double DistanceKm { get; set; }
+        }
+
+        private static List<AssignedVehicleDto> MapAssignedVehicles(RescueOperation operation)
+        {
+            var vehicles = operation.RescueOperationVehicles
+                .OrderByDescending(x => x.IsPrimary)
+                .ThenBy(x => x.AssignedAt)
+                .Select(x => new AssignedVehicleDto
+                {
+                    VehicleId = x.VehicleId,
+                    VehicleName = x.Vehicle?.VehicleType?.TypeName,
+                    VehicleLicensePlate = x.Vehicle?.LicensePlate,
+                    IsPrimary = x.IsPrimary
+                })
+                .ToList();
+
+            if (vehicles.Count == 0 && operation.VehicleId.HasValue)
+            {
+                vehicles.Add(new AssignedVehicleDto
+                {
+                    VehicleId = operation.VehicleId.Value,
+                    VehicleName = operation.Vehicle?.VehicleType?.TypeName,
+                    VehicleLicensePlate = operation.Vehicle?.LicensePlate,
+                    IsPrimary = true
+                });
+            }
+
+            return vehicles;
+        }
+
+        private static List<AssignedVehicleDto> GetAssignedVehicles(RescueOperation operation)
+            => MapAssignedVehicles(operation);
+
+        private static List<RescueOperationSupplyDto> MapOperationSupplies(RescueOperation operation)
+        {
+            return operation.RescueOperationSupplies
+                .OrderBy(x => x.CreatedAt)
+                .Select(x => new RescueOperationSupplyDto
+                {
+                    RescueOperationSupplyId = x.RescueOperationSupplyId,
+                    RescueOperationId = x.RescueOperationId,
+                    SourceInventoryId = x.SourceInventoryId,
+                    SourceInventoryName = x.SourceInventory?.ReliefStation?.Name,
+                    SupplyItemId = x.SupplyItemId,
+                    SupplyItemName = x.SupplyItem?.Name,
+                    Quantity = x.Quantity,
+                    Unit = x.Unit,
+                    Notes = x.Notes,
+                    InventoryTransactionId = x.InventoryTransactionId,
+                    CreatedAt = x.CreatedAt,
+                    CreatedBy = x.CreatedBy
+                })
+                .ToList();
+        }
+
+        private static void SyncRescueOperationVehicles(RescueOperation operation, List<Guid> vehicleIds, string? note)
+        {
+            var now = DateTime.UtcNow;
+            operation.RescueOperationVehicles.Clear();
+
+            for (var i = 0; i < vehicleIds.Count; i++)
+            {
+                operation.RescueOperationVehicles.Add(new RescueOperationVehicle
+                {
+                    RescueOperationVehicleId = Guid.NewGuid(),
+                    RescueOperationId = operation.RescueOperationId,
+                    VehicleId = vehicleIds[i],
+                    IsPrimary = i == 0,
+                    AssignedAt = now,
+                    Note = note
+                });
+            }
+        }
+
+        private async Task SyncRescueOperationSuppliesAsync(
+            RescueOperation operation,
+            List<AssignRescueSupplyItemDto>? supplies,
+            string? note,
+            CancellationToken cancellationToken)
+        {
+            operation.RescueOperationSupplies.Clear();
+
+            if (supplies == null || supplies.Count == 0)
+            {
+                return;
+            }
+
+            var normalizedSupplies = supplies
+                .Where(x => x.SourceInventoryId != Guid.Empty && x.SupplyItemId != Guid.Empty && x.Quantity > 0)
+                .GroupBy(x => new { x.SourceInventoryId, x.SupplyItemId, x.Unit })
+                .Select(g => new AssignRescueSupplyItemDto
+                {
+                    SourceInventoryId = g.Key.SourceInventoryId,
+                    SupplyItemId = g.Key.SupplyItemId,
+                    Quantity = g.Sum(x => x.Quantity),
+                    Unit = g.Key.Unit,
+                    Notes = string.Join("; ", g.Select(x => x.Notes).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct())
+                })
+                .ToList();
+
+            if (normalizedSupplies.Count == 0)
+            {
+                return;
+            }
+
+            var groupedByInventory = normalizedSupplies.GroupBy(x => x.SourceInventoryId).ToList();
+            var transactionIdByInventory = new Dictionary<Guid, Guid>();
+
+            foreach (var inventoryGroup in groupedByInventory)
+            {
+                var tx = await _inventoryTransactionService.CreateTransactionAsync(new CreateTransactionRequest
+                {
+                    InventoryId = inventoryGroup.Key,
+                    Type = TransactionType.Export,
+                    Reason = TransactionReason.Other,
+                    Notes = note,
+                    SourceReference = operation.RescueOperationId.ToString(),
+                    Items = inventoryGroup.Select(x => new TransactionItemRequest
+                    {
+                        SupplyItemId = x.SupplyItemId,
+                        Quantity = x.Quantity,
+                        Notes = x.Notes
+                    }).ToList()
+                }, autoSave: false, cancellationToken: cancellationToken);
+
+                transactionIdByInventory[inventoryGroup.Key] = tx.TransactionId;
+            }
+
+            var inventoryIds = groupedByInventory.Select(g => g.Key).ToList();
+            var supplyItemIds = normalizedSupplies.Select(x => x.SupplyItemId).Distinct().ToList();
+
+            var inventories = await _unitOfWork.Inventories.GetQueryable()
+                .Where(i => inventoryIds.Contains(i.InventoryId))
+                .ToDictionaryAsync(i => i.InventoryId, cancellationToken);
+
+            var supplyItems = await _unitOfWork.SupplyItems.GetQueryable()
+                .Where(s => supplyItemIds.Contains(s.SupplyItemId))
+                .ToDictionaryAsync(s => s.SupplyItemId, cancellationToken);
+
+            var now = DateTime.UtcNow;
+            foreach (var item in normalizedSupplies)
+            {
+                operation.RescueOperationSupplies.Add(new RescueOperationSupply
+                {
+                    RescueOperationSupplyId = Guid.NewGuid(),
+                    RescueOperationId = operation.RescueOperationId,
+                    SourceInventoryId = item.SourceInventoryId,
+                    SupplyItemId = item.SupplyItemId,
+                    Quantity = item.Quantity,
+                    Unit = item.Unit ?? supplyItems[item.SupplyItemId].Unit,
+                    Notes = item.Notes,
+                    CreatedAt = now,
+                    CreatedBy = _currentUserService.UserId,
+                    InventoryTransactionId = transactionIdByInventory[item.SourceInventoryId],
+                    SourceInventory = inventories[item.SourceInventoryId],
+                    SupplyItem = supplyItems[item.SupplyItemId]
+                });
+            }
         }
     }
 }

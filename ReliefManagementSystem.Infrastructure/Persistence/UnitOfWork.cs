@@ -102,6 +102,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
         public IAttachmentRepository Attachments { get; }
         public IGenericRepository<AuditLog> AuditLogs { get; }
         public IGenericRepository<RequestVerification> RequestVerifications { get; }
+        public IGenericRepository<RescueOperationSupply> RescueOperationSupplies { get; }
         public IGenericRepository<DisasterAnalysisLog> DisasterAnalysisLogs { get; }
 
         // Constructor
@@ -168,6 +169,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             Attachments = new AttachmentRepository(_context);
             AuditLogs = new GenericRepository<AuditLog>(_context);
             RequestVerifications = new GenericRepository<RequestVerification>(_context);
+            RescueOperationSupplies = new GenericRepository<RescueOperationSupply>(_context);
             DisasterAnalysisLogs = new GenericRepository<DisasterAnalysisLog>(_context);
         }
 
