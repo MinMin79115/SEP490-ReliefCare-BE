@@ -448,6 +448,9 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Property<Guid?>("DistributionPointId")
                         .HasColumnType("uuid");
 
+                    b.Property<int?>("FloodSeverityLevel")
+                        .HasColumnType("integer");
+
                     b.Property<string>("FulfillmentStatus")
                         .IsRequired()
                         .HasColumnType("text");
@@ -468,6 +471,9 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Property<bool>("IsIsolated")
                         .HasColumnType("boolean");
 
+                    b.Property<int?>("IsolationSeverityLevel")
+                        .HasColumnType("integer");
+
                     b.Property<double>("Latitude")
                         .HasColumnType("double precision");
 
@@ -479,6 +485,12 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
                     b.Property<string>("Notes")
                         .HasColumnType("text");
+
+                    b.Property<bool>("RequiresBoat")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("RequiresLocalGuide")
+                        .HasColumnType("boolean");
 
                     b.HasKey("CampaignHouseholdId");
 
@@ -810,6 +822,9 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Property<Guid>("CampaignId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("CampaignTeamId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime?>("EndDate")
                         .HasColumnType("timestamp with time zone");
 
@@ -830,6 +845,8 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.HasIndex("AssignedDriverId");
 
                     b.HasIndex("CampaignId");
+
+                    b.HasIndex("CampaignTeamId");
 
                     b.HasIndex("VehicleId");
 
@@ -1654,6 +1671,45 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.HasIndex("VolunteerProfileId");
 
                     b.ToTable("MemberTasks");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.MemberTaskDelivery", b =>
+                {
+                    b.Property<Guid>("MemberTaskDeliveryId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid?>("AssignedVolunteerProfileId")
+                        .HasColumnType("uuid");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<Guid?>("CompletedByUserId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("HouseholdDeliveryId")
+                        .HasColumnType("uuid");
+
+                    b.Property<Guid>("MemberTaskId")
+                        .HasColumnType("uuid");
+
+                    b.Property<string>("Note")
+                        .HasColumnType("text");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
+
+                    b.HasKey("MemberTaskDeliveryId");
+
+                    b.HasIndex("AssignedVolunteerProfileId");
+
+                    b.HasIndex("HouseholdDeliveryId");
+
+                    b.HasIndex("MemberTaskId", "HouseholdDeliveryId")
+                        .IsUnique();
+
+                    b.ToTable("MemberTaskDeliveries");
                 });
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.MemberTaskItem", b =>
@@ -3887,6 +3943,11 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.CampaignTeam", "CampaignTeam")
+                        .WithMany("CampaignVehicles")
+                        .HasForeignKey("CampaignTeamId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("ReliefManagementSystem.Domain.Entities.Vehicle", "Vehicle")
                         .WithMany()
                         .HasForeignKey("VehicleId")
@@ -3894,6 +3955,8 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                         .IsRequired();
 
                     b.Navigation("Campaign");
+
+                    b.Navigation("CampaignTeam");
 
                     b.Navigation("Driver");
 
@@ -4263,6 +4326,32 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Navigation("CampaignTask");
 
                     b.Navigation("VolunteerProfile");
+                });
+
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.MemberTaskDelivery", b =>
+                {
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.VolunteerProfile", "AssignedVolunteerProfile")
+                        .WithMany()
+                        .HasForeignKey("AssignedVolunteerProfileId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.HouseholdDelivery", "HouseholdDelivery")
+                        .WithMany("MemberTaskDeliveries")
+                        .HasForeignKey("HouseholdDeliveryId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("ReliefManagementSystem.Domain.Entities.MemberTask", "MemberTask")
+                        .WithMany("MemberTaskDeliveries")
+                        .HasForeignKey("MemberTaskId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("AssignedVolunteerProfile");
+
+                    b.Navigation("HouseholdDelivery");
+
+                    b.Navigation("MemberTask");
                 });
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.MemberTaskItem", b =>
@@ -5196,6 +5285,11 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
                     b.Navigation("MemberTaskItems");
                 });
 
+            modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.CampaignTeam", b =>
+                {
+                    b.Navigation("CampaignVehicles");
+                });
+
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.DistributionPoint", b =>
                 {
                     b.Navigation("Deliveries");
@@ -5217,6 +5311,8 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.HouseholdDelivery", b =>
                 {
+                    b.Navigation("MemberTaskDeliveries");
+
                     b.Navigation("Proofs");
                 });
 
@@ -5252,6 +5348,8 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
 
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.MemberTask", b =>
                 {
+                    b.Navigation("MemberTaskDeliveries");
+
                     b.Navigation("MemberTaskItems");
                 });
 
@@ -5399,6 +5497,7 @@ namespace ReliefManagementSystem.Infrastructure.Migrations
             modelBuilder.Entity("ReliefManagementSystem.Domain.Entities.Vehicle", b =>
                 {
                     b.Navigation("RescueOperationVehicles");
+
                     b.Navigation("SupplyTransferVehicles");
 
                     b.Navigation("SupplyTransfers");
