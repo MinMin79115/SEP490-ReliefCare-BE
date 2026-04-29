@@ -18,7 +18,7 @@ jobs:
       reliefcare-api: ${{ steps.changes.outputs.reliefcare-api }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           fetch-depth: 2
 
@@ -73,7 +73,7 @@ jobs:
         service: ${{ fromJson(needs.detect-changes.outputs.services) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: DockerHub Login
         uses: docker/login-action@v3.1.0
@@ -110,7 +110,7 @@ jobs:
       GOOGLE_CLIENT_SECRET: ${{ secrets.PROD_GOOGLE_CLIENT_SECRET }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: DockerHub Login
         uses: docker/login-action@v3.1.0

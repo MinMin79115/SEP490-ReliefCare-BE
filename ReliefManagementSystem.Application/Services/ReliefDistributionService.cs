@@ -377,9 +377,6 @@ namespace ReliefManagementSystem.Application.Services
             if (request.DistributionPointId.HasValue)
                 query = query.Where(x => x.DistributionPointId == request.DistributionPointId.Value);
 
-            if (request.ReliefPackageDefinitionId.HasValue)
-                query = query.Where(x => x.ReliefPackageDefinitionId == request.ReliefPackageDefinitionId.Value);
-
             if (request.CampaignTeamId.HasValue)
                 query = query.Where(x => x.CampaignTeamId == request.CampaignTeamId.Value);
 
