@@ -109,9 +109,10 @@ namespace ReliefManagementSystem.API.Controllers
         [HttpGet("{id:guid}/extract-budget")]
         public async Task<IActionResult> GetExtractBudgetHistory(
             Guid id,
+            [FromQuery] bool includeDeleted,
             CancellationToken cancellationToken)
         {
-            var result = await _campaignService.GetBudgetTransferHistoryAsync(id, cancellationToken);
+            var result = await _campaignService.GetBudgetTransferHistoryAsync(id, includeDeleted, cancellationToken);
             return Ok(result);
         }
 

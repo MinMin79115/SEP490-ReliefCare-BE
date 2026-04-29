@@ -382,12 +382,12 @@ namespace ReliefManagementSystem.Application.Services
             }
         }
 
-        public async Task<IReadOnlyList<CampaignBudgetTransferResponse>> GetBudgetTransferHistoryAsync(Guid campaignId, CancellationToken cancellationToken = default)
+        public async Task<IReadOnlyList<CampaignBudgetTransferResponse>> GetBudgetTransferHistoryAsync(Guid campaignId, bool includeDeleted = false, CancellationToken cancellationToken = default)
         {
             var campaign = await _unitOfWork.Campaigns.GetWithDetailsAsync(campaignId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
 
-            var transfers = await _unitOfWork.CampaignBudgetTransfers.GetByCampaignAsync(campaign.CampaignId, cancellationToken);
+            var transfers = await _unitOfWork.CampaignBudgetTransfers.GetByCampaignAsync(campaign.CampaignId, includeDeleted, cancellationToken);
             var campaignIds = transfers
                 .SelectMany(x => new[] { x.SourceCampaignId, x.TargetCampaignId })
                 .Distinct()
@@ -1199,11 +1199,17 @@ namespace ReliefManagementSystem.Application.Services
                 TargetCampaignId = transfer.TargetCampaignId,
                 Amount = transfer.Amount,
                 TransferredByUserId = transfer.TransferredByUserId,
+                TransferredByUserName = transfer.TransferredByUser?.DisplayName
+                    ?? transfer.TransferredByUser?.UserName
+                    ?? transfer.TransferredByUser?.Email,
                 TransferredAt = transfer.TransferredAt,
                 Note = transfer.Note,
                 IsDeleted = transfer.IsDeleted,
                 CancelledAt = transfer.CancelledAt,
                 CancelledByUserId = transfer.CancelledByUserId,
+                CancelledByUserName = transfer.CancelledByUser?.DisplayName
+                    ?? transfer.CancelledByUser?.UserName
+                    ?? transfer.CancelledByUser?.Email,
                 SourceRemainingBudget = sourceRemainingBudget,
                 TargetRemainingBudget = targetRemainingBudget
             };

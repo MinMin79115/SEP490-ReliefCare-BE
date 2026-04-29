@@ -4,6 +4,6 @@ namespace ReliefManagementSystem.Application.Common.Interface
 {
     public interface ICampaignBudgetTransferRepository : IGenericRepository<CampaignBudgetTransfer>
     {
-        Task<List<CampaignBudgetTransfer>> GetByCampaignAsync(Guid campaignId, CancellationToken cancellationToken = default);
+        Task<List<CampaignBudgetTransfer>> GetByCampaignAsync(Guid campaignId, bool includeDeleted = false, CancellationToken cancellationToken = default);
     }
 }
