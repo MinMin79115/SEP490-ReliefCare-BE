@@ -5,6 +5,7 @@ using ReliefManagementSystem.Application.Features.Relief.DTOs.Request;
 using ReliefManagementSystem.Application.Features.Relief.DTOs.Response;
 using Microsoft.EntityFrameworkCore;
 using ReliefManagementSystem.Application.Interface;
+using ReliefManagementSystem.Domain.Common;
 using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Domain.Enum;
 using System.Text.Json;
@@ -385,6 +386,8 @@ namespace ReliefManagementSystem.Application.Services
                 .Where(x => x.CampaignId == campaignId)
                 .ToListAsync(cancellationToken);
 
+            var activeLocations = await _unitOfWork.Locations.GetAllActiveAsync();
+
             var distributionPoints = await _unitOfWork.DistributionPoints.GetQueryable()
                 .Include(x => x.Households)
                 .Include(x => x.Deliveries)
@@ -410,6 +413,16 @@ namespace ReliefManagementSystem.Application.Services
                 ? Math.Round(areaLocationDensities.Average(), 2)
                 : 0;
 
+            if (averagePopulationDensity <= 0)
+            {
+                var inferredDensities = households
+                    .Select(h => ResolveLocationContext([h], activeLocations)?.PopulationDensity ?? 0)
+                    .Where(x => x > 0)
+                    .ToList();
+                if (inferredDensities.Count > 0)
+                    averagePopulationDensity = Math.Round(inferredDensities.Average(), 2);
+            }
+
             var suggestedTeamCount = CalculateSuggestedTeamCount(
                 totalHouseholds,
                 isolatedHouseholds,
@@ -430,6 +443,7 @@ namespace ReliefManagementSystem.Application.Services
                 .Select(group =>
                 {
                     var groupItems = group.ToList();
+                    var resolvedLocation = ResolveLocationContext(groupItems, activeLocations);
                     var householdCount = groupItems.Count;
                     var areaIsolatedCount = groupItems.Count(x => x.IsIsolated);
                     var areaPopulation = groupItems.Sum(x => x.HouseholdSize);
@@ -437,6 +451,8 @@ namespace ReliefManagementSystem.Application.Services
                     var areaDensity = group
                         .Select(x => x.Location?.PopulationDensity ?? 0)
                         .FirstOrDefault(x => x > 0);
+                    if (areaDensity <= 0)
+                        areaDensity = resolvedLocation?.PopulationDensity ?? 0;
                     var areaFloodSeverity = groupItems
                         .Where(x => x.FloodSeverityLevel.HasValue)
                         .Select(x => x.FloodSeverityLevel!.Value)
@@ -461,7 +477,9 @@ namespace ReliefManagementSystem.Application.Services
                     return new ReliefPlanAreaSummaryResponse
                     {
                         AreaName = ResolveAreaName(groupItems),
-                        LocationId = groupItems.FirstOrDefault(x => x.LocationId.HasValue)?.LocationId,
+                        LocationId = groupItems.FirstOrDefault(x => x.LocationId.HasValue)?.LocationId ?? resolvedLocation?.LocationId,
+                        MatchedLocationName = resolvedLocation?.FullName,
+                        LocationMatchSource = resolvedLocation is null ? null : "address-latlng-heuristic",
                         PopulationDensity = areaDensity,
                         HouseholdCount = householdCount,
                         IsolatedHouseholdCount = areaIsolatedCount,
@@ -474,6 +492,8 @@ namespace ReliefManagementSystem.Application.Services
                         RecommendedDeliveryStrategy = recommendedOperationalMode == "Ưu tiên điểm phát"
                             ? "Tập trung phát tại điểm, gom hộ gần nhau"
                             : "Đội cơ động gõ từng cụm, giao tận nơi cho hộ cô lập",
+                        SuggestedPeoplePerTeam = CalculateSuggestedPeoplePerTeam(areaSuggestedTeams, areaPopulation),
+                        SuggestedPeoplePerDistributionPointLine = CalculateSuggestedPeoplePerLine(householdCount, areaDensity),
                         SuggestedDistributionPointCount = suggestedDistributionPointCount,
                         SuggestedMobileTeamCount = suggestedMobileTeamCount,
                         SuggestedTeamCount = areaSuggestedTeams,
@@ -497,10 +517,13 @@ namespace ReliefManagementSystem.Application.Services
                 .Select(x => new IsolatedHouseholdPlanItemResponse
                 {
                     CampaignHouseholdId = x.CampaignHouseholdId,
+                    CampaignTeamId = x.CampaignTeamId,
                     HouseholdCode = x.HouseholdCode,
                     HeadOfHouseholdName = x.HeadOfHouseholdName,
                     Address = x.Address,
                     LocationId = x.LocationId,
+                    Latitude = x.Latitude,
+                    Longitude = x.Longitude,
                     HouseholdSize = x.HouseholdSize,
                     FloodSeverityLevel = x.FloodSeverityLevel,
                     IsolationSeverityLevel = x.IsolationSeverityLevel,
@@ -583,6 +606,8 @@ namespace ReliefManagementSystem.Application.Services
                 IsolatedHouseholds = isolatedHouseholds,
                 TotalPopulation = totalPopulation,
                 AveragePopulationDensity = averagePopulationDensity,
+                SuggestedPeoplePerTeam = CalculateSuggestedPeoplePerTeam(suggestedTeamCount, totalPopulation),
+                SuggestedPeoplePerDistributionPointLine = CalculateSuggestedPeoplePerLine(totalHouseholds, averagePopulationDensity),
                 HighDensityAreaCount = areaSummaries.Count(x => x.PopulationDensity >= 1000),
                 MobileTeamPriorityAreaCount = areaSummaries.Count(x => x.RecommendedOperationalMode == "Ưu tiên đội cơ động"),
                 PickupPriorityAreaCount = areaSummaries.Count(x => x.RecommendedOperationalMode == "Ưu tiên điểm phát"),
@@ -1845,6 +1870,30 @@ namespace ReliefManagementSystem.Application.Services
             return normalized.Trim();
         }
 
+        private static Location? ResolveLocationContext(IReadOnlyCollection<CampaignHousehold> households, IReadOnlyCollection<Location> locations)
+        {
+            var addressTokens = households
+                .Select(x => x.Address)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .SelectMany(address => address!.Split(new[] { ',', ';', '-' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                .Select(StringHelper.NormalizeVietnamesePath)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct()
+                .ToList();
+
+            if (addressTokens.Count() == 0)
+                return null;
+
+            return locations
+                .OrderByDescending(location => addressTokens.Count(token =>
+                    token.Contains(location.NormalizedName, StringComparison.OrdinalIgnoreCase) ||
+                    location.NormalizedName.Contains(token, StringComparison.OrdinalIgnoreCase)))
+                .ThenByDescending(location => location.Level)
+                .FirstOrDefault(location => addressTokens.Any(token =>
+                    token.Contains(location.NormalizedName, StringComparison.OrdinalIgnoreCase) ||
+                    location.NormalizedName.Contains(token, StringComparison.OrdinalIgnoreCase)));
+        }
+
         private static bool HasCoordinates(CampaignHousehold household)
             => household.Latitude != 0 || household.Longitude != 0;
 
@@ -1885,6 +1934,22 @@ namespace ReliefManagementSystem.Application.Services
 
         private static int CalculateEstimatedReliefPersonnel(int suggestedTeamCount, int population)
             => Math.Max(suggestedTeamCount * 4, (int)Math.Ceiling(population / 25d));
+
+        private static int CalculateSuggestedPeoplePerTeam(int suggestedTeamCount, int population)
+        {
+            if (suggestedTeamCount <= 0)
+                return 0;
+
+            return Math.Max(4, (int)Math.Ceiling(population / Math.Max(1d, suggestedTeamCount * 12d)) * 2);
+        }
+
+        private static int CalculateSuggestedPeoplePerLine(int householdCount, decimal populationDensity)
+        {
+            if (householdCount <= 0)
+                return 0;
+
+            return populationDensity >= 1000 ? 4 : 2;
+        }
 
         private static int CalculateEstimatedLocalVolunteers(int isolatedHouseholdCount)
             => isolatedHouseholdCount <= 0 ? 0 : Math.Max(1, (int)Math.Ceiling(isolatedHouseholdCount / 10d));
