@@ -187,6 +187,13 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Response
         public bool IsSuccess { get; set; }
         public string? Error { get; set; }
         public CampaignHouseholdResponse? Household { get; set; }
+        public HouseholdDeliveryResponse? Delivery { get; set; }
+    }
+
+    public class AssignIsolatedHouseholdTeamResponse
+    {
+        public CampaignHouseholdResponse Household { get; set; } = null!;
+        public HouseholdDeliveryResponse Delivery { get; set; } = null!;
     }
 
     public class DistributionPointResponse

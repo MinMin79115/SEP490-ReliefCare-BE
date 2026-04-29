@@ -18,7 +18,7 @@ namespace ReliefManagementSystem.Application.Interface
             AssignHouseholdRequest request,
             CancellationToken cancellationToken = default);
 
-        Task<CampaignHouseholdResponse> AssignIsolatedHouseholdTeamAsync(
+        Task<AssignIsolatedHouseholdTeamResponse> AssignIsolatedHouseholdTeamAsync(
             Guid campaignId,
             Guid campaignHouseholdId,
             AssignIsolatedHouseholdTeamRequest request,

@@ -136,6 +136,8 @@ namespace ReliefManagementSystem.Application.Services
                 ?? throw new KeyNotFoundException($"Relief package definition '{packageId}' was not found.");
             if (package.CampaignId != campaignId)
                 throw new InvalidOperationException("Relief package does not belong to campaign.");
+            if (!package.IsActive)
+                throw new InvalidOperationException("Relief package is inactive and cannot be assigned.");
 
             household.DeliveryMode = request.DeliveryMode;
             household.DistributionPointId = request.DeliveryMode == DeliveryMode.PickupAtPoint
@@ -152,7 +154,7 @@ namespace ReliefManagementSystem.Application.Services
                 .OrderByDescending(x => x.CreatedAt)
                 .FirstOrDefault(x => x.Status != HouseholdFulfillmentStatus.Delivered);
 
-            if (existingActiveDelivery is not null)
+            if (existingActiveDelivery is not null && !request.ForceCreateNewDelivery)
             {
                 existingActiveDelivery.DistributionPointId = household.DistributionPointId;
                 existingActiveDelivery.CampaignTeamId = request.CampaignTeamId;
@@ -195,7 +197,7 @@ namespace ReliefManagementSystem.Application.Services
             return MapHouseholdDelivery(saved);
         }
 
-        public async Task<CampaignHouseholdResponse> AssignIsolatedHouseholdTeamAsync(
+        public async Task<AssignIsolatedHouseholdTeamResponse> AssignIsolatedHouseholdTeamAsync(
             Guid campaignId,
             Guid campaignHouseholdId,
             AssignIsolatedHouseholdTeamRequest request,
@@ -253,7 +255,9 @@ namespace ReliefManagementSystem.Application.Services
                 .OrderByDescending(x => x.CreatedAt)
                 .FirstOrDefault(x => x.Status != HouseholdFulfillmentStatus.Delivered);
 
-            if (existingActiveDelivery is not null)
+            HouseholdDelivery activeDelivery;
+
+            if (existingActiveDelivery is not null && !request.ForceCreateNewDelivery)
             {
                 existingActiveDelivery.CampaignTeamId = request.CampaignTeamId;
                 existingActiveDelivery.DistributionPointId = null;
@@ -267,10 +271,11 @@ namespace ReliefManagementSystem.Application.Services
                 existingActiveDelivery.ReliefPackageDefinitionId = packageId.Value;
 
                 await _unitOfWork.HouseholdDeliveries.UpdateAsync(existingActiveDelivery);
+                activeDelivery = existingActiveDelivery;
             }
             else
             {
-                var delivery = new HouseholdDelivery
+                activeDelivery = new HouseholdDelivery
                 {
                     HouseholdDeliveryId = Guid.NewGuid(),
                     CampaignId = campaignId,
@@ -286,11 +291,18 @@ namespace ReliefManagementSystem.Application.Services
                     CreatedAt = DateTime.UtcNow
                 };
 
-                await _unitOfWork.HouseholdDeliveries.AddAsync(delivery);
+                await _unitOfWork.HouseholdDeliveries.AddAsync(activeDelivery);
             }
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
-            return MapCampaignHousehold(household);
+            var savedDelivery = await _unitOfWork.HouseholdDeliveries.GetByIdWithProofsAsync(activeDelivery.HouseholdDeliveryId, cancellationToken)
+                ?? throw new KeyNotFoundException("Assigned isolated delivery was not found after save.");
+
+            return new AssignIsolatedHouseholdTeamResponse
+            {
+                Household = MapCampaignHousehold(household),
+                Delivery = MapHouseholdDelivery(savedDelivery)
+            };
         }
 
         public async Task<BulkAssignIsolatedHouseholdsResponse> BulkAssignIsolatedHouseholdTeamsAsync(
@@ -315,14 +327,16 @@ namespace ReliefManagementSystem.Application.Services
                         ReliefPackageDefinitionId = request.ReliefPackageDefinitionId,
                         ScheduledAt = request.ScheduledAt,
                         KeepDoorToDoor = request.KeepDoorToDoor,
-                        Notes = request.Notes
+                        Notes = request.Notes,
+                        ForceCreateNewDelivery = request.ForceCreateNewDelivery
                     }, cancellationToken);
 
                     response.Items.Add(new BulkAssignIsolatedHouseholdItemResponse
                     {
                         CampaignHouseholdId = householdId,
                         IsSuccess = true,
-                        Household = result
+                        Household = result.Household,
+                        Delivery = result.Delivery
                     });
                 }
                 catch (Exception ex)
@@ -362,6 +376,9 @@ namespace ReliefManagementSystem.Application.Services
 
             if (request.DistributionPointId.HasValue)
                 query = query.Where(x => x.DistributionPointId == request.DistributionPointId.Value);
+
+            if (request.ReliefPackageDefinitionId.HasValue)
+                query = query.Where(x => x.ReliefPackageDefinitionId == request.ReliefPackageDefinitionId.Value);
 
             if (request.CampaignTeamId.HasValue)
                 query = query.Where(x => x.CampaignTeamId == request.CampaignTeamId.Value);
