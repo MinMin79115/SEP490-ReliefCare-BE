@@ -220,9 +220,27 @@ namespace ReliefManagementSystem.Application.Services
             if (!teams.Any(t => t.CampaignTeamId == request.CampaignTeamId))
                 throw new KeyNotFoundException($"Campaign team '{request.CampaignTeamId}' was not found in this campaign.");
 
+            var packageId = request.ReliefPackageDefinitionId;
+            if (!packageId.HasValue)
+            {
+                var defaultPackage = await _unitOfWork.ReliefPackageDefinitions.GetDefaultByCampaignAsync(campaignId, cancellationToken)
+                    ?? throw new InvalidOperationException("No default relief package found for campaign.");
+                packageId = defaultPackage.ReliefPackageDefinitionId;
+            }
+
+            var package = await _unitOfWork.ReliefPackageDefinitions.GetByIdAsync(packageId.Value)
+                ?? throw new KeyNotFoundException($"Relief package definition '{packageId}' was not found.");
+
+            if (package.CampaignId != campaignId)
+                throw new InvalidOperationException("Relief package does not belong to campaign.");
+
+            if (!package.IsActive)
+                throw new InvalidOperationException("Relief package is inactive and cannot be assigned.");
+
             household.CampaignTeamId = request.CampaignTeamId;
             household.DeliveryMode = request.KeepDoorToDoor ? DeliveryMode.DoorToDoor : household.DeliveryMode;
             household.DistributionPointId = null;
+            household.FulfillmentStatus = HouseholdFulfillmentStatus.Pending;
             household.Notes = string.IsNullOrWhiteSpace(request.Notes)
                 ? household.Notes
                 : string.Join(" | ", new[] { household.Notes, request.Notes?.Trim() }.Where(x => !string.IsNullOrWhiteSpace(x)));
@@ -241,13 +259,34 @@ namespace ReliefManagementSystem.Application.Services
                 existingActiveDelivery.DistributionPointId = null;
                 existingActiveDelivery.DeliveryMode = DeliveryMode.DoorToDoor;
                 existingActiveDelivery.ScheduledAt = request.ScheduledAt ?? existingActiveDelivery.ScheduledAt;
+                existingActiveDelivery.CashSupportAmount = package.CashSupportAmount ?? 0;
+                existingActiveDelivery.Status = HouseholdFulfillmentStatus.Pending;
                 if (!string.IsNullOrWhiteSpace(request.Notes))
                     existingActiveDelivery.Notes = request.Notes?.Trim();
 
-                if (request.ReliefPackageDefinitionId.HasValue)
-                    existingActiveDelivery.ReliefPackageDefinitionId = request.ReliefPackageDefinitionId.Value;
+                existingActiveDelivery.ReliefPackageDefinitionId = packageId.Value;
 
                 await _unitOfWork.HouseholdDeliveries.UpdateAsync(existingActiveDelivery);
+            }
+            else
+            {
+                var delivery = new HouseholdDelivery
+                {
+                    HouseholdDeliveryId = Guid.NewGuid(),
+                    CampaignId = campaignId,
+                    CampaignHouseholdId = household.CampaignHouseholdId,
+                    DistributionPointId = null,
+                    CampaignTeamId = request.CampaignTeamId,
+                    ReliefPackageDefinitionId = packageId.Value,
+                    DeliveryMode = DeliveryMode.DoorToDoor,
+                    CashSupportAmount = package.CashSupportAmount ?? 0,
+                    Status = HouseholdFulfillmentStatus.Pending,
+                    ScheduledAt = request.ScheduledAt ?? DateTime.UtcNow,
+                    Notes = request.Notes,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                await _unitOfWork.HouseholdDeliveries.AddAsync(delivery);
             }
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -1526,6 +1565,123 @@ namespace ReliefManagementSystem.Application.Services
                 throw new InvalidOperationException("Delivery does not belong to campaign.");
 
             return MapHouseholdDelivery(delivery);
+        }
+
+        public async Task<HouseholdDeliveryResponse> UpdateHouseholdDeliveryAssignmentAsync(
+            Guid campaignId,
+            Guid householdDeliveryId,
+            UpdateHouseholdDeliveryAssignmentRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            await EnsureReliefCampaignAsync(campaignId, cancellationToken);
+
+            var delivery = await _unitOfWork.HouseholdDeliveries.GetByIdWithProofsAsync(householdDeliveryId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Household delivery '{householdDeliveryId}' was not found.");
+
+            if (delivery.CampaignId != campaignId)
+                throw new InvalidOperationException("Delivery does not belong to campaign.");
+
+            if (delivery.Status == HouseholdFulfillmentStatus.Delivered)
+                throw new InvalidOperationException("Delivered assignment cannot be edited.");
+
+            var household = delivery.CampaignHousehold
+                ?? throw new KeyNotFoundException("Campaign household was not found for this delivery.");
+
+            if (!household.IsIsolated && request.DeliveryMode == DeliveryMode.DoorToDoor)
+                throw new InvalidOperationException("Direct delivery is only allowed for isolated households.");
+
+            if (request.DeliveryMode == DeliveryMode.PickupAtPoint && !request.DistributionPointId.HasValue)
+                throw new InvalidOperationException("Pickup delivery requires a distribution point.");
+
+            if (request.DeliveryMode == DeliveryMode.DoorToDoor && !request.CampaignTeamId.HasValue)
+                throw new InvalidOperationException("Direct delivery requires a campaign team.");
+
+            if (request.DistributionPointId.HasValue)
+            {
+                var point = await _unitOfWork.DistributionPoints.GetByIdAsync(request.DistributionPointId.Value)
+                    ?? throw new KeyNotFoundException($"Distribution point '{request.DistributionPointId.Value}' was not found.");
+                if (point.CampaignId != campaignId)
+                    throw new InvalidOperationException("Distribution point does not belong to campaign.");
+            }
+
+            if (request.CampaignTeamId.HasValue)
+            {
+                var teams = await _unitOfWork.Campaigns.GetCampaignTeamsAsync(campaignId, cancellationToken);
+                if (!teams.Any(t => t.CampaignTeamId == request.CampaignTeamId.Value))
+                    throw new KeyNotFoundException($"Campaign team '{request.CampaignTeamId.Value}' was not found in this campaign.");
+            }
+
+            var packageId = request.ReliefPackageDefinitionId ?? delivery.ReliefPackageDefinitionId;
+            var package = await _unitOfWork.ReliefPackageDefinitions.GetByIdAsync(packageId)
+                ?? throw new KeyNotFoundException($"Relief package definition '{packageId}' was not found.");
+            if (package.CampaignId != campaignId)
+                throw new InvalidOperationException("Relief package does not belong to campaign.");
+            if (!package.IsActive)
+                throw new InvalidOperationException("Relief package is inactive and cannot be assigned.");
+
+            delivery.DeliveryMode = request.DeliveryMode;
+            delivery.DistributionPointId = request.DeliveryMode == DeliveryMode.PickupAtPoint
+                ? request.DistributionPointId
+                : null;
+            delivery.CampaignTeamId = request.CampaignTeamId;
+            delivery.ReliefPackageDefinitionId = packageId;
+            delivery.CashSupportAmount = package.CashSupportAmount ?? 0;
+            delivery.ScheduledAt = request.ScheduledAt ?? delivery.ScheduledAt;
+            delivery.Notes = request.Notes;
+            delivery.Status = HouseholdFulfillmentStatus.Pending;
+
+            household.DeliveryMode = request.DeliveryMode;
+            household.DistributionPointId = delivery.DistributionPointId;
+            household.CampaignTeamId = request.CampaignTeamId;
+            household.Notes = request.Notes;
+            household.FulfillmentStatus = HouseholdFulfillmentStatus.Pending;
+
+            await _unitOfWork.HouseholdDeliveries.UpdateAsync(delivery);
+            await _unitOfWork.CampaignHouseholds.UpdateAsync(household);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            var saved = await _unitOfWork.HouseholdDeliveries.GetByIdWithProofsAsync(householdDeliveryId, cancellationToken)
+                ?? throw new KeyNotFoundException("Updated delivery was not found after save.");
+            return MapHouseholdDelivery(saved);
+        }
+
+        public async Task DeleteHouseholdDeliveryAssignmentAsync(
+            Guid campaignId,
+            Guid householdDeliveryId,
+            CancellationToken cancellationToken = default)
+        {
+            await EnsureReliefCampaignAsync(campaignId, cancellationToken);
+
+            var delivery = await _unitOfWork.HouseholdDeliveries.GetQueryable()
+                .Include(x => x.CampaignHousehold)
+                .Include(x => x.MemberTaskDeliveries)
+                .Include(x => x.Proofs)
+                .FirstOrDefaultAsync(x => x.HouseholdDeliveryId == householdDeliveryId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Household delivery '{householdDeliveryId}' was not found.");
+
+            if (delivery.CampaignId != campaignId)
+                throw new InvalidOperationException("Delivery does not belong to campaign.");
+
+            if (delivery.Status == HouseholdFulfillmentStatus.Delivered)
+                throw new InvalidOperationException("Delivered assignment cannot be deleted.");
+
+            if (delivery.Proofs.Any())
+                throw new InvalidOperationException("Assignment with proofs cannot be deleted.");
+
+            if (delivery.MemberTaskDeliveries.Any())
+                throw new InvalidOperationException("Assignment already linked to member tasks and cannot be deleted.");
+
+            if (delivery.CampaignHousehold is not null)
+            {
+                delivery.CampaignHousehold.CampaignTeamId = null;
+                delivery.CampaignHousehold.DistributionPointId = null;
+                delivery.CampaignHousehold.Notes = null;
+                delivery.CampaignHousehold.FulfillmentStatus = HouseholdFulfillmentStatus.Pending;
+                await _unitOfWork.CampaignHouseholds.UpdateAsync(delivery.CampaignHousehold);
+            }
+
+            await _unitOfWork.HouseholdDeliveries.DeleteAsync(delivery);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
 
         public async Task<BatchCompleteHouseholdDeliveryResponse> CompleteHouseholdDeliveriesBatchAsync(

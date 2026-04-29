@@ -66,6 +66,18 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         public string? Notes { get; set; }
     }
 
+    public class UpdateHouseholdDeliveryAssignmentRequest
+    {
+        [Required]
+        public DeliveryMode DeliveryMode { get; set; }
+
+        public Guid? DistributionPointId { get; set; }
+        public Guid? CampaignTeamId { get; set; }
+        public Guid? ReliefPackageDefinitionId { get; set; }
+        public DateTime? ScheduledAt { get; set; }
+        public string? Notes { get; set; }
+    }
+
     public class BulkAssignIsolatedHouseholdsRequest
     {
         [Required]
