@@ -569,6 +569,9 @@ namespace ReliefManagementSystem.Application.Services
             var vehicle = await _unitOfWork.Vehicles.GetByIdAsync(request.VehicleId)
                 ?? throw new KeyNotFoundException($"Vehicle '{request.VehicleId}' was not found.");
 
+            if (vehicle.Status == VehicleStatus.Busy)
+                throw new InvalidOperationException("Vehicle is currently busy and cannot be assigned to another team.");
+
             var assignment = new CampaignVehicle
             {
                 CampaignVehicleId = Guid.NewGuid(),
@@ -583,6 +586,8 @@ namespace ReliefManagementSystem.Application.Services
             };
 
             await _unitOfWork.CampaignVehicles.AddAsync(assignment);
+            vehicle.Status = VehicleStatus.Busy;
+            await _unitOfWork.Vehicles.UpdateAsync(vehicle);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return new CampaignAssignedVehicleResponse
@@ -590,9 +595,14 @@ namespace ReliefManagementSystem.Application.Services
                 CampaignVehicleId = assignment.CampaignVehicleId,
                 VehicleId = assignment.VehicleId,
                 LicensePlate = vehicle.LicensePlate,
+                VehicleTypeId = vehicle.VehicleTypeId,
                 VehicleTypeName = vehicle.VehicleType?.TypeName ?? string.Empty,
                 CampaignTeamId = assignment.CampaignTeamId,
+                CampaignTeamName = matchedTeam.Team?.Name,
                 AssignedDriverId = assignment.AssignedDriverId,
+                DriverName = null,
+                ReliefStationId = vehicle.ReliefStationId,
+                CurrentVehicleStatus = vehicle.Status,
                 Status = assignment.Status,
                 StartDate = assignment.StartDate,
                 EndDate = assignment.EndDate,
@@ -607,6 +617,7 @@ namespace ReliefManagementSystem.Application.Services
 
             var assignments = await _unitOfWork.CampaignVehicles.GetAllAsync();
             var vehicles = await _unitOfWork.Vehicles.GetAllAsync();
+            var campaignTeams = await _unitOfWork.Campaigns.GetCampaignTeamsAsync(campaignId, cancellationToken);
 
             var filtered = assignments.Where(x => x.CampaignId == campaignId);
             if (campaignTeamId.HasValue)
@@ -620,9 +631,14 @@ namespace ReliefManagementSystem.Application.Services
                     CampaignVehicleId = x.CampaignVehicleId,
                     VehicleId = x.VehicleId,
                     LicensePlate = vehicle?.LicensePlate ?? string.Empty,
+                    VehicleTypeId = vehicle?.VehicleTypeId ?? Guid.Empty,
                     VehicleTypeName = vehicle?.VehicleType?.TypeName ?? string.Empty,
                     CampaignTeamId = x.CampaignTeamId,
+                    CampaignTeamName = campaignTeams.FirstOrDefault(t => t.CampaignTeamId == x.CampaignTeamId)?.Team?.Name,
                     AssignedDriverId = x.AssignedDriverId,
+                    DriverName = string.Empty,
+                    ReliefStationId = vehicle?.ReliefStationId,
+                    CurrentVehicleStatus = vehicle?.Status ?? VehicleStatus.Free,
                     Status = x.Status,
                     StartDate = x.StartDate,
                     EndDate = x.EndDate,
@@ -653,18 +669,27 @@ namespace ReliefManagementSystem.Application.Services
                 assignment.Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
 
             await _unitOfWork.CampaignVehicles.UpdateAsync(assignment);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
-
             var vehicle = await _unitOfWork.Vehicles.GetByIdAsync(assignment.VehicleId);
+            if (vehicle is not null)
+            {
+                vehicle.Status = IsVehicleAssignmentBusy(assignment.Status) ? VehicleStatus.Busy : VehicleStatus.Free;
+                await _unitOfWork.Vehicles.UpdateAsync(vehicle);
+            }
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return new CampaignAssignedVehicleResponse
             {
                 CampaignVehicleId = assignment.CampaignVehicleId,
                 VehicleId = assignment.VehicleId,
                 LicensePlate = vehicle?.LicensePlate ?? string.Empty,
+                VehicleTypeId = vehicle?.VehicleTypeId ?? Guid.Empty,
                 VehicleTypeName = vehicle?.VehicleType?.TypeName ?? string.Empty,
                 CampaignTeamId = assignment.CampaignTeamId,
+                CampaignTeamName = null,
                 AssignedDriverId = assignment.AssignedDriverId,
+                DriverName = null,
+                ReliefStationId = vehicle?.ReliefStationId,
+                CurrentVehicleStatus = vehicle?.Status ?? VehicleStatus.Free,
                 Status = assignment.Status,
                 StartDate = assignment.StartDate,
                 EndDate = assignment.EndDate,
@@ -680,9 +705,22 @@ namespace ReliefManagementSystem.Application.Services
             if (assignment.CampaignId != campaignId)
                 throw new InvalidOperationException("Campaign vehicle assignment does not belong to campaign.");
 
+            var vehicle = await _unitOfWork.Vehicles.GetByIdAsync(assignment.VehicleId);
             await _unitOfWork.CampaignVehicles.DeleteAsync(assignment);
+            if (vehicle is not null)
+            {
+                vehicle.Status = VehicleStatus.Free;
+                await _unitOfWork.Vehicles.UpdateAsync(vehicle);
+            }
             await _unitOfWork.SaveChangesAsync(cancellationToken);
         }
+
+        private static bool IsVehicleAssignmentBusy(VehicleAssignmentStatus status)
+            => status is VehicleAssignmentStatus.Pending
+                or VehicleAssignmentStatus.Approved
+                or VehicleAssignmentStatus.InTransit
+                or VehicleAssignmentStatus.OnSite
+                or VehicleAssignmentStatus.Returning;
 
         public async Task<CampaignVolunteerRegistrationResponse> RegisterVolunteerAsync(Guid campaignId, CancellationToken cancellationToken = default)
         {
