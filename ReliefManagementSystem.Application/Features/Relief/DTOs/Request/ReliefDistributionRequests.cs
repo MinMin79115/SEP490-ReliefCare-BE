@@ -53,6 +53,7 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         public Guid? ReliefPackageDefinitionId { get; set; }
         public DateTime? ScheduledAt { get; set; }
         public string? Notes { get; set; }
+        public bool ForceCreateNewDelivery { get; set; } = false;
     }
 
     public class AssignIsolatedHouseholdTeamRequest
@@ -64,6 +65,7 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         public DateTime? ScheduledAt { get; set; }
         public bool KeepDoorToDoor { get; set; } = true;
         public string? Notes { get; set; }
+        public bool ForceCreateNewDelivery { get; set; } = false;
     }
 
     public class UpdateHouseholdDeliveryAssignmentRequest
@@ -91,6 +93,7 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         public DateTime? ScheduledAt { get; set; }
         public bool KeepDoorToDoor { get; set; } = true;
         public string? Notes { get; set; }
+        public bool ForceCreateNewDelivery { get; set; } = false;
     }
 
     public class ReliefPagedQueryRequest
@@ -120,6 +123,7 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         public HouseholdFulfillmentStatus? Status { get; set; }
         public Guid? CampaignTeamId { get; set; }
         public Guid? DistributionPointId { get; set; }
+        public Guid? ReliefPackageDefinitionId { get; set; }
         public DeliveryMode? DeliveryMode { get; set; }
         public DateTime? ScheduledFrom { get; set; }
         public DateTime? ScheduledTo { get; set; }
