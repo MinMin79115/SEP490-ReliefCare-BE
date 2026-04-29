@@ -249,6 +249,26 @@ namespace ReliefManagementSystem.API.Controllers
         public async Task<IActionResult> GetDeliveryById(Guid campaignId, Guid householdDeliveryId, CancellationToken cancellationToken)
             => Ok(await _reliefDistributionService.GetDeliveryByIdAsync(campaignId, householdDeliveryId, cancellationToken));
 
+        [HttpPatch("deliveries/{householdDeliveryId:guid}")]
+        [Authorize(Roles = "Manager,Moderator")]
+        public async Task<IActionResult> UpdateDeliveryAssignment(
+            Guid campaignId,
+            Guid householdDeliveryId,
+            [FromBody] UpdateHouseholdDeliveryAssignmentRequest request,
+            CancellationToken cancellationToken)
+            => Ok(await _reliefDistributionService.UpdateHouseholdDeliveryAssignmentAsync(campaignId, householdDeliveryId, request, cancellationToken));
+
+        [HttpDelete("deliveries/{householdDeliveryId:guid}")]
+        [Authorize(Roles = "Manager,Moderator")]
+        public async Task<IActionResult> DeleteDeliveryAssignment(
+            Guid campaignId,
+            Guid householdDeliveryId,
+            CancellationToken cancellationToken)
+        {
+            await _reliefDistributionService.DeleteHouseholdDeliveryAssignmentAsync(campaignId, householdDeliveryId, cancellationToken);
+            return NoContent();
+        }
+
         [HttpPost("shortage-requests")]
         [Authorize(Roles = "Manager,Moderator,Volunteer")]
         public async Task<IActionResult> CreateShortageRequest(

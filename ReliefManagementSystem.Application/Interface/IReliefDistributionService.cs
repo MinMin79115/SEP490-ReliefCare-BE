@@ -150,6 +150,17 @@ namespace ReliefManagementSystem.Application.Interface
             Guid householdDeliveryId,
             CancellationToken cancellationToken = default);
 
+        Task<HouseholdDeliveryResponse> UpdateHouseholdDeliveryAssignmentAsync(
+            Guid campaignId,
+            Guid householdDeliveryId,
+            UpdateHouseholdDeliveryAssignmentRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task DeleteHouseholdDeliveryAssignmentAsync(
+            Guid campaignId,
+            Guid householdDeliveryId,
+            CancellationToken cancellationToken = default);
+
         Task<BatchCompleteHouseholdDeliveryResponse> CompleteHouseholdDeliveriesBatchAsync(
             Guid campaignId,
             CompleteHouseholdDeliveryBatchRequest request,
