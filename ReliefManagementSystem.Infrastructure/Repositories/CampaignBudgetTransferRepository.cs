@@ -15,7 +15,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
         {
             return await _dbSet
                 .AsNoTracking()
-                .Where(x => x.SourceCampaignId == campaignId || x.TargetCampaignId == campaignId)
+                .Where(x => !x.IsDeleted && (x.SourceCampaignId == campaignId || x.TargetCampaignId == campaignId))
                 .OrderByDescending(x => x.TransferredAt)
                 .ToListAsync(cancellationToken);
         }

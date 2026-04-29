@@ -840,6 +840,12 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .OnDelete(DeleteBehavior.SetNull);
 
             builder.Entity<CampaignBudgetTransfer>()
+                .HasOne(x => x.CancelledByUser)
+                .WithMany()
+                .HasForeignKey(x => x.CancelledByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<CampaignBudgetTransfer>()
                 .HasIndex(x => new { x.SourceCampaignId, x.TargetCampaignId, x.TransferredAt });
 
             // CampaignInventory Configuration

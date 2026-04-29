@@ -106,6 +106,25 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(result);
         }
 
+        [HttpGet("{id:guid}/extract-budget")]
+        public async Task<IActionResult> GetExtractBudgetHistory(
+            Guid id,
+            CancellationToken cancellationToken)
+        {
+            var result = await _campaignService.GetBudgetTransferHistoryAsync(id, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpDelete("{id:guid}/extract-budget/{campaignBudgetTransferId:guid}")]
+        public async Task<IActionResult> DeleteExtractBudgetHistory(
+            Guid id,
+            Guid campaignBudgetTransferId,
+            CancellationToken cancellationToken)
+        {
+            await _campaignService.DeleteBudgetTransferHistoryAsync(id, campaignBudgetTransferId, cancellationToken);
+            return NoContent();
+        }
+
         [HttpPost("{id:guid}/teams")]
         [Authorize(Roles = "Manager,Moderator")]
         public async Task<IActionResult> AssignTeam(
