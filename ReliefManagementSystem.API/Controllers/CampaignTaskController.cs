@@ -20,7 +20,7 @@ namespace ReliefManagementSystem.API.Controllers
         }
 
         [HttpPost("{campaignId:guid}/tasks")]
-        [Authorize(Roles = "Manager,Moderator")]
+        [Authorize(Roles = "Manager,Moderator,Volunteer")]
         public async Task<IActionResult> Create(
             Guid campaignId,
             [FromBody] CreateCampaignTaskRequest request,
@@ -73,7 +73,7 @@ namespace ReliefManagementSystem.API.Controllers
         }
 
         [HttpPut("tasks/{campaignTaskId:guid}")]
-        [Authorize(Roles = "Manager,Moderator")]
+        [Authorize(Roles = "Manager,Moderator,Volunteer")]
         public async Task<ActionResult<CampaignTaskResponse>> Update(
             Guid campaignTaskId,
             [FromBody] UpdateCampaignTaskRequest request,
@@ -84,7 +84,7 @@ namespace ReliefManagementSystem.API.Controllers
         }
 
         [HttpPatch("tasks/{campaignTaskId:guid}/status")]
-        [Authorize(Roles = "Manager,Moderator")]
+        [Authorize(Roles = "Manager,Moderator,Volunteer")]
         public async Task<ActionResult<CampaignTaskResponse>> ChangeStatus(
             Guid campaignTaskId,
             [FromBody] ChangeCampaignTaskStatusRequest request,
@@ -95,7 +95,7 @@ namespace ReliefManagementSystem.API.Controllers
         }
 
         [HttpPost("tasks/{campaignTaskId:guid}/members")]
-        [Authorize(Roles = "Manager,Moderator")]
+        [Authorize(Roles = "Manager,Moderator,Volunteer")]
         public async Task<ActionResult<MemberTaskResponse>> AssignMember(
             Guid campaignTaskId,
             [FromBody] AssignMemberTaskRequest request,
@@ -106,7 +106,7 @@ namespace ReliefManagementSystem.API.Controllers
         }
 
         [HttpPost("tasks/{campaignTaskId:guid}/members/bulk")]
-        [Authorize(Roles = "Manager,Moderator")]
+        [Authorize(Roles = "Manager,Moderator,Volunteer")]
         public async Task<ActionResult<List<MemberTaskResponse>>> BulkAssignMembers(
             Guid campaignTaskId,
             [FromBody] BulkAssignMembersTaskRequest request,
@@ -117,7 +117,7 @@ namespace ReliefManagementSystem.API.Controllers
         }
 
         [HttpPost("tasks/{campaignTaskId:guid}/members/from-households")]
-        [Authorize(Roles = "Manager,Moderator")]
+        [Authorize(Roles = "Manager,Moderator,Volunteer")]
         public async Task<ActionResult<List<MemberTaskResponse>>> CreateMemberTasksFromHouseholds(
             Guid campaignTaskId,
             [FromBody] CreateMemberTaskFromHouseholdsRequest request,
@@ -128,7 +128,7 @@ namespace ReliefManagementSystem.API.Controllers
         }
 
         [HttpPost("tasks/{campaignTaskId:guid}/members/batch-from-deliveries")]
-        [Authorize(Roles = "Manager,Moderator")]
+        [Authorize(Roles = "Manager,Moderator,Volunteer")]
         public async Task<ActionResult<List<MemberTaskResponse>>> BulkAssignDeliveriesToMembers(
             Guid campaignTaskId,
             [FromBody] BulkAssignDeliveriesToMembersRequest request,
@@ -139,7 +139,7 @@ namespace ReliefManagementSystem.API.Controllers
         }
 
         [HttpPost("member-tasks/{memberTaskId:guid}/deliveries")]
-        [Authorize(Roles = "Manager,Moderator")]
+        [Authorize(Roles = "Manager,Moderator,Volunteer")]
         public async Task<ActionResult<List<MemberTaskDeliveryResponse>>> AssignDeliveriesToMemberTask(
             Guid memberTaskId,
             [FromBody] AssignMemberTaskDeliveriesRequest request,
@@ -193,7 +193,7 @@ namespace ReliefManagementSystem.API.Controllers
         }
 
         [HttpDelete("tasks/{campaignTaskId:guid}")]
-        [Authorize(Roles = "Manager,Moderator")]
+        [Authorize(Roles = "Manager,Moderator,Volunteer")]
         public async Task<IActionResult> Delete(
             Guid campaignTaskId,
             CancellationToken cancellationToken)
