@@ -796,6 +796,51 @@ namespace ReliefManagementSystem.Application.Services
             return await BuildVolunteerProfileResponseAsync(profile, profile.User, cancellationToken);
         }
 
+        public async Task<VolunteerProfileResponse> UpdateMyVolunteerProfileAsync(
+            UpdateVolunteerProfileRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            var userId = _currentUserService.UserId
+                         ?? throw new UnauthorizedAccessException("User not authenticated");
+
+            var profile = await _unitOfWork.VolunteerProfiles.GetByUserIdWithSkillsAsync(userId);
+            if (profile == null)
+                throw new InvalidOperationException("Volunteer profile not found.");
+
+            profile.Descriptions = request.Descriptions;
+            profile.YearsOfExperience = request.YearsOfExperience;
+            profile.PreferredTeamRole = request.PreferredTeamRole;
+
+            profile.VolunteerSkills.Clear();
+            foreach (var skillId in request.SkillIds.Distinct())
+            {
+                profile.VolunteerSkills.Add(new VolunteerSkill
+                {
+                    VolunteerProfileId = profile.VolunteerProfileId,
+                    SkillId = skillId
+                });
+            }
+
+            profile.Certificates.Clear();
+            foreach (var certificate in request.Certificates)
+            {
+                profile.Certificates.Add(new VolunteerCertificate
+                {
+                    VolunteerProfileId = profile.VolunteerProfileId,
+                    Name = certificate.Name,
+                    IssuedBy = certificate.IssuedBy,
+                    IssuedDate = certificate.IssuedDate,
+                    ExpiryDate = certificate.ExpiryDate,
+                    FileUrl = certificate.FileUrl
+                });
+            }
+
+            await _unitOfWork.VolunteerProfiles.UpdateAsync(profile);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return await BuildVolunteerProfileResponseAsync(profile, profile.User, cancellationToken);
+        }
+
         public async Task<Pagination<VolunteerProfileResponse>> GetAllVolunteerProfilesAsync(
             SearchVolunteerProfilesRequest request,
             CancellationToken cancellationToken = default)
