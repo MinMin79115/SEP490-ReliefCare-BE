@@ -24,6 +24,7 @@ namespace ReliefManagementSystem.Application.Services
         {
             var campaign = await GetReliefCampaignAsync(campaignId, cancellationToken);
             var campaignTeam = await GetCampaignTeamAsync(campaignId, request.CampaignTeamId, cancellationToken);
+            await EnsureTeamLeaderOrCoordinatorAsync(campaignTeam, cancellationToken);
 
             ValidateSchedule(request.StartDate, request.DueDate);
 
@@ -675,6 +676,8 @@ namespace ReliefManagementSystem.Application.Services
         {
             var task = await _unitOfWork.CampaignTasks.GetByIdWithDetailsAsync(campaignTaskId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Campaign task '{campaignTaskId}' was not found.");
+
+            await EnsureTeamLeaderOrCoordinatorAsync(task.CampaignTeam, cancellationToken);
 
             ValidateTaskDeletable(task.Status);
 

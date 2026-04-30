@@ -357,18 +357,10 @@ namespace ReliefManagementSystem.Application.Services
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
-                return new CampaignBudgetTransferResponse
-                {
-                    CampaignBudgetTransferId = transfer.CampaignBudgetTransferId,
-                    SourceCampaignId = transfer.SourceCampaignId,
-                    TargetCampaignId = transfer.TargetCampaignId,
-                    Amount = transfer.Amount,
-                    TransferredByUserId = transfer.TransferredByUserId,
-                    TransferredAt = transfer.TransferredAt,
-                    Note = transfer.Note,
-                    SourceRemainingBudget = source.BudgetTotal - source.BudgetSpent,
-                    TargetRemainingBudget = target.BudgetTotal - target.BudgetSpent
-                };
+                return MapBudgetTransfer(
+                    transfer,
+                    source.BudgetTotal - source.BudgetSpent,
+                    target.BudgetTotal - target.BudgetSpent);
             }
             catch (Exception ex)
             {
@@ -386,6 +378,88 @@ namespace ReliefManagementSystem.Application.Services
                         Exception = ex.Message
                     },
                     cancellationToken);
+                throw;
+            }
+        }
+
+        public async Task<IReadOnlyList<CampaignBudgetTransferResponse>> GetBudgetTransferHistoryAsync(Guid campaignId, bool includeDeleted = false, CancellationToken cancellationToken = default)
+        {
+            var campaign = await _unitOfWork.Campaigns.GetWithDetailsAsync(campaignId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
+
+            var transfers = await _unitOfWork.CampaignBudgetTransfers.GetByCampaignAsync(campaign.CampaignId, includeDeleted, cancellationToken);
+            var campaignIds = transfers
+                .SelectMany(x => new[] { x.SourceCampaignId, x.TargetCampaignId })
+                .Distinct()
+                .ToList();
+
+            var campaigns = new Dictionary<Guid, Domain.Entities.Campaign>();
+            foreach (var id in campaignIds)
+            {
+                var relatedCampaign = await _unitOfWork.Campaigns.GetWithDetailsAsync(id, cancellationToken);
+                if (relatedCampaign is not null)
+                {
+                    campaigns[id] = relatedCampaign;
+                }
+            }
+
+            return transfers.Select(transfer => MapBudgetTransfer(
+                transfer,
+                campaigns.TryGetValue(transfer.SourceCampaignId, out var source)
+                    ? source.BudgetTotal - source.BudgetSpent
+                    : 0,
+                campaigns.TryGetValue(transfer.TargetCampaignId, out var target)
+                    ? target.BudgetTotal - target.BudgetSpent
+                    : 0)).ToList();
+        }
+
+        public async Task DeleteBudgetTransferHistoryAsync(Guid campaignId, Guid campaignBudgetTransferId, CancellationToken cancellationToken = default)
+        {
+            var campaign = await _unitOfWork.Campaigns.GetWithDetailsAsync(campaignId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
+
+            var transfer = await _unitOfWork.CampaignBudgetTransfers.GetByIdAsync(campaignBudgetTransferId)
+                ?? throw new KeyNotFoundException($"Campaign budget transfer '{campaignBudgetTransferId}' was not found.");
+
+            if (transfer.IsDeleted)
+            {
+                throw new InvalidOperationException("Budget transfer history has already been cancelled.");
+            }
+
+            if (transfer.SourceCampaignId != campaign.CampaignId && transfer.TargetCampaignId != campaign.CampaignId)
+            {
+                throw new InvalidOperationException("Budget transfer does not belong to this campaign.");
+            }
+
+            var source = await _unitOfWork.Campaigns.GetWithDetailsAsync(transfer.SourceCampaignId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Source campaign '{transfer.SourceCampaignId}' was not found.");
+            var target = await _unitOfWork.Campaigns.GetWithDetailsAsync(transfer.TargetCampaignId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Target campaign '{transfer.TargetCampaignId}' was not found.");
+
+            if (target.BudgetTotal < transfer.Amount)
+            {
+                throw new InvalidOperationException("Target campaign does not have enough budget to reverse this transfer.");
+            }
+
+            await _unitOfWork.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                source.BudgetSpent = Math.Max(0, source.BudgetSpent - transfer.Amount);
+                target.BudgetTotal -= transfer.Amount;
+
+                transfer.IsDeleted = true;
+                transfer.CancelledAt = DateTime.UtcNow;
+                transfer.CancelledByUserId = _currentUserService.UserId;
+
+                await _unitOfWork.Campaigns.UpdateAsync(source);
+                await _unitOfWork.Campaigns.UpdateAsync(target);
+                await _unitOfWork.CampaignBudgetTransfers.UpdateAsync(transfer);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
                 throw;
             }
         }
@@ -1110,6 +1184,34 @@ namespace ReliefManagementSystem.Application.Services
                 Status = registration.Status,
                 RegisteredAt = registration.RegisteredAt,
                 CancelledAt = registration.CancelledAt
+            };
+        }
+
+        private static CampaignBudgetTransferResponse MapBudgetTransfer(
+            CampaignBudgetTransfer transfer,
+            decimal sourceRemainingBudget,
+            decimal targetRemainingBudget)
+        {
+            return new CampaignBudgetTransferResponse
+            {
+                CampaignBudgetTransferId = transfer.CampaignBudgetTransferId,
+                SourceCampaignId = transfer.SourceCampaignId,
+                TargetCampaignId = transfer.TargetCampaignId,
+                Amount = transfer.Amount,
+                TransferredByUserId = transfer.TransferredByUserId,
+                TransferredByUserName = transfer.TransferredByUser?.DisplayName
+                    ?? transfer.TransferredByUser?.UserName
+                    ?? transfer.TransferredByUser?.Email,
+                TransferredAt = transfer.TransferredAt,
+                Note = transfer.Note,
+                IsDeleted = transfer.IsDeleted,
+                CancelledAt = transfer.CancelledAt,
+                CancelledByUserId = transfer.CancelledByUserId,
+                CancelledByUserName = transfer.CancelledByUser?.DisplayName
+                    ?? transfer.CancelledByUser?.UserName
+                    ?? transfer.CancelledByUser?.Email,
+                SourceRemainingBudget = sourceRemainingBudget,
+                TargetRemainingBudget = targetRemainingBudget
             };
         }
 
