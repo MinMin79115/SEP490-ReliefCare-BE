@@ -153,9 +153,12 @@ namespace ReliefManagementSystem.Application.Services
             var verificationMethod = VerificationMethod.None;
             string? verificationNote = null;
 
-            if (request.RescueType == RescueRequestType.Emergency)
+            if (request.RescueType == RescueRequestType.Emergency || request.RescueType == RescueRequestType.Normal)
             {
-                verificationMethod = VerificationMethod.SystemAutoCheck;
+                if (request.RescueType == RescueRequestType.Emergency)
+                {
+                    verificationMethod = VerificationMethod.SystemAutoCheck;
+                }
 
                 try
                 {
@@ -176,16 +179,22 @@ namespace ReliefManagementSystem.Application.Services
                     verificationNote =
                         $"Weather: Condition={weather.Condition}, TempC={weather.TemperatureC:0.##}, WindKph={weather.WindKph:0.##}, PrecipMm={weather.PrecipMm:0.##}, VisibilityKm={weather.VisibilityKm:0.##}, RiskScore={weather.WeatherRiskScore}, RiskLevel={weather.WeatherRiskLevel}";
 
-                    verificationStatus = weather.WeatherRiskScore >= 40
-                        ? RequestVerificationStatus.Approved
-                        : RequestVerificationStatus.Pending;
-                    rescueRequest.PriorityPoint = 85;
-                    rescueRequest.RescuePriorityLevel = RescuePriorityLevel.Critical;
+                    if (request.RescueType == RescueRequestType.Emergency)
+                    {
+                        verificationStatus = weather.WeatherRiskScore >= 40
+                            ? RequestVerificationStatus.Approved
+                            : RequestVerificationStatus.Pending;
+                        rescueRequest.PriorityPoint = 85;
+                        rescueRequest.RescuePriorityLevel = RescuePriorityLevel.Critical;
+                    }
                 }
                 catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
                 {
-                    verificationStatus = RequestVerificationStatus.Pending;
-                    verificationMethod = VerificationMethod.SystemAutoCheck;
+                    if (request.RescueType == RescueRequestType.Emergency)
+                    {
+                        verificationStatus = RequestVerificationStatus.Pending;
+                        verificationMethod = VerificationMethod.SystemAutoCheck;
+                    }
 
                     var errorDetail = ex switch
                     {
@@ -2550,19 +2559,51 @@ namespace ReliefManagementSystem.Application.Services
         private static void SyncRescueOperationVehicles(RescueOperation operation, List<Guid> vehicleIds, string? note)
         {
             var now = DateTime.UtcNow;
-            operation.RescueOperationVehicles.Clear();
 
-            for (var i = 0; i < vehicleIds.Count; i++)
+            var normalizedVehicleIds = vehicleIds
+                .Where(id => id != Guid.Empty)
+                .Distinct()
+                .ToList();
+
+            var existingByVehicleId = operation.RescueOperationVehicles
+                .GroupBy(x => x.VehicleId)
+                .ToDictionary(g => g.Key, g => g.First());
+
+            var idsToRemove = existingByVehicleId.Keys
+                .Where(existingId => !normalizedVehicleIds.Contains(existingId))
+                .ToList();
+
+            foreach (var vehicleIdToRemove in idsToRemove)
             {
-                operation.RescueOperationVehicles.Add(new RescueOperationVehicle
+                var existing = existingByVehicleId[vehicleIdToRemove];
+                operation.RescueOperationVehicles.Remove(existing);
+            }
+
+            for (var i = 0; i < normalizedVehicleIds.Count; i++)
+            {
+                var vehicleId = normalizedVehicleIds[i];
+
+                if (existingByVehicleId.TryGetValue(vehicleId, out var existing))
                 {
-                    RescueOperationVehicleId = Guid.NewGuid(),
-                    RescueOperationId = operation.RescueOperationId,
-                    VehicleId = vehicleIds[i],
-                    IsPrimary = i == 0,
-                    AssignedAt = now,
-                    Note = note
-                });
+                    existing.IsPrimary = i == 0;
+                    existing.Note = note;
+                    if (existing.AssignedAt == default)
+                    {
+                        existing.AssignedAt = now;
+                    }
+                }
+                else
+                {
+                    operation.RescueOperationVehicles.Add(new RescueOperationVehicle
+                    {
+                        RescueOperationVehicleId = Guid.NewGuid(),
+                        RescueOperationId = operation.RescueOperationId,
+                        VehicleId = vehicleId,
+                        IsPrimary = i == 0,
+                        AssignedAt = now,
+                        Note = note
+                    });
+                }
             }
         }
 
