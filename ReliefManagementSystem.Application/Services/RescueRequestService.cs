@@ -2613,8 +2613,6 @@ namespace ReliefManagementSystem.Application.Services
             string? note,
             CancellationToken cancellationToken)
         {
-            operation.RescueOperationSupplies.Clear();
-
             if (supplies == null || supplies.Count == 0)
             {
                 return;
@@ -2636,6 +2634,20 @@ namespace ReliefManagementSystem.Application.Services
             if (normalizedSupplies.Count == 0)
             {
                 return;
+            }
+
+            var incomingKeys = normalizedSupplies
+                .Select(x => (x.SourceInventoryId, x.SupplyItemId, Unit: x.Unit ?? string.Empty))
+                .ToHashSet();
+
+            var existingSupplies = operation.RescueOperationSupplies.ToList();
+            foreach (var existing in existingSupplies)
+            {
+                var existingKey = (existing.SourceInventoryId, existing.SupplyItemId, Unit: existing.Unit ?? string.Empty);
+                if (!incomingKeys.Contains(existingKey))
+                {
+                    operation.RescueOperationSupplies.Remove(existing);
+                }
             }
 
             var groupedByInventory = normalizedSupplies.GroupBy(x => x.SourceInventoryId).ToList();
@@ -2675,21 +2687,38 @@ namespace ReliefManagementSystem.Application.Services
             var now = DateTime.UtcNow;
             foreach (var item in normalizedSupplies)
             {
-                operation.RescueOperationSupplies.Add(new RescueOperationSupply
+                var existing = operation.RescueOperationSupplies.FirstOrDefault(x =>
+                    x.SourceInventoryId == item.SourceInventoryId &&
+                    x.SupplyItemId == item.SupplyItemId &&
+                    (x.Unit ?? string.Empty) == (item.Unit ?? string.Empty));
+
+                if (existing != null)
                 {
-                    RescueOperationSupplyId = Guid.NewGuid(),
-                    RescueOperationId = operation.RescueOperationId,
-                    SourceInventoryId = item.SourceInventoryId,
-                    SupplyItemId = item.SupplyItemId,
-                    Quantity = item.Quantity,
-                    Unit = item.Unit ?? supplyItems[item.SupplyItemId].Unit,
-                    Notes = item.Notes,
-                    CreatedAt = now,
-                    CreatedBy = _currentUserService.UserId,
-                    InventoryTransactionId = transactionIdByInventory[item.SourceInventoryId],
-                    SourceInventory = inventories[item.SourceInventoryId],
-                    SupplyItem = supplyItems[item.SupplyItemId]
-                });
+                    existing.Quantity = item.Quantity;
+                    existing.Unit = item.Unit ?? supplyItems[item.SupplyItemId].Unit;
+                    existing.Notes = item.Notes;
+                    existing.InventoryTransactionId = transactionIdByInventory[item.SourceInventoryId];
+                    existing.SourceInventory = inventories[item.SourceInventoryId];
+                    existing.SupplyItem = supplyItems[item.SupplyItemId];
+                }
+                else
+                {
+                    operation.RescueOperationSupplies.Add(new RescueOperationSupply
+                    {
+                        RescueOperationSupplyId = Guid.NewGuid(),
+                        RescueOperationId = operation.RescueOperationId,
+                        SourceInventoryId = item.SourceInventoryId,
+                        SupplyItemId = item.SupplyItemId,
+                        Quantity = item.Quantity,
+                        Unit = item.Unit ?? supplyItems[item.SupplyItemId].Unit,
+                        Notes = item.Notes,
+                        CreatedAt = now,
+                        CreatedBy = _currentUserService.UserId,
+                        InventoryTransactionId = transactionIdByInventory[item.SourceInventoryId],
+                        SourceInventory = inventories[item.SourceInventoryId],
+                        SupplyItem = supplyItems[item.SupplyItemId]
+                    });
+                }
             }
         }
     }
