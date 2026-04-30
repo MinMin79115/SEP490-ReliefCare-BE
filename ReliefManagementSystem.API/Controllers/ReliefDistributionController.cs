@@ -28,6 +28,14 @@ namespace ReliefManagementSystem.API.Controllers
             CancellationToken cancellationToken)
             => Ok(await _reliefDistributionService.ImportCampaignHouseholdsAsync(campaignId, request, cancellationToken));
 
+        [HttpPost("households/report-new")]
+        [Authorize(Roles = "Manager,Moderator,Volunteer")]
+        public async Task<IActionResult> ReportNewReliefHousehold(
+            Guid campaignId,
+            [FromBody] ReportNewReliefHouseholdRequest request,
+            CancellationToken cancellationToken)
+            => Ok(await _reliefDistributionService.ReportNewReliefHouseholdAsync(campaignId, request, cancellationToken));
+
         [HttpPatch("households/{campaignHouseholdId:guid}/assign")]
         [Authorize(Roles = "Manager,Moderator")]
         public async Task<IActionResult> AssignHousehold(

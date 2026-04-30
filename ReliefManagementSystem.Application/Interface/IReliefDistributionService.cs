@@ -12,6 +12,11 @@ namespace ReliefManagementSystem.Application.Interface
             ImportCampaignHouseholdsRequest request,
             CancellationToken cancellationToken = default);
 
+        Task<CampaignHouseholdResponse> ReportNewReliefHouseholdAsync(
+            Guid campaignId,
+            ReportNewReliefHouseholdRequest request,
+            CancellationToken cancellationToken = default);
+
         Task<HouseholdDeliveryResponse> AssignHouseholdAsync(
             Guid campaignId,
             Guid campaignHouseholdId,

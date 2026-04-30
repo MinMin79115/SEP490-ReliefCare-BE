@@ -86,6 +86,57 @@ namespace ReliefManagementSystem.Application.Services
             return saved.Select(MapCampaignHousehold).ToList();
         }
 
+        public async Task<CampaignHouseholdResponse> ReportNewReliefHouseholdAsync(
+            Guid campaignId,
+            ReportNewReliefHouseholdRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            await EnsureReliefCampaignAsync(campaignId, cancellationToken);
+
+            var normalizedCode = request.HouseholdCode.Trim();
+            var existing = await _unitOfWork.CampaignHouseholds.GetByCampaignAsync(campaignId, cancellationToken);
+            if (existing.Any(x => x.HouseholdCode.Trim().ToUpperInvariant() == normalizedCode.ToUpperInvariant()))
+            {
+                throw new InvalidOperationException($"Household code '{request.HouseholdCode}' already exists in campaign.");
+            }
+
+            var currentUserId = _currentUser.UserId ?? throw new UnauthorizedAccessException("User is not authenticated.");
+            var volunteerProfile = await _unitOfWork.VolunteerProfiles.GetByUserIdAsync(currentUserId)
+                ?? throw new KeyNotFoundException("Volunteer profile for current user was not found.");
+
+            var teams = await _unitOfWork.Campaigns.GetCampaignTeamsAsync(campaignId, cancellationToken);
+            var campaignTeam = teams.FirstOrDefault(x => x.Team.TeamMembers.Any(tm => tm.UserId == currentUserId));
+
+            var household = new CampaignHousehold
+            {
+                CampaignHouseholdId = Guid.NewGuid(),
+                CampaignId = campaignId,
+                LocationId = request.LocationId,
+                HouseholdCode = normalizedCode,
+                HeadOfHouseholdName = request.HeadOfHouseholdName.Trim(),
+                ContactPhone = request.ContactPhone?.Trim(),
+                Address = request.Address?.Trim(),
+                Latitude = request.Latitude,
+                Longitude = request.Longitude,
+                HouseholdSize = request.HouseholdSize,
+                IsIsolated = request.IsIsolated,
+                FloodSeverityLevel = request.FloodSeverityLevel,
+                IsolationSeverityLevel = request.IsolationSeverityLevel,
+                RequiresBoat = request.RequiresBoat,
+                RequiresLocalGuide = request.RequiresLocalGuide,
+                DeliveryMode = request.IsIsolated ? DeliveryMode.DoorToDoor : DeliveryMode.PickupAtPoint,
+                CampaignTeamId = campaignTeam?.CampaignTeamId,
+                Notes = request.Notes,
+                FulfillmentStatus = HouseholdFulfillmentStatus.Pending,
+                CreatedAt = DateTime.UtcNow,
+            };
+
+            await _unitOfWork.CampaignHouseholds.AddAsync(household);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return MapCampaignHousehold(household);
+        }
+
         public async Task<HouseholdDeliveryResponse> AssignHouseholdAsync(
             Guid campaignId,
             Guid campaignHouseholdId,
