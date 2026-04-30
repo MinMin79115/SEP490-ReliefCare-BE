@@ -2565,6 +2565,18 @@ namespace ReliefManagementSystem.Application.Services
                 .Distinct()
                 .ToList();
 
+            var existingNormalizedIds = operation.RescueOperationVehicles
+                .OrderByDescending(x => x.IsPrimary)
+                .ThenBy(x => x.AssignedAt)
+                .Select(x => x.VehicleId)
+                .Distinct()
+                .ToList();
+
+            if (existingNormalizedIds.SequenceEqual(normalizedVehicleIds))
+            {
+                return;
+            }
+
             var existingByVehicleId = operation.RescueOperationVehicles
                 .GroupBy(x => x.VehicleId)
                 .ToDictionary(g => g.Key, g => g.First());
@@ -2586,7 +2598,6 @@ namespace ReliefManagementSystem.Application.Services
                 if (existingByVehicleId.TryGetValue(vehicleId, out var existing))
                 {
                     existing.IsPrimary = i == 0;
-                    existing.Note = note;
                     if (existing.AssignedAt == default)
                     {
                         existing.AssignedAt = now;
