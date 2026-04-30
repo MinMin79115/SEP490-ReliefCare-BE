@@ -90,6 +90,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
         public ILocationRepository Locations { get; }
 
         public IRescueRequestRepository RescueRequests { get; }
+        public IRescueOperationVehicleRepository RescueOperationVehicles { get; }
 
         public IRescueBatchRepository RescueBatches { get; }
         public IRescueBatchItemRepository RescueBatchItems { get; }
@@ -159,6 +160,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             ReliefStations = new ReliefStationRepository(_context);
             Locations = new LocationRepository(_context);
             RescueRequests = new RescueRequestRepository(_context);
+            RescueOperationVehicles = new RescueOperationVehicleRepository(_context);
 
             RescueBatches = new RescueBatchRepository(_context);
             RescueBatchItems = new RescueBatchItemRepository(_context);
