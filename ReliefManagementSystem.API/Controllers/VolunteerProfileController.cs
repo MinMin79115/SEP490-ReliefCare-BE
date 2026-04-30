@@ -48,6 +48,17 @@ namespace ReliefManagementSystem.API.Controllers
         }
 
         [Authorize]
+        [HttpPut("my-profile")]
+        [SwaggerOperation(OperationId = "UpdateMyVolunteerProfile", Description = "Volunteer cập nhật hồ sơ của chính mình mà không thay đổi flow duyệt/resubmit.")]
+        public async Task<ActionResult<VolunteerProfileResponse>> UpdateMyProfile(
+            [FromBody] UpdateVolunteerProfileRequest request,
+            CancellationToken cancellationToken)
+        {
+            var result = await _userService.UpdateMyVolunteerProfileAsync(request, cancellationToken);
+            return Ok(result);
+        }
+
+        [Authorize]
         [HttpPut("my-profile/resubmit")]
         [SwaggerOperation(OperationId = "ResubmitVolunteerProfile", Description = "Volunteer chỉnh sửa và gửi lại hồ sơ đã bị từ chối. Hồ sơ sẽ quay về Pending để moderator duyệt lại.")]
         public async Task<ActionResult<VolunteerProfileResponse>> ResubmitMyProfile(
