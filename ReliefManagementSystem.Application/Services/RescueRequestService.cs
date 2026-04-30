@@ -460,7 +460,7 @@ namespace ReliefManagementSystem.Application.Services
                 assignedVehicle.Status = VehicleStatus.Busy;
             }
 
-            SyncRescueOperationVehicles(stationOperation, effectiveVehicleIds, dto.Note);
+            await ReplaceRescueOperationVehiclesAsync(stationOperation, effectiveVehicleIds, dto.Note, cancellationToken);
             await SyncRescueOperationSuppliesAsync(stationOperation, dto.Supplies, dto.Note, cancellationToken);
 
             request.RescueRequestStatus = RescueRequestStatus.Assigned;
@@ -2556,7 +2556,11 @@ namespace ReliefManagementSystem.Application.Services
                 .ToList();
         }
 
-        private static void SyncRescueOperationVehicles(RescueOperation operation, List<Guid> vehicleIds, string? note)
+        private async Task ReplaceRescueOperationVehiclesAsync(
+            RescueOperation operation,
+            List<Guid> vehicleIds,
+            string? note,
+            CancellationToken cancellationToken)
         {
             var now = DateTime.UtcNow;
 
@@ -2565,57 +2569,38 @@ namespace ReliefManagementSystem.Application.Services
                 .Distinct()
                 .ToList();
 
-            var existingNormalizedIds = operation.RescueOperationVehicles
+            var existingNormalizedIds = await _unitOfWork.RescueOperationVehicles
+                .GetByOperationIdAsync(operation.RescueOperationId, cancellationToken);
+
+            var existingIds = existingNormalizedIds
                 .OrderByDescending(x => x.IsPrimary)
                 .ThenBy(x => x.AssignedAt)
                 .Select(x => x.VehicleId)
                 .Distinct()
                 .ToList();
 
-            if (existingNormalizedIds.SequenceEqual(normalizedVehicleIds))
+            if (existingIds.SequenceEqual(normalizedVehicleIds))
             {
                 return;
             }
 
-            var existingByVehicleId = operation.RescueOperationVehicles
-                .GroupBy(x => x.VehicleId)
-                .ToDictionary(g => g.Key, g => g.First());
-
-            var idsToRemove = existingByVehicleId.Keys
-                .Where(existingId => !normalizedVehicleIds.Contains(existingId))
-                .ToList();
-
-            foreach (var vehicleIdToRemove in idsToRemove)
-            {
-                var existing = existingByVehicleId[vehicleIdToRemove];
-                operation.RescueOperationVehicles.Remove(existing);
-            }
-
+            var replacement = new List<RescueOperationVehicle>();
             for (var i = 0; i < normalizedVehicleIds.Count; i++)
             {
-                var vehicleId = normalizedVehicleIds[i];
-
-                if (existingByVehicleId.TryGetValue(vehicleId, out var existing))
+                replacement.Add(new RescueOperationVehicle
                 {
-                    existing.IsPrimary = i == 0;
-                    if (existing.AssignedAt == default)
-                    {
-                        existing.AssignedAt = now;
-                    }
-                }
-                else
-                {
-                    operation.RescueOperationVehicles.Add(new RescueOperationVehicle
-                    {
-                        RescueOperationVehicleId = Guid.NewGuid(),
-                        RescueOperationId = operation.RescueOperationId,
-                        VehicleId = vehicleId,
-                        IsPrimary = i == 0,
-                        AssignedAt = now,
-                        Note = note
-                    });
-                }
+                    RescueOperationVehicleId = Guid.NewGuid(),
+                    RescueOperationId = operation.RescueOperationId,
+                    VehicleId = normalizedVehicleIds[i],
+                    IsPrimary = i == 0,
+                    AssignedAt = now,
+                    Note = note
+                });
             }
+
+            await _unitOfWork.RescueOperationVehicles.ReplaceForOperationAsync(operation.RescueOperationId, replacement, cancellationToken);
+
+            operation.RescueOperationVehicles = replacement;
         }
 
         private async Task SyncRescueOperationSuppliesAsync(

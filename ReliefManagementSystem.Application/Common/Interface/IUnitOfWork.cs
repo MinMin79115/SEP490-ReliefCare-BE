@@ -84,6 +84,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
         ILocationRepository Locations { get; }
 
         IRescueOperationRepository RescueOperations { get; }
+        IRescueOperationVehicleRepository RescueOperationVehicles { get; }
         IRescueRequestRepository RescueRequests { get; }
 
         IRescueBatchRepository RescueBatches { get; }
