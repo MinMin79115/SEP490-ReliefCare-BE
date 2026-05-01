@@ -1384,7 +1384,10 @@ namespace ReliefManagementSystem.Application.Services
                 StartDate = campaign.StartDate,
                 EndDate = campaign.EndDate,
                 AllowOverTarget = campaign.AllowOverTarget,
-                OverallProgressPercent = Math.Round(overall, 2)
+                OverallProgressPercent = Math.Round(overall, 2),
+                BudgetTotal = campaign.BudgetTotal,
+                BudgetSpent = campaign.BudgetSpent,
+                RemainingBudget = campaign.BudgetTotal - campaign.BudgetSpent
             };
         }
 
