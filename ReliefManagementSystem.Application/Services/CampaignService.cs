@@ -837,6 +837,37 @@ namespace ReliefManagementSystem.Application.Services
             return MapCampaignAssignedVehicleResponse(assignment, vehicle, campaignTeam, targetVolunteer);
         }
 
+        public async Task<CampaignAssignedVehicleResponse> ReturnCampaignVehicleToCoordinatorAsync(Guid campaignId, Guid campaignVehicleId, ReturnCampaignVehicleToCoordinatorRequest request, CancellationToken cancellationToken = default)
+        {
+            var assignment = await GetCampaignVehicleAssignmentAsync(campaignId, campaignVehicleId);
+            var campaignTeam = await GetCampaignTeamForAssignmentAsync(campaignId, assignment, cancellationToken);
+            await EnsureCanReturnVehicleToCoordinatorAsync(campaignTeam, assignment, cancellationToken);
+
+            assignment.AssignedDriverId = null;
+            assignment.CampaignTeamId = null;
+            assignment.Status = VehicleAssignmentStatus.Completed;
+            assignment.EndDate = DateTime.UtcNow;
+            if (request.Note is not null)
+            {
+                assignment.Note = string.IsNullOrWhiteSpace(request.Note)
+                    ? "Trả hẳn phương tiện về điều phối trung tâm."
+                    : request.Note.Trim();
+            }
+
+            await _unitOfWork.CampaignVehicles.UpdateAsync(assignment);
+
+            var vehicle = await _unitOfWork.Vehicles.GetByIdAsync(assignment.VehicleId);
+            if (vehicle is not null)
+            {
+                vehicle.TeamId = null;
+                vehicle.Status = VehicleStatus.Free;
+                await _unitOfWork.Vehicles.UpdateAsync(vehicle);
+            }
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            return MapCampaignAssignedVehicleResponse(assignment, vehicle, null);
+        }
+
         public async Task RemoveCampaignVehicleAssignmentAsync(Guid campaignId, Guid campaignVehicleId, CancellationToken cancellationToken = default)
         {
             var assignment = await _unitOfWork.CampaignVehicles.GetByIdAsync(campaignVehicleId)
@@ -930,6 +961,22 @@ namespace ReliefManagementSystem.Application.Services
 
             if (assignment.AssignedDriverId != volunteerProfile.VolunteerProfileId)
                 throw new UnauthorizedAccessException("You are not allowed to release or handoff this vehicle.");
+        }
+
+        private async Task EnsureCanReturnVehicleToCoordinatorAsync(CampaignTeam campaignTeam, CampaignVehicle assignment, CancellationToken cancellationToken)
+        {
+            var currentUserId = _currentUserService.UserId ?? throw new UnauthorizedAccessException("User is not authenticated.");
+            var team = await _unitOfWork.Teams.GetByIdWithDetailsAsync(campaignTeam.TeamId)
+                ?? throw new KeyNotFoundException($"Team '{campaignTeam.TeamId}' was not found.");
+
+            if (team.LeaderId == currentUserId)
+                return;
+
+            var volunteerProfile = await _unitOfWork.VolunteerProfiles.GetByUserIdAsync(currentUserId)
+                ?? throw new KeyNotFoundException("Volunteer profile for current user was not found.");
+
+            if (assignment.AssignedDriverId != volunteerProfile.VolunteerProfileId)
+                throw new UnauthorizedAccessException("You are not allowed to return this vehicle to coordinator.");
         }
 
         private async Task EnsureVolunteerBelongsToCampaignTeamAsync(CampaignTeam campaignTeam, Guid volunteerUserId, CancellationToken cancellationToken)
