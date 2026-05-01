@@ -15,6 +15,7 @@ namespace ReliefManagementSystem.Domain.Enum
         Other = 5,              // Các lý do khác (VD: kiểm kê, hư hỏng, v.v.)
         Procurement = 6,        // Nhập kho từ mua sắm nội bộ bằng ngân sách campaign
         PackageAssemblyConsume = 7, // Xuất kho vật tư thành phần để đóng gói
-        PackageAssemblyProduce = 8  // Nhập kho thành phẩm gói cứu trợ
+        PackageAssemblyProduce = 8, // Nhập kho thành phẩm gói cứu trợ
+        SupplyTransferReturn = 9    // Nhập hoàn kho nguồn do hủy phiếu đang vận chuyển
     }
 }

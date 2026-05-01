@@ -23,7 +23,9 @@ namespace ReliefManagementSystem.Application.Features.InventoryTransaction.DTOs.
         /// <summary>
         /// Reason for this transaction:
         /// Donation (1), SupplyTransferIn (2), SupplyTransferOut (3),
-        /// CampaignAllocation (4), Other (5).
+        /// CampaignAllocation (4), Other (5), Procurement (6),
+        /// PackageAssemblyConsume (7), PackageAssemblyProduce (8),
+        /// SupplyTransferReturn (9).
         /// </summary>
         [Required(ErrorMessage = "Reason is required.")]
         public TransactionReason Reason { get; set; }
