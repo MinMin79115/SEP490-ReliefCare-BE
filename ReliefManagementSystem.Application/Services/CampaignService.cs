@@ -660,6 +660,7 @@ namespace ReliefManagementSystem.Application.Services
             };
 
             await _unitOfWork.CampaignVehicles.AddAsync(assignment);
+            vehicle.TeamId = matchedTeam.TeamId;
             vehicle.Status = VehicleStatus.Busy;
             await _unitOfWork.Vehicles.UpdateAsync(vehicle);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
@@ -739,7 +740,9 @@ namespace ReliefManagementSystem.Application.Services
                 throw new InvalidOperationException("Campaign vehicle assignment does not belong to campaign.");
 
             if (request.CampaignTeamId.HasValue)
+            {
                 assignment.CampaignTeamId = request.CampaignTeamId.Value;
+            }
             if (request.AssignedDriverId.HasValue)
                 assignment.AssignedDriverId = request.AssignedDriverId.Value;
             if (request.StartDate.HasValue)
@@ -753,15 +756,16 @@ namespace ReliefManagementSystem.Application.Services
 
             await _unitOfWork.CampaignVehicles.UpdateAsync(assignment);
             var vehicle = await _unitOfWork.Vehicles.GetByIdAsync(assignment.VehicleId);
+            var campaignTeams = await _unitOfWork.Campaigns.GetCampaignTeamsAsync(campaignId, cancellationToken);
+            var campaignTeam = campaignTeams.FirstOrDefault(x => x.CampaignTeamId == assignment.CampaignTeamId);
             if (vehicle is not null)
             {
+                vehicle.TeamId = campaignTeam?.TeamId;
                 vehicle.Status = IsVehicleAssignmentBusy(assignment.Status) ? VehicleStatus.Busy : VehicleStatus.Free;
                 await _unitOfWork.Vehicles.UpdateAsync(vehicle);
             }
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-            var campaignTeams = await _unitOfWork.Campaigns.GetCampaignTeamsAsync(campaignId, cancellationToken);
-            var campaignTeam = campaignTeams.FirstOrDefault(x => x.CampaignTeamId == assignment.CampaignTeamId);
             return MapCampaignAssignedVehicleResponse(assignment, vehicle, campaignTeam);
         }
 
@@ -845,7 +849,24 @@ namespace ReliefManagementSystem.Application.Services
             await _unitOfWork.CampaignVehicles.DeleteAsync(assignment);
             if (vehicle is not null)
             {
-                vehicle.Status = VehicleStatus.Free;
+                var remainingAssignments = await _unitOfWork.CampaignVehicles.GetAllAsync();
+                var latestAssignment = remainingAssignments
+                    .Where(x => x.CampaignVehicleId != assignment.CampaignVehicleId && x.VehicleId == assignment.VehicleId)
+                    .OrderByDescending(x => x.StartDate)
+                    .FirstOrDefault();
+
+                if (latestAssignment?.CampaignTeamId.HasValue == true)
+                {
+                    var campaignTeams = await _unitOfWork.Campaigns.GetCampaignTeamsAsync(latestAssignment.CampaignId, cancellationToken);
+                    var latestCampaignTeam = campaignTeams.FirstOrDefault(x => x.CampaignTeamId == latestAssignment.CampaignTeamId.Value);
+                    vehicle.TeamId = latestCampaignTeam?.TeamId;
+                    vehicle.Status = IsVehicleAssignmentBusy(latestAssignment.Status) ? VehicleStatus.Busy : VehicleStatus.Free;
+                }
+                else
+                {
+                    vehicle.TeamId = null;
+                    vehicle.Status = VehicleStatus.Free;
+                }
                 await _unitOfWork.Vehicles.UpdateAsync(vehicle);
             }
             await _unitOfWork.SaveChangesAsync(cancellationToken);

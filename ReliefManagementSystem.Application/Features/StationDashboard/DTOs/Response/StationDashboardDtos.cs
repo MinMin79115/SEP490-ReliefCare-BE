@@ -1,0 +1,129 @@
+namespace ReliefManagementSystem.Application.Features.StationDashboard.DTOs.Response
+{
+    public class StationOverviewResponseDto
+    {
+        public Guid StationId { get; set; }
+        public string StationName { get; set; } = string.Empty;
+        public int PendingRescueRequests { get; set; }
+        public int VerifiedRescueRequests { get; set; }
+        public int AssignedRescueRequests { get; set; }
+        public int InProgressRescueRequests { get; set; }
+        public int CompletedToday { get; set; }
+        public int ActiveTeams { get; set; }
+        public int AvailableVehicles { get; set; }
+        public int BusyVehicles { get; set; }
+        public int UnreadNotifications { get; set; }
+        public int LowStockItems { get; set; }
+        public int PendingShortageRequests { get; set; }
+    }
+
+    public class RescueRequestStatusSummaryDto
+    {
+        public int Total { get; set; }
+        public int Pending { get; set; }
+        public int Verified { get; set; }
+        public int Assigned { get; set; }
+        public int InProgress { get; set; }
+        public int Completed { get; set; }
+        public int Cancelled { get; set; }
+    }
+
+    public class TeamPerformanceResponseDto
+    {
+        public List<TeamPerformanceItemDto> Data { get; set; } = new();
+    }
+
+    public class TeamPerformanceItemDto
+    {
+        public Guid TeamId { get; set; }
+        public string TeamName { get; set; } = string.Empty;
+        public string TeamType { get; set; } = string.Empty;
+        public int AssignedRequests { get; set; }
+        public bool ActiveBatch { get; set; }
+        public int InProgressRequests { get; set; }
+        public int CompletedRequests { get; set; }
+        public DateTime? LastTrackedAt { get; set; }
+    }
+
+    public class VehicleSummaryResponseDto
+    {
+        public int Total { get; set; }
+        public int Available { get; set; }
+        public int Busy { get; set; }
+        public List<VehicleTypeSummaryDto> ByType { get; set; } = new();
+    }
+
+    public class VehicleTypeSummaryDto
+    {
+        public string VehicleTypeName { get; set; } = string.Empty;
+        public int Total { get; set; }
+        public int Available { get; set; }
+        public int Busy { get; set; }
+    }
+
+    public class StationAlertsSummaryDto
+    {
+        public int UnreadNotifications { get; set; }
+        public int PendingVolunteerApplications { get; set; }
+        public int PendingJoinRequests { get; set; }
+        public int PendingShortageRequests { get; set; }
+        public int CriticalStockItems { get; set; }
+        public int VehiclesUnavailable { get; set; }
+    }
+
+    public class InventorySummaryResponseDto
+    {
+        public int InventoryCount { get; set; }
+        public int TotalStockItems { get; set; }
+        public int SafeItems { get; set; }
+        public int NeedRestockItems { get; set; }
+        public int CriticalItems { get; set; }
+        public List<CriticalStockItemDto> TopCriticalItems { get; set; } = new();
+    }
+
+    public class CriticalStockItemDto
+    {
+        public Guid SupplyItemId { get; set; }
+        public string SupplyItemName { get; set; } = string.Empty;
+        public int CurrentQuantity { get; set; }
+        public int MinimumStockLevel { get; set; }
+    }
+
+    public class RescueRequestTrendResponseDto
+    {
+        public string GroupBy { get; set; } = "day";
+        public List<RescueRequestTrendItemDto> Data { get; set; } = new();
+    }
+
+    public class RescueRequestTrendItemDto
+    {
+        public string Label { get; set; } = string.Empty;
+        public int Created { get; set; }
+        public int Assigned { get; set; }
+        public int Completed { get; set; }
+    }
+
+    public class ActiveDispatchSnapshotResponseDto
+    {
+        public List<ActiveDispatchItemDto> ActiveOperations { get; set; } = new();
+    }
+
+    public class ActiveDispatchItemDto
+    {
+        public Guid RequestId { get; set; }
+        public Guid OperationId { get; set; }
+        public string TeamName { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public string? Address { get; set; }
+        public DateTime? LastTrackedAt { get; set; }
+        public List<SimpleAssignedVehicleDto> Vehicles { get; set; } = new();
+    }
+
+    public class SimpleAssignedVehicleDto
+    {
+        public Guid VehicleId { get; set; }
+        public string? VehicleName { get; set; }
+        public string? VehicleLicensePlate { get; set; }
+        public bool IsPrimary { get; set; }
+    }
+}
