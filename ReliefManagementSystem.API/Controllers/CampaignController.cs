@@ -222,6 +222,14 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(result);
         }
 
+        [HttpPatch("{id:guid}/vehicles/{campaignVehicleId:guid}/return-to-coordinator")]
+        [Authorize(Roles = "Manager,Moderator,Volunteer")]
+        public async Task<IActionResult> ReturnCampaignVehicleToCoordinator(Guid id, Guid campaignVehicleId, [FromBody] ReturnCampaignVehicleToCoordinatorRequest request, CancellationToken cancellationToken)
+        {
+            var result = await _campaignService.ReturnCampaignVehicleToCoordinatorAsync(id, campaignVehicleId, request, cancellationToken);
+            return Ok(result);
+        }
+
         [HttpDelete("{id:guid}/vehicles/{campaignVehicleId:guid}")]
         [Authorize(Roles = "Manager,Moderator")]
         public async Task<IActionResult> RemoveCampaignVehicle(Guid id, Guid campaignVehicleId, CancellationToken cancellationToken)

@@ -30,6 +30,7 @@ namespace ReliefManagementSystem.Application.Interface
         Task<CampaignAssignedVehicleResponse> AssignCampaignVehicleDriverAsync(Guid campaignId, Guid campaignVehicleId, AssignCampaignVehicleDriverRequest request, CancellationToken cancellationToken = default);
         Task<CampaignAssignedVehicleResponse> ReleaseCampaignVehicleAsync(Guid campaignId, Guid campaignVehicleId, ReleaseCampaignVehicleRequest request, CancellationToken cancellationToken = default);
         Task<CampaignAssignedVehicleResponse> HandoffCampaignVehicleAsync(Guid campaignId, Guid campaignVehicleId, HandoffCampaignVehicleRequest request, CancellationToken cancellationToken = default);
+        Task<CampaignAssignedVehicleResponse> ReturnCampaignVehicleToCoordinatorAsync(Guid campaignId, Guid campaignVehicleId, ReturnCampaignVehicleToCoordinatorRequest request, CancellationToken cancellationToken = default);
         Task RemoveCampaignVehicleAssignmentAsync(Guid campaignId, Guid campaignVehicleId, CancellationToken cancellationToken = default);
         Task<CampaignVolunteerRegistrationResponse> RegisterVolunteerAsync(Guid campaignId, CancellationToken cancellationToken = default);
         Task CancelVolunteerRegistrationAsync(Guid campaignId, CancellationToken cancellationToken = default);
