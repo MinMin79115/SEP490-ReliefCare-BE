@@ -182,11 +182,43 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(result);
         }
 
+        [HttpGet("{id:guid}/vehicles/my-assignment")]
+        [Authorize(Roles = "Manager,Moderator,Volunteer")]
+        public async Task<IActionResult> GetMyCampaignVehicleAssignment(Guid id, CancellationToken cancellationToken)
+        {
+            var result = await _campaignService.GetMyCampaignVehicleAssignmentAsync(id, cancellationToken);
+            return Ok(result);
+        }
+
         [HttpPatch("{id:guid}/vehicles/{campaignVehicleId:guid}")]
         [Authorize(Roles = "Manager,Moderator")]
         public async Task<IActionResult> UpdateCampaignVehicle(Guid id, Guid campaignVehicleId, [FromBody] UpdateCampaignVehicleAssignmentRequest request, CancellationToken cancellationToken)
         {
             var result = await _campaignService.UpdateCampaignVehicleAssignmentAsync(id, campaignVehicleId, request, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpPatch("{id:guid}/vehicles/{campaignVehicleId:guid}/assign-driver")]
+        [Authorize(Roles = "Manager,Moderator,Volunteer")]
+        public async Task<IActionResult> AssignCampaignVehicleDriver(Guid id, Guid campaignVehicleId, [FromBody] AssignCampaignVehicleDriverRequest request, CancellationToken cancellationToken)
+        {
+            var result = await _campaignService.AssignCampaignVehicleDriverAsync(id, campaignVehicleId, request, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpPatch("{id:guid}/vehicles/{campaignVehicleId:guid}/release")]
+        [Authorize(Roles = "Manager,Moderator,Volunteer")]
+        public async Task<IActionResult> ReleaseCampaignVehicle(Guid id, Guid campaignVehicleId, [FromBody] ReleaseCampaignVehicleRequest request, CancellationToken cancellationToken)
+        {
+            var result = await _campaignService.ReleaseCampaignVehicleAsync(id, campaignVehicleId, request, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpPatch("{id:guid}/vehicles/{campaignVehicleId:guid}/handoff")]
+        [Authorize(Roles = "Manager,Moderator,Volunteer")]
+        public async Task<IActionResult> HandoffCampaignVehicle(Guid id, Guid campaignVehicleId, [FromBody] HandoffCampaignVehicleRequest request, CancellationToken cancellationToken)
+        {
+            var result = await _campaignService.HandoffCampaignVehicleAsync(id, campaignVehicleId, request, cancellationToken);
             return Ok(result);
         }
 

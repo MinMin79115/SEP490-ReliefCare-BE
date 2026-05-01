@@ -25,7 +25,11 @@ namespace ReliefManagementSystem.Application.Interface
         Task RemoveTeamAsync(Guid campaignId, Guid teamId, CancellationToken cancellationToken = default);
         Task<CampaignAssignedVehicleResponse> AssignVehicleToTeamAsync(Guid campaignId, AssignCampaignVehicleRequest request, CancellationToken cancellationToken = default);
         Task<IReadOnlyList<CampaignAssignedVehicleResponse>> GetCampaignVehiclesAsync(Guid campaignId, Guid? campaignTeamId, CancellationToken cancellationToken = default);
+        Task<CampaignAssignedVehicleResponse?> GetMyCampaignVehicleAssignmentAsync(Guid campaignId, CancellationToken cancellationToken = default);
         Task<CampaignAssignedVehicleResponse> UpdateCampaignVehicleAssignmentAsync(Guid campaignId, Guid campaignVehicleId, UpdateCampaignVehicleAssignmentRequest request, CancellationToken cancellationToken = default);
+        Task<CampaignAssignedVehicleResponse> AssignCampaignVehicleDriverAsync(Guid campaignId, Guid campaignVehicleId, AssignCampaignVehicleDriverRequest request, CancellationToken cancellationToken = default);
+        Task<CampaignAssignedVehicleResponse> ReleaseCampaignVehicleAsync(Guid campaignId, Guid campaignVehicleId, ReleaseCampaignVehicleRequest request, CancellationToken cancellationToken = default);
+        Task<CampaignAssignedVehicleResponse> HandoffCampaignVehicleAsync(Guid campaignId, Guid campaignVehicleId, HandoffCampaignVehicleRequest request, CancellationToken cancellationToken = default);
         Task RemoveCampaignVehicleAssignmentAsync(Guid campaignId, Guid campaignVehicleId, CancellationToken cancellationToken = default);
         Task<CampaignVolunteerRegistrationResponse> RegisterVolunteerAsync(Guid campaignId, CancellationToken cancellationToken = default);
         Task CancelVolunteerRegistrationAsync(Guid campaignId, CancellationToken cancellationToken = default);
