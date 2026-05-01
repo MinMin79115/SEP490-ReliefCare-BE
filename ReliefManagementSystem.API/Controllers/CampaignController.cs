@@ -82,8 +82,19 @@ namespace ReliefManagementSystem.API.Controllers
             [FromBody] AttachCampaignStationRequest request,
             CancellationToken cancellationToken)
         {
-            var result = await _campaignService.AttachStationAsync(id, request, cancellationToken);
-            return Ok(result);
+            try
+            {
+                var result = await _campaignService.AttachStationAsync(id, request, cancellationToken);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpDelete("{id:guid}/stations/{reliefStationId:guid}")]
@@ -92,8 +103,19 @@ namespace ReliefManagementSystem.API.Controllers
             Guid reliefStationId,
             CancellationToken cancellationToken)
         {
-            var result = await _campaignService.DetachStationAsync(id, reliefStationId, cancellationToken);
-            return Ok(result);
+            try
+            {
+                var result = await _campaignService.DetachStationAsync(id, reliefStationId, cancellationToken);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPost("{id:guid}/extract-budget")]
