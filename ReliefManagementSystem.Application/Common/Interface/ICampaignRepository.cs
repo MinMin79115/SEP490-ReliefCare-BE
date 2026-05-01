@@ -19,6 +19,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
             CampaignStatus? status,
             CampaignType? type,
             Guid? locationId,
+            Guid? reliefStationId,
             bool forVolunteerRegistration,
             CancellationToken cancellationToken = default);
 
