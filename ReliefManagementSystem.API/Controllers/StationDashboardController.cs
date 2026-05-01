@@ -45,8 +45,16 @@ namespace ReliefManagementSystem.API.Controllers
         public async Task<ActionResult<RescueRequestTrendResponseDto>> GetRescueRequestTrend([FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] string groupBy = "day", CancellationToken cancellationToken = default)
             => Ok(await _stationDashboardService.GetRescueRequestTrendAsync(from, to, groupBy, cancellationToken));
 
+        [HttpGet("rescue-request-type-summary")]
+        public async Task<ActionResult<RescueRequestTypeSummaryResponseDto>> GetRescueRequestTypeSummary([FromQuery] DateTime? from, [FromQuery] DateTime? to, CancellationToken cancellationToken = default)
+            => Ok(await _stationDashboardService.GetRescueRequestTypeSummaryAsync(from, to, cancellationToken));
+
         [HttpGet("active-dispatch")]
         public async Task<ActionResult<ActiveDispatchSnapshotResponseDto>> GetActiveDispatch(CancellationToken cancellationToken)
             => Ok(await _stationDashboardService.GetActiveDispatchSnapshotAsync(cancellationToken));
+
+        [HttpGet("rescue-request-locations")]
+        public async Task<ActionResult<RescueRequestLocationsResponseDto>> GetRescueRequestLocations([FromQuery] DateTime? from, [FromQuery] DateTime? to, CancellationToken cancellationToken)
+            => Ok(await _stationDashboardService.GetRescueRequestLocationsAsync(from, to, cancellationToken));
     }
 }

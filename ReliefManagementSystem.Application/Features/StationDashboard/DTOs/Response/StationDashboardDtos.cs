@@ -95,6 +95,13 @@ namespace ReliefManagementSystem.Application.Features.StationDashboard.DTOs.Resp
         public List<RescueRequestTrendItemDto> Data { get; set; } = new();
     }
 
+    public class RescueRequestTypeSummaryResponseDto
+    {
+        public int Total { get; set; }
+        public int Normal { get; set; }
+        public int Emergency { get; set; }
+    }
+
     public class RescueRequestTrendItemDto
     {
         public string Label { get; set; } = string.Empty;
@@ -106,6 +113,22 @@ namespace ReliefManagementSystem.Application.Features.StationDashboard.DTOs.Resp
     public class ActiveDispatchSnapshotResponseDto
     {
         public List<ActiveDispatchItemDto> ActiveOperations { get; set; } = new();
+    }
+
+    public class RescueRequestLocationsResponseDto
+    {
+        public List<RescueRequestLocationItemDto> Items { get; set; } = new();
+    }
+
+    public class RescueRequestLocationItemDto
+    {
+        public Guid RequestId { get; set; }
+        public string? Address { get; set; }
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public string RescueRequestType { get; set; } = string.Empty;
+        public string RescueRequestStatus { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
     }
 
     public class ActiveDispatchItemDto

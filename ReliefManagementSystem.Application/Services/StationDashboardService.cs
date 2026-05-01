@@ -243,6 +243,24 @@ namespace ReliefManagementSystem.Application.Services
             };
         }
 
+        public async Task<RescueRequestTypeSummaryResponseDto> GetRescueRequestTypeSummaryAsync(DateTime? from, DateTime? to, CancellationToken cancellationToken = default)
+        {
+            var station = await GetCurrentModeratorStationAsync(cancellationToken);
+            var allRequests = await _unitOfWork.RescueRequests.GetAllAsync(cancellationToken);
+            var stationRequests = allRequests
+                .Where(r => r.RescueOperations.Any(o => o.ReliefStationId == station.ReliefStationId))
+                .Where(r => !from.HasValue || r.CreatedAt >= from.Value)
+                .Where(r => !to.HasValue || r.CreatedAt <= to.Value)
+                .ToList();
+
+            return new RescueRequestTypeSummaryResponseDto
+            {
+                Total = stationRequests.Count,
+                Normal = stationRequests.Count(r => r.RescueRequestType == RescueRequestType.Normal),
+                Emergency = stationRequests.Count(r => r.RescueRequestType == RescueRequestType.Emergency)
+            };
+        }
+
         public async Task<ActiveDispatchSnapshotResponseDto> GetActiveDispatchSnapshotAsync(CancellationToken cancellationToken = default)
         {
             var station = await GetCurrentModeratorStationAsync(cancellationToken);
@@ -271,6 +289,35 @@ namespace ReliefManagementSystem.Application.Services
                         IsPrimary = v.IsPrimary
                     }).ToList()
                 }).ToList()
+            };
+        }
+
+        public async Task<RescueRequestLocationsResponseDto> GetRescueRequestLocationsAsync(DateTime? from, DateTime? to, CancellationToken cancellationToken = default)
+        {
+            var station = await GetCurrentModeratorStationAsync(cancellationToken);
+            var allRequests = await _unitOfWork.RescueRequests.GetAllAsync(cancellationToken);
+
+            var items = allRequests
+                .Where(r => r.RescueOperations.Any(o => o.ReliefStationId == station.ReliefStationId))
+                .Where(r => !from.HasValue || r.CreatedAt >= from.Value)
+                .Where(r => !to.HasValue || r.CreatedAt <= to.Value)
+                .Where(r => r.Latitude != 0 && r.Longitude != 0)
+                .OrderByDescending(r => r.CreatedAt)
+                .Select(r => new RescueRequestLocationItemDto
+                {
+                    RequestId = r.RequestId,
+                    Address = r.Address,
+                    Latitude = r.Latitude,
+                    Longitude = r.Longitude,
+                    RescueRequestType = r.RescueRequestType.ToString(),
+                    RescueRequestStatus = r.RescueRequestStatus.ToString(),
+                    CreatedAt = r.CreatedAt
+                })
+                .ToList();
+
+            return new RescueRequestLocationsResponseDto
+            {
+                Items = items
             };
         }
 

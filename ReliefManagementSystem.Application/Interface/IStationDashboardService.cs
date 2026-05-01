@@ -11,6 +11,8 @@ namespace ReliefManagementSystem.Application.Interface
         Task<StationAlertsSummaryDto> GetAlertsSummaryAsync(CancellationToken cancellationToken = default);
         Task<InventorySummaryResponseDto> GetInventorySummaryAsync(CancellationToken cancellationToken = default);
         Task<RescueRequestTrendResponseDto> GetRescueRequestTrendAsync(DateTime? from, DateTime? to, string groupBy, CancellationToken cancellationToken = default);
+        Task<RescueRequestTypeSummaryResponseDto> GetRescueRequestTypeSummaryAsync(DateTime? from, DateTime? to, CancellationToken cancellationToken = default);
         Task<ActiveDispatchSnapshotResponseDto> GetActiveDispatchSnapshotAsync(CancellationToken cancellationToken = default);
+        Task<RescueRequestLocationsResponseDto> GetRescueRequestLocationsAsync(DateTime? from, DateTime? to, CancellationToken cancellationToken = default);
     }
 }
