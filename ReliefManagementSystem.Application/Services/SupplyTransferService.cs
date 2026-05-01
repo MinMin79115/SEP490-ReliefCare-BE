@@ -370,10 +370,12 @@ namespace ReliefManagementSystem.Application.Services
             {
                 foreach (var item in request.Vehicles)
                 {
-                    if (transfer.SupplyTransferVehicles.Any(v =>
-                        v.VehicleId == item.VehicleId &&
-                        v.Status != SupplyTransferVehicleStatus.Cancelled &&
-                        v.Status != SupplyTransferVehicleStatus.Completed))
+                    var existingAssignment = transfer.SupplyTransferVehicles
+                        .FirstOrDefault(v => v.VehicleId == item.VehicleId);
+
+                    if (existingAssignment is not null &&
+                        existingAssignment.Status != SupplyTransferVehicleStatus.Cancelled &&
+                        existingAssignment.Status != SupplyTransferVehicleStatus.Completed)
                     {
                         throw new InvalidOperationException("Xe đã được gán cho phiếu này.");
                     }
@@ -383,8 +385,33 @@ namespace ReliefManagementSystem.Application.Services
                     if (vehicle.Status != VehicleStatus.Free) throw new InvalidOperationException("Xe không ở trạng thái Free.");
                     var activeRescueOperation = await _unitOfWork.RescueOperations.GetActiveByVehicleIdAsync(vehicle.VehicleId, cancellationToken);
                     if (activeRescueOperation is not null) throw new InvalidOperationException("Xe đang được dùng trong luồng cứu hộ.");
+
                     vehicle.Status = VehicleStatus.Busy;
-                    await _unitOfWork.SupplyTransfers.AddVehicleAssignmentAsync(new SupplyTransferVehicle { SupplyTransferVehicleId = Guid.NewGuid(), SupplyTransferId = transfer.SupplyTransferId, VehicleId = item.VehicleId, DriverUserId = item.DriverUserId, Status = SupplyTransferVehicleStatus.Assigned, AssignedAt = DateTime.UtcNow, Note = item.Note }, cancellationToken);
+
+                    if (existingAssignment is not null)
+                    {
+                        existingAssignment.DriverUserId = item.DriverUserId;
+                        existingAssignment.Status = SupplyTransferVehicleStatus.Assigned;
+                        existingAssignment.AssignedAt = DateTime.UtcNow;
+                        existingAssignment.DepartedAt = null;
+                        existingAssignment.ArrivedAt = null;
+                        existingAssignment.CompletedAt = null;
+                        existingAssignment.CancelledAt = null;
+                        existingAssignment.Note = item.Note;
+                    }
+                    else
+                    {
+                        await _unitOfWork.SupplyTransfers.AddVehicleAssignmentAsync(new SupplyTransferVehicle
+                        {
+                            SupplyTransferVehicleId = Guid.NewGuid(),
+                            SupplyTransferId = transfer.SupplyTransferId,
+                            VehicleId = item.VehicleId,
+                            DriverUserId = item.DriverUserId,
+                            Status = SupplyTransferVehicleStatus.Assigned,
+                            AssignedAt = DateTime.UtcNow,
+                            Note = item.Note
+                        }, cancellationToken);
+                    }
                 }
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);
