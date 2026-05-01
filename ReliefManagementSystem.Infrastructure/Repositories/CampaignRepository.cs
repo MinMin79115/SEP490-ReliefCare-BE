@@ -49,6 +49,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             CampaignStatus? status,
             CampaignType? type,
             Guid? locationId,
+            Guid? reliefStationId,
             bool forVolunteerRegistration,
             CancellationToken cancellationToken = default)
         {
@@ -77,6 +78,11 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             if (locationId.HasValue)
             {
                 query = query.Where(c => c.LocationId == locationId.Value);
+            }
+
+            if (reliefStationId.HasValue)
+            {
+                query = query.Where(c => c.CampaignStations.Any(cs => cs.ReliefStationId == reliefStationId.Value && cs.IsActive));
             }
 
             if (forVolunteerRegistration)

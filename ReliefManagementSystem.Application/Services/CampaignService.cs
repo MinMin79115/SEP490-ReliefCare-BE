@@ -194,6 +194,7 @@ namespace ReliefManagementSystem.Application.Services
                 request.Status,
                 request.Type,
                 request.LocationId,
+                request.ReliefStationId,
                 request.ForVolunteerRegistration,
                 cancellationToken);
 
