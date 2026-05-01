@@ -11,6 +11,13 @@
   </ItemGroup>
 
   <ItemGroup>
+    <Compile Remove="Tests\**\*.cs" />
+    <EmbeddedResource Remove="Tests\**\*" />
+    <None Remove="Tests\**\*" />
+    <Content Remove="Tests\**\*" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Folder Include="Features\Auth\Interface\" />
     <Folder Include="Features\Auth\Service\" />
     <Folder Include="Features\Inventory\DTOs\" />
