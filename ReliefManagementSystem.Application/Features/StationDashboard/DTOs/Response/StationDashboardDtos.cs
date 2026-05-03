@@ -60,6 +60,13 @@ namespace ReliefManagementSystem.Application.Features.StationDashboard.DTOs.Resp
         public int CompletedSubTasks { get; set; }
         public int FailedSubTasks { get; set; }
         public int CancelledSubTasks { get; set; }
+        public int HouseholdCount { get; set; }
+        public int PendingHouseholdCount { get; set; }
+        public int DeliveredHouseholdCount { get; set; }
+        public int TotalDeliveryCount { get; set; }
+        public int PendingDeliveryCount { get; set; }
+        public int DeliveredDeliveryCount { get; set; }
+        public string? DefaultReliefPackageName { get; set; }
         public DateTime? LastTaskUpdatedAt { get; set; }
     }
 
@@ -81,6 +88,11 @@ namespace ReliefManagementSystem.Application.Features.StationDashboard.DTOs.Resp
         public int Available { get; set; }
         public int Busy { get; set; }
         public List<VehicleTypeSummaryDto> ByType { get; set; } = new();
+        public int CurrentPage { get; set; } = 1;
+        public int PageSize { get; set; } = 0;
+        public int TotalPages { get; set; } = 1;
+        public bool HasPrevious { get; set; }
+        public bool HasNext { get; set; }
     }
 
     public class VehicleTypeSummaryDto

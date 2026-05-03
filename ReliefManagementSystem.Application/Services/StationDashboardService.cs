@@ -362,6 +362,16 @@ namespace ReliefManagementSystem.Application.Services
                 return new ReliefTeamMissionSnapshotResponseDto();
             }
 
+            var packageDefinitions = await _unitOfWork.ReliefPackageDefinitions.GetQueryable()
+                .AsNoTracking()
+                .Where(x => campaignTeams.Select(ct => ct.CampaignId).Contains(x.CampaignId))
+                .ToListAsync(cancellationToken);
+
+            var deliveries = await _unitOfWork.HouseholdDeliveries.GetQueryable()
+                .AsNoTracking()
+                .Where(x => x.CampaignTeamId.HasValue && campaignTeamIds.Contains(x.CampaignTeamId.Value))
+                .ToListAsync(cancellationToken);
+
             var taskQuery = _unitOfWork.CampaignTasks.GetQueryable()
                 .AsNoTracking()
                 .Where(t => campaignTeamIds.Contains(t.CampaignTeamId));
@@ -425,6 +435,36 @@ namespace ReliefManagementSystem.Application.Services
                         CompletedSubTasks = matchedTasks.SelectMany(t => t.MemberTasks).Count(mt => mt.Status == MemberTaskStatus.Completed),
                         FailedSubTasks = matchedTasks.SelectMany(t => t.MemberTasks).Count(mt => mt.Status == MemberTaskStatus.Failed),
                         CancelledSubTasks = matchedTasks.SelectMany(t => t.MemberTasks).Count(mt => mt.Status == MemberTaskStatus.Cancelled),
+                        HouseholdCount = deliveries
+                            .Where(d => d.CampaignTeamId == team.CampaignTeamId)
+                            .Select(d => d.CampaignHouseholdId)
+                            .Distinct()
+                            .Count(),
+                        PendingHouseholdCount = deliveries
+                            .Where(d => d.CampaignTeamId == team.CampaignTeamId)
+                            .GroupBy(d => d.CampaignHouseholdId)
+                            .Select(group => group
+                                .OrderByDescending(x => x.DeliveredAt ?? x.ScheduledAt)
+                                .ThenByDescending(x => x.CreatedAt)
+                                .First())
+                            .Count(d => d.Status != HouseholdFulfillmentStatus.Delivered),
+                        DeliveredHouseholdCount = deliveries
+                            .Where(d => d.CampaignTeamId == team.CampaignTeamId)
+                            .GroupBy(d => d.CampaignHouseholdId)
+                            .Select(group => group
+                                .OrderByDescending(x => x.DeliveredAt ?? x.ScheduledAt)
+                                .ThenByDescending(x => x.CreatedAt)
+                                .First())
+                            .Count(d => d.Status == HouseholdFulfillmentStatus.Delivered),
+                        TotalDeliveryCount = deliveries.Count(d => d.CampaignTeamId == team.CampaignTeamId),
+                        PendingDeliveryCount = deliveries.Count(d => d.CampaignTeamId == team.CampaignTeamId && d.Status != HouseholdFulfillmentStatus.Delivered),
+                        DeliveredDeliveryCount = deliveries.Count(d => d.CampaignTeamId == team.CampaignTeamId && d.Status == HouseholdFulfillmentStatus.Delivered),
+                        DefaultReliefPackageName = packageDefinitions
+                            .Where(p => p.CampaignId == team.CampaignId)
+                            .OrderByDescending(p => p.IsDefault)
+                            .ThenBy(p => p.Name)
+                            .Select(p => p.Name)
+                            .FirstOrDefault(),
                         LastTaskUpdatedAt = matchedTasks
                             .Select(t => t.TaskUpdatedAt ?? t.CreatedAt)
                             .OrderByDescending(x => x)
