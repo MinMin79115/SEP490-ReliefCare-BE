@@ -188,5 +188,13 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                     && c.CampaignStations.Any(cs => cs.ReliefStationId == reliefStationId && cs.IsActive))
                 .ToListAsync(cancellationToken);
         }
+
+        public IQueryable<Campaign> GetQueryable()
+        {
+            return _context.Campaigns
+                .Include(c => c.CampaignTeams)
+                    .ThenInclude(ct => ct.Team)
+                        .ThenInclude(t => t.ReliefStationTeams);
+        }
     }
 }

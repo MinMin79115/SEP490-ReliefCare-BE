@@ -33,6 +33,36 @@ namespace ReliefManagementSystem.Application.Features.StationDashboard.DTOs.Resp
         public List<TeamPerformanceItemDto> Data { get; set; } = new();
     }
 
+    public class ReliefTeamMissionSnapshotResponseDto
+    {
+        public List<ReliefTeamMissionSnapshotItemDto> Data { get; set; } = new();
+    }
+
+    public class ReliefTeamMissionSnapshotItemDto
+    {
+        public Guid TeamId { get; set; }
+        public Guid CampaignTeamId { get; set; }
+        public Guid CampaignId { get; set; }
+        public string TeamName { get; set; } = string.Empty;
+        public string TeamType { get; set; } = string.Empty;
+        public string CampaignName { get; set; } = string.Empty;
+        public string CampaignStatus { get; set; } = string.Empty;
+        public string CampaignTeamStatus { get; set; } = string.Empty;
+        public int TotalTasks { get; set; }
+        public int PlannedTasks { get; set; }
+        public int InProgressTasks { get; set; }
+        public int BlockedTasks { get; set; }
+        public int CompletedTasks { get; set; }
+        public int CancelledTasks { get; set; }
+        public int TotalSubTasks { get; set; }
+        public int AssignedSubTasks { get; set; }
+        public int InProgressSubTasks { get; set; }
+        public int CompletedSubTasks { get; set; }
+        public int FailedSubTasks { get; set; }
+        public int CancelledSubTasks { get; set; }
+        public DateTime? LastTaskUpdatedAt { get; set; }
+    }
+
     public class TeamPerformanceItemDto
     {
         public Guid TeamId { get; set; }

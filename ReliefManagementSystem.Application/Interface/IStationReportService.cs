@@ -10,5 +10,7 @@ namespace ReliefManagementSystem.Application.Interface
         Task<List<VehicleUtilizationReportItemDto>> GetVehicleUtilizationReportAsync(DateTime? from, DateTime? to, CancellationToken cancellationToken = default);
         Task<Pagination<InventoryStockReportItemDto>> GetInventoryStockReportAsync(Guid? inventoryId, string? status, int pageIndex, int pageSize, CancellationToken cancellationToken = default);
         Task<Pagination<ReliefDeliveryReportItemDto>> GetReliefDeliveriesReportAsync(Guid? campaignId, string? status, int pageIndex, int pageSize, CancellationToken cancellationToken = default);
+        Task<List<ReliefMissionReportRowDto>> GetReliefMissionReportAsync(DateTime? from, DateTime? to, IEnumerable<Guid>? teamIds, CancellationToken cancellationToken = default);
+        Task<List<ReliefMissionCampaignSummaryDto>> GetReliefMissionCampaignSummaryAsync(DateTime? from, DateTime? to, IEnumerable<Guid>? teamIds, CancellationToken cancellationToken = default);
     }
 }
