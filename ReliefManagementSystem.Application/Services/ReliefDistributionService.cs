@@ -840,8 +840,6 @@ namespace ReliefManagementSystem.Application.Services
             if (household.CampaignId != campaignId)
                 throw new InvalidOperationException("Household does not belong to campaign.");
 
-            await EnsureCanUpdateHouseholdStatusAsync(campaignId, household, request.Status, cancellationToken);
-
             household.FulfillmentStatus = request.Status;
 
             if (request.Notes is not null)
@@ -851,45 +849,6 @@ namespace ReliefManagementSystem.Application.Services
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             return MapCampaignHousehold(household);
-        }
-
-        private async Task EnsureCanUpdateHouseholdStatusAsync(
-            Guid campaignId,
-            CampaignHousehold household,
-            HouseholdFulfillmentStatus nextStatus,
-            CancellationToken cancellationToken)
-        {
-            var currentUserId = _currentUser.UserId ?? throw new UnauthorizedAccessException("User is not authenticated.");
-
-            var volunteerProfile = await _unitOfWork.VolunteerProfiles.GetByUserIdAsync(currentUserId);
-            if (volunteerProfile is null)
-            {
-                return;
-            }
-
-            if (nextStatus != HouseholdFulfillmentStatus.Skipped)
-                throw new UnauthorizedAccessException("Volunteer chỉ được phép bỏ qua hộ dân được phân công.");
-
-            var campaignTeamIds = household.Deliveries
-                .Where(x => x.CampaignTeamId.HasValue)
-                .Select(x => x.CampaignTeamId!.Value)
-                .ToHashSet();
-
-            if (household.CampaignTeamId.HasValue)
-            {
-                campaignTeamIds.Add(household.CampaignTeamId.Value);
-            }
-
-            if (campaignTeamIds.Count == 0)
-                throw new UnauthorizedAccessException("Hộ dân này chưa được gán cho đội nào để volunteer có thể bỏ qua.");
-
-            var campaignTeams = await _unitOfWork.Campaigns.GetCampaignTeamsAsync(campaignId, cancellationToken);
-            var allowedTeam = campaignTeams.Any(team =>
-                campaignTeamIds.Contains(team.CampaignTeamId) &&
-                team.Team.TeamMembers.Any(member => member.UserId == currentUserId));
-
-            if (!allowedTeam)
-                throw new UnauthorizedAccessException("Bạn chỉ có thể bỏ qua hộ dân thuộc đội được phân công cho mình.");
         }
 
         public async Task DeleteCampaignHouseholdAsync(
