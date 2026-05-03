@@ -451,6 +451,13 @@ namespace ReliefManagementSystem.Application.Services
         public async Task<MemberTaskDeliveryResponse> ChangeMemberTaskDeliveryStatusAsync(Guid memberTaskDeliveryId, ChangeMemberTaskDeliveryStatusRequest request, CancellationToken cancellationToken = default)
         {
             var link = await _unitOfWork.MemberTaskDeliveries.GetQueryable()
+                .Include(x => x.MemberTask)
+                    .ThenInclude(mt => mt.CampaignTask)
+                        .ThenInclude(ct => ct.CampaignTeam)
+                .Include(x => x.MemberTask)
+                    .ThenInclude(mt => mt.CampaignTask)
+                        .ThenInclude(ct => ct.MemberTasks)
+                .Include(x => x.AssignedVolunteerProfile)
                 .FirstOrDefaultAsync(x => x.MemberTaskDeliveryId == memberTaskDeliveryId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Member task delivery '{memberTaskDeliveryId}' was not found.");
 
@@ -477,6 +484,13 @@ namespace ReliefManagementSystem.Application.Services
         public async Task<MemberTaskDeliveryResponse> CompleteMemberTaskDeliveryWithDeliveryAsync(Guid memberTaskDeliveryId, CompleteMemberTaskDeliveryWithDeliveryRequest request, CancellationToken cancellationToken = default)
         {
             var link = await _unitOfWork.MemberTaskDeliveries.GetQueryable()
+                .Include(x => x.MemberTask)
+                    .ThenInclude(mt => mt.CampaignTask)
+                        .ThenInclude(ct => ct.CampaignTeam)
+                .Include(x => x.MemberTask)
+                    .ThenInclude(mt => mt.CampaignTask)
+                        .ThenInclude(ct => ct.MemberTasks)
+                .Include(x => x.AssignedVolunteerProfile)
                 .FirstOrDefaultAsync(x => x.MemberTaskDeliveryId == memberTaskDeliveryId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Member task delivery '{memberTaskDeliveryId}' was not found.");
 

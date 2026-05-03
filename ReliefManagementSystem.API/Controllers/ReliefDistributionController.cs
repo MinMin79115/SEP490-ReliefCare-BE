@@ -87,7 +87,7 @@ namespace ReliefManagementSystem.API.Controllers
             => Ok(await _reliefDistributionService.UpdateCampaignHouseholdAsync(campaignId, campaignHouseholdId, request, cancellationToken));
 
         [HttpPatch("households/{campaignHouseholdId:guid}/status")]
-        [Authorize(Roles = "Manager,Moderator")]
+        [Authorize(Roles = "Manager,Moderator,Volunteer")]
         public async Task<IActionResult> UpdateHouseholdStatus(
             Guid campaignId,
             Guid campaignHouseholdId,
