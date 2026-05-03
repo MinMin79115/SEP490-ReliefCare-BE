@@ -334,76 +334,66 @@ namespace ReliefManagementSystem.Application.Services
                 .Distinct()
                 .ToHashSet();
 
-            var taskQuery = _unitOfWork.CampaignTasks.GetQueryable()
+            var memberTaskQuery = _unitOfWork.MemberTasks.GetQueryable()
                 .AsNoTracking()
-                .Where(t =>
-                    !t.CampaignTeam.IsDelete &&
+                .Where(mt =>
+                    !mt.CampaignTask.CampaignTeam.IsDelete &&
                     (
-                        t.CampaignTeam.Campaign.CampaignStations.Any(cs =>
+                        mt.CampaignTask.CampaignTeam.Campaign.CampaignStations.Any(cs =>
                             cs.ReliefStationId == stationId &&
                             cs.IsActive) ||
-                        t.CampaignTeam.Team.ReliefStationTeams.Any(rst =>
+                        mt.CampaignTask.CampaignTeam.Team.ReliefStationTeams.Any(rst =>
                             rst.ReliefStationId == stationId &&
                             rst.Status == ReliefTeamAssignmentStatus.Approved)
                     ) &&
-                    (requestedTeamIds == null || requestedTeamIds.Contains(t.CampaignTeam.TeamId)));
+                    (requestedTeamIds == null || requestedTeamIds.Contains(mt.CampaignTask.CampaignTeam.TeamId)));
 
             if (from.HasValue)
             {
-                taskQuery = taskQuery.Where(t =>
-                    t.CreatedAt >= from.Value ||
-                    t.StartDate >= from.Value ||
-                    t.MemberTasks.Any(mt =>
-                        (mt.AssignedAt.HasValue && mt.AssignedAt.Value >= from.Value) ||
-                        (mt.CompletedAt.HasValue && mt.CompletedAt.Value >= from.Value)));
+                memberTaskQuery = memberTaskQuery.Where(mt =>
+                    (mt.AssignedAt.HasValue && mt.AssignedAt.Value >= from.Value) ||
+                    (mt.CompletedAt.HasValue && mt.CompletedAt.Value >= from.Value) ||
+                    mt.CampaignTask.CreatedAt >= from.Value ||
+                    mt.CampaignTask.StartDate >= from.Value);
             }
 
             if (to.HasValue)
             {
-                taskQuery = taskQuery.Where(t =>
-                    t.CreatedAt <= to.Value ||
-                    t.StartDate <= to.Value ||
-                    t.MemberTasks.Any(mt =>
-                        (mt.AssignedAt.HasValue && mt.AssignedAt.Value <= to.Value) ||
-                        (mt.CompletedAt.HasValue && mt.CompletedAt.Value <= to.Value)));
+                memberTaskQuery = memberTaskQuery.Where(mt =>
+                    (mt.AssignedAt.HasValue && mt.AssignedAt.Value <= to.Value) ||
+                    (mt.CompletedAt.HasValue && mt.CompletedAt.Value <= to.Value) ||
+                    mt.CampaignTask.CreatedAt <= to.Value ||
+                    mt.CampaignTask.StartDate <= to.Value);
             }
 
-            var tasks = await taskQuery
-                .Select(t => new
+            var memberTaskRows = await memberTaskQuery
+                .Select(mt => new
                 {
-                    t.CampaignTaskId,
-                    t.CampaignTeamId,
-                    CampaignId = t.CampaignTeam.CampaignId,
-                    CampaignName = t.CampaignTeam.Campaign.Name,
-                    CampaignStatus = t.CampaignTeam.Campaign.Status,
-                    CampaignTeamStatus = t.CampaignTeam.Status,
-                    TeamId = t.CampaignTeam.TeamId,
-                    TeamName = t.CampaignTeam.Team.Name,
-                    TeamType = t.CampaignTeam.Team.TeamType,
-                    t.Status,
-                    t.CreatedAt,
-                    t.StartDate,
-                    TaskUpdatedAt = t.MemberTasks
-                        .Select(mt => mt.CompletedAt ?? mt.AssignedAt)
-                        .OrderByDescending(x => x)
-                        .FirstOrDefault(),
-                    MemberTasks = t.MemberTasks.Select(mt => new
-                    {
-                        mt.MemberTaskId,
-                        mt.Status,
-                        mt.AssignedAt,
-                        mt.CompletedAt
-                    })
+                    CampaignTaskId = mt.CampaignTaskId,
+                    CampaignTeamId = mt.CampaignTask.CampaignTeamId,
+                    CampaignId = mt.CampaignTask.CampaignTeam.CampaignId,
+                    CampaignName = mt.CampaignTask.CampaignTeam.Campaign.Name,
+                    CampaignStatus = mt.CampaignTask.CampaignTeam.Campaign.Status,
+                    CampaignTeamStatus = mt.CampaignTask.CampaignTeam.Status,
+                    TeamId = mt.CampaignTask.CampaignTeam.TeamId,
+                    TeamName = mt.CampaignTask.CampaignTeam.Team.Name,
+                    TeamType = mt.CampaignTask.CampaignTeam.Team.TeamType,
+                    CampaignTaskStatus = mt.CampaignTask.Status,
+                    TaskCreatedAt = mt.CampaignTask.CreatedAt,
+                    TaskStartDate = mt.CampaignTask.StartDate,
+                    MemberTaskStatus = mt.Status,
+                    AssignedAt = mt.AssignedAt,
+                    CompletedAt = mt.CompletedAt,
                 })
                 .ToListAsync(cancellationToken);
 
-            if (tasks.Count == 0)
+            if (memberTaskRows.Count == 0)
             {
                 return new ReliefTeamMissionSnapshotResponseDto();
             }
 
-            var campaignTeamIds = tasks.Select(x => x.CampaignTeamId).Distinct().ToList();
-            var campaignIds = tasks.Select(x => x.CampaignId).Distinct().ToList();
+            var campaignTeamIds = memberTaskRows.Select(x => x.CampaignTeamId).Distinct().ToList();
+            var campaignIds = memberTaskRows.Select(x => x.CampaignId).Distinct().ToList();
 
             var packageDefinitions = await _unitOfWork.ReliefPackageDefinitions.GetQueryable()
                 .AsNoTracking()
@@ -415,7 +405,7 @@ namespace ReliefManagementSystem.Application.Services
                 .Where(x => x.CampaignTeamId.HasValue && campaignTeamIds.Contains(x.CampaignTeamId.Value))
                 .ToListAsync(cancellationToken);
 
-            var data = tasks
+            var data = memberTaskRows
                 .GroupBy(t => new
                 {
                     t.TeamId,
@@ -437,18 +427,18 @@ namespace ReliefManagementSystem.Application.Services
                         CampaignName = group.Key.CampaignName,
                         CampaignStatus = group.Key.CampaignStatus.ToString(),
                         CampaignTeamStatus = group.Key.CampaignTeamStatus.ToString(),
-                        TotalTasks = group.Count(),
-                        PlannedTasks = group.Count(t => t.Status == CampaignTaskStatus.Planned),
-                        InProgressTasks = group.Count(t => t.Status == CampaignTaskStatus.InProgress),
-                        BlockedTasks = group.Count(t => t.Status == CampaignTaskStatus.Blocked),
-                        CompletedTasks = group.Count(t => t.Status == CampaignTaskStatus.Completed),
-                        CancelledTasks = group.Count(t => t.Status == CampaignTaskStatus.Cancelled),
-                        TotalSubTasks = group.SelectMany(t => t.MemberTasks).Count(),
-                        AssignedSubTasks = group.SelectMany(t => t.MemberTasks).Count(mt => mt.Status == MemberTaskStatus.Assigned),
-                        InProgressSubTasks = group.SelectMany(t => t.MemberTasks).Count(mt => mt.Status == MemberTaskStatus.InProgress),
-                        CompletedSubTasks = group.SelectMany(t => t.MemberTasks).Count(mt => mt.Status == MemberTaskStatus.Completed),
-                        FailedSubTasks = group.SelectMany(t => t.MemberTasks).Count(mt => mt.Status == MemberTaskStatus.Failed),
-                        CancelledSubTasks = group.SelectMany(t => t.MemberTasks).Count(mt => mt.Status == MemberTaskStatus.Cancelled),
+                        TotalTasks = group.Select(t => t.CampaignTaskId).Distinct().Count(),
+                        PlannedTasks = group.Where(t => t.CampaignTaskStatus == CampaignTaskStatus.Planned).Select(t => t.CampaignTaskId).Distinct().Count(),
+                        InProgressTasks = group.Where(t => t.CampaignTaskStatus == CampaignTaskStatus.InProgress).Select(t => t.CampaignTaskId).Distinct().Count(),
+                        BlockedTasks = group.Where(t => t.CampaignTaskStatus == CampaignTaskStatus.Blocked).Select(t => t.CampaignTaskId).Distinct().Count(),
+                        CompletedTasks = group.Where(t => t.CampaignTaskStatus == CampaignTaskStatus.Completed).Select(t => t.CampaignTaskId).Distinct().Count(),
+                        CancelledTasks = group.Where(t => t.CampaignTaskStatus == CampaignTaskStatus.Cancelled).Select(t => t.CampaignTaskId).Distinct().Count(),
+                        TotalSubTasks = group.Count(),
+                        AssignedSubTasks = group.Count(mt => mt.MemberTaskStatus == MemberTaskStatus.Assigned),
+                        InProgressSubTasks = group.Count(mt => mt.MemberTaskStatus == MemberTaskStatus.InProgress),
+                        CompletedSubTasks = group.Count(mt => mt.MemberTaskStatus == MemberTaskStatus.Completed),
+                        FailedSubTasks = group.Count(mt => mt.MemberTaskStatus == MemberTaskStatus.Failed),
+                        CancelledSubTasks = group.Count(mt => mt.MemberTaskStatus == MemberTaskStatus.Cancelled),
                         HouseholdCount = deliveries
                             .Where(d => d.CampaignTeamId == group.Key.CampaignTeamId)
                             .Select(d => d.CampaignHouseholdId)
@@ -480,7 +470,7 @@ namespace ReliefManagementSystem.Application.Services
                             .Select(p => p.Name)
                             .FirstOrDefault(),
                         LastTaskUpdatedAt = group
-                            .Select(t => t.TaskUpdatedAt ?? t.CreatedAt)
+                            .Select(t => t.CompletedAt ?? t.AssignedAt ?? t.TaskStartDate)
                             .OrderByDescending(x => x)
                             .FirstOrDefault()
                     })
@@ -508,78 +498,61 @@ namespace ReliefManagementSystem.Application.Services
                 .Distinct()
                 .ToHashSet();
 
-            var tasks = await _unitOfWork.CampaignTasks.GetQueryable()
+            var memberTaskRows = await _unitOfWork.MemberTasks.GetQueryable()
                 .AsNoTracking()
-                .Where(t =>
-                    !t.CampaignTeam.IsDelete &&
+                .Where(mt =>
+                    !mt.CampaignTask.CampaignTeam.IsDelete &&
                     (
-                        t.CampaignTeam.Campaign.CampaignStations.Any(cs =>
+                        mt.CampaignTask.CampaignTeam.Campaign.CampaignStations.Any(cs =>
                             cs.ReliefStationId == stationId &&
                             cs.IsActive) ||
-                        t.CampaignTeam.Team.ReliefStationTeams.Any(rst =>
+                        mt.CampaignTask.CampaignTeam.Team.ReliefStationTeams.Any(rst =>
                             rst.ReliefStationId == stationId &&
                             rst.Status == ReliefTeamAssignmentStatus.Approved)
                     ) &&
-                    (requestedTeamIds == null || requestedTeamIds.Contains(t.CampaignTeam.TeamId)))
-                .Where(t =>
+                    (requestedTeamIds == null || requestedTeamIds.Contains(mt.CampaignTask.CampaignTeam.TeamId)))
+                .Where(mt =>
                     !from.HasValue ||
-                    t.CreatedAt >= from.Value ||
-                    t.StartDate >= from.Value ||
-                    t.MemberTasks.Any(mt =>
-                        (mt.AssignedAt.HasValue && mt.AssignedAt.Value >= from.Value) ||
-                        (mt.CompletedAt.HasValue && mt.CompletedAt.Value >= from.Value)))
-                .Where(t =>
-                    !from.HasValue ||
-                    t.CreatedAt >= from.Value ||
-                    t.StartDate >= from.Value ||
-                    t.MemberTasks.Any(mt =>
-                        (mt.AssignedAt.HasValue && mt.AssignedAt.Value >= from.Value) ||
-                        (mt.CompletedAt.HasValue && mt.CompletedAt.Value >= from.Value)))
-                .Where(t =>
+                    (mt.AssignedAt.HasValue && mt.AssignedAt.Value >= from.Value) ||
+                    (mt.CompletedAt.HasValue && mt.CompletedAt.Value >= from.Value) ||
+                    mt.CampaignTask.CreatedAt >= from.Value ||
+                    mt.CampaignTask.StartDate >= from.Value)
+                .Where(mt =>
                     !to.HasValue ||
-                    t.CreatedAt <= to.Value ||
-                    t.StartDate <= to.Value ||
-                    t.MemberTasks.Any(mt =>
-                        (mt.AssignedAt.HasValue && mt.AssignedAt.Value <= to.Value) ||
-                        (mt.CompletedAt.HasValue && mt.CompletedAt.Value <= to.Value)))
-                .Select(t => new
+                    (mt.AssignedAt.HasValue && mt.AssignedAt.Value <= to.Value) ||
+                    (mt.CompletedAt.HasValue && mt.CompletedAt.Value <= to.Value) ||
+                    mt.CampaignTask.CreatedAt <= to.Value ||
+                    mt.CampaignTask.StartDate <= to.Value)
+                .Select(mt => new
                 {
-                    t.CampaignTaskId,
-                    t.CampaignTeamId,
-                    CampaignId = t.CampaignTeam.CampaignId,
-                    CampaignName = t.CampaignTeam.Campaign.Name,
-                    CampaignStatus = t.CampaignTeam.Campaign.Status,
-                    CampaignTeamStatus = t.CampaignTeam.Status,
-                    TeamId = t.CampaignTeam.TeamId,
-                    TeamName = t.CampaignTeam.Team.Name,
-                    TeamType = t.CampaignTeam.Team.TeamType,
-                    t.Title,
-                    t.Status,
-                    t.StartDate,
-                    t.DueDate,
-                    LastUpdatedAt = t.MemberTasks
-                        .Select(mt => mt.CompletedAt ?? mt.AssignedAt)
-                        .OrderByDescending(x => x)
-                        .FirstOrDefault(),
-                    TotalSubTasks = t.MemberTasks.Count(),
-                    AssignedSubTasks = t.MemberTasks.Count(mt => mt.Status == MemberTaskStatus.Assigned),
-                    InProgressSubTasks = t.MemberTasks.Count(mt => mt.Status == MemberTaskStatus.InProgress),
-                    CompletedSubTasks = t.MemberTasks.Count(mt => mt.Status == MemberTaskStatus.Completed),
-                    FailedSubTasks = t.MemberTasks.Count(mt => mt.Status == MemberTaskStatus.Failed),
-                    CancelledSubTasks = t.MemberTasks.Count(mt => mt.Status == MemberTaskStatus.Cancelled),
-                    DeliveryCount = t.MemberTasks.SelectMany(mt => mt.MemberTaskDeliveries).Count(),
-                    PendingDeliveryCount = t.MemberTasks.SelectMany(mt => mt.MemberTaskDeliveries).Count(mtd => mtd.HouseholdDelivery.Status != HouseholdFulfillmentStatus.Delivered),
-                    DeliveredDeliveryCount = t.MemberTasks.SelectMany(mt => mt.MemberTaskDeliveries).Count(mtd => mtd.HouseholdDelivery.Status == HouseholdFulfillmentStatus.Delivered),
+                    CampaignTaskId = mt.CampaignTaskId,
+                    CampaignTeamId = mt.CampaignTask.CampaignTeamId,
+                    CampaignId = mt.CampaignTask.CampaignTeam.CampaignId,
+                    CampaignName = mt.CampaignTask.CampaignTeam.Campaign.Name,
+                    CampaignStatus = mt.CampaignTask.CampaignTeam.Campaign.Status,
+                    CampaignTeamStatus = mt.CampaignTask.CampaignTeam.Status,
+                    TeamId = mt.CampaignTask.CampaignTeam.TeamId,
+                    TeamName = mt.CampaignTask.CampaignTeam.Team.Name,
+                    TeamType = mt.CampaignTask.CampaignTeam.Team.TeamType,
+                    Title = mt.CampaignTask.Title,
+                    CampaignTaskStatus = mt.CampaignTask.Status,
+                    StartDate = mt.CampaignTask.StartDate,
+                    DueDate = mt.CampaignTask.DueDate,
+                    MemberTaskStatus = mt.Status,
+                    LastUpdatedAt = mt.CompletedAt ?? mt.AssignedAt,
+                    DeliveryCount = mt.MemberTaskDeliveries.Count(),
+                    PendingDeliveryCount = mt.MemberTaskDeliveries.Count(mtd => mtd.HouseholdDelivery.Status != HouseholdFulfillmentStatus.Delivered),
+                    DeliveredDeliveryCount = mt.MemberTaskDeliveries.Count(mtd => mtd.HouseholdDelivery.Status == HouseholdFulfillmentStatus.Delivered),
                 })
                 .ToListAsync(cancellationToken);
 
-            if (tasks.Count == 0)
+            if (memberTaskRows.Count == 0)
             {
                 return new ReliefTeamTaskSummaryResponseDto();
             }
 
-            var campaignTeamIds = tasks.Select(x => x.CampaignTeamId).Distinct().ToList();
-            var campaignIds = tasks.Select(x => x.CampaignId).Distinct().ToList();
+            var campaignTeamIds = memberTaskRows.Select(x => x.CampaignTeamId).Distinct().ToList();
+            var campaignIds = memberTaskRows.Select(x => x.CampaignId).Distinct().ToList();
 
             var packageDefinitions = await _unitOfWork.ReliefPackageDefinitions.GetQueryable()
                 .AsNoTracking()
@@ -591,7 +564,7 @@ namespace ReliefManagementSystem.Application.Services
                 .Where(x => x.CampaignTeamId.HasValue && campaignTeamIds.Contains(x.CampaignTeamId.Value))
                 .ToListAsync(cancellationToken);
 
-            var data = tasks.GroupBy(t => new
+            var data = memberTaskRows.GroupBy(t => new
             {
                 t.TeamId,
                 t.TeamName,
@@ -604,25 +577,37 @@ namespace ReliefManagementSystem.Application.Services
             }).Select(group =>
             {
                 var teamTasks = group
-                    .OrderBy(t => t.StartDate)
-                    .ThenBy(t => t.Title)
+                    .GroupBy(t => new
+                    {
+                        t.CampaignTaskId,
+                        t.Title,
+                        t.CampaignTaskStatus,
+                        t.StartDate,
+                        t.DueDate,
+                    })
+                    .OrderBy(t => t.Key.StartDate)
+                    .ThenBy(t => t.Key.Title)
                     .Select(t => new ReliefTeamTaskSummaryTaskDto
                     {
-                        CampaignTaskId = t.CampaignTaskId,
-                        Title = t.Title,
-                        Status = t.Status.ToString(),
-                        StartDate = t.StartDate,
-                        DueDate = t.DueDate,
-                        TotalSubTasks = t.TotalSubTasks,
-                        AssignedSubTasks = t.AssignedSubTasks,
-                        InProgressSubTasks = t.InProgressSubTasks,
-                        CompletedSubTasks = t.CompletedSubTasks,
-                        FailedSubTasks = t.FailedSubTasks,
-                        CancelledSubTasks = t.CancelledSubTasks,
-                        DeliveryCount = t.DeliveryCount,
-                        PendingDeliveryCount = t.PendingDeliveryCount,
-                        DeliveredDeliveryCount = t.DeliveredDeliveryCount,
-                        LastUpdatedAt = t.LastUpdatedAt,
+                        CampaignTaskId = t.Key.CampaignTaskId,
+                        Title = t.Key.Title,
+                        Status = t.Key.CampaignTaskStatus.ToString(),
+                        StartDate = t.Key.StartDate,
+                        DueDate = t.Key.DueDate,
+                        TotalSubTasks = t.Count(),
+                        AssignedSubTasks = t.Count(x => x.MemberTaskStatus == MemberTaskStatus.Assigned),
+                        InProgressSubTasks = t.Count(x => x.MemberTaskStatus == MemberTaskStatus.InProgress),
+                        CompletedSubTasks = t.Count(x => x.MemberTaskStatus == MemberTaskStatus.Completed),
+                        FailedSubTasks = t.Count(x => x.MemberTaskStatus == MemberTaskStatus.Failed),
+                        CancelledSubTasks = t.Count(x => x.MemberTaskStatus == MemberTaskStatus.Cancelled),
+                        DeliveryCount = t.Sum(x => x.DeliveryCount),
+                        PendingDeliveryCount = t.Sum(x => x.PendingDeliveryCount),
+                        DeliveredDeliveryCount = t.Sum(x => x.DeliveredDeliveryCount),
+                        LastUpdatedAt = t
+                            .Select(x => x.LastUpdatedAt)
+                            .Where(x => x.HasValue)
+                            .OrderByDescending(x => x)
+                            .FirstOrDefault(),
                     })
                     .ToList();
 
