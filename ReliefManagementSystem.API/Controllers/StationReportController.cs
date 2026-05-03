@@ -27,8 +27,8 @@ namespace ReliefManagementSystem.API.Controllers
             => Ok(await _stationReportService.GetTeamWorkloadReportAsync(from, to, cancellationToken));
 
         [HttpGet("vehicle-utilization")]
-        public async Task<ActionResult<List<VehicleUtilizationReportItemDto>>> GetVehicleUtilization([FromQuery] DateTime? from, [FromQuery] DateTime? to, CancellationToken cancellationToken = default)
-            => Ok(await _stationReportService.GetVehicleUtilizationReportAsync(from, to, cancellationToken));
+        public async Task<ActionResult<Pagination<VehicleUtilizationReportItemDto>>> GetVehicleUtilization([FromQuery] DateTime? from, [FromQuery] DateTime? to, [FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 10, CancellationToken cancellationToken = default)
+            => Ok(await _stationReportService.GetVehicleUtilizationReportAsync(from, to, pageIndex, pageSize, cancellationToken));
 
         [HttpGet("inventory-stock")]
         public async Task<ActionResult<Pagination<InventoryStockReportItemDto>>> GetInventoryStock([FromQuery] Guid? inventoryId, [FromQuery] string? status, [FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 50, CancellationToken cancellationToken = default)

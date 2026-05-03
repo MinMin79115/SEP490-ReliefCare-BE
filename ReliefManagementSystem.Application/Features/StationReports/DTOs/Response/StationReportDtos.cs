@@ -21,6 +21,10 @@ namespace ReliefManagementSystem.Application.Features.StationReports.DTOs.Respon
         public int CompletedRequests { get; set; }
         public int ActiveBatchCount { get; set; }
         public int MemberCount { get; set; }
+        public int PendingHouseholdCount { get; set; }
+        public int DeliveredHouseholdCount { get; set; }
+        public int TotalDeliveryCount { get; set; }
+        public int DeliveredDeliveryCount { get; set; }
     }
 
     public class VehicleUtilizationReportItemDto

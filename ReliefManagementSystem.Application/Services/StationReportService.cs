@@ -57,6 +57,9 @@ namespace ReliefManagementSystem.Application.Services
                 .ToListAsync(cancellationToken);
             var ops = await _unitOfWork.RescueOperations.GetByStationIdAsync(stationId, cancellationToken);
             var activeBatches = await _unitOfWork.RescueBatches.GetAllActiveWithItemsAsync(cancellationToken);
+            var deliveries = await _unitOfWork.HouseholdDeliveries.GetQueryable()
+                .Where(x => x.CampaignTeam != null && x.CampaignTeam.Team.ReliefStationTeams.Any(rst => rst.ReliefStationId == stationId && rst.Status == ReliefTeamAssignmentStatus.Approved))
+                .ToListAsync(cancellationToken);
 
             return teams.Select(t =>
             {
@@ -65,6 +68,14 @@ namespace ReliefManagementSystem.Application.Services
                     .Where(o => !to.HasValue || o.StartedAt <= to.Value)
                     .ToList();
                 var memberCount = _unitOfWork.TeamMembers.GetQueryable().Count(tm => tm.TeamId == t.TeamId);
+                var teamDeliveries = deliveries.Where(d => d.CampaignTeam != null && d.CampaignTeam.TeamId == t.TeamId).ToList();
+                var groupedHouseholds = teamDeliveries
+                    .GroupBy(d => d.CampaignHouseholdId)
+                    .Select(group => group
+                        .OrderByDescending(x => x.DeliveredAt ?? x.ScheduledAt)
+                        .ThenByDescending(x => x.CreatedAt)
+                        .First())
+                    .ToList();
                 return new TeamWorkloadReportItemDto
                 {
                     TeamId = t.TeamId,
@@ -72,18 +83,22 @@ namespace ReliefManagementSystem.Application.Services
                     AssignedRequests = teamOps.Count,
                     CompletedRequests = teamOps.Count(o => o.Status == RescueOperationStatus.RescueCompleted || o.Status == RescueOperationStatus.Closed),
                     ActiveBatchCount = activeBatches.Count(b => b.TeamId == t.TeamId),
-                    MemberCount = memberCount
+                    MemberCount = memberCount,
+                    PendingHouseholdCount = groupedHouseholds.Count(x => x.Status != HouseholdFulfillmentStatus.Delivered),
+                    DeliveredHouseholdCount = groupedHouseholds.Count(x => x.Status == HouseholdFulfillmentStatus.Delivered),
+                    TotalDeliveryCount = teamDeliveries.Count,
+                    DeliveredDeliveryCount = teamDeliveries.Count(x => x.Status == HouseholdFulfillmentStatus.Delivered)
                 };
             }).ToList();
         }
 
-        public async Task<List<VehicleUtilizationReportItemDto>> GetVehicleUtilizationReportAsync(DateTime? from, DateTime? to, CancellationToken cancellationToken = default)
+        public async Task<Pagination<VehicleUtilizationReportItemDto>> GetVehicleUtilizationReportAsync(DateTime? from, DateTime? to, int pageIndex, int pageSize, CancellationToken cancellationToken = default)
         {
             var stationId = await GetCurrentStationIdAsync(cancellationToken);
             var vehicles = await _unitOfWork.Vehicles.GetQueryable().Where(v => v.ReliefStationId == stationId).ToListAsync(cancellationToken);
             var ops = await _unitOfWork.RescueOperations.GetByStationIdAsync(stationId, cancellationToken);
 
-            return vehicles.Select(v =>
+            var items = vehicles.Select(v =>
             {
                 var relatedOps = ops.Where(o => o.RescueOperationVehicles.Any(rov => rov.VehicleId == v.VehicleId))
                     .Where(o => !from.HasValue || o.StartedAt >= from.Value)
@@ -98,7 +113,13 @@ namespace ReliefManagementSystem.Application.Services
                     UsedInOperations = relatedOps.Count,
                     IsCurrentlyBusy = v.Status == VehicleStatus.Busy
                 };
-            }).ToList();
+            })
+            .OrderByDescending(x => x.BusyCount)
+            .ThenByDescending(x => x.UsedInOperations)
+            .ThenBy(x => x.VehicleName)
+            .ToList();
+
+            return ToPagination(items, pageIndex, pageSize);
         }
 
         public async Task<Pagination<InventoryStockReportItemDto>> GetInventoryStockReportAsync(Guid? inventoryId, string? status, int pageIndex, int pageSize, CancellationToken cancellationToken = default)
