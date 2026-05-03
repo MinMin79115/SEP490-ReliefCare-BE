@@ -334,18 +334,24 @@ namespace ReliefManagementSystem.Application.Services
                 .Distinct()
                 .ToHashSet();
 
+            var campaignIds = await _unitOfWork.Campaigns.GetQueryable()
+                .AsNoTracking()
+                .Where(c => c.Type == CampaignType.Relief)
+                .Where(c => c.CampaignStations.Any(cs => cs.ReliefStationId == stationId && cs.IsActive))
+                .Select(c => c.CampaignId)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            if (campaignIds.Count == 0)
+            {
+                return new ReliefTeamMissionSnapshotResponseDto();
+            }
+
             var memberTaskQuery = _unitOfWork.MemberTasks.GetQueryable()
                 .AsNoTracking()
                 .Where(mt =>
                     !mt.CampaignTask.CampaignTeam.IsDelete &&
-                    (
-                        mt.CampaignTask.CampaignTeam.Campaign.CampaignStations.Any(cs =>
-                            cs.ReliefStationId == stationId &&
-                            cs.IsActive) ||
-                        mt.CampaignTask.CampaignTeam.Team.ReliefStationTeams.Any(rst =>
-                            rst.ReliefStationId == stationId &&
-                            rst.Status == ReliefTeamAssignmentStatus.Approved)
-                    ) &&
+                    campaignIds.Contains(mt.CampaignTask.CampaignTeam.CampaignId) &&
                     (requestedTeamIds == null || requestedTeamIds.Contains(mt.CampaignTask.CampaignTeam.TeamId)));
 
             if (from.HasValue)
@@ -393,11 +399,11 @@ namespace ReliefManagementSystem.Application.Services
             }
 
             var campaignTeamIds = memberTaskRows.Select(x => x.CampaignTeamId).Distinct().ToList();
-            var campaignIds = memberTaskRows.Select(x => x.CampaignId).Distinct().ToList();
+            var filteredCampaignIds = memberTaskRows.Select(x => x.CampaignId).Distinct().ToList();
 
             var packageDefinitions = await _unitOfWork.ReliefPackageDefinitions.GetQueryable()
                 .AsNoTracking()
-                .Where(x => campaignIds.Contains(x.CampaignId))
+                .Where(x => filteredCampaignIds.Contains(x.CampaignId))
                 .ToListAsync(cancellationToken);
 
             var deliveries = await _unitOfWork.HouseholdDeliveries.GetQueryable()
@@ -498,18 +504,24 @@ namespace ReliefManagementSystem.Application.Services
                 .Distinct()
                 .ToHashSet();
 
+            var campaignIds = await _unitOfWork.Campaigns.GetQueryable()
+                .AsNoTracking()
+                .Where(c => c.Type == CampaignType.Relief)
+                .Where(c => c.CampaignStations.Any(cs => cs.ReliefStationId == stationId && cs.IsActive))
+                .Select(c => c.CampaignId)
+                .Distinct()
+                .ToListAsync(cancellationToken);
+
+            if (campaignIds.Count == 0)
+            {
+                return new ReliefTeamTaskSummaryResponseDto();
+            }
+
             var memberTaskRows = await _unitOfWork.MemberTasks.GetQueryable()
                 .AsNoTracking()
                 .Where(mt =>
                     !mt.CampaignTask.CampaignTeam.IsDelete &&
-                    (
-                        mt.CampaignTask.CampaignTeam.Campaign.CampaignStations.Any(cs =>
-                            cs.ReliefStationId == stationId &&
-                            cs.IsActive) ||
-                        mt.CampaignTask.CampaignTeam.Team.ReliefStationTeams.Any(rst =>
-                            rst.ReliefStationId == stationId &&
-                            rst.Status == ReliefTeamAssignmentStatus.Approved)
-                    ) &&
+                    campaignIds.Contains(mt.CampaignTask.CampaignTeam.CampaignId) &&
                     (requestedTeamIds == null || requestedTeamIds.Contains(mt.CampaignTask.CampaignTeam.TeamId)))
                 .Where(mt =>
                     !from.HasValue ||
@@ -552,11 +564,11 @@ namespace ReliefManagementSystem.Application.Services
             }
 
             var campaignTeamIds = memberTaskRows.Select(x => x.CampaignTeamId).Distinct().ToList();
-            var campaignIds = memberTaskRows.Select(x => x.CampaignId).Distinct().ToList();
+            var filteredCampaignIds = memberTaskRows.Select(x => x.CampaignId).Distinct().ToList();
 
             var packageDefinitions = await _unitOfWork.ReliefPackageDefinitions.GetQueryable()
                 .AsNoTracking()
-                .Where(x => campaignIds.Contains(x.CampaignId))
+                .Where(x => filteredCampaignIds.Contains(x.CampaignId))
                 .ToListAsync(cancellationToken);
 
             var deliveries = await _unitOfWork.HouseholdDeliveries.GetQueryable()
