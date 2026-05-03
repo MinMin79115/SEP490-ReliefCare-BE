@@ -64,5 +64,13 @@ namespace ReliefManagementSystem.API.Controllers
             [FromQuery] List<Guid>? teamIds,
             CancellationToken cancellationToken)
             => Ok(await _stationDashboardService.GetReliefTeamMissionSnapshotAsync(from, to, teamIds, cancellationToken));
+
+        [HttpGet("relief-team-task-summary")]
+        public async Task<ActionResult<ReliefTeamTaskSummaryResponseDto>> GetReliefTeamTaskSummary(
+            [FromQuery] DateTime? from,
+            [FromQuery] DateTime? to,
+            [FromQuery] List<Guid>? teamIds,
+            CancellationToken cancellationToken)
+            => Ok(await _stationDashboardService.GetReliefTeamTaskSummaryAsync(from, to, teamIds, cancellationToken));
     }
 }

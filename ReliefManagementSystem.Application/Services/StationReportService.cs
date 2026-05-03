@@ -175,18 +175,39 @@ namespace ReliefManagementSystem.Application.Services
 
             var mapped = items
                 .GroupBy(x => x.CampaignHouseholdId)
-                .Select(group => group
-                    .OrderByDescending(x => x.DeliveredAt ?? x.ScheduledAt)
-                    .ThenByDescending(x => x.CreatedAt)
-                    .First())
-                .Select(x => new ReliefDeliveryReportItemDto
+                .Select(group =>
                 {
-                    HouseholdCode = x.CampaignHousehold?.HouseholdCode ?? string.Empty,
-                    HeadOfHouseholdName = x.CampaignHousehold?.HeadOfHouseholdName ?? string.Empty,
-                    Address = x.CampaignHousehold?.Address,
-                    TeamName = x.CampaignTeam?.Team?.Name,
-                    DeliveryMode = x.DeliveryMode.ToString(),
-                    FulfillmentStatus = x.Status.ToString()
+                    var latest = group
+                        .OrderByDescending(x => x.DeliveredAt ?? x.ScheduledAt)
+                        .ThenByDescending(x => x.CreatedAt)
+                        .First();
+
+                    return new ReliefDeliveryReportItemDto
+                    {
+                        HouseholdCode = latest.CampaignHousehold?.HouseholdCode ?? string.Empty,
+                        HeadOfHouseholdName = latest.CampaignHousehold?.HeadOfHouseholdName ?? string.Empty,
+                        Address = latest.CampaignHousehold?.Address,
+                        TeamName = latest.CampaignTeam?.Team?.Name,
+                        DeliveryMode = latest.DeliveryMode.ToString(),
+                        FulfillmentStatus = latest.Status.ToString(),
+                        DeliveryCount = group.Count(),
+                        LatestScheduledAt = latest.ScheduledAt,
+                        LatestDeliveredAt = latest.DeliveredAt,
+                        DeliveredPackageNames = group
+                            .Where(x => x.Status == HouseholdFulfillmentStatus.Delivered)
+                            .Select(x => x.ReliefPackageDefinition?.Name ?? string.Empty)
+                            .Where(x => !string.IsNullOrWhiteSpace(x))
+                            .Distinct()
+                            .OrderBy(x => x)
+                            .ToList(),
+                        PendingPackageNames = group
+                            .Where(x => x.Status != HouseholdFulfillmentStatus.Delivered)
+                            .Select(x => x.ReliefPackageDefinition?.Name ?? string.Empty)
+                            .Where(x => !string.IsNullOrWhiteSpace(x))
+                            .Distinct()
+                            .OrderBy(x => x)
+                            .ToList(),
+                    };
                 })
                 .OrderBy(x => x.HouseholdCode)
                 .ThenBy(x => x.HeadOfHouseholdName)

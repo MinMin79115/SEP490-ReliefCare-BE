@@ -55,6 +55,11 @@ namespace ReliefManagementSystem.Application.Features.StationReports.DTOs.Respon
         public string? TeamName { get; set; }
         public string DeliveryMode { get; set; } = string.Empty;
         public string FulfillmentStatus { get; set; } = string.Empty;
+        public int DeliveryCount { get; set; }
+        public DateTime? LatestScheduledAt { get; set; }
+        public DateTime? LatestDeliveredAt { get; set; }
+        public List<string> DeliveredPackageNames { get; set; } = new();
+        public List<string> PendingPackageNames { get; set; } = new();
     }
 
     public class ReliefMissionReportRowDto

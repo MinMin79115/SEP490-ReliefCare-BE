@@ -38,6 +38,48 @@ namespace ReliefManagementSystem.Application.Features.StationDashboard.DTOs.Resp
         public List<ReliefTeamMissionSnapshotItemDto> Data { get; set; } = new();
     }
 
+    public class ReliefTeamTaskSummaryResponseDto
+    {
+        public List<ReliefTeamTaskSummaryItemDto> Data { get; set; } = new();
+    }
+
+    public class ReliefTeamTaskSummaryItemDto
+    {
+        public Guid TeamId { get; set; }
+        public string TeamName { get; set; } = string.Empty;
+        public string TeamType { get; set; } = string.Empty;
+        public Guid CampaignId { get; set; }
+        public string CampaignName { get; set; } = string.Empty;
+        public string CampaignStatus { get; set; } = string.Empty;
+        public Guid CampaignTeamId { get; set; }
+        public string CampaignTeamStatus { get; set; } = string.Empty;
+        public int HouseholdCount { get; set; }
+        public int PendingHouseholdCount { get; set; }
+        public int DeliveredHouseholdCount { get; set; }
+        public int TotalDeliveryCount { get; set; }
+        public string? DefaultReliefPackageName { get; set; }
+        public List<ReliefTeamTaskSummaryTaskDto> Tasks { get; set; } = new();
+    }
+
+    public class ReliefTeamTaskSummaryTaskDto
+    {
+        public Guid CampaignTaskId { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public DateTime StartDate { get; set; }
+        public DateTime? DueDate { get; set; }
+        public int TotalSubTasks { get; set; }
+        public int AssignedSubTasks { get; set; }
+        public int InProgressSubTasks { get; set; }
+        public int CompletedSubTasks { get; set; }
+        public int FailedSubTasks { get; set; }
+        public int CancelledSubTasks { get; set; }
+        public int DeliveryCount { get; set; }
+        public int PendingDeliveryCount { get; set; }
+        public int DeliveredDeliveryCount { get; set; }
+        public DateTime? LastUpdatedAt { get; set; }
+    }
+
     public class ReliefTeamMissionSnapshotItemDto
     {
         public Guid TeamId { get; set; }

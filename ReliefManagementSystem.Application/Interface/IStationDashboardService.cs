@@ -15,5 +15,6 @@ namespace ReliefManagementSystem.Application.Interface
         Task<ActiveDispatchSnapshotResponseDto> GetActiveDispatchSnapshotAsync(CancellationToken cancellationToken = default);
         Task<RescueRequestLocationsResponseDto> GetRescueRequestLocationsAsync(DateTime? from, DateTime? to, CancellationToken cancellationToken = default);
         Task<ReliefTeamMissionSnapshotResponseDto> GetReliefTeamMissionSnapshotAsync(DateTime? from, DateTime? to, IEnumerable<Guid>? teamIds, CancellationToken cancellationToken = default);
+        Task<ReliefTeamTaskSummaryResponseDto> GetReliefTeamTaskSummaryAsync(DateTime? from, DateTime? to, IEnumerable<Guid>? teamIds, CancellationToken cancellationToken = default);
     }
 }
