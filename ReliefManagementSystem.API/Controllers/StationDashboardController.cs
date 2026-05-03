@@ -56,5 +56,13 @@ namespace ReliefManagementSystem.API.Controllers
         [HttpGet("rescue-request-locations")]
         public async Task<ActionResult<RescueRequestLocationsResponseDto>> GetRescueRequestLocations([FromQuery] DateTime? from, [FromQuery] DateTime? to, CancellationToken cancellationToken)
             => Ok(await _stationDashboardService.GetRescueRequestLocationsAsync(from, to, cancellationToken));
+
+        [HttpGet("relief-team-missions")]
+        public async Task<ActionResult<ReliefTeamMissionSnapshotResponseDto>> GetReliefTeamMissions(
+            [FromQuery] DateTime? from,
+            [FromQuery] DateTime? to,
+            [FromQuery] List<Guid>? teamIds,
+            CancellationToken cancellationToken)
+            => Ok(await _stationDashboardService.GetReliefTeamMissionSnapshotAsync(from, to, teamIds, cancellationToken));
     }
 }

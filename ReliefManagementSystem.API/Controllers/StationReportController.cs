@@ -37,5 +37,21 @@ namespace ReliefManagementSystem.API.Controllers
         [HttpGet("relief-deliveries")]
         public async Task<ActionResult<Pagination<ReliefDeliveryReportItemDto>>> GetReliefDeliveries([FromQuery] Guid? campaignId, [FromQuery] string? status, [FromQuery] int pageIndex = 1, [FromQuery] int pageSize = 50, CancellationToken cancellationToken = default)
             => Ok(await _stationReportService.GetReliefDeliveriesReportAsync(campaignId, status, pageIndex, pageSize, cancellationToken));
+
+        [HttpGet("relief-missions")]
+        public async Task<ActionResult<List<ReliefMissionReportRowDto>>> GetReliefMissions(
+            [FromQuery] DateTime? from,
+            [FromQuery] DateTime? to,
+            [FromQuery] List<Guid>? teamIds,
+            CancellationToken cancellationToken = default)
+            => Ok(await _stationReportService.GetReliefMissionReportAsync(from, to, teamIds, cancellationToken));
+
+        [HttpGet("relief-missions/campaign-summary")]
+        public async Task<ActionResult<List<ReliefMissionCampaignSummaryDto>>> GetReliefMissionCampaignSummary(
+            [FromQuery] DateTime? from,
+            [FromQuery] DateTime? to,
+            [FromQuery] List<Guid>? teamIds,
+            CancellationToken cancellationToken = default)
+            => Ok(await _stationReportService.GetReliefMissionCampaignSummaryAsync(from, to, teamIds, cancellationToken));
     }
 }

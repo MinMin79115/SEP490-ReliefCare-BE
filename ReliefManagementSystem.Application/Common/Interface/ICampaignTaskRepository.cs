@@ -13,5 +13,6 @@ namespace ReliefManagementSystem.Application.Common.Interface
             CampaignTaskStatus? status,
             Guid? campaignTeamId,
             CancellationToken cancellationToken = default);
+        IQueryable<CampaignTask> GetQueryable();
     }
 }
