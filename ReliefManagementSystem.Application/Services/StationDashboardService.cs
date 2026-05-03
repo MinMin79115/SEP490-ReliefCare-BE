@@ -338,19 +338,34 @@ namespace ReliefManagementSystem.Application.Services
                 .AsNoTracking()
                 .Where(t =>
                     !t.CampaignTeam.IsDelete &&
-                    t.CampaignTeam.Team.ReliefStationTeams.Any(rst =>
-                        rst.ReliefStationId == stationId &&
-                        rst.Status == ReliefTeamAssignmentStatus.Approved) &&
+                    (
+                        t.CampaignTeam.Campaign.CampaignStations.Any(cs =>
+                            cs.ReliefStationId == stationId &&
+                            cs.IsActive) ||
+                        t.CampaignTeam.Team.ReliefStationTeams.Any(rst =>
+                            rst.ReliefStationId == stationId &&
+                            rst.Status == ReliefTeamAssignmentStatus.Approved)
+                    ) &&
                     (requestedTeamIds == null || requestedTeamIds.Contains(t.CampaignTeam.TeamId)));
 
             if (from.HasValue)
             {
-                taskQuery = taskQuery.Where(t => t.CreatedAt >= from.Value || t.StartDate >= from.Value);
+                taskQuery = taskQuery.Where(t =>
+                    t.CreatedAt >= from.Value ||
+                    t.StartDate >= from.Value ||
+                    t.MemberTasks.Any(mt =>
+                        (mt.AssignedAt.HasValue && mt.AssignedAt.Value >= from.Value) ||
+                        (mt.CompletedAt.HasValue && mt.CompletedAt.Value >= from.Value)));
             }
 
             if (to.HasValue)
             {
-                taskQuery = taskQuery.Where(t => t.CreatedAt <= to.Value || t.StartDate <= to.Value);
+                taskQuery = taskQuery.Where(t =>
+                    t.CreatedAt <= to.Value ||
+                    t.StartDate <= to.Value ||
+                    t.MemberTasks.Any(mt =>
+                        (mt.AssignedAt.HasValue && mt.AssignedAt.Value <= to.Value) ||
+                        (mt.CompletedAt.HasValue && mt.CompletedAt.Value <= to.Value)));
             }
 
             var tasks = await taskQuery
@@ -497,12 +512,36 @@ namespace ReliefManagementSystem.Application.Services
                 .AsNoTracking()
                 .Where(t =>
                     !t.CampaignTeam.IsDelete &&
-                    t.CampaignTeam.Team.ReliefStationTeams.Any(rst =>
-                        rst.ReliefStationId == stationId &&
-                        rst.Status == ReliefTeamAssignmentStatus.Approved) &&
+                    (
+                        t.CampaignTeam.Campaign.CampaignStations.Any(cs =>
+                            cs.ReliefStationId == stationId &&
+                            cs.IsActive) ||
+                        t.CampaignTeam.Team.ReliefStationTeams.Any(rst =>
+                            rst.ReliefStationId == stationId &&
+                            rst.Status == ReliefTeamAssignmentStatus.Approved)
+                    ) &&
                     (requestedTeamIds == null || requestedTeamIds.Contains(t.CampaignTeam.TeamId)))
-                .Where(t => !from.HasValue || t.CreatedAt >= from.Value || t.StartDate >= from.Value)
-                .Where(t => !to.HasValue || t.CreatedAt <= to.Value || t.StartDate <= to.Value)
+                .Where(t =>
+                    !from.HasValue ||
+                    t.CreatedAt >= from.Value ||
+                    t.StartDate >= from.Value ||
+                    t.MemberTasks.Any(mt =>
+                        (mt.AssignedAt.HasValue && mt.AssignedAt.Value >= from.Value) ||
+                        (mt.CompletedAt.HasValue && mt.CompletedAt.Value >= from.Value)))
+                .Where(t =>
+                    !from.HasValue ||
+                    t.CreatedAt >= from.Value ||
+                    t.StartDate >= from.Value ||
+                    t.MemberTasks.Any(mt =>
+                        (mt.AssignedAt.HasValue && mt.AssignedAt.Value >= from.Value) ||
+                        (mt.CompletedAt.HasValue && mt.CompletedAt.Value >= from.Value)))
+                .Where(t =>
+                    !to.HasValue ||
+                    t.CreatedAt <= to.Value ||
+                    t.StartDate <= to.Value ||
+                    t.MemberTasks.Any(mt =>
+                        (mt.AssignedAt.HasValue && mt.AssignedAt.Value <= to.Value) ||
+                        (mt.CompletedAt.HasValue && mt.CompletedAt.Value <= to.Value)))
                 .Select(t => new
                 {
                     t.CampaignTaskId,
