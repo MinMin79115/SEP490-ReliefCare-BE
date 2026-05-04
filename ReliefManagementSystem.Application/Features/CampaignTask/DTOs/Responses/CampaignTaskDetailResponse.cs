@@ -35,6 +35,8 @@ namespace ReliefManagementSystem.Application.Features.CampaignTask.DTOs.Response
         public string? TopVolunteerName { get; set; }
         public int TopVolunteerScore { get; set; }
         public DateTime? LatestTaskDate { get; set; }
+        public int AssignedRescueRequestCount { get; set; }
+        public int CompletedRescueRequestCount { get; set; }
         public decimal ImpactScore { get; set; }
     }
 }
