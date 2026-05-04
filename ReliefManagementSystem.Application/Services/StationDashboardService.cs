@@ -804,7 +804,7 @@ namespace ReliefManagementSystem.Application.Services
             }).Select(group =>
             {
                 var teamTasks = group
-                    .OrderBy(t => t.StartDate)
+                    .OrderBy(t => t.TaskStartDate)
                     .ThenBy(t => t.Title)
                     .Select(t =>
                     {
