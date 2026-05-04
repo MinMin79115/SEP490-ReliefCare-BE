@@ -842,6 +842,23 @@ namespace ReliefManagementSystem.Application.Services
 
             household.FulfillmentStatus = request.Status;
 
+            foreach (var delivery in household.Deliveries.Where(x => x.Status != HouseholdFulfillmentStatus.Delivered))
+            {
+                delivery.Status = request.Status;
+
+                if (request.Status == HouseholdFulfillmentStatus.Skipped && !delivery.DeliveredAt.HasValue)
+                {
+                    delivery.DeliveredAt = DateTime.UtcNow;
+                }
+
+                if (request.Notes is not null)
+                {
+                    delivery.Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim();
+                }
+
+                await _unitOfWork.HouseholdDeliveries.UpdateAsync(delivery);
+            }
+
             if (request.Notes is not null)
                 household.Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim();
 
