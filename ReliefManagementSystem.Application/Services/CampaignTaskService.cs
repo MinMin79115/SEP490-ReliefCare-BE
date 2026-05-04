@@ -11,6 +11,8 @@ namespace ReliefManagementSystem.Application.Services
 {
     public class CampaignTaskService : ICampaignTaskService
     {
+        private const string FailureReasonMarker = "\n[FAILURE_REASON] ";
+
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserService _currentUser;
 
@@ -97,27 +99,32 @@ namespace ReliefManagementSystem.Application.Services
                 .Take(pageSize)
                 .ToListAsync(cancellationToken);
 
-            var mapped = items.Select(x => new MyMemberTaskResponse
+            var mapped = items.Select(x =>
             {
-                MemberTaskId = x.MemberTaskId,
-                CampaignTaskId = x.CampaignTaskId,
-                CampaignId = x.CampaignTask.CampaignTeam.CampaignId,
-                CampaignTeamId = x.CampaignTask.CampaignTeamId,
-                CampaignTeamName = x.CampaignTask.CampaignTeam.Team?.Name ?? string.Empty,
-                CampaignTaskTitle = x.CampaignTask.Title,
-                CampaignTaskDescription = x.CampaignTask.Description,
-                StartDate = x.CampaignTask.StartDate,
-                DueDate = x.CampaignTask.DueDate,
-                CampaignTaskStatus = x.CampaignTask.Status,
-                Priority = x.CampaignTask.Priority,
-                VolunteerProfileId = x.VolunteerProfileId,
-                VolunteerName = ResolveVolunteerDisplayName(x.VolunteerProfile),
-                SubTaskTitle = x.SubTaskTitle,
-                TaskNote = x.TaskNote,
-                AssignedAt = x.AssignedAt,
-                CompletedAt = x.CompletedAt,
-                Status = x.Status,
-                Deliveries = x.MemberTaskDeliveries.Select(MapMemberTaskDelivery).ToList(),
+                var noteParts = SplitTaskNoteAndFailureReason(x.TaskNote);
+                return new MyMemberTaskResponse
+                {
+                    MemberTaskId = x.MemberTaskId,
+                    CampaignTaskId = x.CampaignTaskId,
+                    CampaignId = x.CampaignTask.CampaignTeam.CampaignId,
+                    CampaignTeamId = x.CampaignTask.CampaignTeamId,
+                    CampaignTeamName = x.CampaignTask.CampaignTeam.Team?.Name ?? string.Empty,
+                    CampaignTaskTitle = x.CampaignTask.Title,
+                    CampaignTaskDescription = x.CampaignTask.Description,
+                    StartDate = x.CampaignTask.StartDate,
+                    DueDate = x.CampaignTask.DueDate,
+                    CampaignTaskStatus = x.CampaignTask.Status,
+                    Priority = x.CampaignTask.Priority,
+                    VolunteerProfileId = x.VolunteerProfileId,
+                    VolunteerName = ResolveVolunteerDisplayName(x.VolunteerProfile),
+                    SubTaskTitle = x.SubTaskTitle,
+                    TaskNote = noteParts.TaskNote,
+                    FailureReason = noteParts.FailureReason,
+                    AssignedAt = x.AssignedAt,
+                    CompletedAt = x.CompletedAt,
+                    Status = x.Status,
+                    Deliveries = x.MemberTaskDeliveries.Select(MapMemberTaskDelivery).ToList(),
+                };
             }).ToList();
 
             return new Pagination<MyMemberTaskResponse>(mapped, totalCount, pageIndex, pageSize);
@@ -553,11 +560,29 @@ namespace ReliefManagementSystem.Application.Services
             await GetReliefCampaignAsync(task.CampaignTeam.CampaignId, cancellationToken);
             ValidateMemberTaskStatusTransition(memberTask.Status, request.Status);
 
+            var noteParts = SplitTaskNoteAndFailureReason(memberTask.TaskNote);
             memberTask.Status = request.Status;
 
-            if (request.Status == MemberTaskStatus.Completed)
+            if (request.Status == MemberTaskStatus.Failed)
             {
-                memberTask.CompletedAt = DateTime.UtcNow;
+                if (string.IsNullOrWhiteSpace(request.FailureReason))
+                    throw new InvalidOperationException("Failure reason is required when marking a subtask as failed.");
+
+                memberTask.TaskNote = ComposeTaskNoteWithFailureReason(noteParts.TaskNote, request.FailureReason);
+                memberTask.CompletedAt = null;
+            }
+            else
+            {
+                memberTask.TaskNote = ComposeTaskNoteWithFailureReason(noteParts.TaskNote, null);
+
+                if (request.Status == MemberTaskStatus.Completed)
+                {
+                    memberTask.CompletedAt = DateTime.UtcNow;
+                }
+                else
+                {
+                    memberTask.CompletedAt = null;
+                }
             }
 
             await _unitOfWork.MemberTasks.UpdateAsync(memberTask);
@@ -579,6 +604,7 @@ namespace ReliefManagementSystem.Application.Services
             var allTerminal = memberTasks.All(mt => mt.Status is MemberTaskStatus.Completed or MemberTaskStatus.Cancelled);
             var anyInProgress = memberTasks.Any(mt => mt.Status is MemberTaskStatus.InProgress);
             var anyFailed = memberTasks.Any(mt => mt.Status is MemberTaskStatus.Failed);
+            var anyActive = memberTasks.Any(mt => mt.Status is MemberTaskStatus.Assigned or MemberTaskStatus.InProgress);
 
             CampaignTaskStatus? newStatus = null;
 
@@ -587,17 +613,16 @@ namespace ReliefManagementSystem.Application.Services
                 // All subtasks done → auto-complete parent
                 newStatus = CampaignTaskStatus.Completed;
             }
-            else if (anyFailed && task.Status == CampaignTaskStatus.InProgress)
+            else if (anyFailed && task.Status != CampaignTaskStatus.Blocked)
             {
-                // A subtask failed → block parent
+                // Any failed subtask means the parent task is blocked until the leader/team resolves it.
                 newStatus = CampaignTaskStatus.Blocked;
             }
-            else if (anyInProgress && task.Status == CampaignTaskStatus.Planned)
+            else if (!anyFailed && anyActive && task.Status != CampaignTaskStatus.InProgress)
             {
-                // First subtask started → auto-start parent
+                // When failed subtasks are retried or work continues, reopen the parent task.
                 newStatus = CampaignTaskStatus.InProgress;
             }
-
             if (newStatus.HasValue && newStatus.Value != task.Status)
             {
                 task.Status = newStatus.Value;
@@ -839,19 +864,56 @@ namespace ReliefManagementSystem.Application.Services
             };
 
         private static MemberTaskResponse MapMemberTask(MemberTask memberTask, string? volunteerName)
-            => new()
+        {
+            var noteParts = SplitTaskNoteAndFailureReason(memberTask.TaskNote);
+            return new()
             {
                 MemberTaskId = memberTask.MemberTaskId,
                 CampaignTaskId = memberTask.CampaignTaskId,
                 VolunteerProfileId = memberTask.VolunteerProfileId,
                 VolunteerName = volunteerName ?? string.Empty,
                 SubTaskTitle = memberTask.SubTaskTitle,
-                TaskNote = memberTask.TaskNote,
+                TaskNote = noteParts.TaskNote,
+                FailureReason = noteParts.FailureReason,
                 AssignedAt = memberTask.AssignedAt,
                 CompletedAt = memberTask.CompletedAt,
                 Status = memberTask.Status,
                 Deliveries = memberTask.MemberTaskDeliveries.Select(MapMemberTaskDelivery).ToList()
             };
+        }
+
+        private static (string? TaskNote, string? FailureReason) SplitTaskNoteAndFailureReason(string? storedNote)
+        {
+            if (string.IsNullOrWhiteSpace(storedNote))
+                return (null, null);
+
+            var trimmed = storedNote.Trim();
+            var markerIndex = trimmed.IndexOf(FailureReasonMarker, StringComparison.Ordinal);
+
+            if (markerIndex < 0)
+                return (trimmed, null);
+
+            var taskNote = trimmed[..markerIndex].Trim();
+            var failureReason = trimmed[(markerIndex + FailureReasonMarker.Length)..].Trim();
+
+            return (
+                string.IsNullOrWhiteSpace(taskNote) ? null : taskNote,
+                string.IsNullOrWhiteSpace(failureReason) ? null : failureReason
+            );
+        }
+
+        private static string? ComposeTaskNoteWithFailureReason(string? taskNote, string? failureReason)
+        {
+            var normalizedTaskNote = string.IsNullOrWhiteSpace(taskNote) ? null : taskNote.Trim();
+            var normalizedFailureReason = string.IsNullOrWhiteSpace(failureReason) ? null : failureReason.Trim();
+
+            if (normalizedFailureReason is null)
+                return normalizedTaskNote;
+
+            return string.IsNullOrWhiteSpace(normalizedTaskNote)
+                ? $"[FAILURE_REASON] {normalizedFailureReason}"
+                : $"{normalizedTaskNote}{FailureReasonMarker}{normalizedFailureReason}";
+        }
 
         private static MemberTaskDeliveryResponse MapMemberTaskDelivery(MemberTaskDelivery item)
             => MapMemberTaskDelivery(item, item.HouseholdDelivery);
