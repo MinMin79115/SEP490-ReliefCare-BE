@@ -140,6 +140,18 @@ namespace ReliefManagementSystem.Application.Services
         {
             var tasks = await GetAdminTaskAggregateAsync(from, to, teamId, campaignId, cancellationToken);
             var limit = top <= 0 ? 4 : Math.Min(top, 20);
+            var effectiveTeamIds = tasks.Select(task => task.TeamId).Distinct().ToList();
+            var rescueOperations = await _unitOfWork.RescueOperations.GetQueryable()
+                .AsNoTracking()
+                .Where(operation => operation.TeamId.HasValue && effectiveTeamIds.Contains(operation.TeamId.Value))
+                .Where(operation => !from.HasValue || operation.StartedAt >= from.Value)
+                .Where(operation => !to.HasValue || operation.StartedAt <= to.Value)
+                .Select(operation => new
+                {
+                    TeamId = operation.TeamId!.Value,
+                    operation.Status,
+                })
+                .ToListAsync(cancellationToken);
 
             return tasks
                 .GroupBy(task => new { task.TeamId, task.TeamName, task.TeamType })
@@ -160,6 +172,9 @@ namespace ReliefManagementSystem.Application.Services
                     var completedMemberTasks = memberTasks.Count(task => task.Status == MemberTaskStatus.Completed);
                     var inProgressMemberTasks = memberTasks.Count(task => task.Status == MemberTaskStatus.InProgress);
                     var failedMemberTasks = memberTasks.Count(task => task.Status == MemberTaskStatus.Failed);
+                    var teamRescueOperations = rescueOperations.Where(item => item.TeamId == group.Key.TeamId).ToList();
+                    var assignedRescueRequestCount = teamRescueOperations.Count;
+                    var completedRescueRequestCount = teamRescueOperations.Count(item => item.Status == RescueOperationStatus.RescueCompleted || item.Status == RescueOperationStatus.Closed);
 
                     return new AdminTopTeamResponse
                     {
@@ -177,7 +192,9 @@ namespace ReliefManagementSystem.Application.Services
                         TopVolunteerName = volunteerScores?.VolunteerName,
                         TopVolunteerScore = volunteerScores?.Score ?? 0,
                         LatestTaskDate = group.Max(task => task.CreatedAt),
-                        ImpactScore = completedMemberTasks * 3m + inProgressMemberTasks * 2m + group.Count(),
+                        AssignedRescueRequestCount = assignedRescueRequestCount,
+                        CompletedRescueRequestCount = completedRescueRequestCount,
+                        ImpactScore = completedMemberTasks * 3m + inProgressMemberTasks * 2m + group.Count() + completedRescueRequestCount * 2m,
                     };
                 })
                 .OrderByDescending(item => item.ImpactScore)
