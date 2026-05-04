@@ -71,6 +71,122 @@ namespace ReliefManagementSystem.Application.Services
             return new Pagination<CampaignTaskResponse>(mapped, totalCount, request.PageIndex, request.PageSize);
         }
 
+        public async Task<List<AdminCampaignTaskAggregateResponse>> GetAdminTaskAggregateAsync(DateTime? from = null, DateTime? to = null, Guid? teamId = null, Guid? campaignId = null, CancellationToken cancellationToken = default)
+        {
+            var query = _unitOfWork.CampaignTasks.GetQueryable()
+                .AsNoTracking()
+                .Where(x => !x.CampaignTeam.IsDelete && x.CampaignTeam.Campaign.Type == CampaignType.Relief)
+                .Include(x => x.CampaignTeam)
+                    .ThenInclude(x => x.Campaign)
+                .Include(x => x.CampaignTeam)
+                    .ThenInclude(x => x.Team)
+                        .ThenInclude(x => x.TeamMembers)
+                .Include(x => x.MemberTasks)
+                    .ThenInclude(x => x.VolunteerProfile)
+                        .ThenInclude(x => x.User)
+                .AsQueryable();
+
+            if (from.HasValue)
+            {
+                query = query.Where(x => x.CreatedAt >= from.Value || x.StartDate >= from.Value || (x.DueDate.HasValue && x.DueDate.Value >= from.Value));
+            }
+
+            if (to.HasValue)
+            {
+                query = query.Where(x => x.CreatedAt <= to.Value || x.StartDate <= to.Value || (x.DueDate.HasValue && x.DueDate.Value <= to.Value));
+            }
+
+            if (teamId.HasValue && teamId.Value != Guid.Empty)
+            {
+                query = query.Where(x => x.CampaignTeam.TeamId == teamId.Value);
+            }
+
+            if (campaignId.HasValue && campaignId.Value != Guid.Empty)
+            {
+                query = query.Where(x => x.CampaignTeam.CampaignId == campaignId.Value);
+            }
+
+            var tasks = await query
+                .OrderByDescending(x => x.CreatedAt)
+                .ToListAsync(cancellationToken);
+
+            return tasks.Select(task => new AdminCampaignTaskAggregateResponse
+            {
+                CampaignTaskId = task.CampaignTaskId,
+                CampaignId = task.CampaignTeam.CampaignId,
+                CampaignTeamId = task.CampaignTeamId,
+                CampaignTeamName = task.CampaignTeam.Team?.Name ?? string.Empty,
+                Title = task.Title,
+                Description = task.Description,
+                StartDate = task.StartDate,
+                DueDate = task.DueDate,
+                Status = task.Status,
+                Priority = task.Priority,
+                CreatedBy = task.CreatedBy,
+                CreatedAt = task.CreatedAt,
+                MemberTaskCount = task.MemberTasks.Count,
+                CompletedMemberTaskCount = task.MemberTasks.Count(x => x.Status == MemberTaskStatus.Completed),
+                MemberTasks = task.MemberTasks.Select(x => MapMemberTask(x, ResolveVolunteerDisplayName(x.VolunteerProfile))).ToList(),
+                TeamId = task.CampaignTeam.TeamId,
+                TeamName = task.CampaignTeam.Team?.Name ?? string.Empty,
+                TeamType = task.CampaignTeam.Team?.TeamType.ToString() ?? string.Empty,
+                TeamMemberCount = task.CampaignTeam.Team?.TeamMembers.Count ?? 0,
+                CampaignName = task.CampaignTeam.Campaign?.Name ?? string.Empty,
+                CampaignStatus = task.CampaignTeam.Campaign?.Status.ToString() ?? string.Empty,
+            }).ToList();
+        }
+
+        public async Task<List<AdminTopTeamResponse>> GetAdminTopTeamsAsync(DateTime? from = null, DateTime? to = null, Guid? teamId = null, Guid? campaignId = null, int top = 4, CancellationToken cancellationToken = default)
+        {
+            var tasks = await GetAdminTaskAggregateAsync(from, to, teamId, campaignId, cancellationToken);
+            var limit = top <= 0 ? 4 : Math.Min(top, 20);
+
+            return tasks
+                .GroupBy(task => new { task.TeamId, task.TeamName, task.TeamType })
+                .Select(group =>
+                {
+                    var memberTasks = group.SelectMany(task => task.MemberTasks).ToList();
+                    var volunteerScores = memberTasks
+                        .GroupBy(task => new { task.VolunteerProfileId, task.VolunteerName })
+                        .Select(item => new
+                        {
+                            item.Key.VolunteerName,
+                            Score = item.Sum(task => task.Status == MemberTaskStatus.Completed ? 2 : task.Status == MemberTaskStatus.InProgress ? 1 : 0),
+                        })
+                        .OrderByDescending(item => item.Score)
+                        .ThenBy(item => item.VolunteerName)
+                        .FirstOrDefault();
+
+                    var completedMemberTasks = memberTasks.Count(task => task.Status == MemberTaskStatus.Completed);
+                    var inProgressMemberTasks = memberTasks.Count(task => task.Status == MemberTaskStatus.InProgress);
+                    var failedMemberTasks = memberTasks.Count(task => task.Status == MemberTaskStatus.Failed);
+
+                    return new AdminTopTeamResponse
+                    {
+                        TeamId = group.Key.TeamId,
+                        TeamName = group.Key.TeamName,
+                        TeamType = group.Key.TeamType,
+                        CampaignId = group.Select(task => task.CampaignId).FirstOrDefault(),
+                        CampaignName = group.Select(task => task.CampaignName).FirstOrDefault() ?? string.Empty,
+                        TeamMemberCount = group.Max(task => task.TeamMemberCount),
+                        TaskCount = group.Count(),
+                        MemberTaskCount = memberTasks.Count,
+                        CompletedMemberTaskCount = completedMemberTasks,
+                        InProgressMemberTaskCount = inProgressMemberTasks,
+                        FailedMemberTaskCount = failedMemberTasks,
+                        TopVolunteerName = volunteerScores?.VolunteerName,
+                        TopVolunteerScore = volunteerScores?.Score ?? 0,
+                        LatestTaskDate = group.Max(task => task.CreatedAt),
+                        ImpactScore = completedMemberTasks * 3m + inProgressMemberTasks * 2m + group.Count(),
+                    };
+                })
+                .OrderByDescending(item => item.ImpactScore)
+                .ThenByDescending(item => item.CompletedMemberTaskCount)
+                .ThenByDescending(item => item.TeamMemberCount)
+                .Take(limit)
+                .ToList();
+        }
+
         public async Task<Pagination<MyMemberTaskResponse>> GetMyMemberTasksAsync(Guid campaignId, MyMemberTaskQueryRequest request, CancellationToken cancellationToken = default)
         {
             await GetReliefCampaignAsync(campaignId, cancellationToken);
