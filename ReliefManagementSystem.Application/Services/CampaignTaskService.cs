@@ -141,19 +141,40 @@ namespace ReliefManagementSystem.Application.Services
             var tasks = await GetAdminTaskAggregateAsync(from, to, teamId, campaignId, cancellationToken);
             var limit = top <= 0 ? 4 : Math.Min(top, 20);
             var effectiveTeamIds = tasks.Select(task => task.TeamId).Distinct().ToList();
-            var rescueOperations = await _unitOfWork.RescueOperations.GetQueryable()
-                .AsNoTracking()
-                .Where(operation => operation.TeamId.HasValue && effectiveTeamIds.Contains(operation.TeamId.Value))
+            var allRescueOperations = await _unitOfWork.RescueOperations.GetAllAsync();
+            var rescueOperations = allRescueOperations
+                .Where(operation => operation.TeamId.HasValue)
                 .Where(operation => !from.HasValue || operation.StartedAt >= from.Value)
                 .Where(operation => !to.HasValue || operation.StartedAt <= to.Value)
-                .Select(operation => new
+                .Select(operation => new RescueOperationTeamMetric
                 {
                     TeamId = operation.TeamId!.Value,
-                    operation.Status,
+                    Status = operation.Status,
                 })
-                .ToListAsync(cancellationToken);
+                .ToList();
 
-            return tasks
+            if (teamId.HasValue && teamId.Value != Guid.Empty)
+            {
+                rescueOperations = rescueOperations
+                    .Where(operation => operation.TeamId == teamId.Value)
+                    .ToList();
+            }
+
+            List<Guid> rescueOnlyTeamIds = rescueOperations
+                .Select(item => item.TeamId)
+                .Distinct()
+                .Where(id => !effectiveTeamIds.Contains(id))
+                .ToList();
+
+            List<Team> rescueOnlyTeams = rescueOnlyTeamIds.Count == 0
+                ? new List<Team>()
+                : await _unitOfWork.Teams.GetQueryable()
+                    .AsNoTracking()
+                    .Where(team => rescueOnlyTeamIds.Contains(team.TeamId))
+                    .Include(team => team.TeamMembers)
+                    .ToListAsync(cancellationToken);
+
+            List<AdminTopTeamResponse> taskBasedTeams = tasks
                 .GroupBy(task => new { task.TeamId, task.TeamName, task.TeamType })
                 .Select(group =>
                 {
@@ -197,11 +218,52 @@ namespace ReliefManagementSystem.Application.Services
                         ImpactScore = completedMemberTasks * 3m + inProgressMemberTasks * 2m + group.Count() + completedRescueRequestCount * 2m,
                     };
                 })
+                .ToList();
+
+            List<AdminTopTeamResponse> rescueOnlyResponses = rescueOnlyTeams
+                .Select(team =>
+                {
+                    var teamRescueOperations = rescueOperations.Where(item => item.TeamId == team.TeamId).ToList();
+                    var assignedRescueRequestCount = teamRescueOperations.Count;
+                    var completedRescueRequestCount = teamRescueOperations.Count(item => item.Status == RescueOperationStatus.RescueCompleted || item.Status == RescueOperationStatus.Closed);
+
+                    return new AdminTopTeamResponse
+                    {
+                        TeamId = team.TeamId,
+                        TeamName = team.Name,
+                        TeamType = team.TeamType.ToString(),
+                        CampaignId = null,
+                        CampaignName = team.TeamType == TeamType.Rescue ? "Điều phối cứu hộ" : string.Empty,
+                        TeamMemberCount = team.TeamMembers.Count,
+                        TaskCount = 0,
+                        MemberTaskCount = 0,
+                        CompletedMemberTaskCount = 0,
+                        InProgressMemberTaskCount = 0,
+                        FailedMemberTaskCount = 0,
+                        TopVolunteerName = null,
+                        TopVolunteerScore = 0,
+                        LatestTaskDate = null,
+                        AssignedRescueRequestCount = assignedRescueRequestCount,
+                        CompletedRescueRequestCount = completedRescueRequestCount,
+                        ImpactScore = completedRescueRequestCount * 2m + assignedRescueRequestCount,
+                    };
+                })
+                .ToList();
+
+            return taskBasedTeams
+                .Concat(rescueOnlyResponses)
                 .OrderByDescending(item => item.ImpactScore)
                 .ThenByDescending(item => item.CompletedMemberTaskCount)
+                .ThenByDescending(item => item.CompletedRescueRequestCount)
                 .ThenByDescending(item => item.TeamMemberCount)
                 .Take(limit)
                 .ToList();
+        }
+
+        private sealed class RescueOperationTeamMetric
+        {
+            public Guid TeamId { get; set; }
+            public RescueOperationStatus Status { get; set; }
         }
 
         public async Task<Pagination<MyMemberTaskResponse>> GetMyMemberTasksAsync(Guid campaignId, MyMemberTaskQueryRequest request, CancellationToken cancellationToken = default)
