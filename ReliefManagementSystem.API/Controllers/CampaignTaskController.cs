@@ -41,6 +41,33 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(result);
         }
 
+        [HttpGet("admin/task-aggregate")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<List<AdminCampaignTaskAggregateResponse>>> GetAdminTaskAggregate(
+            [FromQuery] DateTime? from,
+            [FromQuery] DateTime? to,
+            [FromQuery] Guid? teamId,
+            [FromQuery] Guid? campaignId,
+            CancellationToken cancellationToken)
+        {
+            var result = await _campaignTaskService.GetAdminTaskAggregateAsync(from, to, teamId, campaignId, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpGet("admin/top-teams")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<List<AdminTopTeamResponse>>> GetAdminTopTeams(
+            [FromQuery] DateTime? from,
+            [FromQuery] DateTime? to,
+            [FromQuery] Guid? teamId,
+            [FromQuery] Guid? campaignId,
+            [FromQuery] int top = 4,
+            CancellationToken cancellationToken = default)
+        {
+            var result = await _campaignTaskService.GetAdminTopTeamsAsync(from, to, teamId, campaignId, top, cancellationToken);
+            return Ok(result);
+        }
+
         [HttpGet("{campaignId:guid}/member-tasks/me")]
         [Authorize(Roles = "Manager,Moderator,Volunteer")]
         public async Task<ActionResult<Pagination<MyMemberTaskResponse>>> GetMyMemberTasks(
