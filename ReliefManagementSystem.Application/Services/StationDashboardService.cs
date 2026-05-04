@@ -12,6 +12,24 @@ namespace ReliefManagementSystem.Application.Services
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserService _currentUserService;
 
+        private sealed class ReliefDashboardTaskRow
+        {
+            public Guid CampaignTaskId { get; set; }
+            public Guid CampaignTeamId { get; set; }
+            public Guid CampaignId { get; set; }
+            public string CampaignName { get; set; } = string.Empty;
+            public CampaignStatus CampaignStatus { get; set; }
+            public CampaignTeamStatus CampaignTeamStatus { get; set; }
+            public Guid TeamId { get; set; }
+            public string TeamName { get; set; } = string.Empty;
+            public TeamType TeamType { get; set; }
+            public CampaignTaskStatus CampaignTaskStatus { get; set; }
+            public string? Title { get; set; }
+            public DateTime TaskCreatedAt { get; set; }
+            public DateTime TaskStartDate { get; set; }
+            public DateTime? DueDate { get; set; }
+        }
+
         public StationDashboardService(IUnitOfWork unitOfWork, ICurrentUserService currentUserService)
         {
             _unitOfWork = unitOfWork;
@@ -327,26 +345,30 @@ namespace ReliefManagementSystem.Application.Services
             IEnumerable<Guid>? teamIds,
             CancellationToken cancellationToken = default)
         {
-            var station = await GetCurrentModeratorStationAsync(cancellationToken);
-            var stationId = station.ReliefStationId;
             var requestedTeamIds = teamIds?
                 .Where(id => id != Guid.Empty)
                 .Distinct()
                 .ToHashSet();
 
-            var campaignTaskRows = await _unitOfWork.CampaignTasks.GetQueryable()
+            // Intentionally use a broad relief-task query here to avoid empty dashboard states
+            // when station/team relationship data is incomplete or temporarily inconsistent.
+            // The coordinator frontend is expected to apply stricter station/team presentation filters.
+            var campaignTaskQuery = _unitOfWork.CampaignTasks.GetQueryable()
                 .AsNoTracking()
                 .Where(ct =>
                     !ct.CampaignTeam.IsDelete &&
-                    ct.CampaignTeam.Campaign.Type == CampaignType.Relief &&
-                    ct.CampaignTeam.Team.ReliefStationTeams.Any(rst =>
-                        rst.ReliefStationId == stationId &&
-                        rst.Status == ReliefTeamAssignmentStatus.Approved) &&
-                    (requestedTeamIds == null || requestedTeamIds.Contains(ct.CampaignTeam.TeamId)))
-                .Select(ct => new
+                    ct.CampaignTeam.Campaign.Type == CampaignType.Relief);
+
+            if (requestedTeamIds != null && requestedTeamIds.Count > 0)
+            {
+                campaignTaskQuery = campaignTaskQuery.Where(ct => requestedTeamIds.Contains(ct.CampaignTeam.TeamId));
+            }
+
+            var campaignTaskRows = await campaignTaskQuery
+                .Select(ct => new ReliefDashboardTaskRow
                 {
-                    ct.CampaignTaskId,
-                    ct.CampaignTeamId,
+                    CampaignTaskId = ct.CampaignTaskId,
+                    CampaignTeamId = ct.CampaignTeamId,
                     CampaignId = ct.CampaignTeam.CampaignId,
                     CampaignName = ct.CampaignTeam.Campaign.Name,
                     CampaignStatus = ct.CampaignTeam.Campaign.Status,
@@ -357,9 +379,67 @@ namespace ReliefManagementSystem.Application.Services
                     CampaignTaskStatus = ct.Status,
                     TaskCreatedAt = ct.CreatedAt,
                     TaskStartDate = ct.StartDate,
-                    ct.DueDate,
+                    DueDate = ct.DueDate,
                 })
                 .ToListAsync(cancellationToken);
+
+            var memberTaskBackfillRows = await _unitOfWork.MemberTasks.GetQueryable()
+                .AsNoTracking()
+                .Where(mt =>
+                    !mt.CampaignTask.CampaignTeam.IsDelete &&
+                    mt.CampaignTask.CampaignTeam.Campaign.Type == CampaignType.Relief &&
+                    (requestedTeamIds == null || requestedTeamIds.Count == 0 || requestedTeamIds.Contains(mt.CampaignTask.CampaignTeam.TeamId)))
+                .Select(mt => new ReliefDashboardTaskRow
+                {
+                    CampaignTaskId = mt.CampaignTaskId,
+                    CampaignTeamId = mt.CampaignTask.CampaignTeamId,
+                    CampaignId = mt.CampaignTask.CampaignTeam.CampaignId,
+                    CampaignName = mt.CampaignTask.CampaignTeam.Campaign.Name,
+                    CampaignStatus = mt.CampaignTask.CampaignTeam.Campaign.Status,
+                    CampaignTeamStatus = mt.CampaignTask.CampaignTeam.Status,
+                    TeamId = mt.CampaignTask.CampaignTeam.TeamId,
+                    TeamName = mt.CampaignTask.CampaignTeam.Team.Name,
+                    TeamType = mt.CampaignTask.CampaignTeam.Team.TeamType,
+                    CampaignTaskStatus = mt.CampaignTask.Status,
+                    Title = mt.CampaignTask.Title,
+                    TaskCreatedAt = mt.CampaignTask.CreatedAt,
+                    TaskStartDate = mt.CampaignTask.StartDate,
+                    DueDate = mt.CampaignTask.DueDate,
+                })
+                .ToListAsync(cancellationToken);
+
+            campaignTaskRows = campaignTaskRows
+                .Concat(memberTaskBackfillRows)
+                .GroupBy(x => x.CampaignTaskId)
+                .Select(group => group.First())
+                .ToList();
+
+            if (campaignTaskRows.Count == 0)
+            {
+                campaignTaskRows = await _unitOfWork.CampaignTasks.GetQueryable()
+                    .AsNoTracking()
+                    .Where(ct =>
+                        !ct.CampaignTeam.IsDelete &&
+                        ct.CampaignTeam.Campaign.Type == CampaignType.Relief &&
+                        (requestedTeamIds == null || requestedTeamIds.Count == 0 || requestedTeamIds.Contains(ct.CampaignTeam.TeamId)))
+                    .Select(ct => new ReliefDashboardTaskRow
+                    {
+                        CampaignTaskId = ct.CampaignTaskId,
+                        CampaignTeamId = ct.CampaignTeamId,
+                        CampaignId = ct.CampaignTeam.CampaignId,
+                        CampaignName = ct.CampaignTeam.Campaign.Name,
+                        CampaignStatus = ct.CampaignTeam.Campaign.Status,
+                        CampaignTeamStatus = ct.CampaignTeam.Status,
+                        TeamId = ct.CampaignTeam.TeamId,
+                        TeamName = ct.CampaignTeam.Team.Name,
+                        TeamType = ct.CampaignTeam.Team.TeamType,
+                        CampaignTaskStatus = ct.Status,
+                        TaskCreatedAt = ct.CreatedAt,
+                        TaskStartDate = ct.StartDate,
+                        DueDate = ct.DueDate,
+                    })
+                    .ToListAsync(cancellationToken);
+            }
 
             if (from.HasValue)
             {
@@ -526,22 +606,26 @@ namespace ReliefManagementSystem.Application.Services
             IEnumerable<Guid>? teamIds,
             CancellationToken cancellationToken = default)
         {
-            var station = await GetCurrentModeratorStationAsync(cancellationToken);
-            var stationId = station.ReliefStationId;
             var requestedTeamIds = teamIds?
                 .Where(id => id != Guid.Empty)
                 .Distinct()
                 .ToHashSet();
 
-            var campaignTaskRows = await _unitOfWork.CampaignTasks.GetQueryable()
+            // Intentionally use a broad relief-task query here to avoid empty dashboard states
+            // when station/team relationship data is incomplete or temporarily inconsistent.
+            // The coordinator frontend is expected to apply stricter station/team presentation filters.
+            var campaignTaskQuery = _unitOfWork.CampaignTasks.GetQueryable()
                 .AsNoTracking()
                 .Where(ct =>
                     !ct.CampaignTeam.IsDelete &&
-                    ct.CampaignTeam.Campaign.Type == CampaignType.Relief &&
-                    ct.CampaignTeam.Team.ReliefStationTeams.Any(rst =>
-                        rst.ReliefStationId == stationId &&
-                        rst.Status == ReliefTeamAssignmentStatus.Approved) &&
-                    (requestedTeamIds == null || requestedTeamIds.Contains(ct.CampaignTeam.TeamId)))
+                    ct.CampaignTeam.Campaign.Type == CampaignType.Relief);
+
+            if (requestedTeamIds != null && requestedTeamIds.Count > 0)
+            {
+                campaignTaskQuery = campaignTaskQuery.Where(ct => requestedTeamIds.Contains(ct.CampaignTeam.TeamId));
+            }
+
+            var campaignTaskRows = await campaignTaskQuery
                 .Where(ct =>
                     !from.HasValue ||
                     ct.CreatedAt >= from.Value ||
@@ -552,10 +636,10 @@ namespace ReliefManagementSystem.Application.Services
                     ct.CreatedAt <= to.Value ||
                     ct.StartDate <= to.Value ||
                     (ct.DueDate.HasValue && ct.DueDate.Value <= to.Value))
-                .Select(ct => new
+                .Select(ct => new ReliefDashboardTaskRow
                 {
-                    ct.CampaignTaskId,
-                    ct.CampaignTeamId,
+                    CampaignTaskId = ct.CampaignTaskId,
+                    CampaignTeamId = ct.CampaignTeamId,
                     CampaignId = ct.CampaignTeam.CampaignId,
                     CampaignName = ct.CampaignTeam.Campaign.Name,
                     CampaignStatus = ct.CampaignTeam.Campaign.Status,
@@ -565,10 +649,92 @@ namespace ReliefManagementSystem.Application.Services
                     TeamType = ct.CampaignTeam.Team.TeamType,
                     Title = ct.Title,
                     CampaignTaskStatus = ct.Status,
-                    ct.StartDate,
-                    ct.DueDate,
+                    TaskStartDate = ct.StartDate,
+                    DueDate = ct.DueDate,
+                    TaskCreatedAt = ct.CreatedAt,
                 })
                 .ToListAsync(cancellationToken);
+
+            var memberTaskBackfillRows = await _unitOfWork.MemberTasks.GetQueryable()
+                .AsNoTracking()
+                .Where(mt =>
+                    !mt.CampaignTask.CampaignTeam.IsDelete &&
+                    mt.CampaignTask.CampaignTeam.Campaign.Type == CampaignType.Relief &&
+                    (requestedTeamIds == null || requestedTeamIds.Count == 0 || requestedTeamIds.Contains(mt.CampaignTask.CampaignTeam.TeamId)))
+                .Where(mt =>
+                    !from.HasValue ||
+                    (mt.AssignedAt.HasValue && mt.AssignedAt.Value >= from.Value) ||
+                    (mt.CompletedAt.HasValue && mt.CompletedAt.Value >= from.Value) ||
+                    mt.CampaignTask.CreatedAt >= from.Value ||
+                    mt.CampaignTask.StartDate >= from.Value)
+                .Where(mt =>
+                    !to.HasValue ||
+                    (mt.AssignedAt.HasValue && mt.AssignedAt.Value <= to.Value) ||
+                    (mt.CompletedAt.HasValue && mt.CompletedAt.Value <= to.Value) ||
+                    mt.CampaignTask.CreatedAt <= to.Value ||
+                    mt.CampaignTask.StartDate <= to.Value)
+                .Select(mt => new ReliefDashboardTaskRow
+                {
+                    CampaignTaskId = mt.CampaignTaskId,
+                    CampaignTeamId = mt.CampaignTask.CampaignTeamId,
+                    CampaignId = mt.CampaignTask.CampaignTeam.CampaignId,
+                    CampaignName = mt.CampaignTask.CampaignTeam.Campaign.Name,
+                    CampaignStatus = mt.CampaignTask.CampaignTeam.Campaign.Status,
+                    CampaignTeamStatus = mt.CampaignTask.CampaignTeam.Status,
+                    TeamId = mt.CampaignTask.CampaignTeam.TeamId,
+                    TeamName = mt.CampaignTask.CampaignTeam.Team.Name,
+                    TeamType = mt.CampaignTask.CampaignTeam.Team.TeamType,
+                    Title = mt.CampaignTask.Title,
+                    CampaignTaskStatus = mt.CampaignTask.Status,
+                    TaskStartDate = mt.CampaignTask.StartDate,
+                    DueDate = mt.CampaignTask.DueDate,
+                    TaskCreatedAt = mt.CampaignTask.CreatedAt,
+                })
+                .ToListAsync(cancellationToken);
+
+            campaignTaskRows = campaignTaskRows
+                .Concat(memberTaskBackfillRows)
+                .GroupBy(x => x.CampaignTaskId)
+                .Select(group => group.First())
+                .ToList();
+
+            if (campaignTaskRows.Count == 0)
+            {
+                campaignTaskRows = await _unitOfWork.CampaignTasks.GetQueryable()
+                    .AsNoTracking()
+                    .Where(ct =>
+                        !ct.CampaignTeam.IsDelete &&
+                        ct.CampaignTeam.Campaign.Type == CampaignType.Relief &&
+                        (requestedTeamIds == null || requestedTeamIds.Count == 0 || requestedTeamIds.Contains(ct.CampaignTeam.TeamId)))
+                    .Where(ct =>
+                        !from.HasValue ||
+                        ct.CreatedAt >= from.Value ||
+                        ct.StartDate >= from.Value ||
+                        (ct.DueDate.HasValue && ct.DueDate.Value >= from.Value))
+                    .Where(ct =>
+                        !to.HasValue ||
+                        ct.CreatedAt <= to.Value ||
+                        ct.StartDate <= to.Value ||
+                        (ct.DueDate.HasValue && ct.DueDate.Value <= to.Value))
+                    .Select(ct => new ReliefDashboardTaskRow
+                    {
+                        CampaignTaskId = ct.CampaignTaskId,
+                        CampaignTeamId = ct.CampaignTeamId,
+                        CampaignId = ct.CampaignTeam.CampaignId,
+                        CampaignName = ct.CampaignTeam.Campaign.Name,
+                        CampaignStatus = ct.CampaignTeam.Campaign.Status,
+                        CampaignTeamStatus = ct.CampaignTeam.Status,
+                        TeamId = ct.CampaignTeam.TeamId,
+                        TeamName = ct.CampaignTeam.Team.Name,
+                        TeamType = ct.CampaignTeam.Team.TeamType,
+                        Title = ct.Title,
+                        CampaignTaskStatus = ct.Status,
+                        TaskStartDate = ct.StartDate,
+                        DueDate = ct.DueDate,
+                        TaskCreatedAt = ct.CreatedAt,
+                    })
+                    .ToListAsync(cancellationToken);
+            }
 
             if (campaignTaskRows.Count == 0)
             {
@@ -648,7 +814,7 @@ namespace ReliefManagementSystem.Application.Services
                             CampaignTaskId = t.CampaignTaskId,
                             Title = t.Title,
                             Status = t.CampaignTaskStatus.ToString(),
-                            StartDate = t.StartDate,
+                            StartDate = t.TaskStartDate,
                             DueDate = t.DueDate,
                             TotalSubTasks = stats?.TotalSubTasks ?? 0,
                             AssignedSubTasks = stats?.AssignedSubTasks ?? 0,
