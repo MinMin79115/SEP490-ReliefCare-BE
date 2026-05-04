@@ -701,6 +701,16 @@ namespace ReliefManagementSystem.Application.Services
             if (team.LeaderId == currentUserId)
                 return;
 
+            var moderatorProfile = await _unitOfWork.ModeratorProfiles.GetByUserIdAsync(currentUserId, cancellationToken);
+            if (moderatorProfile?.ReliefStationId != null)
+            {
+                var belongsToModeratorStation = team.ReliefStationTeams.Any(rst =>
+                    rst.ReliefStationId == moderatorProfile.ReliefStationId.Value);
+
+                if (belongsToModeratorStation)
+                    return;
+            }
+
             if (volunteerProfileId.HasValue)
             {
                 var volunteerProfile = await _unitOfWork.VolunteerProfiles.GetByUserIdAsync(currentUserId);
