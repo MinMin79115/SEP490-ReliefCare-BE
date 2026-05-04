@@ -805,7 +805,7 @@ namespace ReliefManagementSystem.Application.Services
             {
                 MemberTaskStatus.Assigned => next is MemberTaskStatus.InProgress or MemberTaskStatus.Cancelled,
                 MemberTaskStatus.InProgress => next is MemberTaskStatus.Completed or MemberTaskStatus.Failed or MemberTaskStatus.Cancelled,
-                MemberTaskStatus.Failed => next is MemberTaskStatus.InProgress,
+                MemberTaskStatus.Failed => next is MemberTaskStatus.InProgress or MemberTaskStatus.Cancelled,
                 _ => false
             };
 
