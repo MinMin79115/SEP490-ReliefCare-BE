@@ -31,7 +31,7 @@ namespace ReliefManagementSystem.API.Controllers
         }
 
         [HttpGet("{campaignId:guid}/tasks")]
-        [Authorize(Roles = "Manager,Moderator,Volunteer")]
+        [Authorize(Roles = "Admin,Manager,Moderator,Volunteer")]
         public async Task<ActionResult<Pagination<CampaignTaskResponse>>> GetPaged(
             Guid campaignId,
             [FromQuery] CampaignTaskListQueryRequest request,
@@ -63,7 +63,7 @@ namespace ReliefManagementSystem.API.Controllers
         }
 
         [HttpGet("tasks/{campaignTaskId:guid}")]
-        [Authorize(Roles = "Manager,Moderator,Volunteer")]
+        [Authorize(Roles = "Admin,Manager,Moderator,Volunteer")]
         public async Task<ActionResult<CampaignTaskDetailResponse>> GetById(
             Guid campaignTaskId,
             CancellationToken cancellationToken)

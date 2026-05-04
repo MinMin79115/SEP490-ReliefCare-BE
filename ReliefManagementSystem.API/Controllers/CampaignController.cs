@@ -160,7 +160,7 @@ namespace ReliefManagementSystem.API.Controllers
         }
 
         [HttpGet("{id:guid}/teams")]
-        [Authorize(Roles = "Manager,Moderator,Volunteer")]
+        [Authorize(Roles = "Admin,Manager,Moderator,Volunteer")]
         public async Task<IActionResult> GetTeams(Guid id, CancellationToken cancellationToken)
         {
             var result = await _campaignService.GetTeamsAsync(id, cancellationToken);

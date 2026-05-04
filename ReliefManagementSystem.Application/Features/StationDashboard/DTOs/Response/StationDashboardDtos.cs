@@ -43,6 +43,38 @@ namespace ReliefManagementSystem.Application.Features.StationDashboard.DTOs.Resp
         public List<ReliefTeamTaskSummaryItemDto> Data { get; set; } = new();
     }
 
+    public class AdminTopResponseTeamsResponseDto
+    {
+        public List<AdminTopResponseTeamItemDto> Data { get; set; } = new();
+    }
+
+    public class AdminTopResponseTeamItemDto
+    {
+        public Guid TeamId { get; set; }
+        public string TeamName { get; set; } = string.Empty;
+        public string TeamType { get; set; } = string.Empty;
+        public Guid CampaignId { get; set; }
+        public string CampaignName { get; set; } = string.Empty;
+        public Guid CampaignTeamId { get; set; }
+        public int CampaignCount { get; set; }
+        public int MemberCount { get; set; }
+        public int TotalTasks { get; set; }
+        public int InProgressTasks { get; set; }
+        public int CompletedTasks { get; set; }
+        public int AssignedSubTasks { get; set; }
+        public int InProgressSubTasks { get; set; }
+        public int CompletedSubTasks { get; set; }
+        public int FailedSubTasks { get; set; }
+        public int CancelledSubTasks { get; set; }
+        public int TotalDeliveryCount { get; set; }
+        public int DeliveredDeliveryCount { get; set; }
+        public string? TopVolunteerName { get; set; }
+        public int TopVolunteerCompletedSubTasks { get; set; }
+        public int TopVolunteerInProgressSubTasks { get; set; }
+        public DateTime? LastTaskUpdatedAt { get; set; }
+        public decimal ImpactScore { get; set; }
+    }
+
     public class ReliefTeamTaskSummaryItemDto
     {
         public Guid TeamId { get; set; }
