@@ -334,38 +334,14 @@ namespace ReliefManagementSystem.Application.Services
                 .Distinct()
                 .ToHashSet();
 
-            var campaignIds = await _unitOfWork.Campaigns.GetQueryable()
-                .AsNoTracking()
-                .Where(c => c.Type == CampaignType.Relief)
-                .Where(c =>
-                    c.CampaignStations.Any(cs => cs.ReliefStationId == stationId && cs.IsActive) ||
-                    c.CampaignTeams.Any(ct =>
-                        !ct.IsDelete &&
-                        ct.Team.ReliefStationTeams.Any(rst =>
-                            rst.ReliefStationId == stationId &&
-                            rst.Status == ReliefTeamAssignmentStatus.Approved)))
-                .Select(c => c.CampaignId)
-                .Distinct()
-                .ToListAsync(cancellationToken);
-
-            if (campaignIds.Count == 0)
-            {
-                return new ReliefTeamMissionSnapshotResponseDto();
-            }
-
             var campaignTaskRows = await _unitOfWork.CampaignTasks.GetQueryable()
                 .AsNoTracking()
                 .Where(ct =>
                     !ct.CampaignTeam.IsDelete &&
-                    campaignIds.Contains(ct.CampaignTeam.CampaignId) &&
-                    (
-                        ct.CampaignTeam.Campaign.CampaignStations.Any(cs =>
-                            cs.ReliefStationId == stationId &&
-                            cs.IsActive) ||
-                        ct.CampaignTeam.Team.ReliefStationTeams.Any(rst =>
-                            rst.ReliefStationId == stationId &&
-                            rst.Status == ReliefTeamAssignmentStatus.Approved)
-                    ) &&
+                    ct.CampaignTeam.Campaign.Type == CampaignType.Relief &&
+                    ct.CampaignTeam.Team.ReliefStationTeams.Any(rst =>
+                        rst.ReliefStationId == stationId &&
+                        rst.Status == ReliefTeamAssignmentStatus.Approved) &&
                     (requestedTeamIds == null || requestedTeamIds.Contains(ct.CampaignTeam.TeamId)))
                 .Select(ct => new
                 {
@@ -557,38 +533,14 @@ namespace ReliefManagementSystem.Application.Services
                 .Distinct()
                 .ToHashSet();
 
-            var campaignIds = await _unitOfWork.Campaigns.GetQueryable()
-                .AsNoTracking()
-                .Where(c => c.Type == CampaignType.Relief)
-                .Where(c =>
-                    c.CampaignStations.Any(cs => cs.ReliefStationId == stationId && cs.IsActive) ||
-                    c.CampaignTeams.Any(ct =>
-                        !ct.IsDelete &&
-                        ct.Team.ReliefStationTeams.Any(rst =>
-                            rst.ReliefStationId == stationId &&
-                            rst.Status == ReliefTeamAssignmentStatus.Approved)))
-                .Select(c => c.CampaignId)
-                .Distinct()
-                .ToListAsync(cancellationToken);
-
-            if (campaignIds.Count == 0)
-            {
-                return new ReliefTeamTaskSummaryResponseDto();
-            }
-
             var campaignTaskRows = await _unitOfWork.CampaignTasks.GetQueryable()
                 .AsNoTracking()
                 .Where(ct =>
                     !ct.CampaignTeam.IsDelete &&
-                    campaignIds.Contains(ct.CampaignTeam.CampaignId) &&
-                    (
-                        ct.CampaignTeam.Campaign.CampaignStations.Any(cs =>
-                            cs.ReliefStationId == stationId &&
-                            cs.IsActive) ||
-                        ct.CampaignTeam.Team.ReliefStationTeams.Any(rst =>
-                            rst.ReliefStationId == stationId &&
-                            rst.Status == ReliefTeamAssignmentStatus.Approved)
-                    ) &&
+                    ct.CampaignTeam.Campaign.Type == CampaignType.Relief &&
+                    ct.CampaignTeam.Team.ReliefStationTeams.Any(rst =>
+                        rst.ReliefStationId == stationId &&
+                        rst.Status == ReliefTeamAssignmentStatus.Approved) &&
                     (requestedTeamIds == null || requestedTeamIds.Contains(ct.CampaignTeam.TeamId)))
                 .Where(ct =>
                     !from.HasValue ||
