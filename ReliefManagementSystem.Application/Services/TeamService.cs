@@ -133,8 +133,8 @@ namespace ReliefManagementSystem.Application.Services
             if (team == null)
                 throw new TeamNotFoundException();
 
-            if (team.CreateBy != moderatorId)
-                throw new UnauthorizedTeamActionException("chỉnh sửa");
+            //if (team.CreateBy != moderatorId)
+            //    throw new UnauthorizedTeamActionException("chỉnh sửa");
 
             if (request.LeaderId != team.LeaderId)
             {
