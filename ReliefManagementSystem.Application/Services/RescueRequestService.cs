@@ -998,19 +998,8 @@ namespace ReliefManagementSystem.Application.Services
                                             preview.DistanceFromTeamKm.Value + 0.3 < preview.DistanceToCurrentInProgressKm.Value;
             }
 
-            if (request.RescueRequestType == RescueRequestType.Emergency &&
-                allowPreempt &&
-                preview.IsNearCurrentRoute &&
-                !preview.RequiresBacktrack)
-            {
-                preview.WillPreemptCurrentInProgress = true;
-                preview.RecommendedAction = "AssignAsInProgress";
-                preview.RecommendedQueueIndex = 0;
-                preview.ProposedRequestIdsInOrder = new List<Guid> { requestId };
-                preview.ProposedRequestIdsInOrder.AddRange(orderedActiveIds);
-                preview.Reasons.Add("Emergency request is near current route and can preempt active mission.");
-                return preview;
-            }
+            // Preemption is disabled: even emergency requests cannot jump ahead of the current in-progress item.
+            preview.WillPreemptCurrentInProgress = false;
 
             if (request.RescueRequestType == RescueRequestType.Normal)
             {
@@ -1057,7 +1046,7 @@ namespace ReliefManagementSystem.Application.Services
                 ? new List<Guid> { currentInProgress.RescueRequestId, requestId }
                 : new List<Guid> { requestId };
             preview.ProposedRequestIdsInOrder.AddRange(orderedActiveIds.Where(id => id != preview.CurrentInProgressRequestId));
-            preview.Reasons.Add("Emergency request inserted right after current in-progress mission.");
+            preview.Reasons.Add("Emergency request is inserted after the current in-progress mission. Preemption is disabled.");
             return preview;
         }
 
