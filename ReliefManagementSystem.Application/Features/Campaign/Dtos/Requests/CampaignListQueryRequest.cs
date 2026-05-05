@@ -10,6 +10,9 @@ namespace ReliefManagementSystem.Application.Features.Campaign.Dtos.Requests
         public Guid? LocationId { get; set; }
         public Guid? ReliefStationId { get; set; }
         public bool ForVolunteerRegistration { get; set; }
+        public bool? SupportsVolunteerRegistration { get; set; }
+        public bool? HasMoneyGoal { get; set; }
+        public bool? SupportsDonation { get; set; }
         public int PageIndex { get; set; } = 1;
         public int PageSize { get; set; } = 10;
     }

@@ -196,6 +196,9 @@ namespace ReliefManagementSystem.Application.Services
                 request.LocationId,
                 request.ReliefStationId,
                 request.ForVolunteerRegistration,
+                request.SupportsVolunteerRegistration,
+                request.HasMoneyGoal,
+                request.SupportsDonation,
                 cancellationToken);
 
             var mapped = items.Select(MapSummary).ToList();
