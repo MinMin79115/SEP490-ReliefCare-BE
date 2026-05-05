@@ -50,6 +50,9 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             CampaignType? type,
             Guid? locationId,
             bool forVolunteerRegistration,
+            bool? supportsVolunteerRegistration,
+            bool? hasMoneyGoal,
+            bool? supportsDonation,
             CancellationToken cancellationToken = default)
         {
             pageIndex = pageIndex <= 0 ? 1 : pageIndex;
@@ -85,6 +88,26 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                     c.Type == CampaignType.Fundraising &&
                     c.Status == CampaignStatus.Active &&
                     c.ResourceGoals.Any(g => g.ResourceType == CampaignResourceType.People));
+            }
+
+            if (supportsVolunteerRegistration == true)
+            {
+                query = query.Where(c =>
+                    c.Type == CampaignType.Fundraising &&
+                    c.Status == CampaignStatus.Active &&
+                    c.ResourceGoals.Any(g => g.ResourceType == CampaignResourceType.People));
+            }
+
+            if (hasMoneyGoal == true)
+            {
+                query = query.Where(c => c.ResourceGoals.Any(g => g.ResourceType == CampaignResourceType.Money));
+            }
+
+            if (supportsDonation == true)
+            {
+                query = query.Where(c =>
+                    c.Type == CampaignType.Fundraising &&
+                    c.ResourceGoals.Any(g => g.ResourceType == CampaignResourceType.Money));
             }
 
             var totalCount = await query.CountAsync(cancellationToken);
