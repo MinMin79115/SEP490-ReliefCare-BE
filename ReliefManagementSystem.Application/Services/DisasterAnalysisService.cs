@@ -51,8 +51,8 @@ namespace ReliefManagementSystem.Application.Services
                 14,
                 cancellationToken);
 
-            var requestedDisasterType = request.DisasterType;
-            var analysisMode = requestedDisasterType.HasValue ? "Focused" : "AutoDetect";
+            DisasterType? requestedDisasterType = null;
+            var analysisMode = "AutoDetect";
 
             LlmDisasterAnalysisResult? llmResult = null;
             string? llmError = null;
@@ -63,9 +63,9 @@ namespace ReliefManagementSystem.Application.Services
                     weather,
                     forecast,
                     locationName,
-                    requestedDisasterType?.ToString(),
+                    null,
                     request.AdditionalContext,
-                    request.Model,
+                    null,
                     cancellationToken);
             }
             catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
@@ -79,8 +79,8 @@ namespace ReliefManagementSystem.Application.Services
                 Latitude = request.Latitude,
                 Longitude = request.Longitude,
                 LocationName = locationName,
-                DisasterType = requestedDisasterType ?? DisasterType.Flood,
-                RequestedModel = string.IsNullOrWhiteSpace(request.Model) ? null : request.Model.Trim(),
+                DisasterType = DisasterType.Other,
+                RequestedModel = null,
                 AdditionalContext = request.AdditionalContext,
                 WeatherSnapshotJson = JsonSerializer.Serialize(new { current = weather, forecast }),
                 HeuristicRiskScore = 0,
@@ -196,11 +196,6 @@ namespace ReliefManagementSystem.Application.Services
             if (request.Longitude < -180 || request.Longitude > 180)
             {
                 throw new ArgumentOutOfRangeException(nameof(request.Longitude), "Longitude must be between -180 and 180.");
-            }
-
-            if (!string.IsNullOrWhiteSpace(request.Model) && request.Model.Trim().Length > 200)
-            {
-                throw new ArgumentOutOfRangeException(nameof(request.Model), "Model must be 200 characters or fewer.");
             }
 
             if (!string.IsNullOrWhiteSpace(request.LocationName) && request.LocationName.Trim().Length > 200)
