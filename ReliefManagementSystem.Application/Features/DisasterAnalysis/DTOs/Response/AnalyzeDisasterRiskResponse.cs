@@ -1,4 +1,5 @@
 using ReliefManagementSystem.Application.Common.Interface;
+using System.Text.Json.Nodes;
 
 namespace ReliefManagementSystem.Application.Features.DisasterAnalysis.DTOs.Response
 {
@@ -146,6 +147,35 @@ namespace ReliefManagementSystem.Application.Features.DisasterAnalysis.DTOs.Resp
         public List<string> Recommendations { get; set; } = new();
         public List<string> PotentialScenarios { get; set; } = new();
         public List<string> DetectedConcerns { get; set; } = new();
+        public JsonNode? LlmResponse { get; set; }
+        public JsonNode? TriggerFactors { get; set; }
+        public JsonNode? TopThreats { get; set; }
         public string? ErrorMessage { get; set; }
+    }
+
+    public class NearestDisasterAnalysisResponse
+    {
+        public Guid AnalysisLogId { get; set; }
+        public double RequestedLatitude { get; set; }
+        public double RequestedLongitude { get; set; }
+        public double MatchedLatitude { get; set; }
+        public double MatchedLongitude { get; set; }
+        public double DistanceKm { get; set; }
+        public string LocationName { get; set; } = string.Empty;
+        public string DisasterType { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+        public string HeuristicRiskLevel { get; set; } = string.Empty;
+        public int HeuristicRiskScore { get; set; }
+        public string AssessmentConfidence { get; set; } = string.Empty;
+        public string? DataLimitationNote { get; set; }
+        public string? LlmProvider { get; set; }
+        public string? LlmModel { get; set; }
+        public string? PromptVersion { get; set; }
+        public string? ErrorMessage { get; set; }
+        public JsonNode? WeatherSnapshot { get; set; }
+        public JsonNode? LlmResponse { get; set; }
+        public JsonNode? PotentialScenarios { get; set; }
+        public JsonNode? TriggerFactors { get; set; }
+        public JsonNode? TopThreats { get; set; }
     }
 }
