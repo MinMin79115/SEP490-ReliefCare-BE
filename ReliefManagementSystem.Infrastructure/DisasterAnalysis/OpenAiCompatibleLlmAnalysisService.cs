@@ -77,8 +77,12 @@ namespace ReliefManagementSystem.Infrastructure.DisasterAnalysis
             var content = ExtractAssistantContent(doc.RootElement);
             var jsonContent = ExtractJsonObject(content);
 
-            var parsed = JsonSerializer.Deserialize<LlmJsonResponse>(jsonContent, JsonOptions())
-                ?? throw new InvalidOperationException("LLM returned an empty JSON response.");
+            var parsed = ParseLlmJsonResponse(jsonContent);
+
+            if (parsed.IsEmpty())
+            {
+                throw new InvalidOperationException($"LLM returned JSON but it did not match the expected schema. Raw JSON: {jsonContent}");
+            }
 
             return new LlmDisasterAnalysisResult
             {
@@ -117,7 +121,8 @@ Rules:
 - If the user requested a specific disaster type, focus on that type.
 - If the requested type cannot be directly predicted from weather alone, say so clearly and cautiously.
 - Do not present the result as an official scientific prediction. This is only an AI-assisted operational interpretation of weather data.
-- Return pure JSON only with this shape:
+- Return pure JSON only. Do not wrap it in Markdown.
+- Use exactly these property names. Do not translate them and do not use snake_case:
 {
   "summary": "string",
   "detailedAnalysis": "string",
@@ -305,6 +310,71 @@ Hãy suy luận rủi ro chủ yếu từ số liệu forecast và xu hướng n
             };
         }
 
+        private static LlmJsonResponse ParseLlmJsonResponse(string jsonContent)
+        {
+            var parsed = JsonSerializer.Deserialize<LlmJsonResponse>(jsonContent, JsonOptions())
+                ?? throw new InvalidOperationException("LLM returned an empty JSON response.");
+
+            if (!parsed.IsEmpty())
+            {
+                return parsed;
+            }
+
+            using var doc = JsonDocument.Parse(jsonContent);
+            var root = doc.RootElement;
+
+            return new LlmJsonResponse
+            {
+                Summary = GetString(root, "summary", "Summary"),
+                DetailedAnalysis = GetString(root, "detailedAnalysis", "detailed_analysis", "DetailedAnalysis"),
+                Recommendations = GetStringList(root, "recommendations", "Recommendations"),
+                PotentialScenarios = GetStringList(root, "potentialScenarios", "potential_scenarios", "PotentialScenarios"),
+                DetectedConcerns = GetStringList(root, "detectedConcerns", "detected_concerns", "DetectedConcerns")
+            };
+        }
+
+        private static string? GetString(JsonElement root, params string[] names)
+        {
+            foreach (var name in names)
+            {
+                if (root.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.String)
+                {
+                    return value.GetString();
+                }
+            }
+
+            return null;
+        }
+
+        private static List<string>? GetStringList(JsonElement root, params string[] names)
+        {
+            foreach (var name in names)
+            {
+                if (!root.TryGetProperty(name, out var value))
+                {
+                    continue;
+                }
+
+                if (value.ValueKind == JsonValueKind.Array)
+                {
+                    return value.EnumerateArray()
+                        .Where(x => x.ValueKind == JsonValueKind.String)
+                        .Select(x => x.GetString())
+                        .Where(x => !string.IsNullOrWhiteSpace(x))
+                        .Select(x => x!)
+                        .ToList();
+                }
+
+                if (value.ValueKind == JsonValueKind.String)
+                {
+                    var text = value.GetString();
+                    return string.IsNullOrWhiteSpace(text) ? new List<string>() : new List<string> { text };
+                }
+            }
+
+            return null;
+        }
+
         private class LlmJsonResponse
         {
             public string? Summary { get; set; }
@@ -312,6 +382,15 @@ Hãy suy luận rủi ro chủ yếu từ số liệu forecast và xu hướng n
             public List<string>? Recommendations { get; set; }
             public List<string>? PotentialScenarios { get; set; }
             public List<string>? DetectedConcerns { get; set; }
+
+            public bool IsEmpty()
+            {
+                return string.IsNullOrWhiteSpace(Summary)
+                    && string.IsNullOrWhiteSpace(DetailedAnalysis)
+                    && (Recommendations == null || Recommendations.Count == 0)
+                    && (PotentialScenarios == null || PotentialScenarios.Count == 0)
+                    && (DetectedConcerns == null || DetectedConcerns.Count == 0);
+            }
         }
     }
 }
