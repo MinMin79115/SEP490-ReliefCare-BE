@@ -8,6 +8,8 @@ namespace ReliefManagementSystem.Application.Interface
     {
         Task<CampaignTaskResponse> CreateAsync(Guid campaignId, CreateCampaignTaskRequest request, CancellationToken cancellationToken = default);
         Task<Pagination<CampaignTaskResponse>> GetPagedAsync(Guid campaignId, CampaignTaskListQueryRequest request, CancellationToken cancellationToken = default);
+        Task<List<AdminCampaignTaskAggregateResponse>> GetAdminTaskAggregateAsync(DateTime? from = null, DateTime? to = null, Guid? teamId = null, Guid? campaignId = null, CancellationToken cancellationToken = default);
+        Task<List<AdminTopTeamResponse>> GetAdminTopTeamsAsync(DateTime? from = null, DateTime? to = null, Guid? teamId = null, Guid? campaignId = null, int top = 4, CancellationToken cancellationToken = default);
         Task<Pagination<MyMemberTaskResponse>> GetMyMemberTasksAsync(Guid campaignId, MyMemberTaskQueryRequest request, CancellationToken cancellationToken = default);
         Task<List<MemberTaskDeliveryResponse>> GetMyMemberTaskDeliveriesAsync(Guid campaignId, CancellationToken cancellationToken = default);
         Task<CampaignTaskDetailResponse> GetByIdAsync(Guid campaignTaskId, CancellationToken cancellationToken = default);

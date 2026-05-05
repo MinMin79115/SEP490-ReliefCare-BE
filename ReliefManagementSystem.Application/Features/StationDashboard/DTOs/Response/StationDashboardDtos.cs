@@ -33,6 +33,117 @@ namespace ReliefManagementSystem.Application.Features.StationDashboard.DTOs.Resp
         public List<TeamPerformanceItemDto> Data { get; set; } = new();
     }
 
+    public class ReliefTeamMissionSnapshotResponseDto
+    {
+        public List<ReliefTeamMissionSnapshotItemDto> Data { get; set; } = new();
+    }
+
+    public class ReliefTeamTaskSummaryResponseDto
+    {
+        public List<ReliefTeamTaskSummaryItemDto> Data { get; set; } = new();
+    }
+
+    public class AdminTopResponseTeamsResponseDto
+    {
+        public List<AdminTopResponseTeamItemDto> Data { get; set; } = new();
+    }
+
+    public class AdminTopResponseTeamItemDto
+    {
+        public Guid TeamId { get; set; }
+        public string TeamName { get; set; } = string.Empty;
+        public string TeamType { get; set; } = string.Empty;
+        public Guid CampaignId { get; set; }
+        public string CampaignName { get; set; } = string.Empty;
+        public Guid CampaignTeamId { get; set; }
+        public int CampaignCount { get; set; }
+        public int MemberCount { get; set; }
+        public int TotalTasks { get; set; }
+        public int InProgressTasks { get; set; }
+        public int CompletedTasks { get; set; }
+        public int AssignedSubTasks { get; set; }
+        public int InProgressSubTasks { get; set; }
+        public int CompletedSubTasks { get; set; }
+        public int FailedSubTasks { get; set; }
+        public int CancelledSubTasks { get; set; }
+        public int TotalDeliveryCount { get; set; }
+        public int DeliveredDeliveryCount { get; set; }
+        public string? TopVolunteerName { get; set; }
+        public int TopVolunteerCompletedSubTasks { get; set; }
+        public int TopVolunteerInProgressSubTasks { get; set; }
+        public DateTime? LastTaskUpdatedAt { get; set; }
+        public decimal ImpactScore { get; set; }
+    }
+
+    public class ReliefTeamTaskSummaryItemDto
+    {
+        public Guid TeamId { get; set; }
+        public string TeamName { get; set; } = string.Empty;
+        public string TeamType { get; set; } = string.Empty;
+        public Guid CampaignId { get; set; }
+        public string CampaignName { get; set; } = string.Empty;
+        public string CampaignStatus { get; set; } = string.Empty;
+        public Guid CampaignTeamId { get; set; }
+        public string CampaignTeamStatus { get; set; } = string.Empty;
+        public int HouseholdCount { get; set; }
+        public int PendingHouseholdCount { get; set; }
+        public int DeliveredHouseholdCount { get; set; }
+        public int TotalDeliveryCount { get; set; }
+        public string? DefaultReliefPackageName { get; set; }
+        public List<ReliefTeamTaskSummaryTaskDto> Tasks { get; set; } = new();
+    }
+
+    public class ReliefTeamTaskSummaryTaskDto
+    {
+        public Guid CampaignTaskId { get; set; }
+        public string Title { get; set; } = string.Empty;
+        public string Status { get; set; } = string.Empty;
+        public DateTime StartDate { get; set; }
+        public DateTime? DueDate { get; set; }
+        public int TotalSubTasks { get; set; }
+        public int AssignedSubTasks { get; set; }
+        public int InProgressSubTasks { get; set; }
+        public int CompletedSubTasks { get; set; }
+        public int FailedSubTasks { get; set; }
+        public int CancelledSubTasks { get; set; }
+        public int DeliveryCount { get; set; }
+        public int PendingDeliveryCount { get; set; }
+        public int DeliveredDeliveryCount { get; set; }
+        public DateTime? LastUpdatedAt { get; set; }
+    }
+
+    public class ReliefTeamMissionSnapshotItemDto
+    {
+        public Guid TeamId { get; set; }
+        public Guid CampaignTeamId { get; set; }
+        public Guid CampaignId { get; set; }
+        public string TeamName { get; set; } = string.Empty;
+        public string TeamType { get; set; } = string.Empty;
+        public string CampaignName { get; set; } = string.Empty;
+        public string CampaignStatus { get; set; } = string.Empty;
+        public string CampaignTeamStatus { get; set; } = string.Empty;
+        public int TotalTasks { get; set; }
+        public int PlannedTasks { get; set; }
+        public int InProgressTasks { get; set; }
+        public int BlockedTasks { get; set; }
+        public int CompletedTasks { get; set; }
+        public int CancelledTasks { get; set; }
+        public int TotalSubTasks { get; set; }
+        public int AssignedSubTasks { get; set; }
+        public int InProgressSubTasks { get; set; }
+        public int CompletedSubTasks { get; set; }
+        public int FailedSubTasks { get; set; }
+        public int CancelledSubTasks { get; set; }
+        public int HouseholdCount { get; set; }
+        public int PendingHouseholdCount { get; set; }
+        public int DeliveredHouseholdCount { get; set; }
+        public int TotalDeliveryCount { get; set; }
+        public int PendingDeliveryCount { get; set; }
+        public int DeliveredDeliveryCount { get; set; }
+        public string? DefaultReliefPackageName { get; set; }
+        public DateTime? LastTaskUpdatedAt { get; set; }
+    }
+
     public class TeamPerformanceItemDto
     {
         public Guid TeamId { get; set; }
@@ -51,6 +162,11 @@ namespace ReliefManagementSystem.Application.Features.StationDashboard.DTOs.Resp
         public int Available { get; set; }
         public int Busy { get; set; }
         public List<VehicleTypeSummaryDto> ByType { get; set; } = new();
+        public int CurrentPage { get; set; } = 1;
+        public int PageSize { get; set; } = 0;
+        public int TotalPages { get; set; } = 1;
+        public bool HasPrevious { get; set; }
+        public bool HasNext { get; set; }
     }
 
     public class VehicleTypeSummaryDto

@@ -49,6 +49,7 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             CampaignStatus? status,
             CampaignType? type,
             Guid? locationId,
+            Guid? reliefStationId,
             bool forVolunteerRegistration,
             bool? supportsVolunteerRegistration,
             bool? hasMoneyGoal,
@@ -80,6 +81,11 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
             if (locationId.HasValue)
             {
                 query = query.Where(c => c.LocationId == locationId.Value);
+            }
+
+            if (reliefStationId.HasValue)
+            {
+                query = query.Where(c => c.CampaignStations.Any(cs => cs.ReliefStationId == reliefStationId.Value && cs.IsActive));
             }
 
             if (forVolunteerRegistration)
@@ -204,6 +210,14 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                     && c.Status == CampaignStatus.Active
                     && c.CampaignStations.Any(cs => cs.ReliefStationId == reliefStationId && cs.IsActive))
                 .ToListAsync(cancellationToken);
+        }
+
+        public IQueryable<Campaign> GetQueryable()
+        {
+            return _context.Campaigns
+                .Include(c => c.CampaignTeams)
+                    .ThenInclude(ct => ct.Team)
+                        .ThenInclude(t => t.ReliefStationTeams);
         }
     }
 }

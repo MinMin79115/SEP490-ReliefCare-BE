@@ -82,8 +82,19 @@ namespace ReliefManagementSystem.API.Controllers
             [FromBody] AttachCampaignStationRequest request,
             CancellationToken cancellationToken)
         {
-            var result = await _campaignService.AttachStationAsync(id, request, cancellationToken);
-            return Ok(result);
+            try
+            {
+                var result = await _campaignService.AttachStationAsync(id, request, cancellationToken);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpDelete("{id:guid}/stations/{reliefStationId:guid}")]
@@ -92,8 +103,19 @@ namespace ReliefManagementSystem.API.Controllers
             Guid reliefStationId,
             CancellationToken cancellationToken)
         {
-            var result = await _campaignService.DetachStationAsync(id, reliefStationId, cancellationToken);
-            return Ok(result);
+            try
+            {
+                var result = await _campaignService.DetachStationAsync(id, reliefStationId, cancellationToken);
+                return Ok(result);
+            }
+            catch (KeyNotFoundException ex)
+            {
+                return NotFound(new { message = ex.Message });
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
         }
 
         [HttpPost("{id:guid}/extract-budget")]
@@ -104,6 +126,26 @@ namespace ReliefManagementSystem.API.Controllers
         {
             var result = await _campaignService.ExtractBudgetAsync(id, request, cancellationToken);
             return Ok(result);
+        }
+
+        [HttpGet("{id:guid}/extract-budget")]
+        public async Task<IActionResult> GetExtractBudgetHistory(
+            Guid id,
+            [FromQuery] bool includeDeleted,
+            CancellationToken cancellationToken)
+        {
+            var result = await _campaignService.GetBudgetTransferHistoryAsync(id, includeDeleted, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpDelete("{id:guid}/extract-budget/{campaignBudgetTransferId:guid}")]
+        public async Task<IActionResult> DeleteExtractBudgetHistory(
+            Guid id,
+            Guid campaignBudgetTransferId,
+            CancellationToken cancellationToken)
+        {
+            await _campaignService.DeleteBudgetTransferHistoryAsync(id, campaignBudgetTransferId, cancellationToken);
+            return NoContent();
         }
 
         [HttpPost("{id:guid}/teams")]
@@ -118,7 +160,7 @@ namespace ReliefManagementSystem.API.Controllers
         }
 
         [HttpGet("{id:guid}/teams")]
-        [Authorize(Roles = "Manager,Moderator,Volunteer")]
+        [Authorize(Roles = "Admin,Manager,Moderator,Volunteer")]
         public async Task<IActionResult> GetTeams(Guid id, CancellationToken cancellationToken)
         {
             var result = await _campaignService.GetTeamsAsync(id, cancellationToken);
@@ -162,11 +204,51 @@ namespace ReliefManagementSystem.API.Controllers
             return Ok(result);
         }
 
+        [HttpGet("{id:guid}/vehicles/my-assignment")]
+        [Authorize(Roles = "Manager,Moderator,Volunteer")]
+        public async Task<IActionResult> GetMyCampaignVehicleAssignment(Guid id, CancellationToken cancellationToken)
+        {
+            var result = await _campaignService.GetMyCampaignVehicleAssignmentAsync(id, cancellationToken);
+            return Ok(result);
+        }
+
         [HttpPatch("{id:guid}/vehicles/{campaignVehicleId:guid}")]
         [Authorize(Roles = "Manager,Moderator")]
         public async Task<IActionResult> UpdateCampaignVehicle(Guid id, Guid campaignVehicleId, [FromBody] UpdateCampaignVehicleAssignmentRequest request, CancellationToken cancellationToken)
         {
             var result = await _campaignService.UpdateCampaignVehicleAssignmentAsync(id, campaignVehicleId, request, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpPatch("{id:guid}/vehicles/{campaignVehicleId:guid}/assign-driver")]
+        [Authorize(Roles = "Manager,Moderator,Volunteer")]
+        public async Task<IActionResult> AssignCampaignVehicleDriver(Guid id, Guid campaignVehicleId, [FromBody] AssignCampaignVehicleDriverRequest request, CancellationToken cancellationToken)
+        {
+            var result = await _campaignService.AssignCampaignVehicleDriverAsync(id, campaignVehicleId, request, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpPatch("{id:guid}/vehicles/{campaignVehicleId:guid}/release")]
+        [Authorize(Roles = "Manager,Moderator,Volunteer")]
+        public async Task<IActionResult> ReleaseCampaignVehicle(Guid id, Guid campaignVehicleId, [FromBody] ReleaseCampaignVehicleRequest request, CancellationToken cancellationToken)
+        {
+            var result = await _campaignService.ReleaseCampaignVehicleAsync(id, campaignVehicleId, request, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpPatch("{id:guid}/vehicles/{campaignVehicleId:guid}/handoff")]
+        [Authorize(Roles = "Manager,Moderator,Volunteer")]
+        public async Task<IActionResult> HandoffCampaignVehicle(Guid id, Guid campaignVehicleId, [FromBody] HandoffCampaignVehicleRequest request, CancellationToken cancellationToken)
+        {
+            var result = await _campaignService.HandoffCampaignVehicleAsync(id, campaignVehicleId, request, cancellationToken);
+            return Ok(result);
+        }
+
+        [HttpPatch("{id:guid}/vehicles/{campaignVehicleId:guid}/return-to-coordinator")]
+        [Authorize(Roles = "Manager,Moderator,Volunteer")]
+        public async Task<IActionResult> ReturnCampaignVehicleToCoordinator(Guid id, Guid campaignVehicleId, [FromBody] ReturnCampaignVehicleToCoordinatorRequest request, CancellationToken cancellationToken)
+        {
+            var result = await _campaignService.ReturnCampaignVehicleToCoordinatorAsync(id, campaignVehicleId, request, cancellationToken);
             return Ok(result);
         }
 

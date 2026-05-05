@@ -28,6 +28,14 @@ namespace ReliefManagementSystem.API.Controllers
             CancellationToken cancellationToken)
             => Ok(await _reliefDistributionService.ImportCampaignHouseholdsAsync(campaignId, request, cancellationToken));
 
+        [HttpPost("households/report-new")]
+        [Authorize(Roles = "Manager,Moderator,Volunteer")]
+        public async Task<IActionResult> ReportNewReliefHousehold(
+            Guid campaignId,
+            [FromBody] ReportNewReliefHouseholdRequest request,
+            CancellationToken cancellationToken)
+            => Ok(await _reliefDistributionService.ReportNewReliefHouseholdAsync(campaignId, request, cancellationToken));
+
         [HttpPatch("households/{campaignHouseholdId:guid}/assign")]
         [Authorize(Roles = "Manager,Moderator")]
         public async Task<IActionResult> AssignHousehold(
@@ -79,7 +87,7 @@ namespace ReliefManagementSystem.API.Controllers
             => Ok(await _reliefDistributionService.UpdateCampaignHouseholdAsync(campaignId, campaignHouseholdId, request, cancellationToken));
 
         [HttpPatch("households/{campaignHouseholdId:guid}/status")]
-        [Authorize(Roles = "Manager,Moderator")]
+        [Authorize(Roles = "Manager,Moderator,Volunteer")]
         public async Task<IActionResult> UpdateHouseholdStatus(
             Guid campaignId,
             Guid campaignHouseholdId,
@@ -248,6 +256,26 @@ namespace ReliefManagementSystem.API.Controllers
         [Authorize(Roles = "Manager,Moderator,Volunteer")]
         public async Task<IActionResult> GetDeliveryById(Guid campaignId, Guid householdDeliveryId, CancellationToken cancellationToken)
             => Ok(await _reliefDistributionService.GetDeliveryByIdAsync(campaignId, householdDeliveryId, cancellationToken));
+
+        [HttpPatch("deliveries/{householdDeliveryId:guid}")]
+        [Authorize(Roles = "Manager,Moderator")]
+        public async Task<IActionResult> UpdateDeliveryAssignment(
+            Guid campaignId,
+            Guid householdDeliveryId,
+            [FromBody] UpdateHouseholdDeliveryAssignmentRequest request,
+            CancellationToken cancellationToken)
+            => Ok(await _reliefDistributionService.UpdateHouseholdDeliveryAssignmentAsync(campaignId, householdDeliveryId, request, cancellationToken));
+
+        [HttpDelete("deliveries/{householdDeliveryId:guid}")]
+        [Authorize(Roles = "Manager,Moderator")]
+        public async Task<IActionResult> DeleteDeliveryAssignment(
+            Guid campaignId,
+            Guid householdDeliveryId,
+            CancellationToken cancellationToken)
+        {
+            await _reliefDistributionService.DeleteHouseholdDeliveryAssignmentAsync(campaignId, householdDeliveryId, cancellationToken);
+            return NoContent();
+        }
 
         [HttpPost("shortage-requests")]
         [Authorize(Roles = "Manager,Moderator,Volunteer")]

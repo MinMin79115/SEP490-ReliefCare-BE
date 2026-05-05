@@ -5,6 +5,7 @@ using ReliefManagementSystem.Application.Features.Relief.DTOs.Request;
 using ReliefManagementSystem.Application.Features.Relief.DTOs.Response;
 using Microsoft.EntityFrameworkCore;
 using ReliefManagementSystem.Application.Interface;
+using ReliefManagementSystem.Domain.Common;
 using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Domain.Enum;
 using System.Text.Json;
@@ -85,6 +86,57 @@ namespace ReliefManagementSystem.Application.Services
             return saved.Select(MapCampaignHousehold).ToList();
         }
 
+        public async Task<CampaignHouseholdResponse> ReportNewReliefHouseholdAsync(
+            Guid campaignId,
+            ReportNewReliefHouseholdRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            await EnsureReliefCampaignAsync(campaignId, cancellationToken);
+
+            var normalizedCode = request.HouseholdCode.Trim();
+            var existing = await _unitOfWork.CampaignHouseholds.GetByCampaignAsync(campaignId, cancellationToken);
+            if (existing.Any(x => x.HouseholdCode.Trim().ToUpperInvariant() == normalizedCode.ToUpperInvariant()))
+            {
+                throw new InvalidOperationException($"Household code '{request.HouseholdCode}' already exists in campaign.");
+            }
+
+            var currentUserId = _currentUser.UserId ?? throw new UnauthorizedAccessException("User is not authenticated.");
+            var volunteerProfile = await _unitOfWork.VolunteerProfiles.GetByUserIdAsync(currentUserId)
+                ?? throw new KeyNotFoundException("Volunteer profile for current user was not found.");
+
+            var teams = await _unitOfWork.Campaigns.GetCampaignTeamsAsync(campaignId, cancellationToken);
+            var campaignTeam = teams.FirstOrDefault(x => x.Team.TeamMembers.Any(tm => tm.UserId == currentUserId));
+
+            var household = new CampaignHousehold
+            {
+                CampaignHouseholdId = Guid.NewGuid(),
+                CampaignId = campaignId,
+                LocationId = request.LocationId,
+                HouseholdCode = normalizedCode,
+                HeadOfHouseholdName = request.HeadOfHouseholdName.Trim(),
+                ContactPhone = request.ContactPhone?.Trim(),
+                Address = request.Address?.Trim(),
+                Latitude = request.Latitude,
+                Longitude = request.Longitude,
+                HouseholdSize = request.HouseholdSize,
+                IsIsolated = request.IsIsolated,
+                FloodSeverityLevel = request.FloodSeverityLevel,
+                IsolationSeverityLevel = request.IsolationSeverityLevel,
+                RequiresBoat = request.RequiresBoat,
+                RequiresLocalGuide = request.RequiresLocalGuide,
+                DeliveryMode = request.IsIsolated ? DeliveryMode.DoorToDoor : DeliveryMode.PickupAtPoint,
+                CampaignTeamId = campaignTeam?.CampaignTeamId,
+                Notes = request.Notes,
+                FulfillmentStatus = HouseholdFulfillmentStatus.Pending,
+                CreatedAt = DateTime.UtcNow,
+            };
+
+            await _unitOfWork.CampaignHouseholds.AddAsync(household);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return MapCampaignHousehold(household);
+        }
+
         public async Task<HouseholdDeliveryResponse> AssignHouseholdAsync(
             Guid campaignId,
             Guid campaignHouseholdId,
@@ -135,6 +187,8 @@ namespace ReliefManagementSystem.Application.Services
                 ?? throw new KeyNotFoundException($"Relief package definition '{packageId}' was not found.");
             if (package.CampaignId != campaignId)
                 throw new InvalidOperationException("Relief package does not belong to campaign.");
+            if (!package.IsActive)
+                throw new InvalidOperationException("Relief package is inactive and cannot be assigned.");
 
             household.DeliveryMode = request.DeliveryMode;
             household.DistributionPointId = request.DeliveryMode == DeliveryMode.PickupAtPoint
@@ -151,7 +205,7 @@ namespace ReliefManagementSystem.Application.Services
                 .OrderByDescending(x => x.CreatedAt)
                 .FirstOrDefault(x => x.Status != HouseholdFulfillmentStatus.Delivered);
 
-            if (existingActiveDelivery is not null)
+            if (existingActiveDelivery is not null && !request.ForceCreateNewDelivery)
             {
                 existingActiveDelivery.DistributionPointId = household.DistributionPointId;
                 existingActiveDelivery.CampaignTeamId = request.CampaignTeamId;
@@ -194,7 +248,7 @@ namespace ReliefManagementSystem.Application.Services
             return MapHouseholdDelivery(saved);
         }
 
-        public async Task<CampaignHouseholdResponse> AssignIsolatedHouseholdTeamAsync(
+        public async Task<AssignIsolatedHouseholdTeamResponse> AssignIsolatedHouseholdTeamAsync(
             Guid campaignId,
             Guid campaignHouseholdId,
             AssignIsolatedHouseholdTeamRequest request,
@@ -219,9 +273,27 @@ namespace ReliefManagementSystem.Application.Services
             if (!teams.Any(t => t.CampaignTeamId == request.CampaignTeamId))
                 throw new KeyNotFoundException($"Campaign team '{request.CampaignTeamId}' was not found in this campaign.");
 
+            var packageId = request.ReliefPackageDefinitionId;
+            if (!packageId.HasValue)
+            {
+                var defaultPackage = await _unitOfWork.ReliefPackageDefinitions.GetDefaultByCampaignAsync(campaignId, cancellationToken)
+                    ?? throw new InvalidOperationException("No default relief package found for campaign.");
+                packageId = defaultPackage.ReliefPackageDefinitionId;
+            }
+
+            var package = await _unitOfWork.ReliefPackageDefinitions.GetByIdAsync(packageId.Value)
+                ?? throw new KeyNotFoundException($"Relief package definition '{packageId}' was not found.");
+
+            if (package.CampaignId != campaignId)
+                throw new InvalidOperationException("Relief package does not belong to campaign.");
+
+            if (!package.IsActive)
+                throw new InvalidOperationException("Relief package is inactive and cannot be assigned.");
+
             household.CampaignTeamId = request.CampaignTeamId;
             household.DeliveryMode = request.KeepDoorToDoor ? DeliveryMode.DoorToDoor : household.DeliveryMode;
             household.DistributionPointId = null;
+            household.FulfillmentStatus = HouseholdFulfillmentStatus.Pending;
             household.Notes = string.IsNullOrWhiteSpace(request.Notes)
                 ? household.Notes
                 : string.Join(" | ", new[] { household.Notes, request.Notes?.Trim() }.Where(x => !string.IsNullOrWhiteSpace(x)));
@@ -234,23 +306,54 @@ namespace ReliefManagementSystem.Application.Services
                 .OrderByDescending(x => x.CreatedAt)
                 .FirstOrDefault(x => x.Status != HouseholdFulfillmentStatus.Delivered);
 
-            if (existingActiveDelivery is not null)
+            HouseholdDelivery activeDelivery;
+
+            if (existingActiveDelivery is not null && !request.ForceCreateNewDelivery)
             {
                 existingActiveDelivery.CampaignTeamId = request.CampaignTeamId;
                 existingActiveDelivery.DistributionPointId = null;
                 existingActiveDelivery.DeliveryMode = DeliveryMode.DoorToDoor;
                 existingActiveDelivery.ScheduledAt = request.ScheduledAt ?? existingActiveDelivery.ScheduledAt;
+                existingActiveDelivery.CashSupportAmount = package.CashSupportAmount ?? 0;
+                existingActiveDelivery.Status = HouseholdFulfillmentStatus.Pending;
                 if (!string.IsNullOrWhiteSpace(request.Notes))
                     existingActiveDelivery.Notes = request.Notes?.Trim();
 
-                if (request.ReliefPackageDefinitionId.HasValue)
-                    existingActiveDelivery.ReliefPackageDefinitionId = request.ReliefPackageDefinitionId.Value;
+                existingActiveDelivery.ReliefPackageDefinitionId = packageId.Value;
 
                 await _unitOfWork.HouseholdDeliveries.UpdateAsync(existingActiveDelivery);
+                activeDelivery = existingActiveDelivery;
+            }
+            else
+            {
+                activeDelivery = new HouseholdDelivery
+                {
+                    HouseholdDeliveryId = Guid.NewGuid(),
+                    CampaignId = campaignId,
+                    CampaignHouseholdId = household.CampaignHouseholdId,
+                    DistributionPointId = null,
+                    CampaignTeamId = request.CampaignTeamId,
+                    ReliefPackageDefinitionId = packageId.Value,
+                    DeliveryMode = DeliveryMode.DoorToDoor,
+                    CashSupportAmount = package.CashSupportAmount ?? 0,
+                    Status = HouseholdFulfillmentStatus.Pending,
+                    ScheduledAt = request.ScheduledAt ?? DateTime.UtcNow,
+                    Notes = request.Notes,
+                    CreatedAt = DateTime.UtcNow
+                };
+
+                await _unitOfWork.HouseholdDeliveries.AddAsync(activeDelivery);
             }
 
             await _unitOfWork.SaveChangesAsync(cancellationToken);
-            return MapCampaignHousehold(household);
+            var savedDelivery = await _unitOfWork.HouseholdDeliveries.GetByIdWithProofsAsync(activeDelivery.HouseholdDeliveryId, cancellationToken)
+                ?? throw new KeyNotFoundException("Assigned isolated delivery was not found after save.");
+
+            return new AssignIsolatedHouseholdTeamResponse
+            {
+                Household = MapCampaignHousehold(household),
+                Delivery = MapHouseholdDelivery(savedDelivery)
+            };
         }
 
         public async Task<BulkAssignIsolatedHouseholdsResponse> BulkAssignIsolatedHouseholdTeamsAsync(
@@ -275,14 +378,16 @@ namespace ReliefManagementSystem.Application.Services
                         ReliefPackageDefinitionId = request.ReliefPackageDefinitionId,
                         ScheduledAt = request.ScheduledAt,
                         KeepDoorToDoor = request.KeepDoorToDoor,
-                        Notes = request.Notes
+                        Notes = request.Notes,
+                        ForceCreateNewDelivery = request.ForceCreateNewDelivery
                     }, cancellationToken);
 
                     response.Items.Add(new BulkAssignIsolatedHouseholdItemResponse
                     {
                         CampaignHouseholdId = householdId,
                         IsSuccess = true,
-                        Household = result
+                        Household = result.Household,
+                        Delivery = result.Delivery
                     });
                 }
                 catch (Exception ex)
@@ -385,6 +490,8 @@ namespace ReliefManagementSystem.Application.Services
                 .Where(x => x.CampaignId == campaignId)
                 .ToListAsync(cancellationToken);
 
+            var activeLocations = await _unitOfWork.Locations.GetAllActiveAsync();
+
             var distributionPoints = await _unitOfWork.DistributionPoints.GetQueryable()
                 .Include(x => x.Households)
                 .Include(x => x.Deliveries)
@@ -410,6 +517,16 @@ namespace ReliefManagementSystem.Application.Services
                 ? Math.Round(areaLocationDensities.Average(), 2)
                 : 0;
 
+            if (averagePopulationDensity <= 0)
+            {
+                var inferredDensities = households
+                    .Select(h => ResolveLocationContext([h], activeLocations)?.PopulationDensity ?? 0)
+                    .Where(x => x > 0)
+                    .ToList();
+                if (inferredDensities.Count > 0)
+                    averagePopulationDensity = Math.Round(inferredDensities.Average(), 2);
+            }
+
             var suggestedTeamCount = CalculateSuggestedTeamCount(
                 totalHouseholds,
                 isolatedHouseholds,
@@ -430,6 +547,7 @@ namespace ReliefManagementSystem.Application.Services
                 .Select(group =>
                 {
                     var groupItems = group.ToList();
+                    var resolvedLocation = ResolveLocationContext(groupItems, activeLocations);
                     var householdCount = groupItems.Count;
                     var areaIsolatedCount = groupItems.Count(x => x.IsIsolated);
                     var areaPopulation = groupItems.Sum(x => x.HouseholdSize);
@@ -437,6 +555,8 @@ namespace ReliefManagementSystem.Application.Services
                     var areaDensity = group
                         .Select(x => x.Location?.PopulationDensity ?? 0)
                         .FirstOrDefault(x => x > 0);
+                    if (areaDensity <= 0)
+                        areaDensity = resolvedLocation?.PopulationDensity ?? 0;
                     var areaFloodSeverity = groupItems
                         .Where(x => x.FloodSeverityLevel.HasValue)
                         .Select(x => x.FloodSeverityLevel!.Value)
@@ -461,7 +581,9 @@ namespace ReliefManagementSystem.Application.Services
                     return new ReliefPlanAreaSummaryResponse
                     {
                         AreaName = ResolveAreaName(groupItems),
-                        LocationId = groupItems.FirstOrDefault(x => x.LocationId.HasValue)?.LocationId,
+                        LocationId = groupItems.FirstOrDefault(x => x.LocationId.HasValue)?.LocationId ?? resolvedLocation?.LocationId,
+                        MatchedLocationName = resolvedLocation?.FullName,
+                        LocationMatchSource = resolvedLocation is null ? null : "address-latlng-heuristic",
                         PopulationDensity = areaDensity,
                         HouseholdCount = householdCount,
                         IsolatedHouseholdCount = areaIsolatedCount,
@@ -474,6 +596,8 @@ namespace ReliefManagementSystem.Application.Services
                         RecommendedDeliveryStrategy = recommendedOperationalMode == "Ưu tiên điểm phát"
                             ? "Tập trung phát tại điểm, gom hộ gần nhau"
                             : "Đội cơ động gõ từng cụm, giao tận nơi cho hộ cô lập",
+                        SuggestedPeoplePerTeam = CalculateSuggestedPeoplePerTeam(areaSuggestedTeams, areaPopulation),
+                        SuggestedPeoplePerDistributionPointLine = CalculateSuggestedPeoplePerLine(householdCount, areaDensity),
                         SuggestedDistributionPointCount = suggestedDistributionPointCount,
                         SuggestedMobileTeamCount = suggestedMobileTeamCount,
                         SuggestedTeamCount = areaSuggestedTeams,
@@ -497,10 +621,13 @@ namespace ReliefManagementSystem.Application.Services
                 .Select(x => new IsolatedHouseholdPlanItemResponse
                 {
                     CampaignHouseholdId = x.CampaignHouseholdId,
+                    CampaignTeamId = x.CampaignTeamId,
                     HouseholdCode = x.HouseholdCode,
                     HeadOfHouseholdName = x.HeadOfHouseholdName,
                     Address = x.Address,
                     LocationId = x.LocationId,
+                    Latitude = x.Latitude,
+                    Longitude = x.Longitude,
                     HouseholdSize = x.HouseholdSize,
                     FloodSeverityLevel = x.FloodSeverityLevel,
                     IsolationSeverityLevel = x.IsolationSeverityLevel,
@@ -583,6 +710,8 @@ namespace ReliefManagementSystem.Application.Services
                 IsolatedHouseholds = isolatedHouseholds,
                 TotalPopulation = totalPopulation,
                 AveragePopulationDensity = averagePopulationDensity,
+                SuggestedPeoplePerTeam = CalculateSuggestedPeoplePerTeam(suggestedTeamCount, totalPopulation),
+                SuggestedPeoplePerDistributionPointLine = CalculateSuggestedPeoplePerLine(totalHouseholds, averagePopulationDensity),
                 HighDensityAreaCount = areaSummaries.Count(x => x.PopulationDensity >= 1000),
                 MobileTeamPriorityAreaCount = areaSummaries.Count(x => x.RecommendedOperationalMode == "Ưu tiên đội cơ động"),
                 PickupPriorityAreaCount = areaSummaries.Count(x => x.RecommendedOperationalMode == "Ưu tiên điểm phát"),
@@ -712,6 +841,23 @@ namespace ReliefManagementSystem.Application.Services
                 throw new InvalidOperationException("Household does not belong to campaign.");
 
             household.FulfillmentStatus = request.Status;
+
+            foreach (var delivery in household.Deliveries.Where(x => x.Status != HouseholdFulfillmentStatus.Delivered))
+            {
+                delivery.Status = request.Status;
+
+                if (request.Status == HouseholdFulfillmentStatus.Skipped && !delivery.DeliveredAt.HasValue)
+                {
+                    delivery.DeliveredAt = DateTime.UtcNow;
+                }
+
+                if (request.Notes is not null)
+                {
+                    delivery.Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim();
+                }
+
+                await _unitOfWork.HouseholdDeliveries.UpdateAsync(delivery);
+            }
 
             if (request.Notes is not null)
                 household.Notes = string.IsNullOrWhiteSpace(request.Notes) ? null : request.Notes.Trim();
@@ -1503,6 +1649,123 @@ namespace ReliefManagementSystem.Application.Services
             return MapHouseholdDelivery(delivery);
         }
 
+        public async Task<HouseholdDeliveryResponse> UpdateHouseholdDeliveryAssignmentAsync(
+            Guid campaignId,
+            Guid householdDeliveryId,
+            UpdateHouseholdDeliveryAssignmentRequest request,
+            CancellationToken cancellationToken = default)
+        {
+            await EnsureReliefCampaignAsync(campaignId, cancellationToken);
+
+            var delivery = await _unitOfWork.HouseholdDeliveries.GetByIdWithProofsAsync(householdDeliveryId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Household delivery '{householdDeliveryId}' was not found.");
+
+            if (delivery.CampaignId != campaignId)
+                throw new InvalidOperationException("Delivery does not belong to campaign.");
+
+            if (delivery.Status == HouseholdFulfillmentStatus.Delivered)
+                throw new InvalidOperationException("Delivered assignment cannot be edited.");
+
+            var household = delivery.CampaignHousehold
+                ?? throw new KeyNotFoundException("Campaign household was not found for this delivery.");
+
+            if (!household.IsIsolated && request.DeliveryMode == DeliveryMode.DoorToDoor)
+                throw new InvalidOperationException("Direct delivery is only allowed for isolated households.");
+
+            if (request.DeliveryMode == DeliveryMode.PickupAtPoint && !request.DistributionPointId.HasValue)
+                throw new InvalidOperationException("Pickup delivery requires a distribution point.");
+
+            if (request.DeliveryMode == DeliveryMode.DoorToDoor && !request.CampaignTeamId.HasValue)
+                throw new InvalidOperationException("Direct delivery requires a campaign team.");
+
+            if (request.DistributionPointId.HasValue)
+            {
+                var point = await _unitOfWork.DistributionPoints.GetByIdAsync(request.DistributionPointId.Value)
+                    ?? throw new KeyNotFoundException($"Distribution point '{request.DistributionPointId.Value}' was not found.");
+                if (point.CampaignId != campaignId)
+                    throw new InvalidOperationException("Distribution point does not belong to campaign.");
+            }
+
+            if (request.CampaignTeamId.HasValue)
+            {
+                var teams = await _unitOfWork.Campaigns.GetCampaignTeamsAsync(campaignId, cancellationToken);
+                if (!teams.Any(t => t.CampaignTeamId == request.CampaignTeamId.Value))
+                    throw new KeyNotFoundException($"Campaign team '{request.CampaignTeamId.Value}' was not found in this campaign.");
+            }
+
+            var packageId = request.ReliefPackageDefinitionId ?? delivery.ReliefPackageDefinitionId;
+            var package = await _unitOfWork.ReliefPackageDefinitions.GetByIdAsync(packageId)
+                ?? throw new KeyNotFoundException($"Relief package definition '{packageId}' was not found.");
+            if (package.CampaignId != campaignId)
+                throw new InvalidOperationException("Relief package does not belong to campaign.");
+            if (!package.IsActive)
+                throw new InvalidOperationException("Relief package is inactive and cannot be assigned.");
+
+            delivery.DeliveryMode = request.DeliveryMode;
+            delivery.DistributionPointId = request.DeliveryMode == DeliveryMode.PickupAtPoint
+                ? request.DistributionPointId
+                : null;
+            delivery.CampaignTeamId = request.CampaignTeamId;
+            delivery.ReliefPackageDefinitionId = packageId;
+            delivery.CashSupportAmount = package.CashSupportAmount ?? 0;
+            delivery.ScheduledAt = request.ScheduledAt ?? delivery.ScheduledAt;
+            delivery.Notes = request.Notes;
+            delivery.Status = HouseholdFulfillmentStatus.Pending;
+
+            household.DeliveryMode = request.DeliveryMode;
+            household.DistributionPointId = delivery.DistributionPointId;
+            household.CampaignTeamId = request.CampaignTeamId;
+            household.Notes = request.Notes;
+            household.FulfillmentStatus = HouseholdFulfillmentStatus.Pending;
+
+            await _unitOfWork.HouseholdDeliveries.UpdateAsync(delivery);
+            await _unitOfWork.CampaignHouseholds.UpdateAsync(household);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            var saved = await _unitOfWork.HouseholdDeliveries.GetByIdWithProofsAsync(householdDeliveryId, cancellationToken)
+                ?? throw new KeyNotFoundException("Updated delivery was not found after save.");
+            return MapHouseholdDelivery(saved);
+        }
+
+        public async Task DeleteHouseholdDeliveryAssignmentAsync(
+            Guid campaignId,
+            Guid householdDeliveryId,
+            CancellationToken cancellationToken = default)
+        {
+            await EnsureReliefCampaignAsync(campaignId, cancellationToken);
+
+            var delivery = await _unitOfWork.HouseholdDeliveries.GetQueryable()
+                .Include(x => x.CampaignHousehold)
+                .Include(x => x.MemberTaskDeliveries)
+                .Include(x => x.Proofs)
+                .FirstOrDefaultAsync(x => x.HouseholdDeliveryId == householdDeliveryId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Household delivery '{householdDeliveryId}' was not found.");
+
+            if (delivery.CampaignId != campaignId)
+                throw new InvalidOperationException("Delivery does not belong to campaign.");
+
+            if (delivery.Status == HouseholdFulfillmentStatus.Delivered)
+                throw new InvalidOperationException("Delivered assignment cannot be deleted.");
+
+            if (delivery.Proofs.Any())
+                throw new InvalidOperationException("Assignment with proofs cannot be deleted.");
+
+            if (delivery.MemberTaskDeliveries.Any())
+                throw new InvalidOperationException("Assignment already linked to member tasks and cannot be deleted.");
+
+            if (delivery.CampaignHousehold is not null)
+            {
+                delivery.CampaignHousehold.CampaignTeamId = null;
+                delivery.CampaignHousehold.DistributionPointId = null;
+                delivery.CampaignHousehold.Notes = null;
+                delivery.CampaignHousehold.FulfillmentStatus = HouseholdFulfillmentStatus.Pending;
+                await _unitOfWork.CampaignHouseholds.UpdateAsync(delivery.CampaignHousehold);
+            }
+
+            await _unitOfWork.HouseholdDeliveries.DeleteAsync(delivery);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
         public async Task<BatchCompleteHouseholdDeliveryResponse> CompleteHouseholdDeliveriesBatchAsync(
             Guid campaignId,
             CompleteHouseholdDeliveryBatchRequest request,
@@ -1845,6 +2108,30 @@ namespace ReliefManagementSystem.Application.Services
             return normalized.Trim();
         }
 
+        private static Location? ResolveLocationContext(IReadOnlyCollection<CampaignHousehold> households, IReadOnlyCollection<Location> locations)
+        {
+            var addressTokens = households
+                .Select(x => x.Address)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .SelectMany(address => address!.Split(new[] { ',', ';', '-' }, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                .Select(StringHelper.NormalizeVietnamesePath)
+                .Where(x => !string.IsNullOrWhiteSpace(x))
+                .Distinct()
+                .ToList();
+
+            if (addressTokens.Count() == 0)
+                return null;
+
+            return locations
+                .OrderByDescending(location => addressTokens.Count(token =>
+                    token.Contains(location.NormalizedName, StringComparison.OrdinalIgnoreCase) ||
+                    location.NormalizedName.Contains(token, StringComparison.OrdinalIgnoreCase)))
+                .ThenByDescending(location => location.Level)
+                .FirstOrDefault(location => addressTokens.Any(token =>
+                    token.Contains(location.NormalizedName, StringComparison.OrdinalIgnoreCase) ||
+                    location.NormalizedName.Contains(token, StringComparison.OrdinalIgnoreCase)));
+        }
+
         private static bool HasCoordinates(CampaignHousehold household)
             => household.Latitude != 0 || household.Longitude != 0;
 
@@ -1885,6 +2172,22 @@ namespace ReliefManagementSystem.Application.Services
 
         private static int CalculateEstimatedReliefPersonnel(int suggestedTeamCount, int population)
             => Math.Max(suggestedTeamCount * 4, (int)Math.Ceiling(population / 25d));
+
+        private static int CalculateSuggestedPeoplePerTeam(int suggestedTeamCount, int population)
+        {
+            if (suggestedTeamCount <= 0)
+                return 0;
+
+            return Math.Max(4, (int)Math.Ceiling(population / Math.Max(1d, suggestedTeamCount * 12d)) * 2);
+        }
+
+        private static int CalculateSuggestedPeoplePerLine(int householdCount, decimal populationDensity)
+        {
+            if (householdCount <= 0)
+                return 0;
+
+            return populationDensity >= 1000 ? 4 : 2;
+        }
 
         private static int CalculateEstimatedLocalVolunteers(int isolatedHouseholdCount)
             => isolatedHouseholdCount <= 0 ? 0 : Math.Max(1, (int)Math.Ceiling(isolatedHouseholdCount / 10d));

@@ -8,5 +8,10 @@ namespace ReliefManagementSystem.Application.Interface
         Task<AnalyzeDisasterRiskResponse> AnalyzeAsync(
             AnalyzeDisasterRiskRequest request,
             CancellationToken cancellationToken = default);
+
+        Task<NearestDisasterAnalysisResponse?> GetNearestAnalysisAsync(
+            double latitude,
+            double longitude,
+            CancellationToken cancellationToken = default);
     }
 }

@@ -56,5 +56,30 @@ namespace ReliefManagementSystem.API.Controllers
         [HttpGet("rescue-request-locations")]
         public async Task<ActionResult<RescueRequestLocationsResponseDto>> GetRescueRequestLocations([FromQuery] DateTime? from, [FromQuery] DateTime? to, CancellationToken cancellationToken)
             => Ok(await _stationDashboardService.GetRescueRequestLocationsAsync(from, to, cancellationToken));
+
+        [HttpGet("relief-team-missions")]
+        public async Task<ActionResult<ReliefTeamMissionSnapshotResponseDto>> GetReliefTeamMissions(
+            [FromQuery] DateTime? from,
+            [FromQuery] DateTime? to,
+            [FromQuery] List<Guid>? teamIds,
+            CancellationToken cancellationToken)
+            => Ok(await _stationDashboardService.GetReliefTeamMissionSnapshotAsync(from, to, teamIds, cancellationToken));
+
+        [HttpGet("relief-team-task-summary")]
+        public async Task<ActionResult<ReliefTeamTaskSummaryResponseDto>> GetReliefTeamTaskSummary(
+            [FromQuery] DateTime? from,
+            [FromQuery] DateTime? to,
+            [FromQuery] List<Guid>? teamIds,
+            CancellationToken cancellationToken)
+            => Ok(await _stationDashboardService.GetReliefTeamTaskSummaryAsync(from, to, teamIds, cancellationToken));
+
+        [HttpGet("admin/top-response-teams")]
+        [Authorize(Roles = "Admin")]
+        public async Task<ActionResult<AdminTopResponseTeamsResponseDto>> GetAdminTopResponseTeams(
+            [FromQuery] DateTime? from,
+            [FromQuery] DateTime? to,
+            [FromQuery] int top = 4,
+            CancellationToken cancellationToken = default)
+            => Ok(await _stationDashboardService.GetAdminTopResponseTeamsAsync(from, to, top, cancellationToken));
     }
 }

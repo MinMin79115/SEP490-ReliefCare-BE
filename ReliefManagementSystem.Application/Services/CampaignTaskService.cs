@@ -11,6 +11,8 @@ namespace ReliefManagementSystem.Application.Services
 {
     public class CampaignTaskService : ICampaignTaskService
     {
+        private const string FailureReasonMarker = "\n[FAILURE_REASON] ";
+
         private readonly IUnitOfWork _unitOfWork;
         private readonly ICurrentUserService _currentUser;
 
@@ -24,6 +26,7 @@ namespace ReliefManagementSystem.Application.Services
         {
             var campaign = await GetReliefCampaignAsync(campaignId, cancellationToken);
             var campaignTeam = await GetCampaignTeamAsync(campaignId, request.CampaignTeamId, cancellationToken);
+            await EnsureTeamLeaderOrCoordinatorAsync(campaignTeam, cancellationToken);
 
             ValidateSchedule(request.StartDate, request.DueDate);
 
@@ -68,6 +71,201 @@ namespace ReliefManagementSystem.Application.Services
             return new Pagination<CampaignTaskResponse>(mapped, totalCount, request.PageIndex, request.PageSize);
         }
 
+        public async Task<List<AdminCampaignTaskAggregateResponse>> GetAdminTaskAggregateAsync(DateTime? from = null, DateTime? to = null, Guid? teamId = null, Guid? campaignId = null, CancellationToken cancellationToken = default)
+        {
+            var query = _unitOfWork.CampaignTasks.GetQueryable()
+                .AsNoTracking()
+                .Where(x => !x.CampaignTeam.IsDelete && x.CampaignTeam.Campaign.Type == CampaignType.Relief)
+                .Include(x => x.CampaignTeam)
+                    .ThenInclude(x => x.Campaign)
+                .Include(x => x.CampaignTeam)
+                    .ThenInclude(x => x.Team)
+                        .ThenInclude(x => x.TeamMembers)
+                .Include(x => x.MemberTasks)
+                    .ThenInclude(x => x.VolunteerProfile)
+                        .ThenInclude(x => x.User)
+                .AsQueryable();
+
+            if (from.HasValue)
+            {
+                query = query.Where(x => x.CreatedAt >= from.Value || x.StartDate >= from.Value || (x.DueDate.HasValue && x.DueDate.Value >= from.Value));
+            }
+
+            if (to.HasValue)
+            {
+                query = query.Where(x => x.CreatedAt <= to.Value || x.StartDate <= to.Value || (x.DueDate.HasValue && x.DueDate.Value <= to.Value));
+            }
+
+            if (teamId.HasValue && teamId.Value != Guid.Empty)
+            {
+                query = query.Where(x => x.CampaignTeam.TeamId == teamId.Value);
+            }
+
+            if (campaignId.HasValue && campaignId.Value != Guid.Empty)
+            {
+                query = query.Where(x => x.CampaignTeam.CampaignId == campaignId.Value);
+            }
+
+            var tasks = await query
+                .OrderByDescending(x => x.CreatedAt)
+                .ToListAsync(cancellationToken);
+
+            return tasks.Select(task => new AdminCampaignTaskAggregateResponse
+            {
+                CampaignTaskId = task.CampaignTaskId,
+                CampaignId = task.CampaignTeam.CampaignId,
+                CampaignTeamId = task.CampaignTeamId,
+                CampaignTeamName = task.CampaignTeam.Team?.Name ?? string.Empty,
+                Title = task.Title,
+                Description = task.Description,
+                StartDate = task.StartDate,
+                DueDate = task.DueDate,
+                Status = task.Status,
+                Priority = task.Priority,
+                CreatedBy = task.CreatedBy,
+                CreatedAt = task.CreatedAt,
+                MemberTaskCount = task.MemberTasks.Count,
+                CompletedMemberTaskCount = task.MemberTasks.Count(x => x.Status == MemberTaskStatus.Completed),
+                MemberTasks = task.MemberTasks.Select(x => MapMemberTask(x, ResolveVolunteerDisplayName(x.VolunteerProfile))).ToList(),
+                TeamId = task.CampaignTeam.TeamId,
+                TeamName = task.CampaignTeam.Team?.Name ?? string.Empty,
+                TeamType = task.CampaignTeam.Team?.TeamType.ToString() ?? string.Empty,
+                TeamMemberCount = task.CampaignTeam.Team?.TeamMembers.Count ?? 0,
+                CampaignName = task.CampaignTeam.Campaign?.Name ?? string.Empty,
+                CampaignStatus = task.CampaignTeam.Campaign?.Status.ToString() ?? string.Empty,
+            }).ToList();
+        }
+
+        public async Task<List<AdminTopTeamResponse>> GetAdminTopTeamsAsync(DateTime? from = null, DateTime? to = null, Guid? teamId = null, Guid? campaignId = null, int top = 4, CancellationToken cancellationToken = default)
+        {
+            var tasks = await GetAdminTaskAggregateAsync(from, to, teamId, campaignId, cancellationToken);
+            var limit = top <= 0 ? 4 : Math.Min(top, 20);
+            var effectiveTeamIds = tasks.Select(task => task.TeamId).Distinct().ToList();
+            var allRescueOperations = await _unitOfWork.RescueOperations.GetAllAsync();
+            var rescueOperations = allRescueOperations
+                .Where(operation => operation.TeamId.HasValue)
+                .Where(operation => !from.HasValue || operation.StartedAt >= from.Value)
+                .Where(operation => !to.HasValue || operation.StartedAt <= to.Value)
+                .Select(operation => new RescueOperationTeamMetric
+                {
+                    TeamId = operation.TeamId!.Value,
+                    Status = operation.Status,
+                })
+                .ToList();
+
+            if (teamId.HasValue && teamId.Value != Guid.Empty)
+            {
+                rescueOperations = rescueOperations
+                    .Where(operation => operation.TeamId == teamId.Value)
+                    .ToList();
+            }
+
+            List<Guid> rescueOnlyTeamIds = rescueOperations
+                .Select(item => item.TeamId)
+                .Distinct()
+                .Where(id => !effectiveTeamIds.Contains(id))
+                .ToList();
+
+            List<Team> rescueOnlyTeams = rescueOnlyTeamIds.Count == 0
+                ? new List<Team>()
+                : await _unitOfWork.Teams.GetQueryable()
+                    .AsNoTracking()
+                    .Where(team => rescueOnlyTeamIds.Contains(team.TeamId))
+                    .Include(team => team.TeamMembers)
+                    .ToListAsync(cancellationToken);
+
+            List<AdminTopTeamResponse> taskBasedTeams = tasks
+                .GroupBy(task => new { task.TeamId, task.TeamName, task.TeamType })
+                .Select(group =>
+                {
+                    var memberTasks = group.SelectMany(task => task.MemberTasks).ToList();
+                    var volunteerScores = memberTasks
+                        .GroupBy(task => new { task.VolunteerProfileId, task.VolunteerName })
+                        .Select(item => new
+                        {
+                            item.Key.VolunteerName,
+                            Score = item.Sum(task => task.Status == MemberTaskStatus.Completed ? 2 : task.Status == MemberTaskStatus.InProgress ? 1 : 0),
+                        })
+                        .OrderByDescending(item => item.Score)
+                        .ThenBy(item => item.VolunteerName)
+                        .FirstOrDefault();
+
+                    var completedMemberTasks = memberTasks.Count(task => task.Status == MemberTaskStatus.Completed);
+                    var inProgressMemberTasks = memberTasks.Count(task => task.Status == MemberTaskStatus.InProgress);
+                    var failedMemberTasks = memberTasks.Count(task => task.Status == MemberTaskStatus.Failed);
+                    var teamRescueOperations = rescueOperations.Where(item => item.TeamId == group.Key.TeamId).ToList();
+                    var assignedRescueRequestCount = teamRescueOperations.Count;
+                    var completedRescueRequestCount = teamRescueOperations.Count(item => item.Status == RescueOperationStatus.RescueCompleted || item.Status == RescueOperationStatus.Closed);
+
+                    return new AdminTopTeamResponse
+                    {
+                        TeamId = group.Key.TeamId,
+                        TeamName = group.Key.TeamName,
+                        TeamType = group.Key.TeamType,
+                        CampaignId = group.Select(task => task.CampaignId).FirstOrDefault(),
+                        CampaignName = group.Select(task => task.CampaignName).FirstOrDefault() ?? string.Empty,
+                        TeamMemberCount = group.Max(task => task.TeamMemberCount),
+                        TaskCount = group.Count(),
+                        MemberTaskCount = memberTasks.Count,
+                        CompletedMemberTaskCount = completedMemberTasks,
+                        InProgressMemberTaskCount = inProgressMemberTasks,
+                        FailedMemberTaskCount = failedMemberTasks,
+                        TopVolunteerName = volunteerScores?.VolunteerName,
+                        TopVolunteerScore = volunteerScores?.Score ?? 0,
+                        LatestTaskDate = group.Max(task => task.CreatedAt),
+                        AssignedRescueRequestCount = assignedRescueRequestCount,
+                        CompletedRescueRequestCount = completedRescueRequestCount,
+                        ImpactScore = completedMemberTasks * 3m + inProgressMemberTasks * 2m + group.Count() + completedRescueRequestCount * 2m,
+                    };
+                })
+                .ToList();
+
+            List<AdminTopTeamResponse> rescueOnlyResponses = rescueOnlyTeams
+                .Select(team =>
+                {
+                    var teamRescueOperations = rescueOperations.Where(item => item.TeamId == team.TeamId).ToList();
+                    var assignedRescueRequestCount = teamRescueOperations.Count;
+                    var completedRescueRequestCount = teamRescueOperations.Count(item => item.Status == RescueOperationStatus.RescueCompleted || item.Status == RescueOperationStatus.Closed);
+
+                    return new AdminTopTeamResponse
+                    {
+                        TeamId = team.TeamId,
+                        TeamName = team.Name,
+                        TeamType = team.TeamType.ToString(),
+                        CampaignId = null,
+                        CampaignName = team.TeamType == TeamType.Rescue ? "Điều phối cứu hộ" : string.Empty,
+                        TeamMemberCount = team.TeamMembers.Count,
+                        TaskCount = 0,
+                        MemberTaskCount = 0,
+                        CompletedMemberTaskCount = 0,
+                        InProgressMemberTaskCount = 0,
+                        FailedMemberTaskCount = 0,
+                        TopVolunteerName = null,
+                        TopVolunteerScore = 0,
+                        LatestTaskDate = null,
+                        AssignedRescueRequestCount = assignedRescueRequestCount,
+                        CompletedRescueRequestCount = completedRescueRequestCount,
+                        ImpactScore = completedRescueRequestCount * 2m + assignedRescueRequestCount,
+                    };
+                })
+                .ToList();
+
+            return taskBasedTeams
+                .Concat(rescueOnlyResponses)
+                .OrderByDescending(item => item.ImpactScore)
+                .ThenByDescending(item => item.CompletedMemberTaskCount)
+                .ThenByDescending(item => item.CompletedRescueRequestCount)
+                .ThenByDescending(item => item.TeamMemberCount)
+                .Take(limit)
+                .ToList();
+        }
+
+        private sealed class RescueOperationTeamMetric
+        {
+            public Guid TeamId { get; set; }
+            public RescueOperationStatus Status { get; set; }
+        }
+
         public async Task<Pagination<MyMemberTaskResponse>> GetMyMemberTasksAsync(Guid campaignId, MyMemberTaskQueryRequest request, CancellationToken cancellationToken = default)
         {
             await GetReliefCampaignAsync(campaignId, cancellationToken);
@@ -96,27 +294,32 @@ namespace ReliefManagementSystem.Application.Services
                 .Take(pageSize)
                 .ToListAsync(cancellationToken);
 
-            var mapped = items.Select(x => new MyMemberTaskResponse
+            var mapped = items.Select(x =>
             {
-                MemberTaskId = x.MemberTaskId,
-                CampaignTaskId = x.CampaignTaskId,
-                CampaignId = x.CampaignTask.CampaignTeam.CampaignId,
-                CampaignTeamId = x.CampaignTask.CampaignTeamId,
-                CampaignTeamName = x.CampaignTask.CampaignTeam.Team?.Name ?? string.Empty,
-                CampaignTaskTitle = x.CampaignTask.Title,
-                CampaignTaskDescription = x.CampaignTask.Description,
-                StartDate = x.CampaignTask.StartDate,
-                DueDate = x.CampaignTask.DueDate,
-                CampaignTaskStatus = x.CampaignTask.Status,
-                Priority = x.CampaignTask.Priority,
-                VolunteerProfileId = x.VolunteerProfileId,
-                VolunteerName = ResolveVolunteerDisplayName(x.VolunteerProfile),
-                SubTaskTitle = x.SubTaskTitle,
-                TaskNote = x.TaskNote,
-                AssignedAt = x.AssignedAt,
-                CompletedAt = x.CompletedAt,
-                Status = x.Status,
-                Deliveries = x.MemberTaskDeliveries.Select(MapMemberTaskDelivery).ToList(),
+                var noteParts = SplitTaskNoteAndFailureReason(x.TaskNote);
+                return new MyMemberTaskResponse
+                {
+                    MemberTaskId = x.MemberTaskId,
+                    CampaignTaskId = x.CampaignTaskId,
+                    CampaignId = x.CampaignTask.CampaignTeam.CampaignId,
+                    CampaignTeamId = x.CampaignTask.CampaignTeamId,
+                    CampaignTeamName = x.CampaignTask.CampaignTeam.Team?.Name ?? string.Empty,
+                    CampaignTaskTitle = x.CampaignTask.Title,
+                    CampaignTaskDescription = x.CampaignTask.Description,
+                    StartDate = x.CampaignTask.StartDate,
+                    DueDate = x.CampaignTask.DueDate,
+                    CampaignTaskStatus = x.CampaignTask.Status,
+                    Priority = x.CampaignTask.Priority,
+                    VolunteerProfileId = x.VolunteerProfileId,
+                    VolunteerName = ResolveVolunteerDisplayName(x.VolunteerProfile),
+                    SubTaskTitle = x.SubTaskTitle,
+                    TaskNote = noteParts.TaskNote,
+                    FailureReason = noteParts.FailureReason,
+                    AssignedAt = x.AssignedAt,
+                    CompletedAt = x.CompletedAt,
+                    Status = x.Status,
+                    Deliveries = x.MemberTaskDeliveries.Select(MapMemberTaskDelivery).ToList(),
+                };
             }).ToList();
 
             return new Pagination<MyMemberTaskResponse>(mapped, totalCount, pageIndex, pageSize);
@@ -450,6 +653,13 @@ namespace ReliefManagementSystem.Application.Services
         public async Task<MemberTaskDeliveryResponse> ChangeMemberTaskDeliveryStatusAsync(Guid memberTaskDeliveryId, ChangeMemberTaskDeliveryStatusRequest request, CancellationToken cancellationToken = default)
         {
             var link = await _unitOfWork.MemberTaskDeliveries.GetQueryable()
+                .Include(x => x.MemberTask)
+                    .ThenInclude(mt => mt.CampaignTask)
+                        .ThenInclude(ct => ct.CampaignTeam)
+                .Include(x => x.MemberTask)
+                    .ThenInclude(mt => mt.CampaignTask)
+                        .ThenInclude(ct => ct.MemberTasks)
+                .Include(x => x.AssignedVolunteerProfile)
                 .FirstOrDefaultAsync(x => x.MemberTaskDeliveryId == memberTaskDeliveryId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Member task delivery '{memberTaskDeliveryId}' was not found.");
 
@@ -476,6 +686,13 @@ namespace ReliefManagementSystem.Application.Services
         public async Task<MemberTaskDeliveryResponse> CompleteMemberTaskDeliveryWithDeliveryAsync(Guid memberTaskDeliveryId, CompleteMemberTaskDeliveryWithDeliveryRequest request, CancellationToken cancellationToken = default)
         {
             var link = await _unitOfWork.MemberTaskDeliveries.GetQueryable()
+                .Include(x => x.MemberTask)
+                    .ThenInclude(mt => mt.CampaignTask)
+                        .ThenInclude(ct => ct.CampaignTeam)
+                .Include(x => x.MemberTask)
+                    .ThenInclude(mt => mt.CampaignTask)
+                        .ThenInclude(ct => ct.MemberTasks)
+                .Include(x => x.AssignedVolunteerProfile)
                 .FirstOrDefaultAsync(x => x.MemberTaskDeliveryId == memberTaskDeliveryId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Member task delivery '{memberTaskDeliveryId}' was not found.");
 
@@ -538,11 +755,29 @@ namespace ReliefManagementSystem.Application.Services
             await GetReliefCampaignAsync(task.CampaignTeam.CampaignId, cancellationToken);
             ValidateMemberTaskStatusTransition(memberTask.Status, request.Status);
 
+            var noteParts = SplitTaskNoteAndFailureReason(memberTask.TaskNote);
             memberTask.Status = request.Status;
 
-            if (request.Status == MemberTaskStatus.Completed)
+            if (request.Status == MemberTaskStatus.Failed)
             {
-                memberTask.CompletedAt = DateTime.UtcNow;
+                if (string.IsNullOrWhiteSpace(request.FailureReason))
+                    throw new InvalidOperationException("Failure reason is required when marking a subtask as failed.");
+
+                memberTask.TaskNote = ComposeTaskNoteWithFailureReason(noteParts.TaskNote, request.FailureReason);
+                memberTask.CompletedAt = null;
+            }
+            else
+            {
+                memberTask.TaskNote = ComposeTaskNoteWithFailureReason(noteParts.TaskNote, null);
+
+                if (request.Status == MemberTaskStatus.Completed)
+                {
+                    memberTask.CompletedAt = DateTime.UtcNow;
+                }
+                else
+                {
+                    memberTask.CompletedAt = null;
+                }
             }
 
             await _unitOfWork.MemberTasks.UpdateAsync(memberTask);
@@ -564,6 +799,7 @@ namespace ReliefManagementSystem.Application.Services
             var allTerminal = memberTasks.All(mt => mt.Status is MemberTaskStatus.Completed or MemberTaskStatus.Cancelled);
             var anyInProgress = memberTasks.Any(mt => mt.Status is MemberTaskStatus.InProgress);
             var anyFailed = memberTasks.Any(mt => mt.Status is MemberTaskStatus.Failed);
+            var anyActive = memberTasks.Any(mt => mt.Status is MemberTaskStatus.Assigned or MemberTaskStatus.InProgress);
 
             CampaignTaskStatus? newStatus = null;
 
@@ -572,17 +808,16 @@ namespace ReliefManagementSystem.Application.Services
                 // All subtasks done → auto-complete parent
                 newStatus = CampaignTaskStatus.Completed;
             }
-            else if (anyFailed && task.Status == CampaignTaskStatus.InProgress)
+            else if (anyFailed && task.Status != CampaignTaskStatus.Blocked)
             {
-                // A subtask failed → block parent
+                // Any failed subtask means the parent task is blocked until the leader/team resolves it.
                 newStatus = CampaignTaskStatus.Blocked;
             }
-            else if (anyInProgress && task.Status == CampaignTaskStatus.Planned)
+            else if (!anyFailed && anyActive && task.Status != CampaignTaskStatus.InProgress)
             {
-                // First subtask started → auto-start parent
+                // When failed subtasks are retried or work continues, reopen the parent task.
                 newStatus = CampaignTaskStatus.InProgress;
             }
-
             if (newStatus.HasValue && newStatus.Value != task.Status)
             {
                 task.Status = newStatus.Value;
@@ -661,6 +896,16 @@ namespace ReliefManagementSystem.Application.Services
             if (team.LeaderId == currentUserId)
                 return;
 
+            var moderatorProfile = await _unitOfWork.ModeratorProfiles.GetByUserIdAsync(currentUserId, cancellationToken);
+            if (moderatorProfile?.ReliefStationId != null)
+            {
+                var belongsToModeratorStation = team.ReliefStationTeams.Any(rst =>
+                    rst.ReliefStationId == moderatorProfile.ReliefStationId.Value);
+
+                if (belongsToModeratorStation)
+                    return;
+            }
+
             if (volunteerProfileId.HasValue)
             {
                 var volunteerProfile = await _unitOfWork.VolunteerProfiles.GetByUserIdAsync(currentUserId);
@@ -675,6 +920,8 @@ namespace ReliefManagementSystem.Application.Services
         {
             var task = await _unitOfWork.CampaignTasks.GetByIdWithDetailsAsync(campaignTaskId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Campaign task '{campaignTaskId}' was not found.");
+
+            await EnsureTeamLeaderOrCoordinatorAsync(task.CampaignTeam, cancellationToken);
 
             ValidateTaskDeletable(task.Status);
 
@@ -763,7 +1010,7 @@ namespace ReliefManagementSystem.Application.Services
             {
                 MemberTaskStatus.Assigned => next is MemberTaskStatus.InProgress or MemberTaskStatus.Cancelled,
                 MemberTaskStatus.InProgress => next is MemberTaskStatus.Completed or MemberTaskStatus.Failed or MemberTaskStatus.Cancelled,
-                MemberTaskStatus.Failed => next is MemberTaskStatus.InProgress,
+                MemberTaskStatus.Failed => next is MemberTaskStatus.InProgress or MemberTaskStatus.Cancelled,
                 _ => false
             };
 
@@ -822,19 +1069,56 @@ namespace ReliefManagementSystem.Application.Services
             };
 
         private static MemberTaskResponse MapMemberTask(MemberTask memberTask, string? volunteerName)
-            => new()
+        {
+            var noteParts = SplitTaskNoteAndFailureReason(memberTask.TaskNote);
+            return new()
             {
                 MemberTaskId = memberTask.MemberTaskId,
                 CampaignTaskId = memberTask.CampaignTaskId,
                 VolunteerProfileId = memberTask.VolunteerProfileId,
                 VolunteerName = volunteerName ?? string.Empty,
                 SubTaskTitle = memberTask.SubTaskTitle,
-                TaskNote = memberTask.TaskNote,
+                TaskNote = noteParts.TaskNote,
+                FailureReason = noteParts.FailureReason,
                 AssignedAt = memberTask.AssignedAt,
                 CompletedAt = memberTask.CompletedAt,
                 Status = memberTask.Status,
                 Deliveries = memberTask.MemberTaskDeliveries.Select(MapMemberTaskDelivery).ToList()
             };
+        }
+
+        private static (string? TaskNote, string? FailureReason) SplitTaskNoteAndFailureReason(string? storedNote)
+        {
+            if (string.IsNullOrWhiteSpace(storedNote))
+                return (null, null);
+
+            var trimmed = storedNote.Trim();
+            var markerIndex = trimmed.IndexOf(FailureReasonMarker, StringComparison.Ordinal);
+
+            if (markerIndex < 0)
+                return (trimmed, null);
+
+            var taskNote = trimmed[..markerIndex].Trim();
+            var failureReason = trimmed[(markerIndex + FailureReasonMarker.Length)..].Trim();
+
+            return (
+                string.IsNullOrWhiteSpace(taskNote) ? null : taskNote,
+                string.IsNullOrWhiteSpace(failureReason) ? null : failureReason
+            );
+        }
+
+        private static string? ComposeTaskNoteWithFailureReason(string? taskNote, string? failureReason)
+        {
+            var normalizedTaskNote = string.IsNullOrWhiteSpace(taskNote) ? null : taskNote.Trim();
+            var normalizedFailureReason = string.IsNullOrWhiteSpace(failureReason) ? null : failureReason.Trim();
+
+            if (normalizedFailureReason is null)
+                return normalizedTaskNote;
+
+            return string.IsNullOrWhiteSpace(normalizedTaskNote)
+                ? $"[FAILURE_REASON] {normalizedFailureReason}"
+                : $"{normalizedTaskNote}{FailureReasonMarker}{normalizedFailureReason}";
+        }
 
         private static MemberTaskDeliveryResponse MapMemberTaskDelivery(MemberTaskDelivery item)
             => MapMemberTaskDelivery(item, item.HouseholdDelivery);

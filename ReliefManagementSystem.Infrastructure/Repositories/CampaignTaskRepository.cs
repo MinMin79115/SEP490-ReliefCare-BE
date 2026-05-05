@@ -58,5 +58,13 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
 
             return (items, totalCount);
         }
+
+        public IQueryable<CampaignTask> GetQueryable()
+        {
+            return _context.CampaignTasks
+                .Include(x => x.CampaignTeam)
+                    .ThenInclude(x => x.Team)
+                .Include(x => x.MemberTasks);
+        }
     }
 }

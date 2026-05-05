@@ -13,5 +13,8 @@ namespace ReliefManagementSystem.Application.Features.Campaign.Dtos.Responses
         public DateTime EndDate { get; set; }
         public bool AllowOverTarget { get; set; }
         public decimal OverallProgressPercent { get; set; }
+        public decimal BudgetTotal { get; set; }
+        public decimal BudgetSpent { get; set; }
+        public decimal RemainingBudget { get; set; }
     }
 }

@@ -37,6 +37,8 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Response
         public int IsolatedHouseholds { get; set; }
         public int TotalPopulation { get; set; }
         public decimal AveragePopulationDensity { get; set; }
+        public int SuggestedPeoplePerTeam { get; set; }
+        public int SuggestedPeoplePerDistributionPointLine { get; set; }
         public int HighDensityAreaCount { get; set; }
         public int MobileTeamPriorityAreaCount { get; set; }
         public int PickupPriorityAreaCount { get; set; }
@@ -57,6 +59,8 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Response
     {
         public string AreaName { get; set; } = string.Empty;
         public Guid? LocationId { get; set; }
+        public string? MatchedLocationName { get; set; }
+        public string? LocationMatchSource { get; set; }
         public decimal PopulationDensity { get; set; }
         public int HouseholdCount { get; set; }
         public int IsolatedHouseholdCount { get; set; }
@@ -67,6 +71,8 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Response
         public string TravelComplexityLabel { get; set; } = string.Empty;
         public string RecommendedOperationalMode { get; set; } = string.Empty;
         public string RecommendedDeliveryStrategy { get; set; } = string.Empty;
+        public int SuggestedPeoplePerTeam { get; set; }
+        public int SuggestedPeoplePerDistributionPointLine { get; set; }
         public int SuggestedDistributionPointCount { get; set; }
         public int SuggestedMobileTeamCount { get; set; }
         public int SuggestedTeamCount { get; set; }
@@ -78,10 +84,13 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Response
     public class IsolatedHouseholdPlanItemResponse
     {
         public Guid CampaignHouseholdId { get; set; }
+        public Guid? CampaignTeamId { get; set; }
         public string HouseholdCode { get; set; } = string.Empty;
         public string HeadOfHouseholdName { get; set; } = string.Empty;
         public string? Address { get; set; }
         public Guid? LocationId { get; set; }
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
         public int HouseholdSize { get; set; }
         public int? FloodSeverityLevel { get; set; }
         public int? IsolationSeverityLevel { get; set; }
@@ -178,6 +187,13 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Response
         public bool IsSuccess { get; set; }
         public string? Error { get; set; }
         public CampaignHouseholdResponse? Household { get; set; }
+        public HouseholdDeliveryResponse? Delivery { get; set; }
+    }
+
+    public class AssignIsolatedHouseholdTeamResponse
+    {
+        public CampaignHouseholdResponse Household { get; set; } = null!;
+        public HouseholdDeliveryResponse Delivery { get; set; } = null!;
     }
 
     public class DistributionPointResponse
