@@ -7,6 +7,7 @@ using ReliefManagementSystem.Application.Interface;
 using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Domain.Enum;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace ReliefManagementSystem.Application.Services
 {
@@ -51,11 +52,12 @@ namespace ReliefManagementSystem.Application.Services
                 14,
                 cancellationToken);
 
-            DisasterType? requestedDisasterType = null;
+            DisasterType? requestedDisasterType = DisasterType.Flood;
             var analysisMode = "AutoDetect";
 
             LlmDisasterAnalysisResult? llmResult = null;
             string? llmError = null;
+            string? llmRawResponseOnError = null;
 
             try
             {
@@ -63,10 +65,15 @@ namespace ReliefManagementSystem.Application.Services
                     weather,
                     forecast,
                     locationName,
-                    null,
+                    requestedDisasterType?.ToString(),
                     request.AdditionalContext,
                     null,
                     cancellationToken);
+            }
+            catch (LlmAnalysisException ex) when (!cancellationToken.IsCancellationRequested)
+            {
+                llmError = ex.Message;
+                llmRawResponseOnError = ex.RawResponse;
             }
             catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
             {
@@ -79,7 +86,7 @@ namespace ReliefManagementSystem.Application.Services
                 Latitude = request.Latitude,
                 Longitude = request.Longitude,
                 LocationName = locationName,
-                DisasterType = DisasterType.Other,
+                DisasterType = requestedDisasterType ?? DisasterType.Flood,
                 RequestedModel = null,
                 AdditionalContext = request.AdditionalContext,
                 WeatherSnapshotJson = JsonSerializer.Serialize(new { current = weather, forecast }),
@@ -93,7 +100,7 @@ namespace ReliefManagementSystem.Application.Services
                 LlmProvider = llmResult?.ProviderName,
                 LlmModel = llmResult?.ModelUsed,
                 PromptVersion = llmResult?.PromptVersion,
-                LlmResponseJson = llmResult?.RawResponse,
+                LlmResponseJson = llmResult?.RawResponse ?? llmRawResponseOnError,
                 ErrorMessage = llmError
             };
 
@@ -123,8 +130,63 @@ namespace ReliefManagementSystem.Application.Services
                     Recommendations = llmResult?.Recommendations?.ToList() ?? BuildFallbackRecommendations(forecast),
                     PotentialScenarios = llmResult?.PotentialScenarios?.ToList() ?? BuildFallbackScenarios(forecast),
                     DetectedConcerns = llmResult?.DetectedConcerns?.ToList() ?? BuildDetectedConcerns(forecast),
+                    LlmResponse = ParseJsonOrNull(log.LlmResponseJson),
+                    TriggerFactors = ParseJsonOrNull(log.TriggerFactorsJson),
+                    TopThreats = ParseJsonOrNull(log.TopThreatsJson),
                     ErrorMessage = llmError == null ? null : "Không thể tạo phần phân tích AI từ mô hình trong lần gọi này. Hệ thống đang trả về tóm tắt tối thiểu từ dữ liệu thời tiết thô."
                 }
+            };
+        }
+
+        public async Task<NearestDisasterAnalysisResponse?> GetNearestAnalysisAsync(
+            double latitude,
+            double longitude,
+            CancellationToken cancellationToken = default)
+        {
+            ValidateCoordinates(latitude, longitude);
+
+            var logs = await _unitOfWork.DisasterAnalysisLogs.GetAllAsync();
+            var nearest = logs
+                .Where(x => !x.IsDeleted)
+                .Select(x => new
+                {
+                    Log = x,
+                    DistanceKm = CalculateDistanceKm(latitude, longitude, x.Latitude, x.Longitude)
+                })
+                .OrderBy(x => x.DistanceKm)
+                .ThenByDescending(x => x.Log.CreatedAt)
+                .FirstOrDefault();
+
+            if (nearest == null)
+            {
+                return null;
+            }
+
+            var log = nearest.Log;
+            return new NearestDisasterAnalysisResponse
+            {
+                AnalysisLogId = log.DisasterAnalysisLogId,
+                RequestedLatitude = latitude,
+                RequestedLongitude = longitude,
+                MatchedLatitude = log.Latitude,
+                MatchedLongitude = log.Longitude,
+                DistanceKm = Math.Round(nearest.DistanceKm, 3),
+                LocationName = log.LocationName,
+                DisasterType = log.DisasterType.ToString(),
+                CreatedAt = log.CreatedAt,
+                HeuristicRiskLevel = log.HeuristicRiskLevel,
+                HeuristicRiskScore = log.HeuristicRiskScore,
+                AssessmentConfidence = log.AssessmentConfidence,
+                DataLimitationNote = log.DataLimitationNote,
+                LlmProvider = log.LlmProvider,
+                LlmModel = log.LlmModel,
+                PromptVersion = log.PromptVersion,
+                ErrorMessage = log.ErrorMessage,
+                WeatherSnapshot = ParseJsonOrNull(log.WeatherSnapshotJson),
+                LlmResponse = ParseJsonOrNull(log.LlmResponseJson),
+                PotentialScenarios = ParseJsonOrNull(log.PotentialScenariosJson),
+                TriggerFactors = ParseJsonOrNull(log.TriggerFactorsJson),
+                TopThreats = ParseJsonOrNull(log.TopThreatsJson)
             };
         }
 
@@ -134,8 +196,8 @@ namespace ReliefManagementSystem.Application.Services
             var target = requestedDisasterType?.ToString() ?? "rủi ro thời tiết";
 
             return peakDay == null
-                ? $"AI chưa phản hồi kịp. Hệ thống đang trả về dữ liệu thời tiết tham khảo để bạn tự xem xu hướng {target.ToLowerInvariant()} trong 14 ngày tới."
-                : $"AI chưa phản hồi kịp. Dựa trên forecast thô, thời điểm cần lưu ý nhất hiện quanh ngày {peakDay.Date:dd/MM}, khi lượng mưa dự báo khoảng {peakDay.PrecipMm:0.##} mm.";
+                ? $"Chưa thể tạo phần diễn giải AI. Hệ thống đang trả về dữ liệu thời tiết tham khảo để bạn tự xem xu hướng {target.ToLowerInvariant()} trong 14 ngày tới."
+                : $"Chưa thể tạo phần diễn giải AI. Dựa trên forecast thô, thời điểm cần lưu ý nhất hiện quanh ngày {peakDay.Date:dd/MM}, khi lượng mưa dự báo khoảng {peakDay.PrecipMm:0.##} mm.";
         }
 
         private static string BuildFallbackDetailedAnalysis(WeatherForecastResult forecast)
@@ -182,21 +244,12 @@ namespace ReliefManagementSystem.Application.Services
             if (forecast.Days.Sum(x => x.PrecipMm) >= 50) concerns.Add("Mưa tích lũy nhiều ngày");
             if (forecast.Days.Any(x => x.PrecipMm >= 20)) concerns.Add("Có ngày mưa nổi bật");
             if (forecast.Days.Count(x => x.PrecipProbability >= 70) >= 3) concerns.Add("Xác suất mưa cao lặp lại");
-            if (forecast.Days.Any(x => x.WindGustKph >= 35)) concerns.Add("Có gió giật cần lưu ý");
             return concerns;
         }
 
         private static void ValidateRequest(AnalyzeDisasterRiskRequest request)
         {
-            if (request.Latitude < -90 || request.Latitude > 90)
-            {
-                throw new ArgumentOutOfRangeException(nameof(request.Latitude), "Latitude must be between -90 and 90.");
-            }
-
-            if (request.Longitude < -180 || request.Longitude > 180)
-            {
-                throw new ArgumentOutOfRangeException(nameof(request.Longitude), "Longitude must be between -180 and 180.");
-            }
+            ValidateCoordinates(request.Latitude, request.Longitude);
 
             if (!string.IsNullOrWhiteSpace(request.LocationName) && request.LocationName.Trim().Length > 200)
             {
@@ -208,5 +261,51 @@ namespace ReliefManagementSystem.Application.Services
                 throw new ArgumentOutOfRangeException(nameof(request.AdditionalContext), "AdditionalContext must be 2000 characters or fewer.");
             }
         }
+
+        private static void ValidateCoordinates(double latitude, double longitude)
+        {
+            if (latitude < -90 || latitude > 90)
+            {
+                throw new ArgumentOutOfRangeException(nameof(latitude), "Latitude must be between -90 and 90.");
+            }
+
+            if (longitude < -180 || longitude > 180)
+            {
+                throw new ArgumentOutOfRangeException(nameof(longitude), "Longitude must be between -180 and 180.");
+            }
+        }
+
+        private static JsonNode? ParseJsonOrNull(string? json)
+        {
+            if (string.IsNullOrWhiteSpace(json))
+            {
+                return null;
+            }
+
+            try
+            {
+                return JsonNode.Parse(json);
+            }
+            catch (JsonException)
+            {
+                return JsonValue.Create(json);
+            }
+        }
+
+        private static double CalculateDistanceKm(double lat1, double lon1, double lat2, double lon2)
+        {
+            const double earthRadiusKm = 6371.0088;
+            var dLat = ToRadians(lat2 - lat1);
+            var dLon = ToRadians(lon2 - lon1);
+            var rLat1 = ToRadians(lat1);
+            var rLat2 = ToRadians(lat2);
+
+            var a = Math.Sin(dLat / 2) * Math.Sin(dLat / 2)
+                + Math.Cos(rLat1) * Math.Cos(rLat2) * Math.Sin(dLon / 2) * Math.Sin(dLon / 2);
+            var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+            return earthRadiusKm * c;
+        }
+
+        private static double ToRadians(double degrees) => degrees * Math.PI / 180;
     }
 }

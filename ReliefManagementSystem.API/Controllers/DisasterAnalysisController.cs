@@ -46,5 +46,45 @@ namespace ReliefManagementSystem.API.Controllers
                 });
             }
         }
+
+        [HttpGet("nearest")]
+        [AllowAnonymous]
+        [SwaggerOperation(
+            OperationId = "GetNearestDisasterAnalysis",
+            Summary = "Lấy bản phân tích thời tiết gần nhất theo tọa độ",
+            Description = "Truyền latitude/longitude để lấy bản ghi DisasterAnalysisLogs gần nhất đã được phân tích trước đó, dùng hiển thị dữ liệu tham khảo trước khi gọi phân tích mới.")]
+        [ProducesResponseType(typeof(NearestDisasterAnalysisResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> GetNearest(
+            [FromQuery] double latitude,
+            [FromQuery] double longitude,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                var result = await _disasterAnalysisService.GetNearestAnalysisAsync(latitude, longitude, cancellationToken);
+                if (result == null)
+                {
+                    return NotFound(new
+                    {
+                        statusCode = StatusCodes.Status404NotFound,
+                        message = "No analyzed weather data was found.",
+                        traceId = HttpContext.TraceIdentifier
+                    });
+                }
+
+                return Ok(result);
+            }
+            catch (ArgumentOutOfRangeException ex)
+            {
+                return BadRequest(new
+                {
+                    statusCode = StatusCodes.Status400BadRequest,
+                    message = ex.Message,
+                    traceId = HttpContext.TraceIdentifier
+                });
+            }
+        }
     }
 }
