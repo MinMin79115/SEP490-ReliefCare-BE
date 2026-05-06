@@ -54,8 +54,14 @@ namespace ReliefManagementSystem.Application.Services
             LoginRequest request,
             CancellationToken cancellationToken)
         {
+            var identifier = request.Identifier ?? request.Email;
+            if (string.IsNullOrWhiteSpace(identifier))
+            {
+                throw new UnauthorizedAccessException("Identifier is required.");
+            }
+
             var user = await _identityAuthService.ValidateByEmailAsync(
-                request.Email,
+                identifier,
                 request.Password,
                 cancellationToken);
 
