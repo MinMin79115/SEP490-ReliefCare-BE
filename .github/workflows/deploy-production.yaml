@@ -80,8 +80,8 @@ jobs:
       PAYOS_RETURN_URL: ${{ secrets.PROD_PAYOS_RETURN }}
       PAYOS_CANCEL_URL: ${{ secrets.PROD_PAYOS_CANCEL }}
       PGADMIN_PASSWORD: ${{ secrets.PROD_PGADMIN_PASSWORD }}
-      CENTRIFUGO_API_KEY: ${{ secrets.STAGING_CENTRIFUGO_API_KEY }}
-      CENTRIFUGO_SECRET: ${{ secrets.STAGING_CENTRIFUGO_SECRET }}
+      CENTRIFUGO_API_KEY: ${{ secrets.PROD_CENTRIFUGO_API_KEY }}
+      CENTRIFUGO_SECRET: ${{ secrets.PROD_CENTRIFUGO_SECRET }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
