@@ -1017,12 +1017,6 @@ namespace ReliefManagementSystem.Application.Services
 
             if (request.RescueRequestType == RescueRequestType.Normal)
             {
-                var pendingIds = activeBatch.Items
-                    .Where(i => i.Status != RescueBatchItemStatus.InProgress)
-                    .OrderBy(i => i.SequenceOrder)
-                    .Select(i => i.RescueRequestId)
-                    .ToList();
-
                 preview.RecommendedAction = preview.IsNearCurrentRoute
                     ? "AssignAndInsertQueue"
                     : "AssignQueueTail";
@@ -1031,25 +1025,57 @@ namespace ReliefManagementSystem.Application.Services
                     ? new List<Guid> { currentInProgress.RescueRequestId }
                     : new List<Guid>();
 
-                var inserted = false;
-                foreach (var pendingId in pendingIds)
+                var pendingItems = activeBatch.Items
+                    .Where(i => i.Status != RescueBatchItemStatus.InProgress)
+                    .OrderBy(i => i.SequenceOrder)
+                    .ToList();
+
+                var scoredCandidates = new List<(Guid RequestId, double Score, DateTime CreatedAt)>();
+
+                scoredCandidates.Add((
+                    requestId,
+                    CalculateDispatchScore(
+                        request.RescueRequestType,
+                        request.PriorityPoint,
+                        preview.DistanceFromTeamKm,
+                        preview.DistanceToCurrentInProgressKm,
+                        preview.MinDistanceToCurrentRouteMeters,
+                        preview.DetourMeters,
+                        preview.DetourSeconds),
+                    request.CreatedAt));
+
+                foreach (var pendingItem in pendingItems)
                 {
-                    var pendingItem = activeBatch.Items.First(i => i.RescueRequestId == pendingId);
-                    var pendingPriority = pendingItem.RescueRequest?.PriorityPoint ?? 0;
-                    var newPriority = request.PriorityPoint ?? 0;
-                    if (!inserted && (newPriority > pendingPriority))
+                    if (pendingItem.RescueRequest == null)
                     {
-                        preview.ProposedRequestIdsInOrder.Add(requestId);
-                        inserted = true;
+                        continue;
                     }
 
-                    preview.ProposedRequestIdsInOrder.Add(pendingId);
+                    var pendingMetrics = await BuildDispatchMetricsForRequestAsync(
+                        pendingItem.RescueRequest,
+                        latestTracking,
+                        currentInProgress?.RescueRequest,
+                        normalNearRouteThresholdKm,
+                        emergencyNearRouteThresholdKm,
+                        cancellationToken);
+
+                    scoredCandidates.Add((
+                        pendingItem.RescueRequestId,
+                        CalculateDispatchScore(
+                            pendingItem.RescueRequest.RescueRequestType,
+                            pendingItem.RescueRequest.PriorityPoint,
+                            pendingMetrics.DistanceFromTeamKm,
+                            pendingMetrics.DistanceToCurrentInProgressKm,
+                            pendingMetrics.MinDistanceToCurrentRouteMeters,
+                            pendingMetrics.DetourMeters,
+                            pendingMetrics.DetourSeconds),
+                        pendingItem.RescueRequest.CreatedAt));
                 }
 
-                if (!inserted)
-                {
-                    preview.ProposedRequestIdsInOrder.Add(requestId);
-                }
+                preview.ProposedRequestIdsInOrder.AddRange(scoredCandidates
+                    .OrderByDescending(x => x.Score)
+                    .ThenBy(x => x.CreatedAt)
+                    .Select(x => x.RequestId));
 
                 return preview;
             }
@@ -1057,10 +1083,62 @@ namespace ReliefManagementSystem.Application.Services
             preview.RecommendedAction = "AssignAndInsertQueue";
             preview.RecommendedQueueIndex = currentInProgress != null ? 1 : 0;
             preview.ProposedRequestIdsInOrder = currentInProgress != null
-                ? new List<Guid> { currentInProgress.RescueRequestId, requestId }
-                : new List<Guid> { requestId };
-            preview.ProposedRequestIdsInOrder.AddRange(orderedActiveIds.Where(id => id != preview.CurrentInProgressRequestId));
-            preview.Reasons.Add("Emergency request is inserted after the current in-progress mission. Preemption is disabled.");
+                ? new List<Guid> { currentInProgress.RescueRequestId }
+                : new List<Guid>();
+
+            var emergencyPendingItems = activeBatch.Items
+                .Where(i => i.Status != RescueBatchItemStatus.InProgress)
+                .OrderBy(i => i.SequenceOrder)
+                .ToList();
+
+            var emergencyScoredCandidates = new List<(Guid RequestId, double Score, DateTime CreatedAt)>();
+
+            emergencyScoredCandidates.Add((
+                requestId,
+                CalculateDispatchScore(
+                    request.RescueRequestType,
+                    request.PriorityPoint,
+                    preview.DistanceFromTeamKm,
+                    preview.DistanceToCurrentInProgressKm,
+                    preview.MinDistanceToCurrentRouteMeters,
+                    preview.DetourMeters,
+                    preview.DetourSeconds),
+                request.CreatedAt));
+
+            foreach (var pendingItem in emergencyPendingItems)
+            {
+                if (pendingItem.RescueRequest == null)
+                {
+                    continue;
+                }
+
+                var pendingMetrics = await BuildDispatchMetricsForRequestAsync(
+                    pendingItem.RescueRequest,
+                    latestTracking,
+                    currentInProgress?.RescueRequest,
+                    normalNearRouteThresholdKm,
+                    emergencyNearRouteThresholdKm,
+                    cancellationToken);
+
+                emergencyScoredCandidates.Add((
+                    pendingItem.RescueRequestId,
+                    CalculateDispatchScore(
+                        pendingItem.RescueRequest.RescueRequestType,
+                        pendingItem.RescueRequest.PriorityPoint,
+                        pendingMetrics.DistanceFromTeamKm,
+                        pendingMetrics.DistanceToCurrentInProgressKm,
+                        pendingMetrics.MinDistanceToCurrentRouteMeters,
+                        pendingMetrics.DetourMeters,
+                        pendingMetrics.DetourSeconds),
+                    pendingItem.RescueRequest.CreatedAt));
+            }
+
+            preview.ProposedRequestIdsInOrder.AddRange(emergencyScoredCandidates
+                .OrderByDescending(x => x.Score)
+                .ThenBy(x => x.CreatedAt)
+                .Select(x => x.RequestId));
+
+            preview.Reasons.Add("Emergency request is queued after the current in-progress mission and ranked by smart dispatch score.");
             return preview;
         }
 
@@ -2536,6 +2614,132 @@ namespace ReliefManagementSystem.Application.Services
 
         private static List<AssignedVehicleDto> GetAssignedVehicles(RescueOperation operation)
             => MapAssignedVehicles(operation);
+
+        private async Task<(double? DistanceFromTeamKm, double? DistanceToCurrentInProgressKm, double? MinDistanceToCurrentRouteMeters, int? DetourMeters, int? DetourSeconds)> BuildDispatchMetricsForRequestAsync(
+            Domain.Entities.RescueRequest request,
+            TeamTrackingPoint latestTracking,
+            Domain.Entities.RescueRequest? currentInProgressRequest,
+            double normalNearRouteThresholdKm,
+            double emergencyNearRouteThresholdKm,
+            CancellationToken cancellationToken)
+        {
+            double? distanceFromTeamKm = CalculateDistance(
+                latestTracking.Latitude,
+                latestTracking.Longitude,
+                request.Latitude,
+                request.Longitude);
+
+            double? distanceToCurrentInProgressKm = null;
+            double? minDistanceToCurrentRouteMeters = null;
+            int? detourMeters = null;
+            int? detourSeconds = null;
+
+            if (currentInProgressRequest != null)
+            {
+                distanceToCurrentInProgressKm = CalculateDistance(
+                    request.Latitude,
+                    request.Longitude,
+                    currentInProgressRequest.Latitude,
+                    currentInProgressRequest.Longitude);
+
+                try
+                {
+                    var routeA = await _goongRouteService.GetRouteAsync(
+                        latestTracking.Latitude,
+                        latestTracking.Longitude,
+                        currentInProgressRequest.Latitude,
+                        currentInProgressRequest.Longitude,
+                        cancellationToken: cancellationToken);
+
+                    var routeToRequest = await _goongRouteService.GetRouteAsync(
+                        latestTracking.Latitude,
+                        latestTracking.Longitude,
+                        request.Latitude,
+                        request.Longitude,
+                        cancellationToken: cancellationToken);
+
+                    if (routeToRequest?.DistanceMeters.HasValue == true)
+                    {
+                        distanceFromTeamKm = Math.Round(routeToRequest.DistanceMeters.Value / 1000d, 2);
+                    }
+
+                    var routeRequestToCurrent = await _goongRouteService.GetRouteAsync(
+                        request.Latitude,
+                        request.Longitude,
+                        currentInProgressRequest.Latitude,
+                        currentInProgressRequest.Longitude,
+                        cancellationToken: cancellationToken);
+
+                    if (routeRequestToCurrent?.DistanceMeters.HasValue == true)
+                    {
+                        distanceToCurrentInProgressKm = Math.Round(routeRequestToCurrent.DistanceMeters.Value / 1000d, 2);
+                    }
+
+                    if (routeA != null && !string.IsNullOrWhiteSpace(routeA.OverviewPolyline))
+                    {
+                        var routePoints = DecodePolyline(routeA.OverviewPolyline);
+                        if (routePoints.Count > 0)
+                        {
+                            minDistanceToCurrentRouteMeters = GetMinDistanceToRouteMeters(
+                                request.Latitude,
+                                request.Longitude,
+                                routePoints);
+                        }
+
+                        if (routeA.DistanceMeters.HasValue && routeToRequest?.DistanceMeters.HasValue == true && routeRequestToCurrent?.DistanceMeters.HasValue == true)
+                        {
+                            detourMeters = Math.Max(0, routeToRequest.DistanceMeters.Value + routeRequestToCurrent.DistanceMeters.Value - routeA.DistanceMeters.Value);
+                        }
+
+                        if (routeA.DurationSeconds.HasValue && routeToRequest?.DurationSeconds.HasValue == true && routeRequestToCurrent?.DurationSeconds.HasValue == true)
+                        {
+                            detourSeconds = Math.Max(0, routeToRequest.DurationSeconds.Value + routeRequestToCurrent.DurationSeconds.Value - routeA.DurationSeconds.Value);
+                        }
+                    }
+                }
+                catch (Exception) when (!cancellationToken.IsCancellationRequested)
+                {
+                }
+            }
+
+            return (distanceFromTeamKm, distanceToCurrentInProgressKm, minDistanceToCurrentRouteMeters, detourMeters, detourSeconds);
+        }
+
+        private static double CalculateDispatchScore(
+            RescueRequestType rescueRequestType,
+            decimal? priorityPoint,
+            double? distanceFromTeamKm,
+            double? distanceToCurrentInProgressKm,
+            double? minDistanceToCurrentRouteMeters,
+            int? detourMeters,
+            int? detourSeconds)
+        {
+            static double Clamp01(double value) => Math.Max(0d, Math.Min(1d, value));
+
+            var priorityScore = Clamp01((double)(priorityPoint ?? 0m) / 100d);
+            var teamDistanceScore = distanceFromTeamKm.HasValue ? Clamp01(1d - (distanceFromTeamKm.Value / 20d)) : 0d;
+            var currentMissionDistanceScore = distanceToCurrentInProgressKm.HasValue ? Clamp01(1d - (distanceToCurrentInProgressKm.Value / 15d)) : 0d;
+            var routeProximityScore = minDistanceToCurrentRouteMeters.HasValue ? Clamp01(1d - (minDistanceToCurrentRouteMeters.Value / 3000d)) : 0d;
+            var detourDistanceScore = detourMeters.HasValue ? Clamp01(1d - (detourMeters.Value / 5000d)) : 0d;
+            var detourTimeScore = detourSeconds.HasValue ? Clamp01(1d - (detourSeconds.Value / 900d)) : 0d;
+
+            if (rescueRequestType == RescueRequestType.Emergency)
+            {
+                return (priorityScore * 0.40d)
+                     + (teamDistanceScore * 0.20d)
+                     + (currentMissionDistanceScore * 0.10d)
+                     + (routeProximityScore * 0.15d)
+                     + (detourDistanceScore * 0.05d)
+                     + (detourTimeScore * 0.10d);
+            }
+
+            return (priorityScore * 0.35d)
+                 + (teamDistanceScore * 0.15d)
+                 + (currentMissionDistanceScore * 0.10d)
+                 + (routeProximityScore * 0.20d)
+                 + (detourDistanceScore * 0.10d)
+                 + (detourTimeScore * 0.10d);
+        }
 
         private static List<RescueOperationSupplyDto> MapOperationSupplies(RescueOperation operation)
         {
