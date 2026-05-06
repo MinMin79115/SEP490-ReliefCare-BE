@@ -468,6 +468,7 @@ namespace ReliefManagementSystem.Application.Services
                     CampaignType = (int)ct.Campaign.Type,
                     CampaignTeamId = ct.CampaignTeamId,
                     Status = (int)ct.Status,
+                    CampaignStatus = (int)ct.Campaign.Status,
                     Role = (int)ct.Role
                 })
                 .ToList();
@@ -837,6 +838,7 @@ namespace ReliefManagementSystem.Application.Services
                         CampaignType = (int)ct.Campaign.Type,
                         CampaignTeamId = ct.CampaignTeamId,
                         Status = (int)ct.Status,
+                        CampaignStatus = (int)ct.Campaign.Status,
                         Role = (int)ct.Role
                     })
                     .ToList(),

@@ -208,7 +208,13 @@ namespace ReliefManagementSystem.Infrastructure.Security
             string password,
             CancellationToken cancellationToken)
         {
-            var user = await _userManager.FindByEmailAsync(email);
+            var identifier = email?.Trim();
+            var user = await _userManager.FindByEmailAsync(identifier!);
+
+            if (user == null && !string.IsNullOrWhiteSpace(identifier))
+            {
+                user = await _userManager.FindByNameAsync(identifier);
+            }
 
             if (user == null)
                 throw new InvalidCredentialsException();
