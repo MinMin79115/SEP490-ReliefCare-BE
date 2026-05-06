@@ -194,7 +194,11 @@ namespace ReliefManagementSystem.Application.Services
                 request.Status,
                 request.Type,
                 request.LocationId,
+                request.ReliefStationId,
                 request.ForVolunteerRegistration,
+                request.SupportsVolunteerRegistration,
+                request.HasMoneyGoal,
+                request.SupportsDonation,
                 cancellationToken);
 
             var mapped = items.Select(MapSummary).ToList();
@@ -264,11 +268,6 @@ namespace ReliefManagementSystem.Application.Services
             var campaign = await _unitOfWork.Campaigns.GetWithStationsAsync(campaignId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
 
-            if (campaign.Type == CampaignType.Fundraising)
-            {
-                throw new InvalidOperationException("Fundraising campaign không gắn relief station.");
-            }
-
             await AttachStationInternalAsync(campaignId, request.ReliefStationId, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
 
@@ -282,11 +281,6 @@ namespace ReliefManagementSystem.Application.Services
         {
             var campaign = await _unitOfWork.Campaigns.GetWithDetailsAsync(campaignId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
-
-            if (campaign.Type == CampaignType.Fundraising)
-            {
-                throw new InvalidOperationException("Fundraising campaign không dùng relief station.");
-            }
 
             var station = await _unitOfWork.Campaigns.GetStationAsync(campaignId, reliefStationId, cancellationToken)
                 ?? throw new KeyNotFoundException($"Station '{reliefStationId}' is not attached to campaign '{campaignId}'.");
@@ -357,18 +351,10 @@ namespace ReliefManagementSystem.Application.Services
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
                 await _unitOfWork.CommitTransactionAsync(cancellationToken);
 
-                return new CampaignBudgetTransferResponse
-                {
-                    CampaignBudgetTransferId = transfer.CampaignBudgetTransferId,
-                    SourceCampaignId = transfer.SourceCampaignId,
-                    TargetCampaignId = transfer.TargetCampaignId,
-                    Amount = transfer.Amount,
-                    TransferredByUserId = transfer.TransferredByUserId,
-                    TransferredAt = transfer.TransferredAt,
-                    Note = transfer.Note,
-                    SourceRemainingBudget = source.BudgetTotal - source.BudgetSpent,
-                    TargetRemainingBudget = target.BudgetTotal - target.BudgetSpent
-                };
+                return MapBudgetTransfer(
+                    transfer,
+                    source.BudgetTotal - source.BudgetSpent,
+                    target.BudgetTotal - target.BudgetSpent);
             }
             catch (Exception ex)
             {
@@ -386,6 +372,88 @@ namespace ReliefManagementSystem.Application.Services
                         Exception = ex.Message
                     },
                     cancellationToken);
+                throw;
+            }
+        }
+
+        public async Task<IReadOnlyList<CampaignBudgetTransferResponse>> GetBudgetTransferHistoryAsync(Guid campaignId, bool includeDeleted = false, CancellationToken cancellationToken = default)
+        {
+            var campaign = await _unitOfWork.Campaigns.GetWithDetailsAsync(campaignId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
+
+            var transfers = await _unitOfWork.CampaignBudgetTransfers.GetByCampaignAsync(campaign.CampaignId, includeDeleted, cancellationToken);
+            var campaignIds = transfers
+                .SelectMany(x => new[] { x.SourceCampaignId, x.TargetCampaignId })
+                .Distinct()
+                .ToList();
+
+            var campaigns = new Dictionary<Guid, Domain.Entities.Campaign>();
+            foreach (var id in campaignIds)
+            {
+                var relatedCampaign = await _unitOfWork.Campaigns.GetWithDetailsAsync(id, cancellationToken);
+                if (relatedCampaign is not null)
+                {
+                    campaigns[id] = relatedCampaign;
+                }
+            }
+
+            return transfers.Select(transfer => MapBudgetTransfer(
+                transfer,
+                campaigns.TryGetValue(transfer.SourceCampaignId, out var source)
+                    ? source.BudgetTotal - source.BudgetSpent
+                    : 0,
+                campaigns.TryGetValue(transfer.TargetCampaignId, out var target)
+                    ? target.BudgetTotal - target.BudgetSpent
+                    : 0)).ToList();
+        }
+
+        public async Task DeleteBudgetTransferHistoryAsync(Guid campaignId, Guid campaignBudgetTransferId, CancellationToken cancellationToken = default)
+        {
+            var campaign = await _unitOfWork.Campaigns.GetWithDetailsAsync(campaignId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
+
+            var transfer = await _unitOfWork.CampaignBudgetTransfers.GetByIdAsync(campaignBudgetTransferId)
+                ?? throw new KeyNotFoundException($"Campaign budget transfer '{campaignBudgetTransferId}' was not found.");
+
+            if (transfer.IsDeleted)
+            {
+                throw new InvalidOperationException("Budget transfer history has already been cancelled.");
+            }
+
+            if (transfer.SourceCampaignId != campaign.CampaignId && transfer.TargetCampaignId != campaign.CampaignId)
+            {
+                throw new InvalidOperationException("Budget transfer does not belong to this campaign.");
+            }
+
+            var source = await _unitOfWork.Campaigns.GetWithDetailsAsync(transfer.SourceCampaignId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Source campaign '{transfer.SourceCampaignId}' was not found.");
+            var target = await _unitOfWork.Campaigns.GetWithDetailsAsync(transfer.TargetCampaignId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Target campaign '{transfer.TargetCampaignId}' was not found.");
+
+            if (target.BudgetTotal < transfer.Amount)
+            {
+                throw new InvalidOperationException("Target campaign does not have enough budget to reverse this transfer.");
+            }
+
+            await _unitOfWork.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                source.BudgetSpent = Math.Max(0, source.BudgetSpent - transfer.Amount);
+                target.BudgetTotal -= transfer.Amount;
+
+                transfer.IsDeleted = true;
+                transfer.CancelledAt = DateTime.UtcNow;
+                transfer.CancelledByUserId = _currentUserService.UserId;
+
+                await _unitOfWork.Campaigns.UpdateAsync(source);
+                await _unitOfWork.Campaigns.UpdateAsync(target);
+                await _unitOfWork.CampaignBudgetTransfers.UpdateAsync(transfer);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            }
+            catch
+            {
+                await _unitOfWork.RollbackTransactionAsync(cancellationToken);
                 throw;
             }
         }
@@ -552,6 +620,417 @@ namespace ReliefManagementSystem.Application.Services
             campaignTeam.Status = CampaignTeamStatus.Cancelled;
             await _unitOfWork.Campaigns.UpdateCampaignTeamAsync(campaignTeam, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
+        public async Task<CampaignAssignedVehicleResponse> AssignVehicleToTeamAsync(Guid campaignId, AssignCampaignVehicleRequest request, CancellationToken cancellationToken = default)
+        {
+            var campaign = await _unitOfWork.Campaigns.GetWithDetailsAsync(campaignId, cancellationToken)
+                ?? throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
+
+            if (campaign.Type != CampaignType.Relief)
+                throw new InvalidOperationException("Vehicle assignment is only available for relief campaigns.");
+
+            var campaignTeam = await _unitOfWork.Campaigns.GetCampaignTeamsAsync(campaignId, cancellationToken);
+            var matchedTeam = campaignTeam.FirstOrDefault(x => x.CampaignTeamId == request.CampaignTeamId)
+                ?? throw new KeyNotFoundException($"Campaign team '{request.CampaignTeamId}' was not found in campaign.");
+
+            var vehicle = await _unitOfWork.Vehicles.GetByIdWithDetailsAsync(request.VehicleId)
+                ?? throw new KeyNotFoundException($"Vehicle '{request.VehicleId}' was not found.");
+
+            if (vehicle.Status == VehicleStatus.Busy)
+                throw new InvalidOperationException("Vehicle is currently busy and cannot be assigned to another team.");
+
+            var assignment = new CampaignVehicle
+            {
+                CampaignVehicleId = Guid.NewGuid(),
+                CampaignId = campaignId,
+                CampaignTeamId = request.CampaignTeamId,
+                VehicleId = request.VehicleId,
+                AssignedDriverId = request.AssignedDriverId,
+                StartDate = request.StartDate ?? DateTime.UtcNow,
+                EndDate = request.EndDate,
+                Status = request.Status,
+                Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim()
+            };
+
+            await _unitOfWork.CampaignVehicles.AddAsync(assignment);
+            vehicle.TeamId = matchedTeam.TeamId;
+            vehicle.Status = VehicleStatus.Busy;
+            await _unitOfWork.Vehicles.UpdateAsync(vehicle);
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return new CampaignAssignedVehicleResponse
+            {
+                CampaignVehicleId = assignment.CampaignVehicleId,
+                VehicleId = assignment.VehicleId,
+                LicensePlate = vehicle.LicensePlate,
+                VehicleTypeId = vehicle.VehicleTypeId,
+                VehicleTypeName = vehicle.VehicleType?.TypeName ?? string.Empty,
+                CampaignTeamId = assignment.CampaignTeamId,
+                CampaignTeamName = matchedTeam.Team?.Name,
+                AssignedDriverId = assignment.AssignedDriverId,
+                DriverName = null,
+                ReliefStationId = vehicle.ReliefStationId,
+                CurrentVehicleStatus = vehicle.Status,
+                Status = assignment.Status,
+                StartDate = assignment.StartDate,
+                EndDate = assignment.EndDate,
+                Note = assignment.Note
+            };
+        }
+
+        public async Task<IReadOnlyList<CampaignAssignedVehicleResponse>> GetCampaignVehiclesAsync(Guid campaignId, Guid? campaignTeamId, CancellationToken cancellationToken = default)
+        {
+            if (!await _unitOfWork.Campaigns.ExistsAsync(campaignId))
+                throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
+
+            var assignments = await _unitOfWork.CampaignVehicles.GetAllAsync();
+            var vehicles = (await _unitOfWork.Vehicles.GetAllActiveAsync()).ToList();
+            var campaignTeams = await _unitOfWork.Campaigns.GetCampaignTeamsAsync(campaignId, cancellationToken);
+
+            var filtered = assignments.Where(x => x.CampaignId == campaignId);
+            if (campaignTeamId.HasValue)
+                filtered = filtered.Where(x => x.CampaignTeamId == campaignTeamId.Value);
+
+            var mapped = new List<CampaignAssignedVehicleResponse>();
+            foreach (var assignment in filtered)
+            {
+                var vehicle = vehicles.FirstOrDefault(v => v.VehicleId == assignment.VehicleId);
+                var matchedCampaignTeam = campaignTeams.FirstOrDefault(t => t.CampaignTeamId == assignment.CampaignTeamId);
+                mapped.Add(await MapCampaignAssignedVehicleResponseAsync(assignment, vehicle, matchedCampaignTeam));
+            }
+
+            return mapped;
+        }
+
+        public async Task<CampaignAssignedVehicleResponse?> GetMyCampaignVehicleAssignmentAsync(Guid campaignId, CancellationToken cancellationToken = default)
+        {
+            if (!await _unitOfWork.Campaigns.ExistsAsync(campaignId))
+                throw new KeyNotFoundException($"Campaign '{campaignId}' was not found.");
+
+            var currentUserId = _currentUserService.UserId ?? throw new UnauthorizedAccessException("User is not authenticated.");
+            var volunteerProfile = await _unitOfWork.VolunteerProfiles.GetByUserIdAsync(currentUserId)
+                ?? throw new KeyNotFoundException("Volunteer profile for current user was not found.");
+
+            var campaignTeams = await _unitOfWork.Campaigns.GetCampaignTeamsAsync(campaignId, cancellationToken);
+            var assignments = await _unitOfWork.CampaignVehicles.GetAllAsync();
+            var assignment = assignments
+                .Where(x => x.CampaignId == campaignId && x.AssignedDriverId == volunteerProfile.VolunteerProfileId)
+                .OrderByDescending(x => IsVehicleAssignmentBusy(x.Status))
+                .ThenByDescending(x => x.StartDate)
+                .FirstOrDefault();
+
+            if (assignment is null)
+                return null;
+
+            var vehicle = await _unitOfWork.Vehicles.GetByIdWithDetailsAsync(assignment.VehicleId);
+            var campaignTeam = campaignTeams.FirstOrDefault(x => x.CampaignTeamId == assignment.CampaignTeamId);
+            return await MapCampaignAssignedVehicleResponseAsync(assignment, vehicle, campaignTeam);
+        }
+
+        public async Task<CampaignAssignedVehicleResponse> UpdateCampaignVehicleAssignmentAsync(Guid campaignId, Guid campaignVehicleId, UpdateCampaignVehicleAssignmentRequest request, CancellationToken cancellationToken = default)
+        {
+            var assignment = await _unitOfWork.CampaignVehicles.GetByIdAsync(campaignVehicleId)
+                ?? throw new KeyNotFoundException($"Campaign vehicle assignment '{campaignVehicleId}' was not found.");
+
+            if (assignment.CampaignId != campaignId)
+                throw new InvalidOperationException("Campaign vehicle assignment does not belong to campaign.");
+
+            if (request.CampaignTeamId.HasValue)
+            {
+                assignment.CampaignTeamId = request.CampaignTeamId.Value;
+            }
+            if (request.AssignedDriverId.HasValue)
+                assignment.AssignedDriverId = request.AssignedDriverId.Value;
+            if (request.StartDate.HasValue)
+                assignment.StartDate = request.StartDate.Value;
+            if (request.EndDate.HasValue)
+                assignment.EndDate = request.EndDate.Value;
+            if (request.Status.HasValue)
+                assignment.Status = request.Status.Value;
+            if (request.Note is not null)
+                assignment.Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
+
+            await _unitOfWork.CampaignVehicles.UpdateAsync(assignment);
+            var vehicle = await _unitOfWork.Vehicles.GetByIdWithDetailsAsync(assignment.VehicleId);
+            var campaignTeams = await _unitOfWork.Campaigns.GetCampaignTeamsAsync(campaignId, cancellationToken);
+            var campaignTeam = campaignTeams.FirstOrDefault(x => x.CampaignTeamId == assignment.CampaignTeamId);
+            if (vehicle is not null)
+            {
+                vehicle.TeamId = campaignTeam?.TeamId;
+                vehicle.Status = IsVehicleAssignmentBusy(assignment.Status) ? VehicleStatus.Busy : VehicleStatus.Free;
+                await _unitOfWork.Vehicles.UpdateAsync(vehicle);
+            }
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+            return await MapCampaignAssignedVehicleResponseAsync(assignment, vehicle, campaignTeam);
+        }
+
+        public async Task<CampaignAssignedVehicleResponse> AssignCampaignVehicleDriverAsync(Guid campaignId, Guid campaignVehicleId, AssignCampaignVehicleDriverRequest request, CancellationToken cancellationToken = default)
+        {
+            var assignment = await GetCampaignVehicleAssignmentAsync(campaignId, campaignVehicleId);
+            var campaignTeam = await GetCampaignTeamForAssignmentAsync(campaignId, assignment, cancellationToken);
+            await EnsureCanManageCampaignVehicleDriverAsync(campaignTeam, cancellationToken);
+
+            var driverProfile = await _unitOfWork.VolunteerProfiles.GetByIdWithSkillsAndUserAsync(request.AssignedDriverId)
+                ?? throw new KeyNotFoundException($"Volunteer profile '{request.AssignedDriverId}' was not found.");
+
+            await EnsureVolunteerBelongsToCampaignTeamAsync(campaignTeam, driverProfile.UserId, cancellationToken);
+
+            assignment.AssignedDriverId = driverProfile.VolunteerProfileId;
+            assignment.Note = string.IsNullOrWhiteSpace(request.Note) ? assignment.Note : request.Note.Trim();
+            if (assignment.Status == VehicleAssignmentStatus.Completed || assignment.Status == VehicleAssignmentStatus.Canceled)
+            {
+                assignment.Status = VehicleAssignmentStatus.Approved;
+            }
+
+            await PersistCampaignVehicleAssignmentAsync(assignment, cancellationToken);
+
+            var vehicle = await _unitOfWork.Vehicles.GetByIdWithDetailsAsync(assignment.VehicleId);
+            return await MapCampaignAssignedVehicleResponseAsync(assignment, vehicle, campaignTeam, driverProfile);
+        }
+
+        public async Task<CampaignAssignedVehicleResponse> ReleaseCampaignVehicleAsync(Guid campaignId, Guid campaignVehicleId, ReleaseCampaignVehicleRequest request, CancellationToken cancellationToken = default)
+        {
+            var assignment = await GetCampaignVehicleAssignmentAsync(campaignId, campaignVehicleId);
+            var campaignTeam = await GetCampaignTeamForAssignmentAsync(campaignId, assignment, cancellationToken);
+            await EnsureCanReleaseCampaignVehicleAsync(campaignTeam, assignment, cancellationToken);
+
+            assignment.AssignedDriverId = null;
+            assignment.Status = VehicleAssignmentStatus.Approved;
+            assignment.EndDate = DateTime.UtcNow;
+            if (request.Note is not null)
+            {
+                assignment.Note = string.IsNullOrWhiteSpace(request.Note) ? null : request.Note.Trim();
+            }
+
+            await PersistCampaignVehicleAssignmentAsync(assignment, cancellationToken);
+
+            var vehicle = await _unitOfWork.Vehicles.GetByIdWithDetailsAsync(assignment.VehicleId);
+            return await MapCampaignAssignedVehicleResponseAsync(assignment, vehicle, campaignTeam);
+        }
+
+        public async Task<CampaignAssignedVehicleResponse> HandoffCampaignVehicleAsync(Guid campaignId, Guid campaignVehicleId, HandoffCampaignVehicleRequest request, CancellationToken cancellationToken = default)
+        {
+            var assignment = await GetCampaignVehicleAssignmentAsync(campaignId, campaignVehicleId);
+            var campaignTeam = await GetCampaignTeamForAssignmentAsync(campaignId, assignment, cancellationToken);
+            await EnsureCanReleaseCampaignVehicleAsync(campaignTeam, assignment, cancellationToken);
+
+            var targetVolunteer = await _unitOfWork.VolunteerProfiles.GetByIdWithSkillsAndUserAsync(request.ToVolunteerProfileId)
+                ?? throw new KeyNotFoundException($"Volunteer profile '{request.ToVolunteerProfileId}' was not found.");
+
+            await EnsureVolunteerBelongsToCampaignTeamAsync(campaignTeam, targetVolunteer.UserId, cancellationToken);
+
+            assignment.AssignedDriverId = targetVolunteer.VolunteerProfileId;
+            assignment.Note = string.IsNullOrWhiteSpace(request.Note) ? assignment.Note : request.Note.Trim();
+            if (assignment.Status == VehicleAssignmentStatus.Completed || assignment.Status == VehicleAssignmentStatus.Canceled)
+            {
+                assignment.Status = VehicleAssignmentStatus.Approved;
+            }
+
+            await PersistCampaignVehicleAssignmentAsync(assignment, cancellationToken);
+
+            var vehicle = await _unitOfWork.Vehicles.GetByIdWithDetailsAsync(assignment.VehicleId);
+            return await MapCampaignAssignedVehicleResponseAsync(assignment, vehicle, campaignTeam, targetVolunteer);
+        }
+
+        public async Task<CampaignAssignedVehicleResponse> ReturnCampaignVehicleToCoordinatorAsync(Guid campaignId, Guid campaignVehicleId, ReturnCampaignVehicleToCoordinatorRequest request, CancellationToken cancellationToken = default)
+        {
+            var assignment = await GetCampaignVehicleAssignmentAsync(campaignId, campaignVehicleId);
+            var campaignTeam = await GetCampaignTeamForAssignmentAsync(campaignId, assignment, cancellationToken);
+            await EnsureCanReturnVehicleToCoordinatorAsync(campaignTeam, assignment, cancellationToken);
+
+            assignment.AssignedDriverId = null;
+            assignment.CampaignTeamId = null;
+            assignment.Status = VehicleAssignmentStatus.Completed;
+            assignment.EndDate = DateTime.UtcNow;
+            if (request.Note is not null)
+            {
+                assignment.Note = string.IsNullOrWhiteSpace(request.Note)
+                    ? "Trả hẳn phương tiện về điều phối trung tâm."
+                    : request.Note.Trim();
+            }
+
+            await _unitOfWork.CampaignVehicles.UpdateAsync(assignment);
+
+            var vehicle = await _unitOfWork.Vehicles.GetByIdWithDetailsAsync(assignment.VehicleId);
+            if (vehicle is not null)
+            {
+                vehicle.TeamId = null;
+                vehicle.Status = VehicleStatus.Free;
+                await _unitOfWork.Vehicles.UpdateAsync(vehicle);
+            }
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            return await MapCampaignAssignedVehicleResponseAsync(assignment, vehicle, null);
+        }
+
+        public async Task RemoveCampaignVehicleAssignmentAsync(Guid campaignId, Guid campaignVehicleId, CancellationToken cancellationToken = default)
+        {
+            var assignment = await _unitOfWork.CampaignVehicles.GetByIdAsync(campaignVehicleId)
+                ?? throw new KeyNotFoundException($"Campaign vehicle assignment '{campaignVehicleId}' was not found.");
+
+            if (assignment.CampaignId != campaignId)
+                throw new InvalidOperationException("Campaign vehicle assignment does not belong to campaign.");
+
+            var vehicle = await _unitOfWork.Vehicles.GetByIdWithDetailsAsync(assignment.VehicleId);
+            await _unitOfWork.CampaignVehicles.DeleteAsync(assignment);
+            if (vehicle is not null)
+            {
+                var remainingAssignments = await _unitOfWork.CampaignVehicles.GetAllAsync();
+                var latestAssignment = remainingAssignments
+                    .Where(x => x.CampaignVehicleId != assignment.CampaignVehicleId && x.VehicleId == assignment.VehicleId)
+                    .OrderByDescending(x => x.StartDate)
+                    .FirstOrDefault();
+
+                if (latestAssignment?.CampaignTeamId.HasValue == true)
+                {
+                    var campaignTeams = await _unitOfWork.Campaigns.GetCampaignTeamsAsync(latestAssignment.CampaignId, cancellationToken);
+                    var latestCampaignTeam = campaignTeams.FirstOrDefault(x => x.CampaignTeamId == latestAssignment.CampaignTeamId.Value);
+                    vehicle.TeamId = latestCampaignTeam?.TeamId;
+                    vehicle.Status = IsVehicleAssignmentBusy(latestAssignment.Status) ? VehicleStatus.Busy : VehicleStatus.Free;
+                }
+                else
+                {
+                    vehicle.TeamId = null;
+                    vehicle.Status = VehicleStatus.Free;
+                }
+                await _unitOfWork.Vehicles.UpdateAsync(vehicle);
+            }
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
+        private static bool IsVehicleAssignmentBusy(VehicleAssignmentStatus status)
+            => status is VehicleAssignmentStatus.Pending
+                or VehicleAssignmentStatus.Approved
+                or VehicleAssignmentStatus.InTransit
+                or VehicleAssignmentStatus.OnSite
+                or VehicleAssignmentStatus.Returning;
+
+        private async Task<CampaignVehicle> GetCampaignVehicleAssignmentAsync(Guid campaignId, Guid campaignVehicleId)
+        {
+            var assignment = await _unitOfWork.CampaignVehicles.GetByIdAsync(campaignVehicleId)
+                ?? throw new KeyNotFoundException($"Campaign vehicle assignment '{campaignVehicleId}' was not found.");
+
+            if (assignment.CampaignId != campaignId)
+                throw new InvalidOperationException("Campaign vehicle assignment does not belong to campaign.");
+
+            return assignment;
+        }
+
+        private async Task<CampaignTeam> GetCampaignTeamForAssignmentAsync(Guid campaignId, CampaignVehicle assignment, CancellationToken cancellationToken)
+        {
+            if (!assignment.CampaignTeamId.HasValue)
+                throw new InvalidOperationException("Campaign vehicle is not assigned to any campaign team.");
+
+            var campaignTeams = await _unitOfWork.Campaigns.GetCampaignTeamsAsync(campaignId, cancellationToken);
+            return campaignTeams.FirstOrDefault(x => x.CampaignTeamId == assignment.CampaignTeamId.Value)
+                ?? throw new KeyNotFoundException($"Campaign team '{assignment.CampaignTeamId}' was not found in campaign.");
+        }
+
+        private async Task EnsureCanManageCampaignVehicleDriverAsync(CampaignTeam campaignTeam, CancellationToken cancellationToken)
+        {
+            var currentUserId = _currentUserService.UserId ?? throw new UnauthorizedAccessException("User is not authenticated.");
+            var team = await _unitOfWork.Teams.GetByIdWithDetailsAsync(campaignTeam.TeamId)
+                ?? throw new KeyNotFoundException($"Team '{campaignTeam.TeamId}' was not found.");
+
+            if (team.LeaderId == currentUserId)
+                return;
+
+            var volunteerProfile = await _unitOfWork.VolunteerProfiles.GetByUserIdAsync(currentUserId);
+            if (volunteerProfile != null && await _unitOfWork.TeamMembers.IsMemberAsync(campaignTeam.TeamId, volunteerProfile.UserId))
+            {
+                throw new UnauthorizedAccessException("Only the team leader or coordinator can assign a driver for this vehicle.");
+            }
+        }
+
+        private async Task EnsureCanReleaseCampaignVehicleAsync(CampaignTeam campaignTeam, CampaignVehicle assignment, CancellationToken cancellationToken)
+        {
+            var currentUserId = _currentUserService.UserId ?? throw new UnauthorizedAccessException("User is not authenticated.");
+            var team = await _unitOfWork.Teams.GetByIdWithDetailsAsync(campaignTeam.TeamId)
+                ?? throw new KeyNotFoundException($"Team '{campaignTeam.TeamId}' was not found.");
+
+            if (team.LeaderId == currentUserId)
+                return;
+
+            var volunteerProfile = await _unitOfWork.VolunteerProfiles.GetByUserIdAsync(currentUserId)
+                ?? throw new KeyNotFoundException("Volunteer profile for current user was not found.");
+
+            if (assignment.AssignedDriverId != volunteerProfile.VolunteerProfileId)
+                throw new UnauthorizedAccessException("You are not allowed to release or handoff this vehicle.");
+        }
+
+        private async Task EnsureCanReturnVehicleToCoordinatorAsync(CampaignTeam campaignTeam, CampaignVehicle assignment, CancellationToken cancellationToken)
+        {
+            var currentUserId = _currentUserService.UserId ?? throw new UnauthorizedAccessException("User is not authenticated.");
+            var team = await _unitOfWork.Teams.GetByIdWithDetailsAsync(campaignTeam.TeamId)
+                ?? throw new KeyNotFoundException($"Team '{campaignTeam.TeamId}' was not found.");
+
+            if (team.LeaderId == currentUserId)
+                return;
+
+            var volunteerProfile = await _unitOfWork.VolunteerProfiles.GetByUserIdAsync(currentUserId)
+                ?? throw new KeyNotFoundException("Volunteer profile for current user was not found.");
+
+            if (assignment.AssignedDriverId != volunteerProfile.VolunteerProfileId)
+                throw new UnauthorizedAccessException("You are not allowed to return this vehicle to coordinator.");
+        }
+
+        private async Task EnsureVolunteerBelongsToCampaignTeamAsync(CampaignTeam campaignTeam, Guid volunteerUserId, CancellationToken cancellationToken)
+        {
+            if (!await _unitOfWork.TeamMembers.IsMemberAsync(campaignTeam.TeamId, volunteerUserId))
+                throw new InvalidOperationException("Selected volunteer does not belong to the assigned campaign team.");
+        }
+
+        private async Task PersistCampaignVehicleAssignmentAsync(CampaignVehicle assignment, CancellationToken cancellationToken)
+        {
+            await _unitOfWork.CampaignVehicles.UpdateAsync(assignment);
+            var vehicle = await _unitOfWork.Vehicles.GetByIdWithDetailsAsync(assignment.VehicleId);
+            if (vehicle is not null)
+            {
+                vehicle.Status = assignment.AssignedDriverId.HasValue || IsVehicleAssignmentBusy(assignment.Status)
+                    ? VehicleStatus.Busy
+                    : VehicleStatus.Free;
+                await _unitOfWork.Vehicles.UpdateAsync(vehicle);
+            }
+
+            await _unitOfWork.SaveChangesAsync(cancellationToken);
+        }
+
+        private async Task<CampaignAssignedVehicleResponse> MapCampaignAssignedVehicleResponseAsync(
+            CampaignVehicle assignment,
+            Vehicle? vehicle,
+            CampaignTeam? campaignTeam,
+            VolunteerProfile? driverProfile = null)
+        {
+            var resolvedDriverProfile = driverProfile;
+            if (resolvedDriverProfile == null && assignment.AssignedDriverId.HasValue)
+            {
+                resolvedDriverProfile = await _unitOfWork.VolunteerProfiles
+                    .GetByIdWithSkillsAndUserAsync(assignment.AssignedDriverId.Value);
+            }
+
+            return new CampaignAssignedVehicleResponse
+            {
+                CampaignVehicleId = assignment.CampaignVehicleId,
+                VehicleId = assignment.VehicleId,
+                LicensePlate = vehicle?.LicensePlate ?? string.Empty,
+                VehicleTypeId = vehicle?.VehicleTypeId ?? Guid.Empty,
+                VehicleTypeName = vehicle?.VehicleType?.TypeName ?? string.Empty,
+                CampaignTeamId = assignment.CampaignTeamId,
+                CampaignTeamName = campaignTeam?.Team?.Name,
+                AssignedDriverId = assignment.AssignedDriverId,
+                DriverName = resolvedDriverProfile?.User?.DisplayName
+                    ?? resolvedDriverProfile?.User?.UserName
+                    ?? assignment.Driver?.User?.DisplayName
+                    ?? assignment.Driver?.User?.UserName,
+                ReliefStationId = vehicle?.ReliefStationId,
+                CurrentVehicleStatus = vehicle?.Status ?? VehicleStatus.Free,
+                Status = assignment.Status,
+                StartDate = assignment.StartDate,
+                EndDate = assignment.EndDate,
+                Note = assignment.Note
+            };
         }
 
         public async Task<CampaignVolunteerRegistrationResponse> RegisterVolunteerAsync(Guid campaignId, CancellationToken cancellationToken = default)
@@ -908,7 +1387,10 @@ namespace ReliefManagementSystem.Application.Services
                 StartDate = campaign.StartDate,
                 EndDate = campaign.EndDate,
                 AllowOverTarget = campaign.AllowOverTarget,
-                OverallProgressPercent = Math.Round(overall, 2)
+                OverallProgressPercent = Math.Round(overall, 2),
+                BudgetTotal = campaign.BudgetTotal,
+                BudgetSpent = campaign.BudgetSpent,
+                RemainingBudget = campaign.BudgetTotal - campaign.BudgetSpent
             };
         }
 
@@ -942,6 +1424,34 @@ namespace ReliefManagementSystem.Application.Services
                 Status = registration.Status,
                 RegisteredAt = registration.RegisteredAt,
                 CancelledAt = registration.CancelledAt
+            };
+        }
+
+        private static CampaignBudgetTransferResponse MapBudgetTransfer(
+            CampaignBudgetTransfer transfer,
+            decimal sourceRemainingBudget,
+            decimal targetRemainingBudget)
+        {
+            return new CampaignBudgetTransferResponse
+            {
+                CampaignBudgetTransferId = transfer.CampaignBudgetTransferId,
+                SourceCampaignId = transfer.SourceCampaignId,
+                TargetCampaignId = transfer.TargetCampaignId,
+                Amount = transfer.Amount,
+                TransferredByUserId = transfer.TransferredByUserId,
+                TransferredByUserName = transfer.TransferredByUser?.DisplayName
+                    ?? transfer.TransferredByUser?.UserName
+                    ?? transfer.TransferredByUser?.Email,
+                TransferredAt = transfer.TransferredAt,
+                Note = transfer.Note,
+                IsDeleted = transfer.IsDeleted,
+                CancelledAt = transfer.CancelledAt,
+                CancelledByUserId = transfer.CancelledByUserId,
+                CancelledByUserName = transfer.CancelledByUser?.DisplayName
+                    ?? transfer.CancelledByUser?.UserName
+                    ?? transfer.CancelledByUser?.Email,
+                SourceRemainingBudget = sourceRemainingBudget,
+                TargetRemainingBudget = targetRemainingBudget
             };
         }
 

@@ -1,196 +1,217 @@
 name: Build and Deploy Production
+
 on:
-  # Trigger when PR is merged to main/master
-  pull_request:
-    types: [closed]
-    branches: [main, master]
-  # Manual trigger for emergency deploys
+  push:
+    branches: [main]
   workflow_dispatch:
 
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+env:
+  COMPOSE_FILE: compose.production.yaml
+  COMPOSE_PROJECT_NAME: reliefcare-production
+  API_SERVICE: reliefcare-api
+  API_CONTAINER: reliefcare-api-prod
+
 jobs:
-  detect-changes:
-    name: Detect Changes
-    runs-on: ubuntu-22.04
-    # Only run if PR was merged OR manual trigger
-    if: github.event.pull_request.merged == true || github.event_name == 'workflow_dispatch'
-    outputs:
-      services: ${{ steps.changes.outputs.services }}
-      reliefcare-api: ${{ steps.changes.outputs.reliefcare-api }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 2
-
-      - name: Check for changes
-        id: changes
-        run: |
-          # Get list of changed files
-          CHANGED_FILES=$(git diff --name-only HEAD^ HEAD 2>/dev/null || echo "")
-
-          # If no previous commit (first push), build all
-          if [ -z "$CHANGED_FILES" ]; then
-            echo "First push detected - building all services"
-            echo "reliefcare-api=true" >> $GITHUB_OUTPUT
-            echo 'services=["reliefcare-api"]' >> $GITHUB_OUTPUT
-            exit 0
-          fi
-
-          echo "Changed files:"
-          echo "$CHANGED_FILES"
-
-          # Initialize services array
-          SERVICES="["
-          FIRST=true
-
-          # Check reliefcare-api changes (API, Application, Domain, Infrastructure, compose files)
-          if echo "$CHANGED_FILES" | grep -E "^ReliefManagementSystem\.(API|Application|Domain|Infrastructure)/|^compose" > /dev/null; then
-            echo "reliefcare-api=true" >> $GITHUB_OUTPUT
-            if [ "$FIRST" = true ]; then
-              SERVICES="${SERVICES}\"reliefcare-api\""
-              FIRST=false
-            else
-              SERVICES="${SERVICES},\"reliefcare-api\""
-            fi
-          else
-            echo "reliefcare-api=false" >> $GITHUB_OUTPUT
-          fi
-
-          SERVICES="${SERVICES}]"
-          echo "services=$SERVICES" >> $GITHUB_OUTPUT
-          echo "Services to build: $SERVICES"
-
   api-image-build:
     name: Build / API
     runs-on: ubuntu-22.04
-    needs: detect-changes
-    if: needs.detect-changes.outputs.services != '[]'
     permissions:
       contents: read
       packages: write
-    strategy:
-      matrix:
-        service: ${{ fromJson(needs.detect-changes.outputs.services) }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: DockerHub Login
+      - name: Login to GHCR
         uses: docker/login-action@v3.1.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Lowercase repository name
+      - name: Set image variables
         run: |
           REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          echo "REGISTRY=ghcr.io/$REPO_LOWER" >> $GITHUB_ENV
+          echo "REGISTRY=ghcr.io/$REPO_LOWER" >> "$GITHUB_ENV"
+          echo "IMAGE_TAG=${{ github.sha }}" >> "$GITHUB_ENV"
 
-      - name: Build Image And Push
+      - name: Build and push API image
         run: |
-          echo "Building service: ${{ matrix.service }}"
-          docker compose -f compose.production.yaml build ${{ matrix.service }}
-          docker compose -f compose.production.yaml push ${{ matrix.service }}
+          docker build \
+            -f ReliefManagementSystem.API/Dockerfile \
+            -t "$REGISTRY/$API_SERVICE:$IMAGE_TAG" \
+            -t "$REGISTRY/$API_SERVICE:production-latest" \
+            .
+          docker push "$REGISTRY/$API_SERVICE:$IMAGE_TAG"
+          docker push "$REGISTRY/$API_SERVICE:production-latest"
 
   api-image-deploy:
     name: Deploy / API
-    runs-on: self-hosted # Chạy trên production server
-    needs: [api-image-build, detect-changes]
-    if: needs.detect-changes.outputs.services != '[]'
+    runs-on: self-hosted
+    needs: api-image-build
     permissions:
       contents: read
-      packages: write
+      packages: read
     env:
-      # Các biến môi trường lấy từ Secrets (Production)
       POSTGRES_PASSWORD: ${{ secrets.PROD_POSTGRES_PASSWORD }}
       JWT_KEY: ${{ secrets.PROD_JWT_KEY }}
       CLOUDFLARE_TUNNEL_TOKEN: ${{ secrets.PROD_CLOUDFLARE_TUNNEL_TOKEN }}
       GOOGLE_CLIENT_ID: ${{ secrets.PROD_GOOGLE_CLIENT_ID }}
       GOOGLE_CLIENT_SECRET: ${{ secrets.PROD_GOOGLE_CLIENT_SECRET }}
+      EMAIL_USERNAME: ${{ secrets.PROD_EMAIL_USERNAME }}
+      EMAIL_PASSWORD: ${{ secrets.PROD_EMAIL_PASSWORD }}
+      CLOUDINARY_API_KEY: ${{ secrets.PROD_CLOUDINARY_API_KEY }}
+      CLOUDINARY_API_SECRET: ${{ secrets.PROD_CLOUDINARY_API_SECRET }}
+      GOONG_API_KEY: ${{ secrets.PROD_GOONG_API_KEY }}
+      WEATHER_API_KEY: ${{ secrets.PROD_WEATHER_API_KEY }}
+      VISUAL_CROSSING_API_KEY: ${{ secrets.PROD_VISUAL_CROSSING_API_KEY }}
+      LLM_PROVIDER_BASE_URL: ${{ secrets.PROD_LLM_PROVIDER_BASE_URL }}
+      LLM_PROVIDER_API_KEY: ${{ secrets.PROD_LLM_PROVIDER_API_KEY }}
+      LLM_PROVIDER_NAME: ${{ secrets.PROD_LLM_PROVIDER_NAME }}
+      LLM_PROVIDER_DEFAULT_MODEL: ${{ secrets.PROD_LLM_PROVIDER_DEFAULT_MODEL }}
+      PAYOS_CLIENT_ID: ${{ secrets.PROD_PAYOS_CLIENT_ID }}
+      PAYOS_API_KEY: ${{ secrets.PROD_PAYOS_API_KEY }}
+      PAYOS_CHECKSUM_KEY: ${{ secrets.PROD_PAYOS_CHECKSUM_KEY }}
+      PAYOS_RETURN_URL: ${{ secrets.PROD_PAYOS_RETURN }}
+      PAYOS_CANCEL_URL: ${{ secrets.PROD_PAYOS_CANCEL }}
+      PGADMIN_PASSWORD: ${{ secrets.PROD_PGADMIN_PASSWORD }}
+      CENTRIFUGO_API_KEY: ${{ secrets.STAGING_CENTRIFUGO_API_KEY }}
+      CENTRIFUGO_SECRET: ${{ secrets.STAGING_CENTRIFUGO_SECRET }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      - name: DockerHub Login
+      - name: Login to GHCR
         uses: docker/login-action@v3.1.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Set Environment Variables
+      - name: Set image variables
         run: |
-          # Chuyển tên repo về chữ thường cho đúng chuẩn Docker
-          echo "REGISTRY=ghcr.io/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_ENV
+          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
+          echo "REGISTRY=ghcr.io/$REPO_LOWER" >> "$GITHUB_ENV"
+          echo "IMAGE_TAG=${{ github.sha }}" >> "$GITHUB_ENV"
 
-      - name: Backup Database (Optional)
+      - name: Validate deploy inputs
+        run: |
+          test -n "$REGISTRY"
+          test -n "$IMAGE_TAG"
+          test -n "$POSTGRES_PASSWORD"
+          test -n "$JWT_KEY"
+          test -n "$CLOUDFLARE_TUNNEL_TOKEN"
+          test -n "$CENTRIFUGO_API_KEY"
+          test -n "$CENTRIFUGO_SECRET"
+          test -n "$PGADMIN_PASSWORD"
+          docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" config --quiet
+
+      - name: Generate Centrifugo production config
+        run: |
+          python - <<'PY'
+          import os
+          from pathlib import Path
+
+          config_path = Path("centrifugo/config.production.json")
+          content = config_path.read_text()
+          content = content.replace("__CENTRIFUGO_API_KEY__", os.environ["CENTRIFUGO_API_KEY"])
+          content = content.replace("__CENTRIFUGO_SECRET__", os.environ["CENTRIFUGO_SECRET"])
+          config_path.write_text(content)
+          PY
+
+      - name: Backup database
         run: |
           echo "Creating database backup before deployment..."
-          # Tạo backup folder nếu chưa có
           mkdir -p ./backups
 
-          # Backup database (nếu container đang chạy)
-          if docker ps | grep -q reliefcare-postgres-prod; then
+          if docker ps --format '{{.Names}}' | grep -qx 'reliefcare-postgres-prod'; then
             BACKUP_FILE="./backups/backup_$(date +%Y%m%d_%H%M%S).sql"
             docker exec reliefcare-postgres-prod pg_dump -U postgres relief_db > "$BACKUP_FILE"
             echo "Backup created: $BACKUP_FILE"
-            
-            # Giữ lại 5 bản backup gần nhất
-            ls -t ./backups/backup_*.sql | tail -n +6 | xargs -r rm
+            find ./backups -name 'backup_*.sql' -type f | sort -r | tail -n +6 | xargs -r rm -f
           else
             echo "Database container not running, skipping backup"
           fi
 
-      - name: Pull and Deploy
+      - name: Capture current API image
+        id: current-image
         run: |
-          echo "Pulling latest images..."
-          # Pull tất cả service được định nghĩa trong file compose
-          docker compose -f compose.production.yaml pull
+          CURRENT_IMAGE=$(docker inspect "$API_CONTAINER" --format='{{.Config.Image}}' 2>/dev/null || true)
+          echo "image=$CURRENT_IMAGE" >> "$GITHUB_OUTPUT"
+          if [ -n "$CURRENT_IMAGE" ]; then
+            echo "Current API image: $CURRENT_IMAGE"
+          else
+            echo "No existing API container found"
+          fi
 
-          echo "Deploying application..."
-          # Up -d sẽ recreate container nếu có image mới
-          docker compose -f compose.production.yaml up -d --remove-orphans
-
-      - name: Wait for Healthcheck
+      - name: Pull production images
         run: |
-          echo "Waiting for services to be ready..."
-          sleep 15
+          docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" pull postgres centrifugo pgadmin cloudflared
+          docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" pull "$API_SERVICE"
 
-          # Kiểm tra health status
-          docker compose -f compose.production.yaml ps
+      - name: Ensure dependencies are running
+        run: |
+          docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" up -d postgres centrifugo pgadmin
 
-          # Kiểm tra API health endpoint
-          MAX_RETRIES=10
+      - name: Deploy API
+        run: |
+          docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" up -d --no-deps "$API_SERVICE"
+
+      - name: Wait for healthcheck
+        run: |
+          echo "Waiting for API to be ready..."
+          MAX_RETRIES=24
           RETRY_COUNT=0
 
-          while [ $RETRY_COUNT -lt $MAX_RETRIES ]; do
-            if curl -f http://localhost:8080/health > /dev/null 2>&1; then
-              echo "✅ API is healthy!"
-              break
-            else
-              echo "⏳ Waiting for API to be ready... ($((RETRY_COUNT + 1))/$MAX_RETRIES)"
-              sleep 10
-              RETRY_COUNT=$((RETRY_COUNT + 1))
+          while [ "$RETRY_COUNT" -lt "$MAX_RETRIES" ]; do
+            if curl -fsSL http://localhost:8080/health > /dev/null; then
+              echo "API is healthy"
+              docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" ps
+              exit 0
             fi
+
+            RETRY_COUNT=$((RETRY_COUNT + 1))
+            echo "Waiting for API... ($RETRY_COUNT/$MAX_RETRIES)"
+            sleep 10
           done
 
-          if [ $RETRY_COUNT -eq $MAX_RETRIES ]; then
-            echo "❌ API health check failed after $MAX_RETRIES attempts"
-            docker compose -f compose.production.yaml logs reliefcare-api
+          echo "API health check failed after $MAX_RETRIES attempts"
+          docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" logs --tail=200 "$API_SERVICE"
+          exit 1
+
+      - name: Ensure tunnel is running
+        run: |
+          docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" up -d cloudflared
+
+      - name: Roll back API on failure
+        if: failure() && steps.current-image.outputs.image != ''
+        env:
+          PREVIOUS_IMAGE: ${{ steps.current-image.outputs.image }}
+        run: |
+          echo "Rolling back API to $PREVIOUS_IMAGE"
+          PREVIOUS_TAG="${PREVIOUS_IMAGE##*:}"
+          if [ -z "$PREVIOUS_TAG" ] || [ "$PREVIOUS_TAG" = "$PREVIOUS_IMAGE" ]; then
+            echo "Cannot determine previous image tag from $PREVIOUS_IMAGE"
             exit 1
           fi
 
-      - name: Cleanup Unused Images
-        run: |
-          docker image prune -a -f
+          echo "IMAGE_TAG=$PREVIOUS_TAG" >> "$GITHUB_ENV"
+          IMAGE_TAG="$PREVIOUS_TAG" docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" up -d --no-deps "$API_SERVICE"
 
-      - name: Send Deployment Notification
+      - name: Cleanup dangling images
         if: always()
         run: |
-          if [ "${{ job.status }}" == "success" ]; then
-            echo "✅ Production deployment successful!"
+          docker image prune -f
+
+      - name: Deployment result
+        if: always()
+        run: |
+          if [ "${{ job.status }}" = "success" ]; then
+            echo "Production deployment successful: $REGISTRY/$API_SERVICE:$IMAGE_TAG"
           else
-            echo "❌ Production deployment failed!"
+            echo "Production deployment failed"
           fi
-          # Có thể thêm notification đến Slack, Discord, Email, etc.

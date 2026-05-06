@@ -12,5 +12,25 @@ namespace ReliefManagementSystem.Application.Features.Campaign.Dtos.Responses
         public CampaignTeamStatus Status { get; set; }
         public DateTime AssignedAt { get; set; }
         public int MemberCount { get; set; }
+        public List<CampaignAssignedVehicleResponse> Vehicles { get; set; } = [];
+    }
+
+    public class CampaignAssignedVehicleResponse
+    {
+        public Guid CampaignVehicleId { get; set; }
+        public Guid VehicleId { get; set; }
+        public string LicensePlate { get; set; } = string.Empty;
+        public Guid VehicleTypeId { get; set; }
+        public string VehicleTypeName { get; set; } = string.Empty;
+        public Guid? CampaignTeamId { get; set; }
+        public string? CampaignTeamName { get; set; }
+        public Guid? AssignedDriverId { get; set; }
+        public string? DriverName { get; set; }
+        public Guid? ReliefStationId { get; set; }
+        public VehicleStatus CurrentVehicleStatus { get; set; }
+        public VehicleAssignmentStatus Status { get; set; }
+        public DateTime StartDate { get; set; }
+        public DateTime? EndDate { get; set; }
+        public string? Note { get; set; }
     }
 }

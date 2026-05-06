@@ -19,7 +19,11 @@ namespace ReliefManagementSystem.Application.Common.Interface
             CampaignStatus? status,
             CampaignType? type,
             Guid? locationId,
+            Guid? reliefStationId,
             bool forVolunteerRegistration,
+            bool? supportsVolunteerRegistration,
+            bool? hasMoneyGoal,
+            bool? supportsDonation,
             CancellationToken cancellationToken = default);
 
         Task<bool> HasAnyActiveStationAsync(Guid campaignId, CancellationToken cancellationToken = default);
@@ -37,5 +41,6 @@ namespace ReliefManagementSystem.Application.Common.Interface
         Task AddCampaignTeamAsync(CampaignTeam campaignTeam, CancellationToken cancellationToken = default);
         Task UpdateCampaignTeamAsync(CampaignTeam campaignTeam, CancellationToken cancellationToken = default);
         Task<List<Campaign>> GetActiveReliefCampaignsByStationAsync(Guid reliefStationId, CancellationToken cancellationToken = default);
+        IQueryable<Campaign> GetQueryable();
     }
 }

@@ -67,10 +67,12 @@ namespace ReliefManagementSystem.Application.Common.Interface
         ICampaignBudgetTransferRepository CampaignBudgetTransfers { get; }
         ICampaignTaskRepository CampaignTasks { get; }
         IMemberTaskRepository MemberTasks { get; }
+        IMemberTaskDeliveryRepository MemberTaskDeliveries { get; }
         ICampaignInventoryRepository CampaignInventories { get; }
         ICampaignInventoryStockRepository CampaignInventoryStocks { get; }
         ICampaignInventoryTransactionRepository CampaignInventoryTransactions { get; }
         ICampaignVolunteerRegistrationRepository CampaignVolunteerRegistrations { get; }
+        IGenericRepository<CampaignVehicle> CampaignVehicles { get; }
         IDonationRepository Donations { get; }
         IFundRepository Funds { get; }
         IPaymentTransactionRepository PaymentTransactions { get; }
@@ -82,6 +84,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
         ILocationRepository Locations { get; }
 
         IRescueOperationRepository RescueOperations { get; }
+        IRescueOperationVehicleRepository RescueOperationVehicles { get; }
         IRescueRequestRepository RescueRequests { get; }
 
         IRescueBatchRepository RescueBatches { get; }
@@ -93,6 +96,7 @@ namespace ReliefManagementSystem.Application.Common.Interface
         IAttachmentRepository Attachments { get; }
         IGenericRepository<AuditLog> AuditLogs { get; }
         IGenericRepository<RequestVerification> RequestVerifications { get; }
+        IGenericRepository<RescueOperationSupply> RescueOperationSupplies { get; }
         IGenericRepository<DisasterAnalysisLog> DisasterAnalysisLogs { get; }
         Task<int> SaveChangesAsync(
         CancellationToken cancellationToken = default);

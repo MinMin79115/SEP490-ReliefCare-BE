@@ -103,6 +103,7 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Respons
         public Guid? VehicleId { get; set; }
         public string? VehicleName { get; set; }
         public string? VehicleLicensePlate { get; set; }
+        public List<AssignedVehicleDto> Vehicles { get; set; } = new();
         public string? Address { get; set; }
         public string DisasterType { get; set; } = null!;
 

@@ -74,6 +74,7 @@ namespace ReliefManagementSystem.Infrastructure.Data
         public DbSet<CampaignTask> CampaignTasks { get; set; }
         public DbSet<CampaignVehicle> CampaignVehicles { get; set; }
         public DbSet<MemberTask> MemberTasks { get; set; }
+        public DbSet<MemberTaskDelivery> MemberTaskDeliveries { get; set; }
         
         public DbSet<CampaignTaskItem> CampaignTaskItems { get; set; }
         public DbSet<MemberTaskItem> MemberTaskItems { get; set; }
@@ -96,6 +97,7 @@ namespace ReliefManagementSystem.Infrastructure.Data
 
         // Supply Transfer (vận chuyển hàng giữa các trạm)
         public DbSet<SupplyTransfer> SupplyTransfers { get; set; }
+        public DbSet<SupplyTransferVehicle> SupplyTransferVehicles { get; set; }
         public DbSet<SupplyTransferDocument> SupplyTransferDocuments { get; set; }
         public DbSet<SupplyTransferItem> SupplyTransferItems { get; set; }
 
@@ -109,6 +111,8 @@ namespace ReliefManagementSystem.Infrastructure.Data
         public DbSet<Attachment> Attachments { get; set; }
         public DbSet<RequestVerification> RequestVerifications { get; set; }
         public DbSet<RescueOperation> RescueOperations { get; set; }
+        public DbSet<RescueOperationVehicle> RescueOperationVehicles { get; set; }
+        public DbSet<RescueOperationSupply> RescueOperationSupplies { get; set; }
         public DbSet<RescueRequestPriority> RescueRequestPriorities { get; set; }
         public DbSet<RescueBatch> RescueBatches { get; set; }
         public DbSet<RescueBatchItem> RescueBatchItems { get; set; }
@@ -836,6 +840,12 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .OnDelete(DeleteBehavior.SetNull);
 
             builder.Entity<CampaignBudgetTransfer>()
+                .HasOne(x => x.CancelledByUser)
+                .WithMany()
+                .HasForeignKey(x => x.CancelledByUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<CampaignBudgetTransfer>()
                 .HasIndex(x => new { x.SourceCampaignId, x.TargetCampaignId, x.TransferredAt });
 
             // CampaignInventory Configuration
@@ -954,6 +964,12 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .OnDelete(DeleteBehavior.Cascade);
 
             builder.Entity<CampaignVehicle>()
+                .HasOne(cv => cv.CampaignTeam)
+                .WithMany(ct => ct.CampaignVehicles)
+                .HasForeignKey(cv => cv.CampaignTeamId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<CampaignVehicle>()
                 .HasOne(cv => cv.Driver)
                 .WithMany()
                 .HasForeignKey(cv => cv.AssignedDriverId)
@@ -974,6 +990,31 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .WithMany()
                 .HasForeignKey(mt => mt.VolunteerProfileId)
                 .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<MemberTaskDelivery>()
+                .HasKey(mtd => mtd.MemberTaskDeliveryId);
+
+            builder.Entity<MemberTaskDelivery>()
+                .HasOne(mtd => mtd.MemberTask)
+                .WithMany(mt => mt.MemberTaskDeliveries)
+                .HasForeignKey(mtd => mtd.MemberTaskId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<MemberTaskDelivery>()
+                .HasOne(mtd => mtd.HouseholdDelivery)
+                .WithMany(hd => hd.MemberTaskDeliveries)
+                .HasForeignKey(mtd => mtd.HouseholdDeliveryId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<MemberTaskDelivery>()
+                .HasOne(mtd => mtd.AssignedVolunteerProfile)
+                .WithMany()
+                .HasForeignKey(mtd => mtd.AssignedVolunteerProfileId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            builder.Entity<MemberTaskDelivery>()
+                .HasIndex(mtd => new { mtd.MemberTaskId, mtd.HouseholdDeliveryId })
+                .IsUnique();
 
             // CampaignTaskItem Configuration
             builder.Entity<CampaignTaskItem>()
@@ -1427,6 +1468,24 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 .HasForeignKey(st => st.DriverUserId)
                 .OnDelete(DeleteBehavior.SetNull);
 
+            builder.Entity<SupplyTransferVehicle>()
+                .HasOne(stv => stv.SupplyTransfer)
+                .WithMany(st => st.SupplyTransferVehicles)
+                .HasForeignKey(stv => stv.SupplyTransferId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            builder.Entity<SupplyTransferVehicle>()
+                .HasOne(stv => stv.Vehicle)
+                .WithMany(v => v.SupplyTransferVehicles)
+                .HasForeignKey(stv => stv.VehicleId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            builder.Entity<SupplyTransferVehicle>()
+                .HasOne(stv => stv.DriverUser)
+                .WithMany()
+                .HasForeignKey(stv => stv.DriverUserId)
+                .OnDelete(DeleteBehavior.SetNull);
+
             // Campaign – CreatedBy FK
             builder.Entity<Campaign>()
                 .HasOne<ApplicationUser>()
@@ -1558,6 +1617,48 @@ namespace ReliefManagementSystem.Infrastructure.Data
                 entity.HasOne(ro => ro.ReliefStation)
                     .WithMany()
                     .HasForeignKey(ro => ro.ReliefStationId)
+                    .OnDelete(DeleteBehavior.SetNull);
+            });
+
+            builder.Entity<RescueOperationVehicle>(entity =>
+            {
+                entity.HasKey(x => x.RescueOperationVehicleId);
+
+                entity.HasOne(x => x.RescueOperation)
+                    .WithMany(x => x.RescueOperationVehicles)
+                    .HasForeignKey(x => x.RescueOperationId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.Vehicle)
+                    .WithMany(x => x.RescueOperationVehicles)
+                    .HasForeignKey(x => x.VehicleId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasIndex(x => new { x.RescueOperationId, x.VehicleId }).IsUnique();
+            });
+
+            builder.Entity<RescueOperationSupply>(entity =>
+            {
+                entity.HasKey(x => x.RescueOperationSupplyId);
+
+                entity.HasOne(x => x.RescueOperation)
+                    .WithMany(x => x.RescueOperationSupplies)
+                    .HasForeignKey(x => x.RescueOperationId)
+                    .OnDelete(DeleteBehavior.Cascade);
+
+                entity.HasOne(x => x.SourceInventory)
+                    .WithMany()
+                    .HasForeignKey(x => x.SourceInventoryId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.SupplyItem)
+                    .WithMany()
+                    .HasForeignKey(x => x.SupplyItemId)
+                    .OnDelete(DeleteBehavior.Restrict);
+
+                entity.HasOne(x => x.InventoryTransaction)
+                    .WithMany()
+                    .HasForeignKey(x => x.InventoryTransactionId)
                     .OnDelete(DeleteBehavior.SetNull);
             });
 
@@ -1928,6 +2029,15 @@ namespace ReliefManagementSystem.Infrastructure.Data
                     .WithMany()
                     .HasForeignKey(sti => sti.SupplyItemId)
                     .OnDelete(DeleteBehavior.Restrict);
+            });
+
+            builder.Entity<SupplyTransferVehicle>(entity =>
+            {
+                entity.HasKey(x => x.SupplyTransferVehicleId);
+                entity.Property(x => x.Status).HasConversion<string>().IsRequired();
+                entity.Property(x => x.Note).HasMaxLength(1000);
+                entity.HasIndex(x => new { x.SupplyTransferId, x.VehicleId }).IsUnique();
+                entity.HasIndex(x => new { x.VehicleId, x.Status });
             });
 
             // =========================

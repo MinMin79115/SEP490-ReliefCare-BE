@@ -29,5 +29,6 @@ namespace ReliefManagementSystem.Domain.Entities
         public VolunteerProfile VolunteerProfile { get; set; } = default!;
 
         public ICollection<MemberTaskItem> MemberTaskItems { get; set; } = new List<MemberTaskItem>();
+        public ICollection<MemberTaskDelivery> MemberTaskDeliveries { get; set; } = new List<MemberTaskDelivery>();
     }
 }

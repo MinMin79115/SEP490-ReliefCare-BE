@@ -172,10 +172,23 @@ namespace ReliefManagementSystem.Application.Services
                     }, autoSave: false, cancellationToken);
                 }
 
+                var assignedVehicles = transfer.SupplyTransferVehicles
+                    .Where(v => v.Status == SupplyTransferVehicleStatus.Assigned)
+                    .ToList();
+
+                if (assignedVehicles.Count == 0)
+                    throw new InvalidOperationException("Không thể xuất hàng khi chưa có xe ở trạng thái Assigned.");
+
+                foreach (var assignment in assignedVehicles)
+                {
+                    assignment.Status = SupplyTransferVehicleStatus.InTransit;
+                    assignment.DepartedAt ??= DateTime.UtcNow;
+                }
+
                 transfer.Status = SupplyTransferStatus.Shipping;
                 transfer.ShippedAt = DateTime.UtcNow;
-                transfer.VehicleId = request.VehicleId;
-                transfer.DriverUserId = null;
+                transfer.VehicleId = transfer.SupplyTransferVehicles.FirstOrDefault()?.VehicleId;
+                transfer.DriverUserId = transfer.SupplyTransferVehicles.FirstOrDefault()?.DriverUserId;
                 transfer.Notes = AppendNotes(transfer.Notes, request.Notes);
                 transfer.EvidenceUrls = MergeEvidenceUrls(transfer.EvidenceUrls, request.EvidenceUrls);
                 await _unitOfWork.SupplyTransfers.UpdateAsync(transfer);
@@ -259,6 +272,12 @@ namespace ReliefManagementSystem.Application.Services
 
                 transfer.Status = SupplyTransferStatus.Received;
                 transfer.ReceivedAt = DateTime.UtcNow;
+                foreach (var assignment in transfer.SupplyTransferVehicles.Where(v => v.Status == SupplyTransferVehicleStatus.Assigned || v.Status == SupplyTransferVehicleStatus.InTransit || v.Status == SupplyTransferVehicleStatus.Arrived || v.Status == SupplyTransferVehicleStatus.Incident))
+                {
+                    assignment.Status = SupplyTransferVehicleStatus.Completed;
+                    assignment.CompletedAt = DateTime.UtcNow;
+                    assignment.Vehicle.Status = VehicleStatus.Free;
+                }
                 transfer.Notes = AppendNotes(transfer.Notes, request.Notes);
                 transfer.EvidenceUrls = MergeEvidenceUrls(transfer.EvidenceUrls, request.EvidenceUrls);
                 await _unitOfWork.SupplyTransfers.UpdateAsync(transfer);
@@ -276,15 +295,215 @@ namespace ReliefManagementSystem.Application.Services
 
         public async Task<SupplyTransferResponse> CancelAsync(Guid transferId, CancelSupplyTransferRequest request, CancellationToken cancellationToken = default)
         {
+            var currentUserId = _currentUser.UserId ?? throw new UnauthorizedAccessException("User is not authenticated.");
             var transfer = await LoadTransferForUpdateAsync(transferId, cancellationToken);
-            if (transfer.Status is SupplyTransferStatus.Shipping or SupplyTransferStatus.Received)
-                throw new InvalidOperationException("Không thể hủy yêu cầu đã xuất hàng hoặc đã nhận hàng.");
+            if (transfer.Status == SupplyTransferStatus.Received)
+                throw new InvalidOperationException("Không thể hủy yêu cầu đã nhận hàng.");
 
-            transfer.Status = SupplyTransferStatus.Cancelled;
-            transfer.Notes = AppendNotes(transfer.Notes, request.Notes);
-            transfer.EvidenceUrls = MergeEvidenceUrls(transfer.EvidenceUrls, request.EvidenceUrls);
-            await _unitOfWork.SupplyTransfers.UpdateAsync(transfer);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
+            var sourceHead = await _unitOfWork.ModeratorProfiles.GetStationHeadAsync(transfer.SourceStationId, cancellationToken);
+            var destinationHead = await _unitOfWork.ModeratorProfiles.GetStationHeadAsync(transfer.DestinationStationId, cancellationToken);
+            var canCancel = transfer.Status switch
+            {
+                SupplyTransferStatus.Pending => destinationHead?.UserId == currentUserId,
+                SupplyTransferStatus.Approved or SupplyTransferStatus.Shipping =>
+                    sourceHead?.UserId == currentUserId || destinationHead?.UserId == currentUserId,
+                _ => false
+            };
+
+            if (!canCancel)
+                throw new InvalidOperationException("Bạn không có quyền hủy phiếu điều chuyển này.");
+
+            await _unitOfWork.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                if (transfer.Status == SupplyTransferStatus.Shipping)
+                {
+                    var sourceInventory = await _unitOfWork.Inventories.GetActiveByReliefStationAsync(transfer.SourceStationId, cancellationToken)
+                        ?? throw new InvalidOperationException("Trạm nguồn chưa có inventory active để hoàn kho khi hủy phiếu.");
+
+                    await _inventoryTransactionService.CreateTransactionAsync(new CreateTransactionRequest
+                    {
+                        InventoryId = sourceInventory.InventoryId,
+                        SupplyTransferId = transfer.SupplyTransferId,
+                        Type = TransactionType.Import,
+                        Reason = TransactionReason.SupplyTransferReturn,
+                        Notes = $"Hoàn kho do hủy phiếu đang vận chuyển: {transfer.TransferCode}",
+                        SourceReference = transfer.TransferCode,
+                        Items = transfer.Items.Select(i => new TransactionItemRequest
+                        {
+                            SupplyItemId = i.SupplyItemId,
+                            Quantity = i.ActualQuantity ?? i.RequestedQuantity,
+                            Notes = i.Notes
+                        }).ToList()
+                    }, autoSave: false, cancellationToken);
+                }
+
+                transfer.Status = SupplyTransferStatus.Cancelled;
+                foreach (var assignment in transfer.SupplyTransferVehicles.Where(IsActiveAssignment))
+                {
+                    assignment.Status = SupplyTransferVehicleStatus.Cancelled;
+                    assignment.CancelledAt ??= DateTime.UtcNow;
+                    assignment.Vehicle.Status = VehicleStatus.Free;
+                }
+                transfer.Notes = AppendNotes(transfer.Notes, request.Notes);
+                transfer.EvidenceUrls = MergeEvidenceUrls(transfer.EvidenceUrls, request.EvidenceUrls);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            }
+            catch { await _unitOfWork.RollbackTransactionAsync(cancellationToken); throw; }
+            return MapToResponse((await _unitOfWork.SupplyTransfers.GetByIdWithDetailsAsync(transferId, cancellationToken))!);
+        }
+
+        public async Task<SupplyTransferResponse> AssignVehiclesAsync(Guid transferId, AssignSupplyTransferVehiclesRequest request, CancellationToken cancellationToken = default)
+        {
+            var currentUserId = _currentUser.UserId ?? throw new UnauthorizedAccessException("User is not authenticated.");
+            var transfer = await LoadTransferForUpdateAsync(transferId, cancellationToken);
+            if (transfer.Status != SupplyTransferStatus.Approved) throw new InvalidOperationException("Chỉ yêu cầu Approved mới được gán xe.");
+            var sourceHead = await _unitOfWork.ModeratorProfiles.GetStationHeadAsync(transfer.SourceStationId, cancellationToken)
+                ?? throw new InvalidOperationException("Trạm nguồn chưa có station head active để gán xe.");
+            if (sourceHead.UserId != currentUserId) throw new InvalidOperationException("Chỉ station head của trạm nguồn mới được gán xe.");
+            if (request.Vehicles is null || request.Vehicles.Count == 0) throw new InvalidOperationException("Cần ít nhất một xe để gán.");
+            if (request.Vehicles.Select(v => v.VehicleId).Distinct().Count() != request.Vehicles.Count) throw new InvalidOperationException("Không được gán trùng xe.");
+
+            await _unitOfWork.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                foreach (var item in request.Vehicles)
+                {
+                    var existingAssignment = transfer.SupplyTransferVehicles
+                        .FirstOrDefault(v => v.VehicleId == item.VehicleId);
+
+                    if (existingAssignment is not null &&
+                        existingAssignment.Status != SupplyTransferVehicleStatus.Cancelled &&
+                        existingAssignment.Status != SupplyTransferVehicleStatus.Completed)
+                    {
+                        throw new InvalidOperationException("Xe đã được gán cho phiếu này.");
+                    }
+
+                    var vehicle = await _unitOfWork.Vehicles.GetByIdWithDetailsAsync(item.VehicleId) ?? throw new KeyNotFoundException($"Vehicle '{item.VehicleId}' was not found.");
+                    if (vehicle.ReliefStationId != transfer.SourceStationId) throw new InvalidOperationException("Xe không thuộc trạm nguồn.");
+                    if (vehicle.Status != VehicleStatus.Free) throw new InvalidOperationException("Xe không ở trạng thái Free.");
+                    var activeRescueOperation = await _unitOfWork.RescueOperations.GetActiveByVehicleIdAsync(vehicle.VehicleId, cancellationToken);
+                    if (activeRescueOperation is not null) throw new InvalidOperationException("Xe đang được dùng trong luồng cứu hộ.");
+
+                    vehicle.Status = VehicleStatus.Busy;
+
+                    if (existingAssignment is not null)
+                    {
+                        existingAssignment.DriverUserId = item.DriverUserId;
+                        existingAssignment.Status = SupplyTransferVehicleStatus.Assigned;
+                        existingAssignment.AssignedAt = DateTime.UtcNow;
+                        existingAssignment.DepartedAt = null;
+                        existingAssignment.ArrivedAt = null;
+                        existingAssignment.CompletedAt = null;
+                        existingAssignment.CancelledAt = null;
+                        existingAssignment.Note = item.Note;
+                    }
+                    else
+                    {
+                        await _unitOfWork.SupplyTransfers.AddVehicleAssignmentAsync(new SupplyTransferVehicle
+                        {
+                            SupplyTransferVehicleId = Guid.NewGuid(),
+                            SupplyTransferId = transfer.SupplyTransferId,
+                            VehicleId = item.VehicleId,
+                            DriverUserId = item.DriverUserId,
+                            Status = SupplyTransferVehicleStatus.Assigned,
+                            AssignedAt = DateTime.UtcNow,
+                            Note = item.Note
+                        }, cancellationToken);
+                    }
+                }
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            }
+            catch { await _unitOfWork.RollbackTransactionAsync(cancellationToken); throw; }
+            return MapToResponse((await _unitOfWork.SupplyTransfers.GetByIdWithDetailsAsync(transferId, cancellationToken))!);
+        }
+
+        public async Task<SupplyTransferResponse> RemoveVehicleAsync(Guid transferId, Guid supplyTransferVehicleId, CancellationToken cancellationToken = default)
+        {
+            var currentUserId = _currentUser.UserId ?? throw new UnauthorizedAccessException("User is not authenticated.");
+            var transfer = await LoadTransferForUpdateAsync(transferId, cancellationToken);
+            if (transfer.Status != SupplyTransferStatus.Approved) throw new InvalidOperationException("Chỉ được bỏ xe trước khi xuất hàng.");
+            var sourceHead = await _unitOfWork.ModeratorProfiles.GetStationHeadAsync(transfer.SourceStationId, cancellationToken)
+                ?? throw new InvalidOperationException("Trạm nguồn chưa có station head active để bỏ xe.");
+            if (sourceHead.UserId != currentUserId) throw new InvalidOperationException("Chỉ station head của trạm nguồn mới được bỏ xe.");
+
+            var assignment = transfer.SupplyTransferVehicles.FirstOrDefault(x => x.SupplyTransferVehicleId == supplyTransferVehicleId)
+                ?? throw new KeyNotFoundException("Transfer vehicle assignment not found.");
+            if (assignment.Status != SupplyTransferVehicleStatus.Assigned) throw new InvalidOperationException("Chỉ được bỏ xe đang ở trạng thái Assigned.");
+
+            await _unitOfWork.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                assignment.Status = SupplyTransferVehicleStatus.Cancelled;
+                assignment.CancelledAt = DateTime.UtcNow;
+                assignment.Vehicle.Status = VehicleStatus.Free;
+                await _unitOfWork.SupplyTransfers.UpdateAsync(transfer);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            }
+            catch { await _unitOfWork.RollbackTransactionAsync(cancellationToken); throw; }
+
+            return MapToResponse((await _unitOfWork.SupplyTransfers.GetByIdWithDetailsAsync(transferId, cancellationToken))!);
+        }
+
+        public async Task<SupplyTransferResponse> UpdateVehicleStatusAsync(Guid transferId, Guid supplyTransferVehicleId, UpdateSupplyTransferVehicleStatusRequest request, CancellationToken cancellationToken = default)
+        {
+            var currentUserId = _currentUser.UserId ?? throw new UnauthorizedAccessException("User is not authenticated.");
+            var transfer = await LoadTransferForUpdateAsync(transferId, cancellationToken);
+            var sourceHead = await _unitOfWork.ModeratorProfiles.GetStationHeadAsync(transfer.SourceStationId, cancellationToken);
+            var destinationHead = await _unitOfWork.ModeratorProfiles.GetStationHeadAsync(transfer.DestinationStationId, cancellationToken);
+            var canUpdate = request.Status switch
+            {
+                SupplyTransferVehicleStatus.InTransit or SupplyTransferVehicleStatus.Incident => sourceHead?.UserId == currentUserId,
+                SupplyTransferVehicleStatus.Arrived or SupplyTransferVehicleStatus.Completed => destinationHead?.UserId == currentUserId,
+                _ => false
+            };
+            if (!canUpdate) throw new InvalidOperationException("Bạn không có quyền cập nhật trạng thái xe trong phiếu này.");
+            var assignment = transfer.SupplyTransferVehicles.FirstOrDefault(x => x.SupplyTransferVehicleId == supplyTransferVehicleId) ?? throw new KeyNotFoundException("Transfer vehicle assignment not found.");
+            if (!CanTransitionVehicleStatus(assignment.Status, request.Status))
+                throw new InvalidOperationException($"Không thể chuyển trạng thái xe từ {assignment.Status} sang {request.Status}.");
+
+            assignment.Note = AppendNotes(assignment.Note, request.Note);
+            await _unitOfWork.BeginTransactionAsync(cancellationToken);
+            try
+            {
+                if (request.Status == SupplyTransferVehicleStatus.InTransit)
+                {
+                    assignment.Status = SupplyTransferVehicleStatus.InTransit;
+                    assignment.DepartedAt ??= DateTime.UtcNow;
+                    if (transfer.Status == SupplyTransferStatus.Approved)
+                    {
+                        transfer.Status = SupplyTransferStatus.Shipping;
+                        transfer.ShippedAt ??= DateTime.UtcNow;
+                    }
+                }
+                else if (request.Status == SupplyTransferVehicleStatus.Arrived)
+                {
+                    assignment.Status = SupplyTransferVehicleStatus.Arrived;
+                    assignment.ArrivedAt ??= DateTime.UtcNow;
+                }
+                else if (request.Status == SupplyTransferVehicleStatus.Completed)
+                {
+                    assignment.Status = SupplyTransferVehicleStatus.Completed;
+                    assignment.CompletedAt ??= DateTime.UtcNow;
+                    assignment.Vehicle.Status = VehicleStatus.Free;
+                }
+                else if (request.Status == SupplyTransferVehicleStatus.Incident)
+                {
+                    assignment.Status = SupplyTransferVehicleStatus.Incident;
+                }
+                else
+                {
+                    throw new InvalidOperationException("Unsupported status update.");
+                }
+
+                await _unitOfWork.SupplyTransfers.UpdateAsync(transfer);
+                await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.CommitTransactionAsync(cancellationToken);
+            }
+            catch { await _unitOfWork.RollbackTransactionAsync(cancellationToken); throw; }
             return MapToResponse((await _unitOfWork.SupplyTransfers.GetByIdWithDetailsAsync(transferId, cancellationToken))!);
         }
 
@@ -400,6 +619,28 @@ namespace ReliefManagementSystem.Application.Services
         private static List<string> MergeEvidenceUrls(IEnumerable<string>? current, IEnumerable<string>? incoming)
             => NormalizeEvidenceUrls((current ?? []).Concat(incoming ?? []));
 
+        private static bool IsActiveAssignment(SupplyTransferVehicle assignment)
+            => assignment.Status is SupplyTransferVehicleStatus.Assigned
+                or SupplyTransferVehicleStatus.InTransit
+                or SupplyTransferVehicleStatus.Arrived
+                or SupplyTransferVehicleStatus.Incident;
+
+        private static bool CanTransitionVehicleStatus(
+            SupplyTransferVehicleStatus current,
+            SupplyTransferVehicleStatus next)
+            => current switch
+            {
+                SupplyTransferVehicleStatus.Assigned
+                    => next is SupplyTransferVehicleStatus.InTransit or SupplyTransferVehicleStatus.Incident,
+                SupplyTransferVehicleStatus.InTransit
+                    => next is SupplyTransferVehicleStatus.Arrived or SupplyTransferVehicleStatus.Incident,
+                SupplyTransferVehicleStatus.Arrived
+                    => next is SupplyTransferVehicleStatus.Completed or SupplyTransferVehicleStatus.Incident,
+                SupplyTransferVehicleStatus.Incident
+                    => next is SupplyTransferVehicleStatus.InTransit,
+                _ => false
+            };
+
         private static string NormalizeRequiredUrl(string value)
         {
             var normalized = value?.Trim();
@@ -466,6 +707,22 @@ namespace ReliefManagementSystem.Application.Services
             ApprovedByName = transfer.ApprovedByUser?.DisplayName ?? transfer.ApprovedByUser?.UserName ?? transfer.ApprovedByUser?.Email,
             VehicleId = transfer.VehicleId,
             DriverUserId = transfer.DriverUserId,
+            Vehicles = transfer.SupplyTransferVehicles.Select(v => new SupplyTransferVehicleResponse
+            {
+                SupplyTransferVehicleId = v.SupplyTransferVehicleId,
+                VehicleId = v.VehicleId,
+                LicensePlate = v.Vehicle?.LicensePlate ?? string.Empty,
+                VehicleTypeId = v.Vehicle?.VehicleTypeId ?? Guid.Empty,
+                VehicleTypeName = v.Vehicle?.VehicleType?.TypeName ?? string.Empty,
+                DriverUserId = v.DriverUserId,
+                DriverName = v.DriverUser?.DisplayName ?? v.DriverUser?.UserName ?? v.DriverUser?.Email,
+                Status = v.Status,
+                AssignedAt = v.AssignedAt,
+                DepartedAt = v.DepartedAt,
+                ArrivedAt = v.ArrivedAt,
+                CompletedAt = v.CompletedAt,
+                Note = v.Note
+            }).ToList(),
             Notes = transfer.Notes,
             EvidenceUrls = transfer.EvidenceUrls,
             Documents = MapDocuments(transfer.Documents),

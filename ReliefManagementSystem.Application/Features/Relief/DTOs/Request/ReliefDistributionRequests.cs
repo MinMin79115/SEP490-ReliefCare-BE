@@ -28,11 +28,18 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
 
         public double Latitude { get; set; }
         public double Longitude { get; set; }
+        public Guid? LocationId { get; set; }
 
         [Range(1, int.MaxValue)]
         public int HouseholdSize { get; set; }
 
         public bool IsIsolated { get; set; }
+        [Range(0, 10)]
+        public int? FloodSeverityLevel { get; set; }
+        [Range(0, 10)]
+        public int? IsolationSeverityLevel { get; set; }
+        public bool RequiresBoat { get; set; }
+        public bool RequiresLocalGuide { get; set; }
         public DeliveryMode? DeliveryMode { get; set; }
     }
 
@@ -45,6 +52,80 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         public Guid? CampaignTeamId { get; set; }
         public Guid? ReliefPackageDefinitionId { get; set; }
         public DateTime? ScheduledAt { get; set; }
+        public string? Notes { get; set; }
+        public bool ForceCreateNewDelivery { get; set; } = false;
+    }
+
+    public class AssignIsolatedHouseholdTeamRequest
+    {
+        [Required]
+        public Guid CampaignTeamId { get; set; }
+
+        public Guid? ReliefPackageDefinitionId { get; set; }
+        public DateTime? ScheduledAt { get; set; }
+        public bool KeepDoorToDoor { get; set; } = true;
+        public string? Notes { get; set; }
+        public bool ForceCreateNewDelivery { get; set; } = false;
+    }
+
+    public class UpdateHouseholdDeliveryAssignmentRequest
+    {
+        [Required]
+        public DeliveryMode DeliveryMode { get; set; }
+
+        public Guid? DistributionPointId { get; set; }
+        public Guid? CampaignTeamId { get; set; }
+        public Guid? ReliefPackageDefinitionId { get; set; }
+        public DateTime? ScheduledAt { get; set; }
+        public string? Notes { get; set; }
+    }
+
+    public class BulkAssignIsolatedHouseholdsRequest
+    {
+        [Required]
+        [MinLength(1)]
+        public List<Guid> CampaignHouseholdIds { get; set; } = [];
+
+        [Required]
+        public Guid CampaignTeamId { get; set; }
+
+        public Guid? ReliefPackageDefinitionId { get; set; }
+        public DateTime? ScheduledAt { get; set; }
+        public bool KeepDoorToDoor { get; set; } = true;
+        public string? Notes { get; set; }
+        public bool ForceCreateNewDelivery { get; set; } = false;
+    }
+
+    public class ReportNewReliefHouseholdRequest
+    {
+        [Required]
+        [MaxLength(100)]
+        public string HouseholdCode { get; set; } = string.Empty;
+
+        [Required]
+        [MaxLength(255)]
+        public string HeadOfHouseholdName { get; set; } = string.Empty;
+
+        [MaxLength(50)]
+        public string? ContactPhone { get; set; }
+
+        [MaxLength(500)]
+        public string? Address { get; set; }
+
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public Guid? LocationId { get; set; }
+
+        [Range(1, int.MaxValue)]
+        public int HouseholdSize { get; set; } = 1;
+
+        public bool IsIsolated { get; set; } = true;
+        [Range(0, 10)]
+        public int? FloodSeverityLevel { get; set; }
+        [Range(0, 10)]
+        public int? IsolationSeverityLevel { get; set; }
+        public bool RequiresBoat { get; set; }
+        public bool RequiresLocalGuide { get; set; }
         public string? Notes { get; set; }
     }
 
@@ -63,6 +144,11 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         public Guid? CampaignTeamId { get; set; }
         public bool? IsIsolated { get; set; }
         public bool? IsAssigned { get; set; }
+        public bool? RequiresBoat { get; set; }
+        public bool? RequiresLocalGuide { get; set; }
+        public int? MinFloodSeverityLevel { get; set; }
+        public int? MinIsolationSeverityLevel { get; set; }
+        public bool? HasCoordinates { get; set; }
     }
 
     public class DeliveryQueryRequest : ReliefPagedQueryRequest
@@ -70,9 +156,21 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
         public HouseholdFulfillmentStatus? Status { get; set; }
         public Guid? CampaignTeamId { get; set; }
         public Guid? DistributionPointId { get; set; }
+        public Guid? ReliefPackageDefinitionId { get; set; }
         public DeliveryMode? DeliveryMode { get; set; }
         public DateTime? ScheduledFrom { get; set; }
         public DateTime? ScheduledTo { get; set; }
+    }
+
+    public class TeamDeliveryWorklistQueryRequest : DeliveryQueryRequest
+    {
+        public bool? OnlyMyTeam { get; set; }
+        public bool? PrioritizeIsolated { get; set; }
+        public bool? IncludePendingOnly { get; set; } = true;
+        public bool? RequiresBoat { get; set; }
+        public bool? RequiresLocalGuide { get; set; }
+        public int? MinFloodSeverityLevel { get; set; }
+        public int? MinIsolationSeverityLevel { get; set; }
     }
 
     public class DistributionPointQueryRequest : ReliefPagedQueryRequest
@@ -105,8 +203,15 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Request
 
         public double? Latitude { get; set; }
         public double? Longitude { get; set; }
+        public Guid? LocationId { get; set; }
         public int? HouseholdSize { get; set; }
         public bool? IsIsolated { get; set; }
+        [Range(0, 10)]
+        public int? FloodSeverityLevel { get; set; }
+        [Range(0, 10)]
+        public int? IsolationSeverityLevel { get; set; }
+        public bool? RequiresBoat { get; set; }
+        public bool? RequiresLocalGuide { get; set; }
         public DeliveryMode? DeliveryMode { get; set; }
         public Guid? DistributionPointId { get; set; }
         public Guid? CampaignTeamId { get; set; }

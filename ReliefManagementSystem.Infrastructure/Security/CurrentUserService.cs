@@ -32,5 +32,19 @@ namespace ReliefManagementSystem.Infrastructure.Security
 
         public string? DisplayName =>
             _httpContextAccessor.HttpContext?.User?.FindFirstValue(ClaimTypes.Name);
+
+        public IReadOnlyCollection<string> Roles =>
+            _httpContextAccessor.HttpContext?.User?.FindAll(ClaimTypes.Role)
+                .Select(claim => claim.Value)
+                .Where(value => !string.IsNullOrWhiteSpace(value))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToArray()
+            ?? Array.Empty<string>();
+
+        public bool IsInRole(string role)
+        {
+            if (string.IsNullOrWhiteSpace(role)) return false;
+            return Roles.Contains(role, StringComparer.OrdinalIgnoreCase);
+        }
     }
 }

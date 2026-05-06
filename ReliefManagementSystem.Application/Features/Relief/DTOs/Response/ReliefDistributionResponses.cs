@@ -7,6 +7,7 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Response
     {
         public Guid CampaignHouseholdId { get; set; }
         public Guid CampaignId { get; set; }
+        public Guid? LocationId { get; set; }
         public Guid? DistributionPointId { get; set; }
         public string? DistributionPointName { get; set; }
         public Guid? CampaignTeamId { get; set; }
@@ -19,10 +20,107 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Response
         public double Longitude { get; set; }
         public int HouseholdSize { get; set; }
         public bool IsIsolated { get; set; }
+        public int? FloodSeverityLevel { get; set; }
+        public int? IsolationSeverityLevel { get; set; }
+        public bool RequiresBoat { get; set; }
+        public bool RequiresLocalGuide { get; set; }
         public DeliveryMode DeliveryMode { get; set; }
         public HouseholdFulfillmentStatus FulfillmentStatus { get; set; }
         public string? Notes { get; set; }
         public DateTime CreatedAt { get; set; }
+    }
+
+    public class ReliefCampaignPlanSummaryResponse
+    {
+        public Guid CampaignId { get; set; }
+        public int TotalHouseholds { get; set; }
+        public int IsolatedHouseholds { get; set; }
+        public int TotalPopulation { get; set; }
+        public decimal AveragePopulationDensity { get; set; }
+        public int SuggestedPeoplePerTeam { get; set; }
+        public int SuggestedPeoplePerDistributionPointLine { get; set; }
+        public int HighDensityAreaCount { get; set; }
+        public int MobileTeamPriorityAreaCount { get; set; }
+        public int PickupPriorityAreaCount { get; set; }
+        public int DistributionPointCount { get; set; }
+        public int PendingHouseholds { get; set; }
+        public int SuggestedTeamCount { get; set; }
+        public int EstimatedReliefPersonnel { get; set; }
+        public int EstimatedLocalVolunteers { get; set; }
+        public int EstimatedBoatCount { get; set; }
+        public int EstimatedLifeJacketCount { get; set; }
+        public List<ReliefPlanAreaSummaryResponse> Areas { get; set; } = [];
+        public List<IsolatedHouseholdPlanItemResponse> IsolatedHouseholdItems { get; set; } = [];
+        public List<DistributionPointPlanSummaryResponse> DistributionPoints { get; set; } = [];
+        public List<ReliefResourceRequirementResponse> ResourceRequirements { get; set; } = [];
+    }
+
+    public class ReliefPlanAreaSummaryResponse
+    {
+        public string AreaName { get; set; } = string.Empty;
+        public Guid? LocationId { get; set; }
+        public string? MatchedLocationName { get; set; }
+        public string? LocationMatchSource { get; set; }
+        public decimal PopulationDensity { get; set; }
+        public int HouseholdCount { get; set; }
+        public int IsolatedHouseholdCount { get; set; }
+        public int Population { get; set; }
+        public decimal AverageHouseholdSize { get; set; }
+        public int PendingHouseholds { get; set; }
+        public double EstimatedCoverageRadiusKm { get; set; }
+        public string TravelComplexityLabel { get; set; } = string.Empty;
+        public string RecommendedOperationalMode { get; set; } = string.Empty;
+        public string RecommendedDeliveryStrategy { get; set; } = string.Empty;
+        public int SuggestedPeoplePerTeam { get; set; }
+        public int SuggestedPeoplePerDistributionPointLine { get; set; }
+        public int SuggestedDistributionPointCount { get; set; }
+        public int SuggestedMobileTeamCount { get; set; }
+        public int SuggestedTeamCount { get; set; }
+        public int EstimatedPackages { get; set; }
+        public int EstimatedBoatCount { get; set; }
+        public int EstimatedLifeJacketCount { get; set; }
+    }
+
+    public class IsolatedHouseholdPlanItemResponse
+    {
+        public Guid CampaignHouseholdId { get; set; }
+        public Guid? CampaignTeamId { get; set; }
+        public string HouseholdCode { get; set; } = string.Empty;
+        public string HeadOfHouseholdName { get; set; } = string.Empty;
+        public string? Address { get; set; }
+        public Guid? LocationId { get; set; }
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public int HouseholdSize { get; set; }
+        public int? FloodSeverityLevel { get; set; }
+        public int? IsolationSeverityLevel { get; set; }
+        public bool RequiresBoat { get; set; }
+        public bool RequiresLocalGuide { get; set; }
+        public string PriorityLabel { get; set; } = string.Empty;
+        public string SuggestedSupportMode { get; set; } = string.Empty;
+        public int EstimatedReliefPersonnel { get; set; }
+        public int EstimatedBoatCount { get; set; }
+        public int EstimatedLifeJacketCount { get; set; }
+        public string? CampaignTeamName { get; set; }
+    }
+
+    public class DistributionPointPlanSummaryResponse
+    {
+        public Guid DistributionPointId { get; set; }
+        public string Name { get; set; } = string.Empty;
+        public string? Address { get; set; }
+        public int AssignedHouseholdCount { get; set; }
+        public int PendingDeliveryCount { get; set; }
+        public int SuggestedPersonnelCount { get; set; }
+        public int SuggestedLocalVolunteerCount { get; set; }
+    }
+
+    public class ReliefResourceRequirementResponse
+    {
+        public string ResourceType { get; set; } = string.Empty;
+        public string ResourceName { get; set; } = string.Empty;
+        public int EstimatedQuantity { get; set; }
+        public string? Notes { get; set; }
     }
 
     public class HouseholdChecklistItemResponse
@@ -44,6 +142,58 @@ namespace ReliefManagementSystem.Application.Features.Relief.DTOs.Response
         public DateTime? DeliveredAt { get; set; }
         public string? Notes { get; set; }
         public int ProofCount { get; set; }
+    }
+
+    public class TeamDeliveryWorklistItemResponse
+    {
+        public Guid HouseholdDeliveryId { get; set; }
+        public Guid CampaignHouseholdId { get; set; }
+        public Guid CampaignId { get; set; }
+        public Guid? CampaignTeamId { get; set; }
+        public string? CampaignTeamName { get; set; }
+        public Guid? DistributionPointId { get; set; }
+        public string? DistributionPointName { get; set; }
+        public string HouseholdCode { get; set; } = string.Empty;
+        public string HeadOfHouseholdName { get; set; } = string.Empty;
+        public string? ContactPhone { get; set; }
+        public string? Address { get; set; }
+        public double Latitude { get; set; }
+        public double Longitude { get; set; }
+        public int HouseholdSize { get; set; }
+        public bool IsIsolated { get; set; }
+        public int? FloodSeverityLevel { get; set; }
+        public int? IsolationSeverityLevel { get; set; }
+        public bool RequiresBoat { get; set; }
+        public bool RequiresLocalGuide { get; set; }
+        public string SuggestedSupportMode { get; set; } = string.Empty;
+        public DeliveryMode DeliveryMode { get; set; }
+        public HouseholdFulfillmentStatus Status { get; set; }
+        public DateTime ScheduledAt { get; set; }
+        public string? Notes { get; set; }
+        public int ProofCount { get; set; }
+    }
+
+    public class BulkAssignIsolatedHouseholdsResponse
+    {
+        public int TotalRequested { get; set; }
+        public int SuccessCount { get; set; }
+        public int FailureCount { get; set; }
+        public List<BulkAssignIsolatedHouseholdItemResponse> Items { get; set; } = [];
+    }
+
+    public class BulkAssignIsolatedHouseholdItemResponse
+    {
+        public Guid CampaignHouseholdId { get; set; }
+        public bool IsSuccess { get; set; }
+        public string? Error { get; set; }
+        public CampaignHouseholdResponse? Household { get; set; }
+        public HouseholdDeliveryResponse? Delivery { get; set; }
+    }
+
+    public class AssignIsolatedHouseholdTeamResponse
+    {
+        public CampaignHouseholdResponse Household { get; set; } = null!;
+        public HouseholdDeliveryResponse Delivery { get; set; } = null!;
     }
 
     public class DistributionPointResponse

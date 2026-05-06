@@ -10,8 +10,10 @@ namespace ReliefManagementSystem.Application.Features.CampaignTask.DTOs.Response
         public string VolunteerName { get; set; } = string.Empty;
         public string SubTaskTitle { get; set; } = string.Empty;
         public string? TaskNote { get; set; }
+        public string? FailureReason { get; set; }
         public DateTime? AssignedAt { get; set; }
         public DateTime? CompletedAt { get; set; }
         public MemberTaskStatus Status { get; set; }
+        public List<MemberTaskDeliveryResponse> Deliveries { get; set; } = [];
     }
 }

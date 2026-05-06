@@ -48,6 +48,20 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
                 .ToListAsync(cancellationToken);
         }
 
+        public async Task<List<HouseholdDelivery>> GetByIdsAsync(IEnumerable<Guid> householdDeliveryIds, CancellationToken cancellationToken = default)
+        {
+            var ids = householdDeliveryIds.Distinct().ToList();
+            return await _context.HouseholdDeliveries
+                .Include(x => x.CampaignHousehold)
+                .Include(x => x.DistributionPoint)
+                .Include(x => x.CampaignTeam)
+                    .ThenInclude(ct => ct.Team)
+                .Include(x => x.ReliefPackageDefinition)
+                .Include(x => x.Proofs)
+                .Where(x => ids.Contains(x.HouseholdDeliveryId))
+                .ToListAsync(cancellationToken);
+        }
+
         public async Task<List<HouseholdDelivery>> GetByChecklistAsync(
             Guid campaignId,
             Guid? campaignTeamId,

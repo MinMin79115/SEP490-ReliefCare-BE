@@ -23,6 +23,8 @@ namespace ReliefManagementSystem.Application.Features.RescueRequest.DTOs.Respons
         public Guid? VehicleId { get; set; }
         public string? VehicleName { get; set; }
         public string? VehicleLicensePlate { get; set; }
+        public List<AssignedVehicleDto> Vehicles { get; set; } = new();
+        public List<RescueOperationSupplyDto> Supplies { get; set; } = new();
         public string? DisasterType { get; set; }
         public string? RescueRequestType { get; set; }
         public string? RescueRequestStatus { get; set; }

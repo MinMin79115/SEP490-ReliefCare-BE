@@ -212,6 +212,11 @@ namespace ReliefManagementSystem.Application.Services
             return vehicles.Select(MapToResponse).ToList();
         }
 
+        public Task<IReadOnlyList<VehicleResponse>> GetAvailableVehiclesForTransferAsync(
+            Guid userId,
+            CancellationToken cancellationToken = default)
+            => GetAvailableVehiclesForModeratorAsync(userId, cancellationToken);
+
         // Update Vehicle
         public async Task<VehicleResponse> UpdateVehicleAsync(
             Guid id,
@@ -269,6 +274,8 @@ namespace ReliefManagementSystem.Application.Services
                 {
                     throw new Exception("Team chưa được duyệt tại trạm của phương tiện");
                 }
+
+                await EnsureNoConflictingActiveCampaignAssignmentAsync(vehicle.VehicleId, request.TeamId.Value);
             }
 
             vehicle.TeamId = request.TeamId;
@@ -366,6 +373,8 @@ namespace ReliefManagementSystem.Application.Services
             {
                 throw new Exception("Team chưa được duyệt tại trạm của phương tiện");
             }
+
+            await EnsureNoConflictingActiveCampaignAssignmentAsync(vehicle.VehicleId, teamId);
 
             vehicle.TeamId = teamId;
             vehicle.UpdatedAt = DateTime.UtcNow;
@@ -474,6 +483,44 @@ namespace ReliefManagementSystem.Application.Services
             }
 
             return moderatorProfile.ReliefStationId.Value;
+        }
+
+        private async Task EnsureNoConflictingActiveCampaignAssignmentAsync(Guid vehicleId, Guid teamId)
+        {
+            var assignments = await _unitOfWork.CampaignVehicles.GetAllAsync();
+            var activeStatuses = new[]
+            {
+                VehicleAssignmentStatus.Pending,
+                VehicleAssignmentStatus.Approved,
+                VehicleAssignmentStatus.InTransit,
+                VehicleAssignmentStatus.OnSite,
+                VehicleAssignmentStatus.Returning,
+            };
+
+            var conflictingAssignment = assignments
+                .Where(x => x.VehicleId == vehicleId)
+                .Where(x => x.CampaignTeamId.HasValue && activeStatuses.Contains(x.Status))
+                .FirstOrDefault();
+
+            if (conflictingAssignment == null)
+            {
+                return;
+            }
+
+            var campaignTeam = await _unitOfWork.Campaigns.GetCampaignTeamsAsync(conflictingAssignment.CampaignId);
+            var assignedTeam = campaignTeam.FirstOrDefault(x => x.CampaignTeamId == conflictingAssignment.CampaignTeamId.Value);
+            var assignedTeamId = assignedTeam?.TeamId;
+
+            if (!assignedTeamId.HasValue || assignedTeamId.Value == teamId)
+            {
+                return;
+            }
+
+            var campaign = await _unitOfWork.Campaigns.GetByIdAsync(conflictingAssignment.CampaignId);
+            var campaignName = campaign?.Name ?? conflictingAssignment.CampaignId.ToString();
+            var teamName = assignedTeam?.Team?.Name ?? assignedTeamId.Value.ToString();
+
+            throw new Exception($"Phương tiện đang bị chiến dịch '{campaignName}' giữ cho team '{teamName}'. Hãy gỡ hoặc cập nhật điều phối campaign trước khi đổi team ở trang phương tiện.");
         }
 
         private async Task EnsureCanManageVehicleAsync(

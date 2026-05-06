@@ -12,10 +12,26 @@ namespace ReliefManagementSystem.Application.Interface
             ImportCampaignHouseholdsRequest request,
             CancellationToken cancellationToken = default);
 
+        Task<CampaignHouseholdResponse> ReportNewReliefHouseholdAsync(
+            Guid campaignId,
+            ReportNewReliefHouseholdRequest request,
+            CancellationToken cancellationToken = default);
+
         Task<HouseholdDeliveryResponse> AssignHouseholdAsync(
             Guid campaignId,
             Guid campaignHouseholdId,
             AssignHouseholdRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<AssignIsolatedHouseholdTeamResponse> AssignIsolatedHouseholdTeamAsync(
+            Guid campaignId,
+            Guid campaignHouseholdId,
+            AssignIsolatedHouseholdTeamRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<BulkAssignIsolatedHouseholdsResponse> BulkAssignIsolatedHouseholdTeamsAsync(
+            Guid campaignId,
+            BulkAssignIsolatedHouseholdsRequest request,
             CancellationToken cancellationToken = default);
 
         Task<Pagination<CampaignHouseholdResponse>> GetCampaignHouseholdsAsync(
@@ -23,9 +39,18 @@ namespace ReliefManagementSystem.Application.Interface
             HouseholdQueryRequest request,
             CancellationToken cancellationToken = default);
 
+        Task<ReliefCampaignPlanSummaryResponse> GetCampaignPlanSummaryAsync(
+            Guid campaignId,
+            CancellationToken cancellationToken = default);
+
         Task<Pagination<HouseholdChecklistItemResponse>> GetChecklistAsync(
             Guid campaignId,
             DeliveryQueryRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task<Pagination<TeamDeliveryWorklistItemResponse>> GetTeamDeliveryWorklistAsync(
+            Guid campaignId,
+            TeamDeliveryWorklistQueryRequest request,
             CancellationToken cancellationToken = default);
 
         Task<CampaignHouseholdResponse> UpdateCampaignHouseholdAsync(
@@ -126,6 +151,17 @@ namespace ReliefManagementSystem.Application.Interface
             CancellationToken cancellationToken = default);
 
         Task<HouseholdDeliveryResponse> GetDeliveryByIdAsync(
+            Guid campaignId,
+            Guid householdDeliveryId,
+            CancellationToken cancellationToken = default);
+
+        Task<HouseholdDeliveryResponse> UpdateHouseholdDeliveryAssignmentAsync(
+            Guid campaignId,
+            Guid householdDeliveryId,
+            UpdateHouseholdDeliveryAssignmentRequest request,
+            CancellationToken cancellationToken = default);
+
+        Task DeleteHouseholdDeliveryAssignmentAsync(
             Guid campaignId,
             Guid householdDeliveryId,
             CancellationToken cancellationToken = default);

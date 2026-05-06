@@ -11,11 +11,20 @@ namespace ReliefManagementSystem.Infrastructure.Repositories
         {
         }
 
-        public async Task<List<CampaignBudgetTransfer>> GetByCampaignAsync(Guid campaignId, CancellationToken cancellationToken = default)
+        public async Task<List<CampaignBudgetTransfer>> GetByCampaignAsync(Guid campaignId, bool includeDeleted = false, CancellationToken cancellationToken = default)
         {
-            return await _dbSet
+            var query = _dbSet
                 .AsNoTracking()
-                .Where(x => x.SourceCampaignId == campaignId || x.TargetCampaignId == campaignId)
+                .Include(x => x.TransferredByUser)
+                .Include(x => x.CancelledByUser)
+                .Where(x => x.SourceCampaignId == campaignId || x.TargetCampaignId == campaignId);
+
+            if (!includeDeleted)
+            {
+                query = query.Where(x => !x.IsDeleted);
+            }
+
+            return await query
                 .OrderByDescending(x => x.TransferredAt)
                 .ToListAsync(cancellationToken);
         }
