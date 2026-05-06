@@ -104,8 +104,8 @@ services:
       CorsSettings__AllowedOrigins__2: "https://api.reliefhub.info.vn"
       ASPNETCORE_ENVIRONMENT: "Production"
       ASPNETCORE_URLS: "http://+:8080"
-      Logging__LogLevel__Default: "Warning"
-      Logging__LogLevel__Microsoft__AspNetCore: "Warning"
+      Logging__LogLevel__Default: "Information"
+      Logging__LogLevel__Microsoft__AspNetCore: "Information"
       Logging__LogLevel__Microsoft__EntityFrameworkCore: "Warning"
     ports:
       - "18080:8080"
