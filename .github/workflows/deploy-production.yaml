@@ -144,7 +144,7 @@ jobs:
             Get-ChildItem -Path "./backups" -Filter "backup_*.sql" | Sort-Object LastWriteTime -Descending | Select-Object -Skip 5 | Remove-Item -Force
           } else {
             Write-Host "Database container not running, skipping backup"
-          fi
+          }
 
       - name: Capture current API image
         id: current-image
@@ -157,7 +157,7 @@ jobs:
             Write-Host "Current API image: $currentImage"
           } else {
             Write-Host "No existing API container found"
-          fi
+          }
 
       - name: Pull production images
         shell: powershell
@@ -214,7 +214,7 @@ jobs:
           $previousTag = ($env:PREVIOUS_IMAGE -split ":")[-1]
           if ([string]::IsNullOrWhiteSpace($previousTag) -or $previousTag -eq $env:PREVIOUS_IMAGE) {
             throw "Cannot determine previous image tag from $env:PREVIOUS_IMAGE"
-          fi
+          }
 
           "IMAGE_TAG=$previousTag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           $env:IMAGE_TAG = $previousTag
@@ -235,4 +235,4 @@ jobs:
             Write-Host "Production deployment successful: $image"
           } else {
             Write-Host "Production deployment failed"
-          fi
+          }
