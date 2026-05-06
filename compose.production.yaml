@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "5432:5432"
+      - "15432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -19,8 +19,25 @@ services:
     networks:
       - reliefcare-production
 
-  reliefcare-api:
-    image: ${REGISTRY:-ghcr.io/minmin79115/sep490-reliefcare-be}/reliefcare-api:latest
+  centrifugo:
+    image: centrifugo/centrifugo:v6
+    container_name: reliefcare-centrifugo-prod
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:18000:8000"
+    volumes:
+      - ./centrifugo/config.production.json:/centrifugo/config.json:ro
+    command: centrifugo --config=/centrifugo/config.json
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks:
+      - reliefcare-production
+
+  reliefcare-api-production:
+    image: ${REGISTRY:?REGISTRY is required}/reliefcare-api:${IMAGE_TAG:?IMAGE_TAG is required}
     container_name: reliefcare-api-prod
     restart: unless-stopped
     build:
@@ -28,6 +45,8 @@ services:
       dockerfile: ReliefManagementSystem.API/Dockerfile
     depends_on:
       postgres:
+        condition: service_healthy
+      centrifugo:
         condition: service_healthy
     environment:
       ConnectionStrings__Default: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-relief_db};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD}"
@@ -38,28 +57,48 @@ services:
       Jwt__RefreshTokenDays: "7"
       AuthenticationGoogle__Google__ClientId: ${GOOGLE_CLIENT_ID:-}
       AuthenticationGoogle__Google__ClientSecret: ${GOOGLE_CLIENT_SECRET:-}
-      WeatherApi__BaseUrl: ${WEATHER_API_BASE_URL:-https://api.weatherapi.com/v1}
+      EmailSettings__Host: "smtp-relay.brevo.com"
+      EmailSettings__Port: "587"
+      EmailSettings__Username: ${EMAIL_USERNAME:-}
+      EmailSettings__Password: ${EMAIL_PASSWORD:-}
+      EmailSettings__SenderEmail: "noreply@reliefhub.info.vn"
+      EmailSettings__SenderName: "Relief Hub"
+      CloudinarySettings__CloudName: "dhwnptz55"
+      CloudinarySettings__ApiKey: ${CLOUDINARY_API_KEY:-}
+      CloudinarySettings__ApiSecret: ${CLOUDINARY_API_SECRET:-}
+      Goong__BaseUrl: "https://rsapi.goong.io"
+      Goong__ApiKey: ${GOONG_API_KEY:-}
+      WeatherApi__BaseUrl: "https://api.weatherapi.com/v1"
       WeatherApi__ApiKey: ${WEATHER_API_KEY:-}
-      VisualCrossing__BaseUrl: ${VISUAL_CROSSING_BASE_URL:-https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline}
+      VisualCrossing__BaseUrl: "https://weather.visualcrossing.com/VisualCrossingWebServices/rest/services/timeline"
       VisualCrossing__ApiKey: ${VISUAL_CROSSING_API_KEY:-}
-      VisualCrossing__UnitGroup: ${VISUAL_CROSSING_UNIT_GROUP:-metric}
-      VisualCrossing__ForecastDays: ${VISUAL_CROSSING_FORECAST_DAYS:-14}
-      VisualCrossing__Include: ${VISUAL_CROSSING_INCLUDE:-days}
+      VisualCrossing__UnitGroup: "metric"
+      VisualCrossing__ForecastDays: "14"
+      VisualCrossing__Include: "days"
       VisualCrossing__Elements: ${VISUAL_CROSSING_ELEMENTS:-datetime,tempmax,tempmin,precip,precipprob,precipcover,humidity,cloudcover,pressure,windspeed,windgust,visibility,severerisk,cape,cin,snow,snowdepth}
-      VisualCrossing__ExcludeNullValues: ${VISUAL_CROSSING_EXCLUDE_NULLS:-true}
-      LlmProvider__BaseUrl: ${LLM_PROVIDER_BASE_URL:-}
+      VisualCrossing__ExcludeNullValues: "true"
+      LlmProvider__BaseUrl: ${LLM_PROVIDER_BASE_URL:-https://api.apipro.me/v1}
       LlmProvider__ApiKey: ${LLM_PROVIDER_API_KEY:-}
-      LlmProvider__ProviderName: ${LLM_PROVIDER_NAME:-OpenAI-Compatible}
-      LlmProvider__DefaultModel: ${LLM_PROVIDER_DEFAULT_MODEL:-gpt-4o-mini}
-      LlmProvider__ChatCompletionsPath: ${LLM_PROVIDER_CHAT_COMPLETIONS_PATH:-/chat/completions}
-      LlmProvider__Temperature: ${LLM_PROVIDER_TEMPERATURE:-0.2}
-      LlmProvider__MaxTokens: ${LLM_PROVIDER_MAX_TOKENS:-600}
+      LlmProvider__ProviderName: ${LLM_PROVIDER_NAME:-APIPro}
+      LlmProvider__DefaultModel: ${LLM_PROVIDER_DEFAULT_MODEL:-gpt-5.4}
+      LlmProvider__ChatCompletionsPath: "/chat/completions"
+      LlmProvider__Temperature: "0.2"
+      LlmProvider__MaxTokens: "600"
+      DisasterAnalysis__TopRiskCount: "3"
+      DisasterAnalysis__IncludeEarthquakeInAutoDetect: "false"
       PayOs__ClientId: ${PAYOS_CLIENT_ID:-}
       PayOs__ApiKey: ${PAYOS_API_KEY:-}
       PayOs__ChecksumKey: ${PAYOS_CHECKSUM_KEY:-}
       PayOs__ReturnUrl: ${PAYOS_RETURN_URL:-https://reliefhub.info.vn/donation/return}
       PayOs__CancelUrl: ${PAYOS_CANCEL_URL:-https://reliefhub.info.vn/donation/cancel}
-      PayOs__ExpiredMinutes: ${PAYOS_EXPIRED_MINUTES:-15}
+      PayOs__ExpiredMinutes: "15"
+      Centrifugo__BaseUrl: "http://centrifugo:8000"
+      Centrifugo__HttpApiKey: ${CENTRIFUGO_API_KEY}
+      Centrifugo__ClientTokenSecret: ${CENTRIFUGO_SECRET}
+      Centrifugo__PublicWebsocketUrl: "wss://reliefhub.info.vn"
+      Centrifugo__Issuer: "ReliefCare.API"
+      Centrifugo__Audience: "ReliefCare.Realtime"
+      Centrifugo__ConnectionTokenMinutes: "15"
       CorsSettings__AllowedOrigins__0: "https://reliefhub.info.vn"
       CorsSettings__AllowedOrigins__1: "https://www.reliefhub.info.vn"
       CorsSettings__AllowedOrigins__2: "https://api.reliefhub.info.vn"
@@ -69,13 +108,32 @@ services:
       Logging__LogLevel__Microsoft__AspNetCore: "Warning"
       Logging__LogLevel__Microsoft__EntityFrameworkCore: "Warning"
     ports:
-      - "8080:8080"
+      - "18080:8080"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsSL http://localhost:8080/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 240s
+    networks:
+      - reliefcare-production
+
+  pgadmin:
+    image: dpage/pgadmin4:latest
+    container_name: reliefcare-pgadmin-prod
+    restart: unless-stopped
+    environment:
+      PGADMIN_DEFAULT_EMAIL: "admin@reliefcare.com"
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_PASSWORD}
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    ports:
+      - "5051:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      postgres:
+        condition: service_healthy
     networks:
       - reliefcare-production
 
@@ -87,14 +145,18 @@ services:
     environment:
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
-      reliefcare-api:
-        condition: service_started
+      reliefcare-api-production:
+        condition: service_healthy
+      centrifugo:
+        condition: service_healthy
     networks:
       - reliefcare-production
 
 volumes:
   postgres_data:
     name: reliefcare-production-postgres-data
+  pgadmin_data:
+    name: reliefcare-production-pgadmin-data
 
 networks:
   reliefcare-production:

@@ -1,0 +1,29 @@
+{
+  "log": {
+    "level": "info"
+  },
+  "client": {
+    "allowed_origins": ["*"],
+    "token": {
+      "hmac_secret_key": "__CENTRIFUGO_SECRET__",
+      "issuer": "ReliefCare.API",
+      "audience": "ReliefCare.Realtime"
+    }
+  },
+  "http_api": {
+    "key": "__CENTRIFUGO_API_KEY__",
+    "error_mode": "transport"
+  },
+  "health": {
+    "enabled": true
+  },
+  "admin": {
+    "enabled": false
+  },
+  "prometheus": {
+    "enabled": false
+  },
+  "presence": true,
+  "history_size": 50,
+  "history_ttl": "30m"
+}
