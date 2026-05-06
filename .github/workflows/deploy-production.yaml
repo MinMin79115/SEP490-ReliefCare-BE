@@ -12,7 +12,8 @@ concurrency:
 env:
   COMPOSE_FILE: compose.production.yaml
   COMPOSE_PROJECT_NAME: reliefcare-production
-  API_SERVICE: reliefcare-api
+  API_SERVICE: reliefcare-api-production
+  API_IMAGE_NAME: reliefcare-api
   API_CONTAINER: reliefcare-api-prod
 
 jobs:
@@ -43,11 +44,11 @@ jobs:
         run: |
           docker build \
             -f ReliefManagementSystem.API/Dockerfile \
-            -t "$REGISTRY/$API_SERVICE:$IMAGE_TAG" \
-            -t "$REGISTRY/$API_SERVICE:production-latest" \
+            -t "$REGISTRY/$API_IMAGE_NAME:$IMAGE_TAG" \
+            -t "$REGISTRY/$API_IMAGE_NAME:production-latest" \
             .
-          docker push "$REGISTRY/$API_SERVICE:$IMAGE_TAG"
-          docker push "$REGISTRY/$API_SERVICE:production-latest"
+          docker push "$REGISTRY/$API_IMAGE_NAME:$IMAGE_TAG"
+          docker push "$REGISTRY/$API_IMAGE_NAME:production-latest"
 
   api-image-deploy:
     name: Deploy / API
@@ -235,7 +236,7 @@ jobs:
         run: |
           $status = "${{ job.status }}"
           if ($status -eq "success") {
-            $image = "{0}/{1}:{2}" -f $env:REGISTRY, $env:API_SERVICE, $env:IMAGE_TAG
+            $image = "{0}/{1}:{2}" -f $env:REGISTRY, $env:API_IMAGE_NAME, $env:IMAGE_TAG
             Write-Host "Production deployment successful: $image"
           } else {
             Write-Host "Production deployment failed"
