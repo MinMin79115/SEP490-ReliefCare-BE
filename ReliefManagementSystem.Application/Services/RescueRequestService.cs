@@ -124,7 +124,7 @@ namespace ReliefManagementSystem.Application.Services
                 CampaignId = attachedCampaignId,
                 Note = request.Note,
                 ReporterUserId = currentUserId, // can be null for anonymous reports
-                ReporterFullName = currentUser?.UserName ?? request.ReporterFullName ?? "Anonymous",
+                ReporterFullName = request.ReporterFullName ?? "Anonymous",
                 ReporterPhone = currentUser?.PhoneNumber ?? request.ReporterPhone ?? string.Empty,
                 CreatedAt = createdAt,
                 RescueRequestStatus = Domain.Enum.RescueRequestStatus.Pending,
@@ -583,7 +583,7 @@ namespace ReliefManagementSystem.Application.Services
                     return new DispatchCandidateResponseDto
                     {
                         RequestId = r.RequestId,
-                        UserName = r.ReporterUser?.UserName ?? r.ReporterFullName,
+                        UserName = r.ReporterFullName,
                         ReporterFullName = r.ReporterFullName,
                         ReporterPhone = r.ReporterPhone,
                         RescueRequestType = r.RescueRequestType.ToString(),
