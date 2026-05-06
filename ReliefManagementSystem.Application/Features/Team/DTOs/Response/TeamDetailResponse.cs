@@ -87,6 +87,7 @@ namespace ReliefManagementSystem.Application.Features.Team.DTOs.Response
         public int CampaignType { get; set; }
         public Guid CampaignTeamId { get; set; }
         public int Status { get; set; }
+        public int CampaignStatus { get; set; }
         public int Role { get; set; }
     }
 }

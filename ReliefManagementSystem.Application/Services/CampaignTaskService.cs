@@ -906,6 +906,9 @@ namespace ReliefManagementSystem.Application.Services
                     return;
             }
 
+            if (!volunteerProfileId.HasValue && await _unitOfWork.TeamMembers.IsMemberAsync(campaignTeam.TeamId, currentUserId))
+                return;
+
             if (volunteerProfileId.HasValue)
             {
                 var volunteerProfile = await _unitOfWork.VolunteerProfiles.GetByUserIdAsync(currentUserId);
