@@ -79,8 +79,8 @@ jobs:
       PAYOS_RETURN_URL: ${{ secrets.PROD_PAYOS_RETURN }}
       PAYOS_CANCEL_URL: ${{ secrets.PROD_PAYOS_CANCEL }}
       PGADMIN_PASSWORD: ${{ secrets.PROD_PGADMIN_PASSWORD }}
-      CENTRIFUGO_API_KEY: ${{ secrets.STAGING_CENTRIFUGO_API_KEY }}
-      CENTRIFUGO_SECRET: ${{ secrets.STAGING_CENTRIFUGO_SECRET }}
+      CENTRIFUGO_API_KEY: ${{ secrets.PROD_CENTRIFUGO_API_KEY }}
+      CENTRIFUGO_SECRET: ${{ secrets.PROD_CENTRIFUGO_SECRET }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -93,114 +93,132 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set image variables
+        shell: powershell
         run: |
-          REPO_LOWER=$(echo "${{ github.repository }}" | tr '[:upper:]' '[:lower:]')
-          echo "REGISTRY=ghcr.io/$REPO_LOWER" >> "$GITHUB_ENV"
-          echo "IMAGE_TAG=${{ github.sha }}" >> "$GITHUB_ENV"
+          $repoLower = "${{ github.repository }}".ToLowerInvariant()
+          "REGISTRY=ghcr.io/$repoLower" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          "IMAGE_TAG=${{ github.sha }}" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
       - name: Validate deploy inputs
+        shell: powershell
         run: |
-          test -n "$REGISTRY"
-          test -n "$IMAGE_TAG"
-          test -n "$POSTGRES_PASSWORD"
-          test -n "$JWT_KEY"
-          test -n "$CLOUDFLARE_TUNNEL_TOKEN"
-          test -n "$CENTRIFUGO_API_KEY"
-          test -n "$CENTRIFUGO_SECRET"
-          test -n "$PGADMIN_PASSWORD"
-          docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" config --quiet
+          $required = @(
+            "REGISTRY",
+            "IMAGE_TAG",
+            "POSTGRES_PASSWORD",
+            "JWT_KEY",
+            "CLOUDFLARE_TUNNEL_TOKEN",
+            "CENTRIFUGO_API_KEY",
+            "CENTRIFUGO_SECRET",
+            "PGADMIN_PASSWORD"
+          )
+
+          foreach ($name in $required) {
+            if ([string]::IsNullOrWhiteSpace([Environment]::GetEnvironmentVariable($name))) {
+              throw "Missing required environment variable: $name"
+            }
+          }
+
+          docker compose -p $env:COMPOSE_PROJECT_NAME -f $env:COMPOSE_FILE config --quiet
 
       - name: Generate Centrifugo production config
+        shell: powershell
         run: |
-          python - <<'PY'
-          import os
-          from pathlib import Path
-
-          config_path = Path("centrifugo/config.production.json")
-          content = config_path.read_text()
-          content = content.replace("__CENTRIFUGO_API_KEY__", os.environ["CENTRIFUGO_API_KEY"])
-          content = content.replace("__CENTRIFUGO_SECRET__", os.environ["CENTRIFUGO_SECRET"])
-          config_path.write_text(content)
-          PY
+          $configPath = "centrifugo/config.production.json"
+          $content = Get-Content $configPath -Raw
+          $content = $content.Replace("__CENTRIFUGO_API_KEY__", $env:CENTRIFUGO_API_KEY)
+          $content = $content.Replace("__CENTRIFUGO_SECRET__", $env:CENTRIFUGO_SECRET)
+          Set-Content -Path $configPath -Value $content -NoNewline
 
       - name: Backup database
+        shell: powershell
         run: |
-          echo "Creating database backup before deployment..."
-          mkdir -p ./backups
+          Write-Host "Creating database backup before deployment..."
+          New-Item -ItemType Directory -Force -Path "./backups" | Out-Null
 
-          if docker ps --format '{{.Names}}' | grep -qx 'reliefcare-postgres-prod'; then
-            BACKUP_FILE="./backups/backup_$(date +%Y%m%d_%H%M%S).sql"
-            docker exec reliefcare-postgres-prod pg_dump -U postgres relief_db > "$BACKUP_FILE"
-            echo "Backup created: $BACKUP_FILE"
-            find ./backups -name 'backup_*.sql' -type f | sort -r | tail -n +6 | xargs -r rm -f
-          else
-            echo "Database container not running, skipping backup"
+          $containers = docker ps --format '{{.Names}}'
+          if ($containers -contains "reliefcare-postgres-prod") {
+            $backupFile = "./backups/backup_$(Get-Date -Format 'yyyyMMdd_HHmmss').sql"
+            docker exec reliefcare-postgres-prod pg_dump -U postgres relief_db | Out-File -FilePath $backupFile -Encoding utf8
+            Write-Host "Backup created: $backupFile"
+            Get-ChildItem -Path "./backups" -Filter "backup_*.sql" | Sort-Object LastWriteTime -Descending | Select-Object -Skip 5 | Remove-Item -Force
+          } else {
+            Write-Host "Database container not running, skipping backup"
           fi
 
       - name: Capture current API image
         id: current-image
+        shell: powershell
         run: |
-          CURRENT_IMAGE=$(docker inspect "$API_CONTAINER" --format='{{.Config.Image}}' 2>/dev/null || true)
-          echo "image=$CURRENT_IMAGE" >> "$GITHUB_OUTPUT"
-          if [ -n "$CURRENT_IMAGE" ]; then
-            echo "Current API image: $CURRENT_IMAGE"
-          else
-            echo "No existing API container found"
+          $currentImage = docker inspect $env:API_CONTAINER --format='{{.Config.Image}}' 2>$null
+          if ($LASTEXITCODE -ne 0) { $currentImage = "" }
+          "image=$currentImage" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          if (-not [string]::IsNullOrWhiteSpace($currentImage)) {
+            Write-Host "Current API image: $currentImage"
+          } else {
+            Write-Host "No existing API container found"
           fi
 
       - name: Pull production images
+        shell: powershell
         run: |
-          docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" pull postgres centrifugo pgadmin cloudflared
-          docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" pull "$API_SERVICE"
+          docker compose -p $env:COMPOSE_PROJECT_NAME -f $env:COMPOSE_FILE pull postgres centrifugo pgadmin cloudflared
+          docker compose -p $env:COMPOSE_PROJECT_NAME -f $env:COMPOSE_FILE pull $env:API_SERVICE
 
       - name: Ensure dependencies are running
+        shell: powershell
         run: |
-          docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" up -d postgres centrifugo pgadmin
+          docker compose -p $env:COMPOSE_PROJECT_NAME -f $env:COMPOSE_FILE up -d postgres centrifugo pgadmin
 
       - name: Deploy API
+        shell: powershell
         run: |
-          docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" up -d --no-deps "$API_SERVICE"
+          docker compose -p $env:COMPOSE_PROJECT_NAME -f $env:COMPOSE_FILE up -d --no-deps $env:API_SERVICE
 
       - name: Wait for healthcheck
+        shell: powershell
         run: |
-          echo "Waiting for API to be ready..."
-          MAX_RETRIES=24
-          RETRY_COUNT=0
+          Write-Host "Waiting for API to be ready..."
+          $maxRetries = 24
 
-          while [ "$RETRY_COUNT" -lt "$MAX_RETRIES" ]; do
-            if curl -fsSL http://localhost:8080/health > /dev/null; then
-              echo "API is healthy"
-              docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" ps
-              exit 0
-            fi
+          for ($retry = 1; $retry -le $maxRetries; $retry++) {
+            try {
+              $response = Invoke-WebRequest -Uri "http://localhost:8080/health" -UseBasicParsing -TimeoutSec 10
+              if ($response.StatusCode -ge 200 -and $response.StatusCode -lt 300) {
+                Write-Host "API is healthy"
+                docker compose -p $env:COMPOSE_PROJECT_NAME -f $env:COMPOSE_FILE ps
+                exit 0
+              }
+            } catch {
+              Write-Host "Waiting for API... ($retry/$maxRetries)"
+            }
+            Start-Sleep -Seconds 10
+          }
 
-            RETRY_COUNT=$((RETRY_COUNT + 1))
-            echo "Waiting for API... ($RETRY_COUNT/$MAX_RETRIES)"
-            sleep 10
-          done
-
-          echo "API health check failed after $MAX_RETRIES attempts"
-          docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" logs --tail=200 "$API_SERVICE"
+          Write-Host "API health check failed after $maxRetries attempts"
+          docker compose -p $env:COMPOSE_PROJECT_NAME -f $env:COMPOSE_FILE logs --tail=200 $env:API_SERVICE
           exit 1
 
       - name: Ensure tunnel is running
+        shell: powershell
         run: |
-          docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" up -d cloudflared
+          docker compose -p $env:COMPOSE_PROJECT_NAME -f $env:COMPOSE_FILE up -d cloudflared
 
       - name: Roll back API on failure
         if: failure() && steps.current-image.outputs.image != ''
         env:
           PREVIOUS_IMAGE: ${{ steps.current-image.outputs.image }}
+        shell: powershell
         run: |
-          echo "Rolling back API to $PREVIOUS_IMAGE"
-          PREVIOUS_TAG="${PREVIOUS_IMAGE##*:}"
-          if [ -z "$PREVIOUS_TAG" ] || [ "$PREVIOUS_TAG" = "$PREVIOUS_IMAGE" ]; then
-            echo "Cannot determine previous image tag from $PREVIOUS_IMAGE"
-            exit 1
+          Write-Host "Rolling back API to $env:PREVIOUS_IMAGE"
+          $previousTag = ($env:PREVIOUS_IMAGE -split ":")[-1]
+          if ([string]::IsNullOrWhiteSpace($previousTag) -or $previousTag -eq $env:PREVIOUS_IMAGE) {
+            throw "Cannot determine previous image tag from $env:PREVIOUS_IMAGE"
           fi
 
-          echo "IMAGE_TAG=$PREVIOUS_TAG" >> "$GITHUB_ENV"
-          IMAGE_TAG="$PREVIOUS_TAG" docker compose -p "$COMPOSE_PROJECT_NAME" -f "$COMPOSE_FILE" up -d --no-deps "$API_SERVICE"
+          "IMAGE_TAG=$previousTag" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          $env:IMAGE_TAG = $previousTag
+          docker compose -p $env:COMPOSE_PROJECT_NAME -f $env:COMPOSE_FILE up -d --no-deps $env:API_SERVICE
 
       - name: Cleanup dangling images
         if: always()
@@ -209,9 +227,10 @@ jobs:
 
       - name: Deployment result
         if: always()
+        shell: powershell
         run: |
-          if [ "${{ job.status }}" = "success" ]; then
-            echo "Production deployment successful: $REGISTRY/$API_SERVICE:$IMAGE_TAG"
-          else
-            echo "Production deployment failed"
+          if ("${{ job.status }}" -eq "success") {
+            Write-Host "Production deployment successful: $env:REGISTRY/$env:API_SERVICE`:$env:IMAGE_TAG"
+          } else {
+            Write-Host "Production deployment failed"
           fi
