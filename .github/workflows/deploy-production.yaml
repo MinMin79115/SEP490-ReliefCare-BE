@@ -150,8 +150,12 @@ jobs:
         id: current-image
         shell: powershell
         run: |
-          $currentImage = docker inspect $env:API_CONTAINER --format='{{.Config.Image}}' 2>$null
-          if ($LASTEXITCODE -ne 0) { $currentImage = "" }
+          $containerExists = docker ps -a --format '{{.Names}}' | Where-Object { $_ -eq $env:API_CONTAINER }
+          if ($containerExists) {
+            $currentImage = docker inspect $env:API_CONTAINER --format='{{.Config.Image}}'
+          } else {
+            $currentImage = ""
+          }
           "image=$currentImage" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
           if (-not [string]::IsNullOrWhiteSpace($currentImage)) {
             Write-Host "Current API image: $currentImage"
