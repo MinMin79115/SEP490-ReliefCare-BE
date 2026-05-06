@@ -79,8 +79,8 @@ jobs:
       PAYOS_RETURN_URL: ${{ secrets.PROD_PAYOS_RETURN }}
       PAYOS_CANCEL_URL: ${{ secrets.PROD_PAYOS_CANCEL }}
       PGADMIN_PASSWORD: ${{ secrets.PROD_PGADMIN_PASSWORD }}
-      CENTRIFUGO_API_KEY: ${{ secrets.PROD_CENTRIFUGO_API_KEY }}
-      CENTRIFUGO_SECRET: ${{ secrets.PROD_CENTRIFUGO_SECRET }}
+      CENTRIFUGO_API_KEY: ${{ secrets.STAGING_CENTRIFUGO_API_KEY }}
+      CENTRIFUGO_SECRET: ${{ secrets.STAGING_CENTRIFUGO_SECRET }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -229,8 +229,10 @@ jobs:
         if: always()
         shell: powershell
         run: |
-          if ("${{ job.status }}" -eq "success") {
-            Write-Host "Production deployment successful: $env:REGISTRY/$env:API_SERVICE`:$env:IMAGE_TAG"
+          $status = "${{ job.status }}"
+          if ($status -eq "success") {
+            $image = "{0}/{1}:{2}" -f $env:REGISTRY, $env:API_SERVICE, $env:IMAGE_TAG
+            Write-Host "Production deployment successful: $image"
           } else {
             Write-Host "Production deployment failed"
           fi
