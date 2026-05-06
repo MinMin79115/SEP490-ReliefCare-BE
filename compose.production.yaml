@@ -8,7 +8,7 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-postgres}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
     ports:
-      - "5432:5432"
+      - "15432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
@@ -24,7 +24,7 @@ services:
     container_name: reliefcare-centrifugo-prod
     restart: unless-stopped
     ports:
-      - "127.0.0.1:8000:8000"
+      - "127.0.0.1:18000:8000"
     volumes:
       - ./centrifugo/config.production.json:/centrifugo/config.json:ro
     command: centrifugo --config=/centrifugo/config.json
@@ -36,7 +36,7 @@ services:
     networks:
       - reliefcare-production
 
-  reliefcare-api:
+  reliefcare-api-production:
     image: ${REGISTRY:?REGISTRY is required}/reliefcare-api:${IMAGE_TAG:?IMAGE_TAG is required}
     container_name: reliefcare-api-prod
     restart: unless-stopped
@@ -108,7 +108,7 @@ services:
       Logging__LogLevel__Microsoft__AspNetCore: "Warning"
       Logging__LogLevel__Microsoft__EntityFrameworkCore: "Warning"
     ports:
-      - "8080:8080"
+      - "18080:8080"
     healthcheck:
       test: ["CMD-SHELL", "curl -fsSL http://localhost:8080/health || exit 1"]
       interval: 30s
@@ -145,7 +145,7 @@ services:
     environment:
       TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
     depends_on:
-      reliefcare-api:
+      reliefcare-api-production:
         condition: service_healthy
       centrifugo:
         condition: service_healthy
