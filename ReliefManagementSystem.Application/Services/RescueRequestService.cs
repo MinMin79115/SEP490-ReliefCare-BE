@@ -917,7 +917,8 @@ namespace ReliefManagementSystem.Application.Services
                 : normalNearRouteThresholdKm;
 
             var thresholdMeters = threshold * 1000d;
-            const int backtrackDetourThresholdMeters = 300;
+            const int backtrackDetourThresholdMeters = 1000;
+            const int backtrackDetourThresholdSeconds = 180;
 
             var usedGoongNearRouteMetric = false;
             var usedGoongDetourMetric = false;
@@ -932,6 +933,30 @@ namespace ReliefManagementSystem.Application.Services
                         currentInProgress.RescueRequest.Latitude,
                         currentInProgress.RescueRequest.Longitude,
                         cancellationToken: cancellationToken);
+
+                    var routeToRequest = await _goongRouteService.GetRouteAsync(
+                        latestTracking.Latitude,
+                        latestTracking.Longitude,
+                        request.Latitude,
+                        request.Longitude,
+                        cancellationToken: cancellationToken);
+
+                    if (routeToRequest?.DistanceMeters.HasValue == true)
+                    {
+                        preview.DistanceFromTeamKm = Math.Round(routeToRequest.DistanceMeters.Value / 1000d, 2);
+                    }
+
+                    var routeRequestToCurrent = await _goongRouteService.GetRouteAsync(
+                        request.Latitude,
+                        request.Longitude,
+                        currentInProgress.RescueRequest.Latitude,
+                        currentInProgress.RescueRequest.Longitude,
+                        cancellationToken: cancellationToken);
+
+                    if (routeRequestToCurrent?.DistanceMeters.HasValue == true)
+                    {
+                        preview.DistanceToCurrentInProgressKm = Math.Round(routeRequestToCurrent.DistanceMeters.Value / 1000d, 2);
+                    }
 
                     if (routeA != null && !string.IsNullOrWhiteSpace(routeA.OverviewPolyline))
                     {
@@ -952,31 +977,20 @@ namespace ReliefManagementSystem.Application.Services
                             usedGoongNearRouteMetric = true;
                         }
 
-                        var routeB = await _goongRouteService.GetRouteAsync(
-                            latestTracking.Latitude,
-                            latestTracking.Longitude,
-                            request.Latitude,
-                            request.Longitude,
-                            cancellationToken: cancellationToken);
-
-                        var routeC = await _goongRouteService.GetRouteAsync(
-                            request.Latitude,
-                            request.Longitude,
-                            currentInProgress.RescueRequest.Latitude,
-                            currentInProgress.RescueRequest.Longitude,
-                            cancellationToken: cancellationToken);
-
-                        if (routeA.DistanceMeters.HasValue && routeB?.DistanceMeters.HasValue == true && routeC?.DistanceMeters.HasValue == true)
+                        if (routeA.DistanceMeters.HasValue && routeToRequest?.DistanceMeters.HasValue == true && routeRequestToCurrent?.DistanceMeters.HasValue == true)
                         {
-                            preview.DetourMeters = Math.Max(0, routeB.DistanceMeters.Value + routeC.DistanceMeters.Value - routeA.DistanceMeters.Value);
-                            preview.RequiresBacktrack = preview.DetourMeters.Value > backtrackDetourThresholdMeters;
+                            preview.DetourMeters = Math.Max(0, routeToRequest.DistanceMeters.Value + routeRequestToCurrent.DistanceMeters.Value - routeA.DistanceMeters.Value);
                             usedGoongDetourMetric = true;
                         }
 
-                        if (routeA.DurationSeconds.HasValue && routeB?.DurationSeconds.HasValue == true && routeC?.DurationSeconds.HasValue == true)
+                        if (routeA.DurationSeconds.HasValue && routeToRequest?.DurationSeconds.HasValue == true && routeRequestToCurrent?.DurationSeconds.HasValue == true)
                         {
-                            preview.DetourSeconds = Math.Max(0, routeB.DurationSeconds.Value + routeC.DurationSeconds.Value - routeA.DurationSeconds.Value);
+                            preview.DetourSeconds = Math.Max(0, routeToRequest.DurationSeconds.Value + routeRequestToCurrent.DurationSeconds.Value - routeA.DurationSeconds.Value);
                         }
+
+                        preview.RequiresBacktrack =
+                            (preview.DetourMeters.HasValue && preview.DetourMeters.Value > backtrackDetourThresholdMeters) ||
+                            (preview.DetourSeconds.HasValue && preview.DetourSeconds.Value > backtrackDetourThresholdSeconds);
                     }
                 }
                 catch (Exception) when (!cancellationToken.IsCancellationRequested)
