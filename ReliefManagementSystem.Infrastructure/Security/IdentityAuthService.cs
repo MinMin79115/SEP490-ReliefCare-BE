@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authentication.Google;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.WebUtilities;
+using Microsoft.Extensions.Caching.Distributed;
 using ReliefManagementSystem.Application.Common.Exceptions;
 using ReliefManagementSystem.Application.Common.Exceptions.Auth;
 using ReliefManagementSystem.Application.Common.Interface;
@@ -14,6 +15,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Security.Claims;
 using System.Text;
+using System.Globalization;
 using System.Threading.Tasks;
 
 namespace ReliefManagementSystem.Infrastructure.Security
@@ -25,19 +27,24 @@ namespace ReliefManagementSystem.Infrastructure.Security
         private readonly ICurrentUserService _currentUserService;
         private readonly IEmailService _emailService;
         private readonly IUnitOfWork _unitOfWork;
+        private readonly IDistributedCache _distributedCache;
+
+        private static readonly TimeSpan OtpCacheTtl = TimeSpan.FromMinutes(10);
 
         public IdentityAuthService(
             UserManager<ApplicationUser> userManager,
             SignInManager<ApplicationUser> signInManager,
             ICurrentUserService currentUserService,
             IEmailService emailService,
-            IUnitOfWork unitOfWork)
+            IUnitOfWork unitOfWork,
+            IDistributedCache distributedCache)
         {
             _userManager = userManager;
             _signInManager = signInManager;
             _currentUserService = currentUserService;
             _emailService = emailService;
             _unitOfWork = unitOfWork;
+            _distributedCache = distributedCache;
         }
 
         public async Task<ApplicationUser> RegisterAsync(
@@ -115,6 +122,12 @@ namespace ReliefManagementSystem.Infrastructure.Security
             if (user.EmailConfirmed)
                 return;
 
+            var cachedCodeHash = await GetCachedOtpHashAsync(user.Id, OtpPurpose.EmailVerification, cancellationToken);
+            if (cachedCodeHash != null && !VerifyOtpHash(code, cachedCodeHash))
+            {
+                throw new ValidationException(new Dictionary<string, string[]> { { "Code", new[] { "OTP không đúng." } } });
+            }
+
             var otp = await _unitOfWork.EmailOtps.GetLatestValidAsync(user.Id, OtpPurpose.EmailVerification, cancellationToken);
             if (otp == null)
                 throw new ValidationException(new Dictionary<string, string[]> { { "Code", new[] { "OTP không tồn tại hoặc đã hết hạn." } } });
@@ -133,6 +146,7 @@ namespace ReliefManagementSystem.Infrastructure.Security
             otp.ConsumedAt = DateTime.UtcNow;
             await _unitOfWork.EmailOtps.UpdateAsync(otp);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await RemoveCachedOtpHashAsync(user.Id, OtpPurpose.EmailVerification, cancellationToken);
         }
 
         public async Task ResendEmailOtpAsync(string email, CancellationToken cancellationToken)
@@ -166,6 +180,12 @@ namespace ReliefManagementSystem.Infrastructure.Security
             if (user == null)
                 throw new InvalidCredentialsException();
 
+            var cachedCodeHash = await GetCachedOtpHashAsync(user.Id, OtpPurpose.PasswordReset, cancellationToken);
+            if (cachedCodeHash != null && !VerifyOtpHash(otpCode, cachedCodeHash))
+            {
+                throw new ValidationException(new Dictionary<string, string[]> { { "Code", new[] { "OTP không đúng." } } });
+            }
+
             var otp = await _unitOfWork.EmailOtps.GetLatestValidAsync(user.Id, OtpPurpose.PasswordReset, cancellationToken);
             if (otp == null)
                 throw new ValidationException(new Dictionary<string, string[]> { { "Code", new[] { "OTP không tồn tại hoặc đã hết hạn." } } });
@@ -176,6 +196,7 @@ namespace ReliefManagementSystem.Infrastructure.Security
             otp.ConsumedAt = DateTime.UtcNow;
             await _unitOfWork.EmailOtps.UpdateAsync(otp);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await RemoveCachedOtpHashAsync(user.Id, OtpPurpose.PasswordReset, cancellationToken);
 
             var internalToken = await _userManager.GeneratePasswordResetTokenAsync(user);
             var tokenBytes = Encoding.UTF8.GetBytes(internalToken);
@@ -388,6 +409,7 @@ namespace ReliefManagementSystem.Infrastructure.Security
         private async Task<string> CreateOtpAsync(ApplicationUser user, OtpPurpose purpose, CancellationToken cancellationToken)
         {
             await _unitOfWork.EmailOtps.InvalidateAllActiveAsync(user.Id, purpose, cancellationToken);
+            await RemoveCachedOtpHashAsync(user.Id, purpose, cancellationToken);
 
             var code = Random.Shared.Next(100000, 1000000).ToString();
             var now = DateTime.UtcNow;
@@ -404,8 +426,42 @@ namespace ReliefManagementSystem.Infrastructure.Security
 
             await _unitOfWork.EmailOtps.AddAsync(otp);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+            await CacheOtpHashAsync(user.Id, purpose, otp.CodeHash, otp.ExpiresAt, cancellationToken);
 
             return code;
+        }
+
+        private string GetOtpCacheKey(Guid userId, OtpPurpose purpose)
+        {
+            return $"reliefcare:otp:{purpose}:{userId:N}";
+        }
+
+        private async Task<string?> GetCachedOtpHashAsync(Guid userId, OtpPurpose purpose, CancellationToken cancellationToken)
+        {
+            return await _distributedCache.GetStringAsync(GetOtpCacheKey(userId, purpose), cancellationToken);
+        }
+
+        private async Task CacheOtpHashAsync(Guid userId, OtpPurpose purpose, string codeHash, DateTime expiresAtUtc, CancellationToken cancellationToken)
+        {
+            var ttl = expiresAtUtc - DateTime.UtcNow;
+            if (ttl <= TimeSpan.Zero)
+            {
+                ttl = OtpCacheTtl;
+            }
+
+            await _distributedCache.SetStringAsync(
+                GetOtpCacheKey(userId, purpose),
+                codeHash,
+                new DistributedCacheEntryOptions
+                {
+                    AbsoluteExpirationRelativeToNow = ttl
+                },
+                cancellationToken);
+        }
+
+        private Task RemoveCachedOtpHashAsync(Guid userId, OtpPurpose purpose, CancellationToken cancellationToken)
+        {
+            return _distributedCache.RemoveAsync(GetOtpCacheKey(userId, purpose), cancellationToken);
         }
 
         private static string HashOtp(string code)

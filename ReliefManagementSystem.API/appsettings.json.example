@@ -6,7 +6,8 @@
     }
   },
   "ConnectionStrings": {
-    "Default": "Host=localhost;Port=5432;Database=relief_db;Username=postgres;Password=YOUR_PASSWORD_HERE"
+    "Default": "Host=localhost;Port=5432;Database=relief_db;Username=postgres;Password=YOUR_PASSWORD_HERE",
+    "Redis": "localhost:6379,abortConnect=false"
   },
   "Jwt": {
     "Key": "YOUR_SECRET_KEY_HERE_AT_LEAST_32_CHARACTERS",
