@@ -78,6 +78,19 @@ builder.Services.AddRateLimiter(options =>
     });
 });
 builder.Services.AddHealthChecks();
+var redisConnection = builder.Configuration.GetConnectionString("Redis");
+if (!string.IsNullOrWhiteSpace(redisConnection))
+{
+    builder.Services.AddStackExchangeRedisCache(options =>
+    {
+        options.Configuration = redisConnection;
+        options.InstanceName = "ReliefCare:";
+    });
+}
+else
+{
+    builder.Services.AddDistributedMemoryCache();
+}
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(c =>
 {

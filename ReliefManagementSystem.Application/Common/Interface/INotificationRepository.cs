@@ -14,5 +14,6 @@ namespace ReliefManagementSystem.Application.Common.Interface
         Task<int> GetUnreadCountAsync(Guid userId, CancellationToken cancellationToken = default);
         Task<Notification?> GetByIdForRecipientAsync(Guid notificationId, Guid recipientId, CancellationToken cancellationToken = default);
         Task<int> MarkAllAsReadAsync(Guid userId, DateTime readAtUtc, CancellationToken cancellationToken = default);
+        Task InvalidateUnreadCountCacheAsync(Guid userId, CancellationToken cancellationToken = default);
     }
 }

@@ -19,6 +19,19 @@ services:
     networks:
       - reliefcare-production
 
+  redis:
+    image: redis:7-alpine
+    container_name: reliefcare-redis-prod
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - reliefcare-production
+
   centrifugo:
     image: centrifugo/centrifugo:v6
     container_name: reliefcare-centrifugo-prod
@@ -46,10 +59,13 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
       centrifugo:
         condition: service_healthy
     environment:
       ConnectionStrings__Default: "Host=postgres;Port=5432;Database=${POSTGRES_DB:-relief_db};Username=${POSTGRES_USER:-postgres};Password=${POSTGRES_PASSWORD}"
+      ConnectionStrings__Redis: "redis:6379,abortConnect=false"
       Jwt__Key: ${JWT_KEY}
       Jwt__Issuer: "ReliefSystem"
       Jwt__Audience: "ReliefClient"

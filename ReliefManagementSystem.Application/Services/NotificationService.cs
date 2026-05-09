@@ -35,6 +35,7 @@ namespace ReliefManagementSystem.Application.Services
         {
             var notification = BuildNotification(recipientId, type, title, message, referenceId, referenceType, metadataJson);
             await _unitOfWork.Notifications.AddAsync(notification);
+            await _unitOfWork.Notifications.InvalidateUnreadCountCacheAsync(recipientId, cancellationToken);
         }
 
         public async Task<Notification> CreateAndPushAsync(
@@ -84,6 +85,7 @@ namespace ReliefManagementSystem.Application.Services
             foreach (var notification in notifications)
             {
                 await PushAsync(notification);
+                await _unitOfWork.Notifications.InvalidateUnreadCountCacheAsync(notification.RecipientId, cancellationToken);
             }
 
             return notifications;
@@ -145,6 +147,7 @@ namespace ReliefManagementSystem.Application.Services
                 notification.ReadAt = DateTime.UtcNow;
                 await _unitOfWork.Notifications.UpdateAsync(notification);
                 await _unitOfWork.SaveChangesAsync(cancellationToken);
+                await _unitOfWork.Notifications.InvalidateUnreadCountCacheAsync(userId, cancellationToken);
             }
 
             return new MarkReadResponseDto

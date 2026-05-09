@@ -3,6 +3,7 @@ using ReliefManagementSystem.Domain.Entities;
 using ReliefManagementSystem.Infrastructure.Data;
 using ReliefManagementSystem.Infrastructure.Repositories;
 using Microsoft.EntityFrameworkCore.Storage;
+using Microsoft.Extensions.Caching.Distributed;
 using System.Data;
 using System;
 using System.Collections.Generic;
@@ -107,7 +108,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
         public IGenericRepository<DisasterAnalysisLog> DisasterAnalysisLogs { get; }
 
         // Constructor
-        public UnitOfWork(ApplicationDbContext context)
+        public UnitOfWork(ApplicationDbContext context, IDistributedCache cache)
         {
             _context = context;
             Users = new UserRepository(_context);
@@ -167,7 +168,7 @@ namespace ReliefManagementSystem.Infrastructure.Persistence
             PriorityCriterias = new PriorityCriteriaRepository(_context);
             RescueRequestPriorities = new RescueRequestPriorityRepository(_context);
             RescueOperations = new RescueOperationRepository(_context);
-            Notifications = new NotificationRepository(_context);
+            Notifications = new NotificationRepository(_context, cache);
             Attachments = new AttachmentRepository(_context);
             AuditLogs = new GenericRepository<AuditLog>(_context);
             RequestVerifications = new GenericRepository<RequestVerification>(_context);
